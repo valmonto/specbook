@@ -8,6 +8,10 @@ Built from [valmatic](https://github.com/valmonto/valmatic) (multi-tenant
 NestJS + Fastify API, React web, BullMQ worker, Expo mobile — one pnpm
 monorepo, one shared contract), and everything below is inherited from it.
 
+**Status:** deployed at `specbook.valmonto.com` — MVP (tickets, statuses,
+screenshot uploads, agent MCP tools) in progress. Registration is closed;
+this is a single-operator tool for now.
+
 ## What you get
 
 - **Organizations as tenants** — every query scoped to the active org, proven
