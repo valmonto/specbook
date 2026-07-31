@@ -24,6 +24,7 @@ import {
   Smartphone,
   FolderKanban,
   KeyRound,
+  Inbox,
 } from 'lucide-react';
 
 // Specbook keeps a deliberately small sidebar: the work surface (Projects),
@@ -35,6 +36,7 @@ const navGroups = [
   {
     labelKey: k.common.nav.management,
     items: [
+      { titleKey: k.tasks.dashboard.title, url: '/', icon: Inbox },
       { titleKey: k.tasks.projects, url: '/projects', icon: FolderKanban },
       { titleKey: k.common.nav.settings, url: '/settings', icon: Settings },
     ],
