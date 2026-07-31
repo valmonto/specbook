@@ -63,7 +63,6 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
       onOpenChange={onOpenChange}
       icon={<ListChecks />}
       title={t(k.tasks.newTask)}
-      className="h-auto w-full max-w-[calc(100%-2rem)] sm:max-w-2xl"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={create.isLoading}>
@@ -75,7 +74,7 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
         </>
       }
     >
-      <div className="grid gap-4">
+      <div className="mx-auto grid max-w-2xl gap-4">
         <div className="grid gap-2">
           <Label htmlFor="task-title">{t(k.tasks.taskTitle)}</Label>
           <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} />

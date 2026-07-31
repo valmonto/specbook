@@ -63,7 +63,6 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
       onOpenChange={onOpenChange}
       icon={<FolderKanban />}
       title={t(project ? k.tasks.editProject : k.tasks.newProject)}
-      className="h-auto w-full max-w-[calc(100%-2rem)] sm:max-w-2xl"
       footer={
         <>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
@@ -75,7 +74,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
         </>
       }
     >
-      <div className="grid gap-4">
+      <div className="mx-auto grid max-w-2xl gap-4">
         <div className="grid gap-2">
           <Label htmlFor="project-name">{t(k.tasks.projectName)}</Label>
           <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
