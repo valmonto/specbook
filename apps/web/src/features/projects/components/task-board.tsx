@@ -30,9 +30,11 @@ function TaskCard({ task, onSelect }: { task: Task; onSelect: () => void }) {
     <button
       type="button"
       onClick={onSelect}
-      className="w-full rounded-lg border bg-card p-3 text-left shadow-xs transition-colors hover:bg-muted/50"
+      className="w-full overflow-hidden rounded-lg border bg-card p-3 text-left shadow-xs transition-colors hover:bg-muted/50"
     >
-      <p className="mb-2 text-sm leading-snug font-medium">{task.title}</p>
+      {/* break-words + clamp: an unbroken token (a pasted key, a long URL)
+          must wrap inside the card, and a monster title must not balloon it. */}
+      <p className="mb-2 line-clamp-3 text-sm leading-snug font-medium break-words">{task.title}</p>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {total > 0 && (
           <span className="inline-flex items-center gap-1">
