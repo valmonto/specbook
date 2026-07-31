@@ -32,6 +32,7 @@ import {
 } from '@pkg/contracts';
 import type { NewTask, Task, TaskComment } from '@pkg/database';
 import { k } from '@pkg/locales';
+import { NotificationService } from '../notifications/notification.service';
 import { ProjectRepository } from './project.repository';
 import { TaskRepository } from './task.repository';
 
@@ -49,6 +50,7 @@ export class TaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
     private readonly projectRepository: ProjectRepository,
+    private readonly notificationService: NotificationService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -203,6 +205,34 @@ export class TaskService {
     }
 
     this.logger.info({ taskId: dto.id, from, to: dto.to, actor }, 'Task transitioned');
+
+    // The loop's throughput is bounded by how fast the human notices their
+    // move — light the bell when a task enters the human court. Best-effort:
+    // a notification failure must never fail the transition.
+    if (dto.to === 'blocked' || dto.to === 'needs_review') {
+      try {
+        const members = await this.taskRepository.findOrgMemberIds(activeUser.orgId);
+        const title =
+          dto.to === 'blocked' ? `Question: ${updated.title}` : `Review: ${updated.title}`;
+        const message = dto.to === 'blocked' ? comment! : (comment ?? null);
+        await Promise.all(
+          members
+            .filter((memberId) => memberId !== activeUser.userId)
+            .map((memberId) =>
+              this.notificationService.create({
+                userId: memberId,
+                orgId: activeUser.orgId,
+                type: dto.to === 'blocked' ? 'warning' : 'info',
+                title,
+                message: message ?? undefined,
+                data: { taskId: dto.id, projectId: updated.projectId, to: dto.to },
+              }),
+            ),
+        );
+      } catch (error) {
+        this.logger.warn({ taskId: dto.id, error }, 'Court notification failed');
+      }
+    }
 
     return this.serialize(updated);
   }

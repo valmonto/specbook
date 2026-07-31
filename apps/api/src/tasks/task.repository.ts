@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   DATABASE_CLIENT,
   type DatabaseClient,
+  organizationUser,
   project,
   task,
   taskComment,
@@ -205,6 +206,15 @@ export class TaskRepository {
       .select({ id: task.id, title: task.title, status: task.status })
       .from(task)
       .where(inArray(task.id, ids));
+  }
+
+  /** Member ids of an org — recipients for court-transition notifications. */
+  async findOrgMemberIds(orgId: string): Promise<string[]> {
+    const rows = await this.dbClient.db
+      .select({ userId: organizationUser.userId })
+      .from(organizationUser)
+      .where(eq(organizationUser.orgId, orgId));
+    return rows.map((r) => r.userId);
   }
 
   /** All edges within one project — small enough to walk in memory for cycle checks. */
