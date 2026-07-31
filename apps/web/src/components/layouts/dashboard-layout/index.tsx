@@ -16,34 +16,26 @@ import { UserActionsDropdown } from './user-actions-dropdown';
 import { useSystemRole } from '@/shared/hooks/use-permissions';
 import { Link, useLocation } from 'react-router';
 import {
-  BarChart3,
   Building2,
-  LayoutDashboard,
   Settings,
   ShieldCheck,
-  Users,
   Hexagon,
-  ListTodo,
   Blocks,
   Smartphone,
   FolderKanban,
   KeyRound,
 } from 'lucide-react';
 
+// Specbook keeps a deliberately small sidebar: the work surface (Projects),
+// Settings, the Developer references, and the Platform group for admins.
+// Template leftovers (Dashboard/Analytics demo pages, Users, Jobs) are not
+// part of the product and were removed — the routes still exist, only the
+// navigation stopped advertising them.
 const navGroups = [
-  {
-    labelKey: k.common.nav.overview,
-    items: [
-      { titleKey: k.common.nav.dashboard, url: '/', icon: LayoutDashboard },
-      { titleKey: k.common.nav.analytics, url: '/analytics', icon: BarChart3 },
-    ],
-  },
   {
     labelKey: k.common.nav.management,
     items: [
       { titleKey: k.tasks.projects, url: '/projects', icon: FolderKanban },
-      { titleKey: k.users.users, url: '/users', icon: Users },
-      { titleKey: k.jobs.jobs, url: '/jobs', icon: ListTodo },
       { titleKey: k.common.nav.settings, url: '/settings', icon: Settings },
     ],
   },
