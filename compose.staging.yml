@@ -75,9 +75,9 @@ services:
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
     # Host-port range so up to 5 replicas each bind a distinct loopback port
-    # (3011..3015); point your host proxy's upstreams at this range.
+    # (3021..3025); point your host proxy's upstreams at this range.
     ports:
-      - '127.0.0.1:3011-3015:3000'
+      - '127.0.0.1:3021-3025:3000'
     networks:
       - staging_network
     # Without this, `docker compose up --wait` only waits for the container to
@@ -115,7 +115,7 @@ services:
     environment:
       NODE_ENV: production
     ports:
-      - '127.0.0.1:3010:3000'
+      - '127.0.0.1:3020:3000'
     networks:
       - staging_network
     depends_on:
