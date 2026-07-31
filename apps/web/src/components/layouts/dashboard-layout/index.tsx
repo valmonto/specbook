@@ -26,6 +26,7 @@ import {
   ListTodo,
   Blocks,
   Smartphone,
+  FolderKanban,
 } from 'lucide-react';
 
 const navGroups = [
@@ -39,6 +40,7 @@ const navGroups = [
   {
     labelKey: k.common.nav.management,
     items: [
+      { titleKey: k.tasks.projects, url: '/projects', icon: FolderKanban },
       { titleKey: k.users.users, url: '/users', icon: Users },
       { titleKey: k.jobs.jobs, url: '/jobs', icon: ListTodo },
       { titleKey: k.common.nav.settings, url: '/settings', icon: Settings },

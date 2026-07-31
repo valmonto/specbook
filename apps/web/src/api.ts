@@ -4,6 +4,7 @@ import { userResource } from '@/features/users';
 import { orgResource } from '@/features/org';
 import { jobsResource } from '@/features/jobs';
 import { notificationsResource } from '@/features/notifications';
+import { projectsResource } from '@/features/projects';
 
 export const api = {
   user: userResource(http),
@@ -11,4 +12,5 @@ export const api = {
   org: orgResource(http),
   jobs: jobsResource(http),
   notifications: notificationsResource(http),
+  projects: projectsResource(http),
 };

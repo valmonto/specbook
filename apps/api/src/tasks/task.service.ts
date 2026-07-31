@@ -192,11 +192,12 @@ export class TaskService {
     }
 
     if (comment) {
+      // Entering blocked = the question; leaving blocked = the answer.
       await this.taskRepository.createComment({
         taskId: dto.id,
         authorId: activeUser.userId,
         authorType: actor,
-        kind: dto.to === 'blocked' ? 'question' : 'comment',
+        kind: dto.to === 'blocked' ? 'question' : from === 'blocked' ? 'answer' : 'comment',
         body: comment,
       });
     }

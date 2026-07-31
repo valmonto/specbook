@@ -39,6 +39,7 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
+  '/projects': 'Projects',
   '/users': 'Users',
   '/jobs': 'Jobs',
   '/notifications': 'Notifications',
@@ -67,7 +68,11 @@ export default function AppLayout() {
     return <Navigate to="/auth/login" replace />;
   }
 
-  const pageTitle = pageTitles[location.pathname] || 'Page';
+  // Exact match first; nested detail routes fall back to their section title.
+  const pageTitle =
+    pageTitles[location.pathname] ??
+    Object.entries(pageTitles).find(([p]) => p !== '/' && location.pathname.startsWith(p))?.[1] ??
+    'Page';
 
   return (
     <SidebarProvider>
