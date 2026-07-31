@@ -9,8 +9,10 @@
   --card-foreground: oklch(0.205 0.006 277);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.205 0.006 277);
-  --primary: oklch(0.535 0.15 277);
-  --primary-foreground: oklch(0.99 0.003 277);
+  /* Blueprint blue (#1D4ED8): the one non-semantic color — status hues stay
+     the only other color on screen, so color always answers "whose move". */
+  --primary: oklch(0.488 0.217 262);
+  --primary-foreground: oklch(0.99 0.003 262);
   --secondary: oklch(0.971 0.003 277);
   --secondary-foreground: oklch(0.255 0.008 277);
   --muted: oklch(0.972 0.003 277);
@@ -20,8 +22,8 @@
   --destructive: oklch(0.585 0.21 25.5);
   --border: oklch(0.916 0.004 277);
   --input: oklch(0.916 0.004 277);
-  --ring: oklch(0.535 0.15 277);
-  --chart-1: oklch(0.535 0.15 277);
+  --ring: oklch(0.488 0.217 262);
+  --chart-1: oklch(0.488 0.217 262);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.646 0.222 41.116);
   --chart-4: oklch(0.7 0.16 145);
@@ -45,8 +47,11 @@
   --card-foreground: oklch(0.93 0.004 277);
   --popover: oklch(0.196 0.008 277);
   --popover-foreground: oklch(0.93 0.004 277);
-  --primary: oklch(0.565 0.145 277);
-  --primary-foreground: oklch(0.985 0.003 277);
+  /* Blueprint blue, dark: #3B82F6. Foreground is deep navy, not white — the
+     same token colors link text on the dark canvas AND button fills, and only
+     a mid blue passes WCAG AA for both; white text on it would not. */
+  --primary: oklch(0.623 0.188 260);
+  --primary-foreground: oklch(0.155 0.045 262);
   --secondary: oklch(0.214 0.008 277);
   --secondary-foreground: oklch(0.93 0.004 277);
   --muted: oklch(0.214 0.008 277);
@@ -56,8 +61,8 @@
   --destructive: oklch(0.625 0.21 23);
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.565 0.145 277);
-  --chart-1: oklch(0.585 0.155 277);
+  --ring: oklch(0.623 0.188 260);
+  --chart-1: oklch(0.645 0.17 260);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.2 304);
