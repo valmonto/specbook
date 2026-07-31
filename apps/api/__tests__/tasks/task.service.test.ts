@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskService } from '@/tasks/task.service';
 import type { TaskRepository } from '@/tasks/task.repository';
 import type { ProjectRepository } from '@/tasks/project.repository';
+import type { NotificationService } from '@/notifications/notification.service';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -47,6 +48,7 @@ describe('TaskService — the status protocol', () => {
   let service: TaskService;
   let repo: Record<string, ReturnType<typeof vi.fn>>;
   let projectRepo: Record<string, ReturnType<typeof vi.fn>>;
+  let notifications: Record<string, ReturnType<typeof vi.fn>>;
 
   // Wider than Partial<typeof baseTask>: the literal's fields infer as their
   // initial values' types (context: string, claimedBy: null), which rejects
@@ -72,13 +74,16 @@ describe('TaskService — the status protocol', () => {
       findDependencyInfo: vi.fn().mockResolvedValue([]),
       findDependentInfo: vi.fn().mockResolvedValue([]),
       findProjectDependencyEdges: vi.fn().mockResolvedValue([]),
+      findOrgMemberIds: vi.fn().mockResolvedValue([USER, AGENT]),
     };
     projectRepo = {
       findById: vi.fn().mockResolvedValue({ id: PROJECT, orgId: ORG }),
     };
+    notifications = { create: vi.fn().mockResolvedValue(undefined) };
     service = new TaskService(
       repo as unknown as TaskRepository,
       projectRepo as unknown as ProjectRepository,
+      notifications as unknown as NotificationService,
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -266,6 +271,57 @@ describe('TaskService — the status protocol', () => {
   it('reports an out-of-scope task as not found', async () => {
     repo.findById!.mockResolvedValue(null);
     await expect(service.getById(human, TASK)).rejects.toThrow(NotFoundException);
+  });
+
+  // --- Court notifications: the bell lights up when it's the human's move ---
+
+  it('notifies org members (except the actor) when a task becomes blocked', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress' }));
+    await service.transition(agent, 'agent', { id: TASK, to: 'blocked', comment: 'which db?' });
+
+    expect(notifications.create).toHaveBeenCalledTimes(1);
+    expect(notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER,
+        orgId: ORG,
+        type: 'warning',
+        message: 'which db?',
+      }),
+    );
+  });
+
+  it('notifies on needs_review with a link to the task in data', async () => {
+    repo.findById!.mockResolvedValue(
+      taskInState({ status: 'in_progress', branch: 'feat/x', prUrl: 'https://pr' }),
+    );
+    await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+    expect(notifications.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER,
+        type: 'info',
+        data: expect.objectContaining({ taskId: TASK, to: 'needs_review' }),
+      }),
+    );
+  });
+
+  it('does not notify on transitions outside the human court', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'ready' }));
+    await service.transition(agent, 'agent', { id: TASK, to: 'in_progress' });
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
+  // A dead notification pipe must never block the protocol itself.
+  it('still transitions when notification creation fails', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress' }));
+    notifications.create!.mockRejectedValue(new Error('smtp down'));
+
+    const result = await service.transition(agent, 'agent', {
+      id: TASK,
+      to: 'blocked',
+      comment: 'q?',
+    });
+    expect(result.status).toBe('blocked');
   });
 
   it('turns criteria strings into unchecked checklist items on create', async () => {

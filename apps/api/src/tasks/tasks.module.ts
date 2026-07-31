@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { NotificationModule } from '../notifications';
 import { ProjectController } from './project.controller';
 import { ProjectRepository } from './project.repository';
 import { ProjectService } from './project.service';
@@ -7,6 +8,7 @@ import { TaskRepository } from './task.repository';
 import { TaskService } from './task.service';
 
 @Module({
+  imports: [NotificationModule],
   controllers: [ProjectController, TaskController],
   providers: [ProjectService, ProjectRepository, TaskService, TaskRepository],
   // Exported for the MCP module: tools wrap the same services with actor 'agent'.
