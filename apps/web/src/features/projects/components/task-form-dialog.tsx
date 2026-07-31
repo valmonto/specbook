@@ -60,6 +60,26 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
 
   const setCriterion = (i: number, value: string) =>
     setCriteria((prev) => prev.map((c, idx) => (idx === i ? value : c)));
+
+  // A multi-line paste is a list, not one criterion: split on newlines and
+  // insert one row per non-empty line at the paste position. Single-line
+  // pastes fall through to the input's default behavior untouched.
+  const pasteCriteria = (i: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text');
+    if (!text.includes('\n')) return;
+    e.preventDefault();
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    setCriteria((prev) => {
+      const next = [...prev];
+      const target = next[i]?.trim();
+      next.splice(i, 1, ...(target ? [target, ...lines] : lines));
+      return next;
+    });
+  };
   const removeCriterion = (i: number) =>
     setCriteria((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
 
@@ -172,6 +192,7 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
               <Input
                 value={c}
                 onChange={(e) => setCriterion(i, e.target.value)}
+                onPaste={(e) => pasteCriteria(i, e)}
                 placeholder={t(k.tasks.criterionPlaceholder)}
               />
               <Button
