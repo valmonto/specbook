@@ -77,8 +77,11 @@ services:
     # Single instance for now — one upstream for the host proxy. To scale:
     # widen to '127.0.0.1:3021-3025:3000' and run compose up --scale api=N
     # (the range gives each replica its own loopback port).
+    # Host ports are .env-configurable (WEB_HOST_PORT / API_HOST_PORT) —
+    # several valmatic-descended apps share one VM, each needs its own
+    # loopback ports, and the host proxy is the only public listener.
     ports:
-      - '127.0.0.1:3021:3000'
+      - '127.0.0.1:${API_HOST_PORT:-3021}:3000'
     networks:
       - staging_network
     # Without this, `docker compose up --wait` only waits for the container to
@@ -116,7 +119,7 @@ services:
     environment:
       NODE_ENV: production
     ports:
-      - '127.0.0.1:3020:3000'
+      - '127.0.0.1:${WEB_HOST_PORT:-3020}:3000'
     networks:
       - staging_network
     depends_on:
