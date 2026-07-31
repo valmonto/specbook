@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:18
     container_name: specbookdb
     environment:
       POSTGRES_USER: specbook
