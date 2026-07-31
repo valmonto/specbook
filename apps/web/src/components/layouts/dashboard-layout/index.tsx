@@ -27,6 +27,7 @@ import {
   Blocks,
   Smartphone,
   FolderKanban,
+  KeyRound,
 } from 'lucide-react';
 
 const navGroups = [
@@ -62,6 +63,7 @@ const platformGroup = {
   items: [
     { titleKey: k.admin.organizations, url: '/admin/orgs', icon: Building2 },
     { titleKey: k.admin.permissions, url: '/admin/permissions', icon: ShieldCheck },
+    { titleKey: k.admin.apiKeys.title, url: '/admin/api-keys', icon: KeyRound },
   ],
 };
 
