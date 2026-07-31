@@ -1,0 +1,212 @@
+import {
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { FeatureFlags, IAM_REDIS, IamService, SECURITY_CONFIG } from '@pkg/server';
+import { ConfigService } from '@nestjs/config';
+import { k } from '@pkg/locales';
+import {
+  type ActiveUser,
+  type ChangePasswordRequest,
+  type CurrentUserResponse,
+  CurrentUserResponseSchema,
+  getPermissionsForRole,
+  type LoginRequest,
+  type LoginResponse,
+  type RegisterRequest,
+  type RegisterResponse,
+} from '@pkg/contracts';
+import { InjectLogger, PinoLogger } from '@pkg/server';
+import { AuthRepository } from './auth.repository';
+import * as bcrypt from 'bcryptjs';
+import type Redis from 'ioredis';
+
+const { BCRYPT_ROUNDS, LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS } = SECURITY_CONFIG;
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly iamService: IamService,
+    private readonly authRepository: AuthRepository,
+    private readonly featureFlags: FeatureFlags,
+    private readonly configService: ConfigService,
+    @Inject(IAM_REDIS) private readonly redis: Redis,
+    @InjectLogger() private readonly logger: PinoLogger,
+  ) {}
+
+  async register(
+    dto: RegisterRequest,
+  ): Promise<{ response: RegisterResponse; accessToken: string; refreshToken: string }> {
+    // CLOSED by default. Most products gate account creation behind their own
+    // onboarding (billing, invites); accounts otherwise come from the seed or
+    // from org admins via user:create. The client hiding its register page is
+    // rendering, not enforcement — this is the enforcement.
+    if (!this.configService.get<boolean>('AUTH_REGISTRATION_ENABLED')) {
+      throw new ForbiddenException(k.auth.errors.registrationDisabled);
+    }
+
+    const existing = await this.authRepository.findUserByEmail(dto.email);
+    if (existing) {
+      // Generic message to prevent email enumeration
+      throw new BadRequestException(k.auth.errors.unableToCreateAccount);
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+
+    const { user, orgUser } = await this.authRepository.createUserWithOrganization({
+      email: dto.email,
+      name: dto.name,
+      passwordHash,
+      organizationName: dto.organizationName,
+    });
+
+    const activeUser: ActiveUser = {
+      orgId: orgUser.orgId,
+      userId: orgUser.userId,
+      orgRole: orgUser.role,
+      systemRole: user.systemRole,
+    };
+
+    const tokens = await this.iamService.auth.issueTokens(activeUser);
+
+    this.logger.debug({ userId: user.id, email: user.email }, 'User registered successfully');
+
+    return {
+      response: { user: { id: user.id, email: user.email, name: user.name } },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  private loginAttemptsKey(email: string): string {
+    return `iam:login-attempts:${email.toLowerCase()}`;
+  }
+
+  async login(
+    dto: LoginRequest,
+  ): Promise<{ response: LoginResponse; accessToken: string; refreshToken: string }> {
+    const user = await this.authRepository.findUserByEmail(dto.email);
+
+    // Only check lockout for existing users — no Redis writes for non-existent emails
+    if (user) {
+      const key = this.loginAttemptsKey(dto.email);
+      const attempts = await this.redis.get(key);
+
+      if (attempts && parseInt(attempts, 10) >= LOGIN_MAX_ATTEMPTS) {
+        this.logger.warn({ email: dto.email }, 'Login blocked — account temporarily locked');
+        throw new UnauthorizedException(k.auth.errors.tooManyAttempts);
+      }
+    }
+
+    if (!user) {
+      await bcrypt.compare(
+        dto.password,
+        '$2a$12$000000000000000000000000000000000000000000000000000000',
+      );
+      throw new UnauthorizedException(k.auth.errors.invalidEmailOrPassword);
+    }
+
+    const passwordMatch = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordMatch) {
+      // Increment failed attempts for this email
+      const key = this.loginAttemptsKey(dto.email);
+      const current = await this.redis.incr(key);
+      if (current === 1) {
+        await this.redis.expire(key, LOGIN_LOCKOUT_SECONDS);
+      }
+      this.logger.warn({ email: dto.email, attempts: current }, 'Failed login attempt');
+      throw new UnauthorizedException(k.auth.errors.invalidEmailOrPassword);
+    }
+
+    // Success — clear failed attempts
+    await this.redis.del(this.loginAttemptsKey(dto.email));
+
+    const orgAccess = await this.authRepository.findFirstOrgForUser(user.id);
+    if (!orgAccess) {
+      throw new UnauthorizedException(k.auth.errors.noOrgAccess);
+    }
+
+    const activeUser: ActiveUser = {
+      orgId: orgAccess.orgId,
+      userId: orgAccess.userId,
+      orgRole: orgAccess.role,
+      systemRole: user.systemRole,
+    };
+
+    const tokens = await this.iamService.auth.issueTokens(activeUser);
+
+    this.logger.debug({ userId: user.id, email: user.email }, 'User logged in successfully');
+
+    return {
+      response: { user: { id: user.id, email: user.email, name: user.name } },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  async refreshTokens(
+    refreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    return this.iamService.auth.refresh({ refreshToken });
+  }
+
+  async getMe(activeUser: ActiveUser): Promise<CurrentUserResponse> {
+    const userInfo = await this.authRepository.findUserWithOrg(activeUser.userId, activeUser.orgId);
+
+    if (!userInfo) {
+      throw new UnauthorizedException();
+    }
+
+    // Resolved here rather than by the client, so what a role can do is decided
+    // in one place and reaches every client on its next request.
+    //
+    // Permissions come from the organization role only. `systemRole` is sent so
+    // a client can show or hide a platform surface, and grants nothing on its
+    // own — SystemRolesGuard is what enforces it.
+    const { role, ...rest } = userInfo;
+
+    return CurrentUserResponseSchema.parse({
+      ...rest,
+      orgRole: role,
+      permissions: getPermissionsForRole(role),
+      // Resolved server-side like permissions, and for the same reason: every
+      // client gets the same answer on its next request, and none needs a flag
+      // SDK. Unconfigured analytics means every flag is off.
+      features: await this.featureFlags.resolveFeatures(activeUser),
+    });
+  }
+
+  async logoutAllDevices(userId: string): Promise<void> {
+    await this.iamService.auth.revokeAllForUser(userId);
+    this.logger.info({ userId }, 'All sessions revoked for user');
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordRequest): Promise<void> {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new UnauthorizedException(k.auth.errors.userNotFound);
+    }
+
+    const passwordMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!passwordMatch) {
+      throw new UnauthorizedException(k.auth.errors.currentPasswordIncorrect);
+    }
+
+    const samePassword = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (samePassword) {
+      throw new ConflictException(k.auth.errors.newPasswordMustDiffer);
+    }
+
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.authRepository.updatePassword(userId, newPasswordHash);
+
+    // Always logout all other sessions after password change
+    await this.iamService.auth.revokeAllForUser(userId);
+
+    this.logger.info({ userId }, 'Password changed and all sessions revoked');
+  }
+}

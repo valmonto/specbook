@@ -1,0 +1,20 @@
+NOTICES
+=======
+
+This project is built using the Valmonto Boilerplate (Valmatic).
+
+## Valmonto Boilerplate (Valmatic)
+
+Copyright (c) 2026 Valmonto, MB
+Licensed under the MIT License
+See: LICENSES/boilerplate-MIT.txt
+
+## Valmonto
+
+Copyright (c) 2026 Valmonto
+Licensed under the MIT License
+
+## Third-Party Dependencies
+
+See THIRD_PARTY_LICENSES.md for a complete list of third-party
+dependencies and their licenses.

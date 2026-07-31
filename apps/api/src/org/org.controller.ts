@@ -1,0 +1,96 @@
+import { Controller, Get, Patch, Post, Res } from '@nestjs/common';
+import { OrgService } from './org.service';
+import { ActiveUser, Permissions, ZodRequest, COOKIE_OPTIONS, COOKIE_TTL } from '@pkg/server';
+import {
+  CreateOrgRequest,
+  CreateOrgRequestSchema,
+  CreateOrgResponse,
+  GetOrgByIdRequest,
+  GetOrgByIdRequestSchema,
+  GetOrgByIdResponse,
+  ListOrgsRequest,
+  ListOrgsRequestSchema,
+  ListOrgsResponse,
+  UpdateOrgRequest,
+  UpdateOrgRequestSchema,
+  UpdateOrgResponse,
+  SwitchOrgRequest,
+  SwitchOrgRequestSchema,
+  SwitchOrgResponse,
+  type ActiveUser as ActiveUserType,
+} from '@pkg/contracts';
+import type { FastifyReply } from 'fastify';
+
+/**
+ * The param name is load-bearing. `:orgId` puts a route under ActiveOrgGuard,
+ * which forces it to equal the session's organization — so update and delete
+ * only ever address the org the caller is switched into, and `@Permissions`
+ * judges the right one by construction. `:id` (read) deliberately does not:
+ * reading any organization you belong to is allowed from anywhere.
+ */
+@Controller('orgs')
+export class OrgController {
+  constructor(private readonly orgService: OrgService) {}
+
+  @Get()
+  @Permissions('org:list')
+  async list(
+    @ZodRequest(ListOrgsRequestSchema) dto: ListOrgsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ListOrgsResponse> {
+    return this.orgService.listOrgs(activeUser);
+  }
+
+  @Get(':id')
+  @Permissions('org:read')
+  async get(
+    @ZodRequest(GetOrgByIdRequestSchema) dto: GetOrgByIdRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GetOrgByIdResponse> {
+    return this.orgService.getOrgById(activeUser, dto.id);
+  }
+
+  @Post()
+  @Permissions('org:create')
+  async create(
+    @ZodRequest(CreateOrgRequestSchema) dto: CreateOrgRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<CreateOrgResponse> {
+    return this.orgService.createOrg(activeUser, dto);
+  }
+
+  @Patch(':orgId')
+  @Permissions('org:update')
+  async update(
+    @ZodRequest(UpdateOrgRequestSchema) dto: UpdateOrgRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<UpdateOrgResponse> {
+    return this.orgService.updateOrg(activeUser, dto);
+  }
+
+  // There is deliberately no DELETE here. Organization users, including
+  // OWNERs, cannot delete organizations — that is a platform operation, on
+  // /admin/orgs behind @SystemRoles(ADMIN). See AdminOrgController.
+
+  @Post('switch')
+  @Permissions('org:switch')
+  async switch(
+    @ZodRequest(SwitchOrgRequestSchema) dto: SwitchOrgRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<SwitchOrgResponse> {
+    const { accessToken, refreshToken } = await this.orgService.switchOrg(activeUser, dto.orgId);
+
+    reply.setCookie('accessToken', accessToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: COOKIE_TTL.ACCESS_TOKEN,
+    });
+
+    reply.setCookie('refreshToken', refreshToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: COOKIE_TTL.REFRESH_TOKEN,
+    });
+
+    return {};
+  }
+}

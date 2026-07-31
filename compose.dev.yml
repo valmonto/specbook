@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: specbookdb
+    environment:
+      POSTGRES_USER: specbook
+      POSTGRES_PASSWORD: specbook
+      POSTGRES_DB: specbook
+    ports:
+      - '5432:5432'
+    volumes:
+      - specbookdb_data:/var/lib/postgresql
+    networks:
+      - dev_local_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U specbook -d specbook']
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  redis:
+    image: redis:8-alpine
+    container_name: specbookredis
+    command: >
+      redis-server
+      --maxmemory 500mb
+      --maxmemory-policy noeviction
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass specbook
+    ports:
+      - '6379:6379'
+    volumes:
+      - specbookredis_data:/data
+    networks:
+      - dev_local_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'specbook', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  specbookdb_data:
+    driver: local
+  specbookredis_data:
+    driver: local
+
+networks:
+  dev_local_network:
+    driver: bridge

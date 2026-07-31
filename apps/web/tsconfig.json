@@ -1,0 +1,10 @@
+{
+  "extends": "@pkg/tsconfig/react.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "__tests__", "vite-env.d.ts"]
+}
