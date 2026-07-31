@@ -74,10 +74,11 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-specbook}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-specbook}
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
-    # Host-port range so up to 5 replicas each bind a distinct loopback port
-    # (3021..3025); point your host proxy's upstreams at this range.
+    # Single instance for now — one upstream for the host proxy. To scale:
+    # widen to '127.0.0.1:3021-3025:3000' and run compose up --scale api=N
+    # (the range gives each replica its own loopback port).
     ports:
-      - '127.0.0.1:3021-3025:3000'
+      - '127.0.0.1:3021:3000'
     networks:
       - staging_network
     # Without this, `docker compose up --wait` only waits for the container to
