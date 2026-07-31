@@ -20,6 +20,7 @@ import { UserModule } from './user/user.module';
 import { OrgModule } from './org/org.module';
 import { JobsModule } from './jobs';
 import { NotificationModule } from './notifications';
+import { TasksModule } from './tasks';
 import { ApiKeyModule } from './api-key';
 import { McpModule } from './mcp';
 import { I18nModule } from './i18n';
@@ -82,6 +83,7 @@ import { validateEnv } from './config';
     OrgModule,
     JobsModule,
     NotificationModule,
+    TasksModule,
     ApiKeyModule,
     McpModule,
     SeedModule.forApp(),

@@ -8,3 +8,5 @@ export * from './auth.schema';
 export * from './jobs.schema';
 export * from './notification.schema';
 export * from './api-key.schema';
+export * from './project.schema';
+export * from './task.schema';

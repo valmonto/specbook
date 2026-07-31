@@ -10,3 +10,12 @@ export {
   type FeatureFlag,
 } from './constants/analytics';
 export { MCP_SCOPES, type McpScope } from './constants/mcp';
+export {
+  TASK_STATUSES,
+  TASK_COMMENT_KINDS,
+  TASK_AUTHOR_TYPES,
+  AGENT_TASK_TRANSITIONS,
+  HUMAN_TASK_TRANSITIONS,
+  HUMAN_COURT_STATUSES,
+  TERMINAL_TASK_STATUSES,
+} from './constants/task';

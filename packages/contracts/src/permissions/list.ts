@@ -37,6 +37,22 @@ export const PERMISSIONS = [
   // Settings permissions
   'settings:read',
   'settings:update',
+
+  // Project permissions
+  'project:list',
+  'project:read',
+  'project:create',
+  'project:update',
+  'project:delete',
+
+  // Task permissions
+  'task:list',
+  'task:read',
+  'task:create',
+  'task:update',
+  'task:delete',
+  'task:transition',
+  'task:comment',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

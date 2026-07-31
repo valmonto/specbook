@@ -1,0 +1,212 @@
+import { z } from 'zod';
+import { TASK_AUTHOR_TYPES, TASK_COMMENT_KINDS, TASK_STATUSES } from '../constants';
+import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
+
+// --- Task Enums ---
+// Derived from ../constants — the same value sets the database CHECK
+// constraints enforce, defined exactly once.
+export const TaskStatusSchema = z.enum(TASK_STATUSES);
+export const TaskCommentKindSchema = z.enum(TASK_COMMENT_KINDS);
+export const TaskAuthorTypeSchema = z.enum(TASK_AUTHOR_TYPES);
+
+export type TaskStatus = z.infer<typeof TaskStatusSchema>;
+export type TaskCommentKind = z.infer<typeof TaskCommentKindSchema>;
+export type TaskAuthorType = z.infer<typeof TaskAuthorTypeSchema>;
+
+// --- Acceptance Criterion ---
+// The checklist that replaces subtasks: "all boxes ticked" is the
+// machine-checkable definition of done.
+export const AcceptanceCriterionSchema = z.object({
+  text: z.string().min(1).max(1000),
+  done: z.boolean(),
+});
+
+export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
+
+// --- Task Entity ---
+export const TaskSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  title: z.string(),
+  context: z.string().nullable(),
+  outOfScope: z.string().nullable(),
+  acceptanceCriteria: z.array(AcceptanceCriterionSchema),
+  status: TaskStatusSchema,
+  priority: z.number().int(),
+  claimedBy: z.string().uuid().nullable(),
+  claimedAt: z.string().nullable(),
+  branch: z.string().nullable(),
+  prUrl: z.string().nullable(),
+  statusChangedBy: z.string().uuid().nullable(),
+  statusChangedAt: z.string().nullable(),
+  createdBy: z.string().uuid(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type Task = z.infer<typeof TaskSchema>;
+
+// --- Task Comment Entity ---
+export const TaskCommentSchema = z.object({
+  id: z.string().uuid(),
+  taskId: z.string().uuid(),
+  authorId: z.string().uuid(),
+  authorType: TaskAuthorTypeSchema,
+  kind: TaskCommentKindSchema,
+  body: z.string(),
+  createdAt: z.string(),
+});
+
+export type TaskComment = z.infer<typeof TaskCommentSchema>;
+
+// --- Dependency summary (embedded in task detail) ---
+export const TaskDependencyInfoSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  status: TaskStatusSchema,
+});
+
+export type TaskDependencyInfo = z.infer<typeof TaskDependencyInfoSchema>;
+
+// --- Create Task ---
+// Capture is frictionless: a draft can be a bare title. The dispatch gate
+// (draft→ready) is where context + criteria become mandatory — enforced in
+// the service, not here.
+export const CreateTaskRequestSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    title: z.string().min(1).max(500),
+    context: z.string().max(100_000).optional(),
+    outOfScope: z.string().max(10_000).optional(),
+    acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(50).optional(),
+    priority: z.number().int().min(0).max(1000).optional(),
+  })
+  .strict();
+
+export const CreateTaskResponseSchema = TaskSchema;
+
+export type CreateTaskRequest = z.infer<typeof CreateTaskRequestSchema>;
+export type CreateTaskResponse = z.infer<typeof CreateTaskResponseSchema>;
+
+// --- Update Task (spec fields; status changes go through transition) ---
+export const UpdateTaskRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    title: z.string().min(1).max(500).optional(),
+    context: z.string().max(100_000).nullable().optional(),
+    outOfScope: z.string().max(10_000).nullable().optional(),
+    // Full replacement, preserving done flags — the checklist is small.
+    acceptanceCriteria: z.array(AcceptanceCriterionSchema).max(50).optional(),
+    priority: z.number().int().min(0).max(1000).optional(),
+    branch: z.string().max(255).nullable().optional(),
+    prUrl: z.string().max(500).nullable().optional(),
+  })
+  .strict();
+
+export const UpdateTaskResponseSchema = TaskSchema;
+
+export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequestSchema>;
+export type UpdateTaskResponse = z.infer<typeof UpdateTaskResponseSchema>;
+
+// --- List Tasks ---
+// `available: true` is THE agent queue query: status=ready AND every
+// dependency in a terminal-success state (done).
+export const ListTasksRequestSchema = PaginatedRequestSchema.extend({
+  projectId: z.string().uuid().optional(),
+  status: TaskStatusSchema.optional(),
+  available: z
+    .preprocess((val) => val === 'true' || val === true, z.boolean())
+    .optional()
+    .default(false),
+}).strict();
+
+export const ListTasksResponseSchema = PaginatedResponseSchema(TaskSchema);
+
+export type ListTasksRequest = z.infer<typeof ListTasksRequestSchema>;
+export type ListTasksResponse = z.infer<typeof ListTasksResponseSchema>;
+
+// --- Get Task by ID (full detail: spec + comments + dependency state) ---
+export const GetTaskByIdRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const GetTaskByIdResponseSchema = TaskSchema.extend({
+  comments: z.array(TaskCommentSchema),
+  dependencies: z.array(TaskDependencyInfoSchema),
+  dependents: z.array(TaskDependencyInfoSchema),
+});
+
+export type GetTaskByIdRequest = z.infer<typeof GetTaskByIdRequestSchema>;
+export type GetTaskByIdResponse = z.infer<typeof GetTaskByIdResponseSchema>;
+
+// --- Transition (the status protocol; actor rules + gates enforced server-side) ---
+export const TransitionTaskRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    to: TaskStatusSchema,
+    // Required by the review gate (in_progress→needs_review) and expected
+    // with blocked (the question) and changes_requested (the feedback).
+    comment: z.string().max(100_000).optional(),
+  })
+  .strict();
+
+export const TransitionTaskResponseSchema = TaskSchema;
+
+export type TransitionTaskRequest = z.infer<typeof TransitionTaskRequestSchema>;
+export type TransitionTaskResponse = z.infer<typeof TransitionTaskResponseSchema>;
+
+// --- Claim (atomic ready→in_progress; loser of the race gets a 409) ---
+export const ClaimTaskRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const ClaimTaskResponseSchema = TaskSchema;
+
+export type ClaimTaskRequest = z.infer<typeof ClaimTaskRequestSchema>;
+export type ClaimTaskResponse = z.infer<typeof ClaimTaskResponseSchema>;
+
+// --- Check / uncheck an acceptance criterion ---
+export const CheckCriterionRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    index: z.number().int().min(0),
+    done: z.boolean(),
+  })
+  .strict();
+
+export const CheckCriterionResponseSchema = TaskSchema;
+
+export type CheckCriterionRequest = z.infer<typeof CheckCriterionRequestSchema>;
+export type CheckCriterionResponse = z.infer<typeof CheckCriterionResponseSchema>;
+
+// --- Add Comment ---
+export const AddTaskCommentRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    kind: TaskCommentKindSchema.optional().default('comment'),
+    body: z.string().min(1).max(100_000),
+  })
+  .strict();
+
+export const AddTaskCommentResponseSchema = TaskCommentSchema;
+
+export type AddTaskCommentRequest = z.infer<typeof AddTaskCommentRequestSchema>;
+export type AddTaskCommentResponse = z.infer<typeof AddTaskCommentResponseSchema>;
+
+// --- Dependencies ---
+export const AddTaskDependencyRequestSchema = z
+  .object({ id: z.string().uuid(), dependsOnTaskId: z.string().uuid() })
+  .strict();
+export const AddTaskDependencyResponseSchema = z.object({});
+
+export type AddTaskDependencyRequest = z.infer<typeof AddTaskDependencyRequestSchema>;
+export type AddTaskDependencyResponse = z.infer<typeof AddTaskDependencyResponseSchema>;
+
+export const RemoveTaskDependencyRequestSchema = z
+  .object({ id: z.string().uuid(), dependsOnTaskId: z.string().uuid() })
+  .strict();
+export const RemoveTaskDependencyResponseSchema = z.object({});
+
+export type RemoveTaskDependencyRequest = z.infer<typeof RemoveTaskDependencyRequestSchema>;
+export type RemoveTaskDependencyResponse = z.infer<typeof RemoveTaskDependencyResponseSchema>;
+
+// --- Delete Task ---
+export const DeleteTaskRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const DeleteTaskResponseSchema = z.object({});
+
+export type DeleteTaskRequest = z.infer<typeof DeleteTaskRequestSchema>;
+export type DeleteTaskResponse = z.infer<typeof DeleteTaskResponseSchema>;

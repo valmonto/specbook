@@ -3,13 +3,16 @@ import { user } from './user';
 import { organization } from './organization';
 import { organizationUser } from './organization-user';
 import { notification } from './notification';
+import { project } from './project';
+import { task, taskDependency } from './task';
+import { taskComment } from './task-comment';
 
 /**
  * Relational config for the relational query builder (drizzle v1 API).
  * Replaces the per-table `relations()` helpers from drizzle v0.
  */
 export const relations = defineRelations(
-  { user, organization, organizationUser, notification },
+  { user, organization, organizationUser, notification, project, task, taskDependency, taskComment },
   (r) => ({
     user: {
       availableOrganizations: r.many.organizationUser(),
@@ -41,6 +44,48 @@ export const relations = defineRelations(
       organization: r.one.organization({
         from: r.notification.orgId,
         to: r.organization.id,
+      }),
+    },
+    project: {
+      organization: r.one.organization({
+        from: r.project.orgId,
+        to: r.organization.id,
+      }),
+      tasks: r.many.task(),
+    },
+    task: {
+      project: r.one.project({
+        from: r.task.projectId,
+        to: r.project.id,
+      }),
+      comments: r.many.taskComment(),
+      dependencies: r.many.taskDependency({
+        from: r.task.id,
+        to: r.taskDependency.taskId,
+      }),
+      dependents: r.many.taskDependency({
+        from: r.task.id,
+        to: r.taskDependency.dependsOnTaskId,
+      }),
+    },
+    taskDependency: {
+      task: r.one.task({
+        from: r.taskDependency.taskId,
+        to: r.task.id,
+      }),
+      dependsOn: r.one.task({
+        from: r.taskDependency.dependsOnTaskId,
+        to: r.task.id,
+      }),
+    },
+    taskComment: {
+      task: r.one.task({
+        from: r.taskComment.taskId,
+        to: r.task.id,
+      }),
+      author: r.one.user({
+        from: r.taskComment.authorId,
+        to: r.user.id,
       }),
     },
   }),
