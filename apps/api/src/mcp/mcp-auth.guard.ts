@@ -8,13 +8,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { FastifyRequest } from 'fastify';
 import { k } from '@pkg/locales';
-import type { McpScope } from '@pkg/contracts';
+import type { ActiveUser, McpScope } from '@pkg/contracts';
 import { ApiKeyService } from '../api-key/api-key.service';
 
 export interface McpAuth {
   keyId: string;
   name: string;
   scopes: McpScope[];
+  /** Who the key acts as, for org-scoped tools. Null = platform-only key. */
+  activeUser: ActiveUser | null;
 }
 
 /**

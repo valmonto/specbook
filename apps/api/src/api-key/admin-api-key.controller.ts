@@ -35,7 +35,7 @@ export class AdminApiKeyController {
     @ZodRequest(CreateApiKeyRequestSchema) dto: CreateApiKeyRequest,
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<CreateApiKeyResponse> {
-    return this.apiKeys.create(activeUser.userId, dto);
+    return this.apiKeys.create(activeUser, dto);
   }
 
   @Delete(':id')

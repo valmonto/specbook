@@ -16,7 +16,21 @@ describe('McpServerFactory', () => {
   const catalog = [
     { name: 'list_organizations', scope: 'orgs:read' as const, description: '', handler: vi.fn() },
     { name: 'platform_stats', scope: 'platform:read' as const, description: '', handler: vi.fn() },
+    {
+      name: 'list_tasks',
+      scope: 'tasks:agent' as const,
+      needsOrgContext: true,
+      description: '',
+      handler: vi.fn(),
+    },
   ];
+
+  const boundUser = {
+    userId: 'u1',
+    orgId: 'o1',
+    orgRole: 'MEMBER' as const,
+    systemRole: 'USER' as const,
+  };
 
   beforeEach(() => {
     factory = new McpServerFactory(
@@ -25,11 +39,12 @@ describe('McpServerFactory', () => {
     );
   });
 
-  function toolNamesFor(scopes: string[]): string[] {
+  function toolNamesFor(scopes: string[], activeUser: typeof boundUser | null = null): string[] {
     const server = factory.build({
       keyId: 'k1',
       name: 'test-key',
       scopes: scopes as never,
+      activeUser,
     });
     // The SDK keeps registered tools in a private map; its keys are the truth
     // of what this key can see.
@@ -59,5 +74,15 @@ describe('McpServerFactory', () => {
 
   it('ignores scopes that cover no tool', () => {
     expect(toolNamesFor(['made-up:scope'])).toEqual(['whoami']);
+  });
+
+  // Org-scoped tools require BOTH the scope and an org binding — a platform
+  // key granted tasks:agent by mistake still cannot see them.
+  it('hides org-scoped tools from a key without an org binding', () => {
+    expect(toolNamesFor(['tasks:agent'], null)).toEqual(['whoami']);
+  });
+
+  it('shows org-scoped tools to an org-bound key with the scope', () => {
+    expect(toolNamesFor(['tasks:agent'], boundUser)).toEqual(['whoami', 'list_tasks']);
   });
 });

@@ -6,5 +6,5 @@
  * IS choosing which functions it can reach. Zod-free: ships to clients for
  * the key-creation UI.
  */
-export const MCP_SCOPES = ['platform:read', 'orgs:read'] as const;
+export const MCP_SCOPES = ['platform:read', 'orgs:read', 'tasks:agent'] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];

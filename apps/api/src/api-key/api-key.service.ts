@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import { k } from '@pkg/locales';
 import type {
+  ActiveUser,
   ApiKey,
   CreateApiKeyRequest,
   CreateApiKeyResponse,
@@ -35,7 +36,7 @@ export class ApiKeyService {
    * server will only ever show this key the tools those scopes cover. The
    * plaintext is returned once and never stored; only its hash is kept.
    */
-  async create(createdBy: string, dto: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
+  async create(creator: ActiveUser, dto: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     const key = `sk_${randomBytes(24).toString('base64url')}`;
 
     const row = await this.repository.insert({
@@ -43,10 +44,16 @@ export class ApiKeyService {
       prefix: key.slice(0, 10),
       hashedKey: hash(key),
       scopes: [...new Set(dto.scopes)],
-      userId: createdBy,
+      userId: creator.userId,
+      // The key is bound to the org it was minted in: org-scoped MCP tools
+      // act as this user inside this org, never anywhere else.
+      orgId: creator.orgId,
     });
 
-    this.logger.info({ keyId: row.id, scopes: row.scopes, createdBy }, 'API key created');
+    this.logger.info(
+      { keyId: row.id, scopes: row.scopes, createdBy: creator.userId, orgId: creator.orgId },
+      'API key created',
+    );
 
     return { ...toView(row), key };
   }
@@ -64,12 +71,37 @@ export class ApiKeyService {
     this.logger.info({ keyId: id }, 'API key revoked');
   }
 
-  /** Presented token → its scopes, or null. Used by the MCP auth guard. */
-  async verify(token: string): Promise<{ keyId: string; name: string; scopes: McpScope[] } | null> {
+  /**
+   * Presented token → its scopes plus, for org-bound keys, the ActiveUser the
+   * key acts as. Org standing is re-read on every verify, so a user removed
+   * from the org loses the key's org powers immediately. A key whose owner
+   * lost membership degrades to platform scopes only (activeUser null) rather
+   * than dying — the org-scoped tools simply vanish for it.
+   */
+  async verify(token: string): Promise<{
+    keyId: string;
+    name: string;
+    scopes: McpScope[];
+    activeUser: ActiveUser | null;
+  } | null> {
     const row = await this.repository.findActiveByHash(hash(token));
     if (!row) return null;
 
     this.repository.touchLastUsed(row.id);
-    return { keyId: row.id, name: row.name, scopes: row.scopes as McpScope[] };
+
+    let activeUser: ActiveUser | null = null;
+    if (row.orgId) {
+      const standing = await this.repository.findOrgStanding(row.userId, row.orgId);
+      if (standing) {
+        activeUser = {
+          userId: row.userId,
+          orgId: row.orgId,
+          orgRole: standing.orgRole as ActiveUser['orgRole'],
+          systemRole: standing.systemRole as ActiveUser['systemRole'],
+        };
+      }
+    }
+
+    return { keyId: row.id, name: row.name, scopes: row.scopes as McpScope[], activeUser };
   }
 }

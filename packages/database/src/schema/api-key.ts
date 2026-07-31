@@ -1,5 +1,6 @@
 import { pgTable, varchar, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { pk } from './helpers';
+import { organization } from './organization';
 import { user } from './user';
 
 /**
@@ -9,8 +10,10 @@ import { user } from './user';
  * which MCP tools this key can see — validated against MCP_SCOPES in
  * @pkg/contracts (varchar array, not pgEnum, per this package's rules).
  *
- * Platform-level on purpose: keys are minted by platform admins and are not
- * tenant data. If a product ever wants per-org keys, add orgId then.
+ * `orgId` binds the key to the organization it was minted in: org-scoped MCP
+ * tools (tasks) act as the owning user inside that org. Nullable because
+ * platform-scope keys (orgs:read, platform:read) need no tenant; an unbound
+ * key simply never sees org-scoped tools.
  */
 export const apiKey = pgTable('api_key', {
   id: pk(),
@@ -21,6 +24,7 @@ export const apiKey = pgTable('api_key', {
   userId: uuid('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
+  orgId: uuid('org_id').references(() => organization.id, { onDelete: 'cascade' }),
   lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -3,6 +3,8 @@ import {
   DATABASE_CLIENT,
   type DatabaseClient,
   apiKey,
+  organizationUser,
+  user,
   type ApiKeyRow,
   and,
   desc,
@@ -24,6 +26,7 @@ export class ApiKeyRepository {
     hashedKey: string;
     scopes: string[];
     userId: string;
+    orgId?: string;
   }): Promise<ApiKeyRow> {
     const [created] = await this.dbClient.db.insert(apiKey).values(row).returning();
     return created!;
@@ -42,6 +45,24 @@ export class ApiKeyRepository {
       .select()
       .from(apiKey)
       .where(and(eq(apiKey.hashedKey, hashedKey), isNull(apiKey.revokedAt)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * The key owner's standing inside the key's bound org, re-read on every
+   * verify — so removing the user from the org (or deleting them) cuts the
+   * key's org powers immediately, exactly like a revoked session.
+   */
+  async findOrgStanding(
+    userId: string,
+    orgId: string,
+  ): Promise<{ orgRole: string; systemRole: string } | null> {
+    const [row] = await this.dbClient.db
+      .select({ orgRole: organizationUser.role, systemRole: user.systemRole })
+      .from(organizationUser)
+      .innerJoin(user, eq(organizationUser.userId, user.id))
+      .where(and(eq(organizationUser.userId, userId), eq(organizationUser.orgId, orgId)))
       .limit(1);
     return row ?? null;
   }

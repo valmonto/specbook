@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { McpScope } from '@pkg/contracts';
 import { InjectLogger, PinoLogger } from '@pkg/server';
+import type { McpAuth } from './mcp-auth.guard';
 import { McpTools } from './mcp-tools';
 
 const text = (data: unknown): { content: { type: 'text'; text: string }[] } => ({
@@ -21,7 +21,7 @@ export class McpServerFactory {
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
-  build(auth: { keyId: string; name: string; scopes: McpScope[] }): McpServer {
+  build(auth: McpAuth): McpServer {
     const server = new McpServer({ name: 'valmatic', version: '1.0.0' });
 
     // Always present: lets an agent discover what this key was granted.
@@ -33,13 +33,16 @@ export class McpServerFactory {
 
     for (const tool of this.tools.catalog()) {
       if (tool.scope !== null && !auth.scopes.includes(tool.scope)) continue;
+      // Org-scoped tools do not exist for keys without an org binding — same
+      // philosophy as scope filtering: absent, not present-and-refusing.
+      if (tool.needsOrgContext && !auth.activeUser) continue;
 
       server.registerTool(
         tool.name,
         { description: tool.description, inputSchema: tool.inputSchema },
         async (args: Record<string, unknown>) => {
           this.logger.info({ tool: tool.name, keyId: auth.keyId }, 'MCP tool call');
-          return text(await tool.handler(args ?? {}));
+          return text(await tool.handler(args ?? {}, auth.activeUser));
         },
       );
     }
