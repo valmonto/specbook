@@ -10,3 +10,4 @@ export * from './notification.schema';
 export * from './api-key.schema';
 export * from './project.schema';
 export * from './task.schema';
+export * from './attachment.schema';

@@ -19,3 +19,9 @@ export {
   HUMAN_COURT_STATUSES,
   TERMINAL_TASK_STATUSES,
 } from './constants/task';
+export {
+  ATTACHMENT_KINDS,
+  ATTACHMENT_STATUSES,
+  ATTACHMENT_SUBJECT_TYPES,
+  ATTACHMENT_MAX_BYTES,
+} from './constants/attachment';

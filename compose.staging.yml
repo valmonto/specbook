@@ -36,6 +36,29 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # S3-compatible object storage for attachments. NOT public by itself:
+  # presigned URLs must be reachable by browsers, so production fronts this
+  # with nginx on a dedicated subdomain (storage.<app-domain>) and .env sets
+  # STORAGE_ENDPOINT to that public URL — the API signs against the same host
+  # the browser will hit, otherwise SigV4 signatures cannot match.
+  rustfs:
+    image: docker.io/rustfs/rustfs:1.0.0-beta.7
+    container_name: specbookrustfs
+    env_file:
+      - .env
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY_ID:-specbook}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_ACCESS_KEY:-specbook}
+      RUSTFS_VOLUMES: /data
+    volumes:
+      - specbookrustfs_data:/data
+    # Host allocation: specbook block is 3030s (web 3030, api 3031, storage 3032).
+    ports:
+      - '127.0.0.1:${STORAGE_HOST_PORT:-3032}:9000'
+    networks:
+      - staging_network
+    restart: unless-stopped
+
   # One-shot migration runner. Reuses the API image but overrides the
   # entrypoint to apply migrations and exit. Runs exactly once before api/worker
   # start, so multiple api replicas never race to migrate.
@@ -74,6 +97,12 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-specbook}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-specbook}
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
+      # Public storage endpoint (see rustfs service note) — set in .env.
+      STORAGE_ENDPOINT: "${STORAGE_ENDPOINT:-http://rustfs:9000}"
+      STORAGE_ACCESS_KEY_ID: "${STORAGE_ACCESS_KEY_ID:-specbook}"
+      STORAGE_SECRET_ACCESS_KEY: "${STORAGE_SECRET_ACCESS_KEY:-specbook}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-specbook-attachments}"
+      STORAGE_CORS_ALLOWED_ORIGINS: "${CORS_ORIGINS:-https://specbook.valmonto.com}"
     # Single instance for now — one upstream for the host proxy. To scale:
     # widen to '127.0.0.1:3031-3035:3000' and run compose up --scale api=N
     # (the range gives each replica its own loopback port).
@@ -141,6 +170,12 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-specbook}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-specbook}
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
+      # Public storage endpoint (see rustfs service note) — set in .env.
+      STORAGE_ENDPOINT: "${STORAGE_ENDPOINT:-http://rustfs:9000}"
+      STORAGE_ACCESS_KEY_ID: "${STORAGE_ACCESS_KEY_ID:-specbook}"
+      STORAGE_SECRET_ACCESS_KEY: "${STORAGE_SECRET_ACCESS_KEY:-specbook}"
+      STORAGE_BUCKET: "${STORAGE_BUCKET:-specbook-attachments}"
+      STORAGE_CORS_ALLOWED_ORIGINS: "${CORS_ORIGINS:-https://specbook.valmonto.com}"
     networks:
       - staging_network
     depends_on:
@@ -155,6 +190,7 @@ services:
 volumes:
   specbookdb_data:
   specbookredis_data:
+  specbookrustfs_data:
 
 networks:
   staging_network:

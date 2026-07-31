@@ -39,7 +39,9 @@
     "ioredis": "catalog:",
     "nestjs-pino": "catalog:",
     "posthog-node": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:"
   },
   "peerDependencies": {
     "@fastify/cookie": "catalog:",

@@ -10,6 +10,7 @@ export * from './api-key';
 export * from './project';
 export * from './task';
 export * from './task-comment';
+export * from './attachment';
 
 // Relations
 export * from './relations';

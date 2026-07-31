@@ -6,3 +6,4 @@ export * from './events';
 export * from './logging';
 export * from './telemetry';
 export * from './throttling';
+export * from './storage';

@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@pkg/database';
 import {
   EventsModule,
+  StorageModule,
   HealthModule,
   LoggerErrorInterceptor,
   LoggingModule,
@@ -35,6 +36,19 @@ import { validateEnv } from './config';
     // skips Redis and a worker that cannot reach the queue reports healthy while
     // processing nothing.
     RedisModule,
+    StorageModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (...args: unknown[]) => {
+        const config = args[0] as ConfigService;
+        return {
+          endpoint: config.getOrThrow<string>('STORAGE_ENDPOINT'),
+          region: config.getOrThrow<string>('STORAGE_REGION'),
+          accessKeyId: config.getOrThrow<string>('STORAGE_ACCESS_KEY_ID'),
+          secretAccessKey: config.getOrThrow<string>('STORAGE_SECRET_ACCESS_KEY'),
+          bucket: config.getOrThrow<string>('STORAGE_BUCKET'),
+        };
+      },
+    }),
     WorkerQueuesModule,
     HealthModule,
   ],

@@ -12,6 +12,6 @@ import { TaskService } from './task.service';
   controllers: [ProjectController, TaskController],
   providers: [ProjectService, ProjectRepository, TaskService, TaskRepository],
   // Exported for the MCP module: tools wrap the same services with actor 'agent'.
-  exports: [ProjectService, TaskService],
+  exports: [ProjectService, TaskService, TaskRepository],
 })
 export class TasksModule {}

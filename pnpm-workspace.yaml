@@ -21,6 +21,8 @@ overrides:
 #   • E2E                 — apps/e2e
 # ---------------------------------------------------------------------------
 catalog:
+  '@aws-sdk/client-s3': 3.1063.0
+  '@aws-sdk/s3-request-presigner': 3.1063.0
   # ═══════════════════════════════════════════════════════════════════════
   #  REPO TOOLING  (root devDependencies)
   #  Release automation, changelog, git hooks, commit linting, formatting.

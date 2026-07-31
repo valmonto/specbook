@@ -1,5 +1,13 @@
 import type {
   AddTaskCommentRequest,
+  ConfirmAttachmentRequest,
+  ConfirmAttachmentResponse,
+  CreateAttachmentUploadRequest,
+  CreateAttachmentUploadResponse,
+  DeleteAttachmentRequest,
+  DeleteAttachmentResponse,
+  ListAttachmentsRequest,
+  ListAttachmentsResponse,
   AddTaskCommentResponse,
   AddTaskDependencyRequest,
   AddTaskDependencyResponse,
@@ -70,6 +78,17 @@ export const projectsResource = (client: HttpClient) => ({
     client.post(`/api/tasks/${dto.id}/dependencies`, dto),
   removeDependency: (dto: RemoveTaskDependencyRequest): Promise<RemoveTaskDependencyResponse> =>
     client.delete(`/api/tasks/${dto.id}/dependencies/${dto.dependsOnTaskId}`),
+
+  // Attachments (three-step protocol: declare -> PUT to storage -> confirm)
+  createAttachmentUpload: (
+    dto: CreateAttachmentUploadRequest,
+  ): Promise<CreateAttachmentUploadResponse> => client.post('/api/attachments/uploads', dto),
+  confirmAttachment: (dto: ConfirmAttachmentRequest): Promise<ConfirmAttachmentResponse> =>
+    client.post(`/api/attachments/${dto.id}/confirm`, dto),
+  listAttachments: (dto: ListAttachmentsRequest): Promise<ListAttachmentsResponse> =>
+    client.get('/api/attachments', { params: dto }),
+  removeAttachment: (dto: DeleteAttachmentRequest): Promise<DeleteAttachmentResponse> =>
+    client.delete(`/api/attachments/${dto.id}`),
 });
 
 /** Bound instance the feature uses internally. */
