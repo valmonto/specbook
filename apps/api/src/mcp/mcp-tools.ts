@@ -128,6 +128,30 @@ export class McpTools {
         handler: async (args, actor) => this.taskService.getById(actor!, str(args.id)),
       },
       {
+        name: 'create_task',
+        scope: 'tasks:agent',
+        needsOrgContext: true,
+        description:
+          "File a task spec on the human's behalf. ALWAYS lands as a draft — only the human can dispatch it to ready (the dispatch gate), so use this to capture specs, not to queue work for yourself.",
+        inputSchema: {
+          projectId: z.string().uuid(),
+          title: z.string().min(1).max(500),
+          context: z.string().optional(),
+          outOfScope: z.string().optional(),
+          acceptanceCriteria: z.array(z.string().min(1)).max(50).optional(),
+          priority: z.number().int().min(0).max(1000).optional(),
+        },
+        handler: async (args, actor) =>
+          this.taskService.create(actor!, {
+            projectId: str(args.projectId),
+            title: str(args.title),
+            context: optStr(args.context),
+            outOfScope: optStr(args.outOfScope),
+            acceptanceCriteria: args.acceptanceCriteria as string[] | undefined,
+            priority: args.priority as number | undefined,
+          }),
+      },
+      {
         name: 'claim_task',
         scope: 'tasks:agent',
         needsOrgContext: true,

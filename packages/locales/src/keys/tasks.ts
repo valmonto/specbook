@@ -31,6 +31,10 @@ export const tasks = {
   criterionPlaceholder: 'tasks.criterionPlaceholder',
   addCriterion: 'tasks.addCriterion',
   priority: 'tasks.priority',
+  importJson: 'tasks.importJson',
+  importJsonHint: 'tasks.importJsonHint',
+  importJsonApply: 'tasks.importJsonApply',
+  importJsonInvalid: 'tasks.importJsonInvalid',
   noTasks: 'tasks.noTasks',
   noTasksDesc: 'tasks.noTasksDesc',
 
