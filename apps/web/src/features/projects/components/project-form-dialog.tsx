@@ -74,12 +74,12 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
         </>
       }
     >
-      <div className="mx-auto grid max-w-2xl gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="project-name">{t(k.tasks.projectName)}</Label>
-          <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-2">
+            <Label htmlFor="project-name">{t(k.tasks.projectName)}</Label>
+            <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="project-repo">{t(k.tasks.repoUrl)}</Label>
             <Input
@@ -114,7 +114,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
             id="project-context"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            className="min-h-48 font-mono text-xs"
+            className="min-h-72 font-mono text-xs"
           />
           <p className="text-xs text-muted-foreground">{t(k.tasks.contextDocHint)}</p>
         </div>

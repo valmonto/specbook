@@ -74,7 +74,7 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
         </>
       }
     >
-      <div className="mx-auto grid max-w-2xl gap-4">
+      <div className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="task-title">{t(k.tasks.taskTitle)}</Label>
           <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} />
