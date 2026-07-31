@@ -115,8 +115,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
             id="project-context"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            rows={10}
-            className="font-mono text-xs"
+            className="min-h-48 font-mono text-xs"
           />
           <p className="text-xs text-muted-foreground">{t(k.tasks.contextDocHint)}</p>
         </div>

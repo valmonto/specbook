@@ -86,7 +86,7 @@ export function TaskFormDialog({ open, onOpenChange, projectId }: Props) {
             id="task-context"
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            rows={4}
+            className="min-h-24"
           />
           <p className="text-xs text-muted-foreground">{t(k.tasks.taskContextHint)}</p>
         </div>
