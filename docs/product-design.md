@@ -210,6 +210,43 @@ list.
 - **Heartbeat/lease on claims** — if manual stale-claim reset proves
   tiresome.
 
+## v2 — GitHub integration: specbook as the credential authority
+
+The MVP treats the agent as the GitHub integration: it holds machine
+credentials and reports `branch`/`pr_url` back as strings. v2 inverts
+this — specbook provisions the workspace and the credentials, and the
+agent machine holds **no standing GitHub credential at all**.
+
+Mechanism: one **"Specbook" GitHub App** platform-wide. Each specbook
+organization installs it on its own GitHub org (or personal account) —
+the `installation_id` stored on the org is the tenancy boundary and is
+not a secret. The App's private key is the single server-side secret in
+the whole system (the one deliberate amendment to the no-secrets rule;
+user tokens are still never stored).
+
+Delivered in three steps, each independently valuable:
+
+1. **Inbound webhook → PR status on tasks.** GitHub pushes PR events;
+   specbook annotates the linked task (open / merged / closed, CI
+   state). Needs only a webhook signature secret. The review card shows
+   live PR state instead of a dumb link.
+2. **`get_repo_token` MCP tool** (behind `tasks:agent`). Mints a GitHub
+   App installation token — **1-hour expiry, restricted to the
+   project's repository, permissions Contents + Pull requests**. The
+   agent clones, pushes and opens PRs with it; next session, fresh
+   token. Kills long-lived PATs; a leaked token is one repo for one
+   hour; an agent on project A physically cannot touch project B's
+   repo. Org-bound API keys route minting through the right
+   installation — the tenancy walls built in MVP extend to code.
+3. **Repo provisioning on project create.** New project → specbook
+   creates the repository in the connected GitHub org (optionally from
+   the valmatic template), fills `repoUrl` itself. Template init
+   (`init:project`) becomes the agent's first task on the fresh repo.
+
+Scope guard: one specbook org ↔ one GitHub installation until a real
+tenant needs more. The end state is the product pitch: *connect your
+GitHub org, describe work, agents ship it through a review gate.*
+
 ## MVP build order
 
 1. Migration + `@pkg/contracts` schemas (projects, tasks,
