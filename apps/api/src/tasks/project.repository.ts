@@ -3,6 +3,7 @@ import {
   DATABASE_CLIENT,
   type DatabaseClient,
   project,
+  task,
   eq,
   and,
   count,
@@ -39,6 +40,24 @@ export class ProjectRepository {
     ]);
 
     return { data, total: totalResult[0]?.count ?? 0 };
+  }
+
+  /** projectId → status → count, one grouped query for the org's strip UI. */
+  async countTasksByStatus(orgId: string): Promise<Map<string, Record<string, number>>> {
+    const rows = await this.dbClient.db
+      .select({ projectId: task.projectId, status: task.status, n: count() })
+      .from(task)
+      .innerJoin(project, eq(task.projectId, project.id))
+      .where(eq(project.orgId, orgId))
+      .groupBy(task.projectId, task.status);
+
+    const byProject = new Map<string, Record<string, number>>();
+    for (const row of rows) {
+      const counts = byProject.get(row.projectId) ?? {};
+      counts[row.status] = Number(row.n);
+      byProject.set(row.projectId, counts);
+    }
+    return byProject;
   }
 
   async findById(id: string, orgId: string): Promise<Project | null> {

@@ -13,6 +13,8 @@ export const ProjectSchema = z.object({
   createdBy: z.string().uuid(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Tasks per status — present on list responses; a strip, not analytics. */
+  statusCounts: z.record(z.string(), z.number().int()).optional(),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;

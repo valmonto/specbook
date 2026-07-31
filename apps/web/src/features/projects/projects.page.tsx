@@ -9,6 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
 import { ProjectFormDialog } from './components/project-form-dialog';
+import { StatusStrip } from './components/status-strip';
 import { useProjects } from './hooks/use-projects';
 
 export default function ProjectsPage() {
@@ -67,6 +68,7 @@ export default function ProjectsPage() {
                       </span>
                     </p>
                   )}
+                  <StatusStrip counts={project.statusCounts ?? {}} className="mt-1" />
                 </CardContent>
               </Card>
             </Link>
