@@ -48,7 +48,10 @@ describe('TaskService — the status protocol', () => {
   let repo: Record<string, ReturnType<typeof vi.fn>>;
   let projectRepo: Record<string, ReturnType<typeof vi.fn>>;
 
-  const taskInState = (overrides: Partial<typeof baseTask>) => ({ ...baseTask, ...overrides });
+  // Wider than Partial<typeof baseTask>: the literal's fields infer as their
+  // initial values' types (context: string, claimedBy: null), which rejects
+  // the very states the tests exist to set up.
+  const taskInState = (overrides: Record<string, unknown>) => ({ ...baseTask, ...overrides });
 
   beforeEach(() => {
     repo = {
