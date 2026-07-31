@@ -4,6 +4,7 @@
  * the ESLint boundaries rule enforces this.
  */
 export { projectsRoutes } from './routes';
+export { default as YourMovePage } from './your-move.page';
 export { projectsResource } from './api';
 export {
   useProjects,

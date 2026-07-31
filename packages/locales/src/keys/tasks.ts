@@ -38,6 +38,21 @@ export const tasks = {
   noTasks: 'tasks.noTasks',
   noTasksDesc: 'tasks.noTasksDesc',
 
+  // Your-move dashboard
+  dashboard: {
+    title: 'tasks.dashboard.title',
+    description: 'tasks.dashboard.description',
+    empty: 'tasks.dashboard.empty',
+    emptyDesc: 'tasks.dashboard.emptyDesc',
+    inFlight: 'tasks.dashboard.inFlight',
+    stale: 'tasks.dashboard.stale',
+    queue: 'tasks.dashboard.queue',
+    readyForAgents: 'tasks.dashboard.readyForAgents',
+    draftsWaiting: 'tasks.dashboard.draftsWaiting',
+    agentsIdle: 'tasks.dashboard.agentsIdle',
+    waiting: 'tasks.dashboard.waiting',
+  },
+
   // Statuses
   status: {
     draft: 'tasks.status.draft',

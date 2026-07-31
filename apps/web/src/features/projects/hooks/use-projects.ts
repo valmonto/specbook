@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
 import type {
   CreateProjectRequest,
+  TaskStatus,
   CreateTaskRequest,
   DeleteProjectRequest,
   DeleteTaskRequest,
@@ -80,6 +81,57 @@ export function useProjectTasks(projectId: string | null) {
   return useCachedRequest<ListTasksResponse>({
     key: canList && projectId ? taskListKey(user?.orgId, params) : null,
     fetcher: () => projectsApi.listTasks(params),
+  });
+}
+
+/** Cross-project task list for one status — the dashboard's data source. */
+export function useTasksByStatus(status: TaskStatus, limit = 100) {
+  const { user } = useAuth();
+  const canList = useCan('task:list');
+  const params: ListTasksRequest = { status, skip: 0, limit, available: false };
+
+  return useCachedRequest<ListTasksResponse>({
+    key: canList ? taskListKey(user?.orgId, params) : null,
+    fetcher: () => projectsApi.listTasks(params),
+  });
+}
+
+/** Just the total for a status — queue-health counters. */
+export function useTaskCount(status: TaskStatus) {
+  const { user } = useAuth();
+  const canList = useCan('task:list');
+  const params: ListTasksRequest = { status, skip: 0, limit: 1, available: false };
+
+  const { data, ...rest } = useCachedRequest<ListTasksResponse>({
+    key: canList ? taskListKey(user?.orgId, params) : null,
+    fetcher: () => projectsApi.listTasks(params),
+  });
+  return { count: data?.meta.total ?? 0, ...rest };
+}
+
+/**
+ * Latest question per blocked task. Blocked tasks are few by nature, so one
+ * detail fetch each is fine; keyed by the id set so the cache tracks changes.
+ */
+export function useBlockedQuestions(ids: string[]) {
+  const { user } = useAuth();
+  const canRead = useCan('task:read');
+  const key =
+    canRead && ids.length > 0 && prefix(user?.orgId)
+      ? `${prefix(user?.orgId)}/blocked-questions?${ids.join(',')}`
+      : null;
+
+  return useCachedRequest<Record<string, string>>({
+    key,
+    fetcher: async () => {
+      const details = await Promise.all(ids.map((id) => projectsApi.getTask({ id })));
+      const questions: Record<string, string> = {};
+      for (const detail of details) {
+        const question = [...detail.comments].reverse().find((c) => c.kind === 'question');
+        if (question) questions[detail.id] = question.body;
+      }
+      return questions;
+    },
   });
 }
 
