@@ -39,13 +39,13 @@ export class ProjectService {
   }
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {
-    const { data, total } = await this.projectRepository.findForOrg(activeUser.orgId, {
-      skip: dto.skip,
-      limit: dto.limit,
-    });
+    const [{ data, total }, counts] = await Promise.all([
+      this.projectRepository.findForOrg(activeUser.orgId, { skip: dto.skip, limit: dto.limit }),
+      this.projectRepository.countTasksByStatus(activeUser.orgId),
+    ]);
 
     return {
-      data: data.map((p) => this.serialize(p)),
+      data: data.map((p) => ({ ...this.serialize(p), statusCounts: counts.get(p.id) ?? {} })),
       meta: { total, skip: dto.skip, limit: dto.limit },
     };
   }
