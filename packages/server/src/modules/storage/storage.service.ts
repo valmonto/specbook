@@ -16,6 +16,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { STORAGE_OPTIONS } from './storage.tokens';
 import type {
+  StorageDriver,
   CreateSignedReadUrlInput,
   CreateSignedUploadUrlInput,
   DeleteDirectoryInput,
@@ -30,7 +31,7 @@ const DEFAULT_SIGNED_URL_EXPIRATION_SECONDS = 900;
 const MAX_DELETE_OBJECTS = 1000;
 
 @Injectable()
-export class StorageService {
+export class StorageService implements StorageDriver {
   private readonly client: S3Client;
   private readonly defaultBucket: string;
   private readonly region: string;
@@ -50,6 +51,11 @@ export class StorageService {
       // otherwise HeadBucket hangs the whole request pipeline.
       maxAttempts: 2,
       requestHandler: { connectionTimeout: 3000, requestTimeout: 10000 },
+      // The SDK's default CRC32 checksums break several S3-compatibles
+      // (R2/MinIO/GCS interop). WHEN_REQUIRED is a no-op on AWS and the
+      // documented compatibility setting everywhere else.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -79,6 +85,9 @@ export class StorageService {
   }
 
   async ensureBucket(bucket?: string): Promise<void> {
+    // Providers where the token cannot manage buckets (R2): pre-provisioned,
+    // nothing to ensure.
+    if (this.options.manageBucket === false) return;
     const bucketName = this.resolveBucket(bucket);
     const exists = await this.bucketExists(bucketName);
 
@@ -88,6 +97,7 @@ export class StorageService {
   }
 
   async configureBucketCors(bucket?: string): Promise<void> {
+    if (this.options.manageCors === false) return;
     const allowedOrigins = this.options.corsAllowedOrigins?.filter(Boolean) ?? [];
     if (allowedOrigins.length === 0) return;
 
