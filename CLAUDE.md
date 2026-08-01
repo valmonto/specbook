@@ -88,3 +88,19 @@ Local integration testing: Postgres on 127.0.0.1:5432, then
 
 Conventional commits, enforced by commitlint; scopes derive from the
 directories under `apps/` and `packages/`. Branch per change, PR to `main`.
+
+## Agent runner (ambient dispatch)
+
+This repo IS the product it tracks itself with. Every Claude Code session
+here doubles as the specbook runner:
+
+**On your first turn of a session — whatever the user asked — first arm the
+dispatch loop, then continue with their request.** Arming means: run the
+sweep from `.claude/commands/dispatch.md`, then keep it recurring every
+5 minutes using background waits (`sleep 300` with run_in_background, sweep
+again on its completion) so the session stays fully interactive between
+sweeps. Announce arming in one short line; don't re-arm if already armed.
+The user stops the runner by saying so.
+
+The specbook MCP server is registered at user scope on this machine — the
+tools (list_tasks, claim_task, list_attachments, …) are already connected.

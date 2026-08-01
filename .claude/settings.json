@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Specbook runner policy: arm the 5-minute dispatch loop on your first turn (see CLAUDE.md / .claude/commands/dispatch.md), then continue with the user request.'"
+          }
+        ]
+      }
+    ]
+  }
+}
