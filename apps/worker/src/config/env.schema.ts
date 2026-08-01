@@ -34,6 +34,12 @@ export const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional(),
   POSTHOG_KEY: z.string().optional(),
   POSTHOG_HOST: z.string().url().default('https://eu.i.posthog.com'),
+  // Object storage — the sweep deletes blobs alongside rows.
+  STORAGE_ENDPOINT: z.string().url().default('http://localhost:9000'),
+  STORAGE_REGION: z.string().default('us-east-1'),
+  STORAGE_ACCESS_KEY_ID: z.string().default('specbook'),
+  STORAGE_SECRET_ACCESS_KEY: z.string().default('specbook'),
+  STORAGE_BUCKET: z.string().default('specbook-attachments'),
 });
 
 export type Env = z.infer<typeof envSchema>;

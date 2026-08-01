@@ -43,6 +43,10 @@ export const ROLE_PERMISSIONS: Record<OrganizationUserRole, readonly Permission[
     'task:delete',
     'task:transition',
     'task:comment',
+    'attachment:create',
+    'attachment:list',
+    'attachment:read',
+    'attachment:delete',
   ],
   ADMIN: [
     'auth:read-self',
@@ -76,6 +80,10 @@ export const ROLE_PERMISSIONS: Record<OrganizationUserRole, readonly Permission[
     'task:delete',
     'task:transition',
     'task:comment',
+    'attachment:create',
+    'attachment:list',
+    'attachment:read',
+    'attachment:delete',
   ],
   MEMBER: [
     'auth:read-self',
@@ -99,5 +107,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationUserRole, readonly Permission[
     'task:update',
     'task:transition',
     'task:comment',
+    'attachment:create',
+    'attachment:list',
+    'attachment:read',
+    'attachment:delete',
   ],
 } as const;

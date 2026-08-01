@@ -21,7 +21,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "storage:conformance": "node scripts/storage-conformance.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "catalog:",
@@ -39,7 +40,9 @@
     "ioredis": "catalog:",
     "nestjs-pino": "catalog:",
     "posthog-node": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:"
   },
   "peerDependencies": {
     "@fastify/cookie": "catalog:",

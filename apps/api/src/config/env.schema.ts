@@ -72,6 +72,13 @@ export const envSchema = z.object({
   // MCP endpoint (/mcp) for agent access via API keys. OFF by default like
   // every capability here; keys are minted at /admin/api-keys, and each key's
   // scopes decide which tools it can see.
+  // Object storage (rustfs locally; any S3-compatible endpoint in general).
+  STORAGE_ENDPOINT: z.string().url().default('http://localhost:9000'),
+  STORAGE_REGION: z.string().default('us-east-1'),
+  STORAGE_ACCESS_KEY_ID: z.string().default('specbook'),
+  STORAGE_SECRET_ACCESS_KEY: z.string().default('specbook'),
+  STORAGE_BUCKET: z.string().default('specbook-attachments'),
+  STORAGE_CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
   MCP_ENABLED: z
     .enum(['true', 'false'])
     .default('false')

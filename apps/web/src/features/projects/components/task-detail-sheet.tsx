@@ -17,6 +17,7 @@ import {
   useTask,
   useTransitionTask,
 } from '../hooks/use-projects';
+import { AttachmentsSection } from './attachments-section';
 import { StatusBadge } from './status-badge';
 
 /**
@@ -339,6 +340,9 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                   </div>
                 )}
               </section>
+
+              {/* Proof-of-work files */}
+              <AttachmentsSection taskId={task.id} />
 
               {/* Activity log */}
               <section className="space-y-3">

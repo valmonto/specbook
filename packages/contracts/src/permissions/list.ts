@@ -53,6 +53,12 @@ export const PERMISSIONS = [
   'task:delete',
   'task:transition',
   'task:comment',
+
+  // Attachment permissions
+  'attachment:create',
+  'attachment:list',
+  'attachment:read',
+  'attachment:delete',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

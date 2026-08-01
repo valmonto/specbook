@@ -40,10 +40,28 @@ services:
       timeout: 3s
       retries: 3
 
+  # S3-compatible object storage for attachments (matches staging's rustfs).
+  # Dev default endpoint http://localhost:9000 lines up with the env schema.
+  rustfs:
+    image: docker.io/rustfs/rustfs:1.0.0-beta.7
+    container_name: specbookrustfs
+    environment:
+      RUSTFS_ACCESS_KEY: specbook
+      RUSTFS_SECRET_KEY: specbook
+      RUSTFS_VOLUMES: /data
+    ports:
+      - '9000:9000'
+    volumes:
+      - specbookrustfs_data:/data
+    networks:
+      - dev_local_network
+
 volumes:
   specbookdb_data:
     driver: local
   specbookredis_data:
+    driver: local
+  specbookrustfs_data:
     driver: local
 
 networks:

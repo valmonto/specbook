@@ -18,6 +18,7 @@ export { mcp } from './mcp';
 export { common } from './common';
 export { validation } from './validation';
 export { tasks } from './tasks';
+export { attachments } from './attachments';
 
 // Combined keys object for convenience
 import { admin } from './admin';
@@ -30,6 +31,7 @@ import { mcp } from './mcp';
 import { common } from './common';
 import { validation } from './validation';
 import { tasks } from './tasks';
+import { attachments } from './attachments';
 
 export const k = {
   admin,
@@ -42,4 +44,5 @@ export const k = {
   common,
   validation,
   tasks,
+  attachments,
 } as const;
