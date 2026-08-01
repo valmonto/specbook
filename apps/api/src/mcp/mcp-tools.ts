@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 // The MCP SDK is built against zod v3; the workspace is v4. Tool input schemas
 // use the aliased v3 so they match the SDK's ZodRawShape at runtime.
 import { z, type ZodRawShape } from 'zod-v3';
-import { TASK_COMMENT_KINDS, TASK_STATUSES, type ActiveUser, type McpScope } from '@pkg/contracts';
+import {
+  ATTACHMENT_KINDS,
+  TASK_COMMENT_KINDS,
+  TASK_STATUSES,
+  type ActiveUser,
+  type McpScope,
+} from '@pkg/contracts';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { OrgService } from '../org/org.service';
 import { ProjectService } from '../tasks/project.service';
 import { TaskService } from '../tasks/task.service';
@@ -42,6 +49,7 @@ export class McpTools {
     private readonly orgService: OrgService,
     private readonly projectService: ProjectService,
     private readonly taskService: TaskService,
+    private readonly attachmentsService: AttachmentsService,
   ) {}
 
   catalog(): McpToolDef[] {
@@ -214,6 +222,53 @@ export class McpTools {
             index: args.index as number,
             done: args.done as boolean,
           }),
+      },
+      {
+        name: 'list_attachments',
+        scope: 'tasks:agent',
+        needsOrgContext: true,
+        description:
+          "A task's files with presigned read URLs — fetch the bytes with a plain HTTP GET. Specs may carry design screenshots; read them before working.",
+        inputSchema: { taskId: z.string().uuid() },
+        handler: async (args, actor) =>
+          this.attachmentsService.list(actor!, {
+            subjectType: 'task',
+            subjectId: str(args.taskId),
+          }),
+      },
+      {
+        name: 'create_attachment_upload',
+        scope: 'tasks:agent',
+        needsOrgContext: true,
+        description:
+          'Attach proof-of-work to a task, step 1 of 3: declares the file and returns a presigned PUT URL. Upload the bytes with HTTP PUT (Content-Type must match), then call confirm_attachment. Task policy applies (image/file only, size ceilings).',
+        inputSchema: {
+          taskId: z.string().uuid(),
+          kind: z.enum(ATTACHMENT_KINDS),
+          fileName: z.string().min(1).max(255),
+          mimeType: z.string().min(1).max(255),
+          sizeBytes: z.number().int().positive(),
+        },
+        handler: async (args, actor) =>
+          this.attachmentsService.createUpload(actor!, {
+            subjectType: 'task',
+            subjectId: str(args.taskId),
+            kind: args.kind as (typeof ATTACHMENT_KINDS)[number],
+            fileName: str(args.fileName),
+            mimeType: str(args.mimeType),
+            sizeBytes: args.sizeBytes as number,
+            withThumbnail: false,
+          }),
+      },
+      {
+        name: 'confirm_attachment',
+        scope: 'tasks:agent',
+        needsOrgContext: true,
+        description:
+          'Step 3: after the PUT succeeds, confirm — the server verifies what actually landed and the file becomes visible on the task.',
+        inputSchema: { id: z.string().uuid() },
+        handler: async (args, actor) =>
+          this.attachmentsService.confirm(actor!, { id: str(args.id) }),
       },
       {
         name: 'add_comment',
