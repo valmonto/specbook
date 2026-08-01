@@ -34,6 +34,11 @@ const router = createBrowserRouter([
         lazy: () => import('@/pages/settings.page').then((m) => ({ Component: m.default })),
       },
       {
+        // GitHub App Setup URL target — GitHub redirects here after install.
+        path: 'settings/github',
+        lazy: () => import('@/pages/settings-github.page').then((m) => ({ Component: m.default })),
+      },
+      {
         path: 'components',
         lazy: () => import('@/pages/components.page').then((m) => ({ Component: m.default })),
       },

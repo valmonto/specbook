@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, index, bigint } from 'drizzle-orm/pg-core';
 import { pk } from './helpers';
 import { organization } from './organization';
 import { user } from './user';
@@ -19,6 +19,10 @@ export const project = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     context: text('context'),
     repoUrl: varchar('repo_url', { length: 500 }),
+    // Set when the repo came from the org's GitHub installation — the hook
+    // later tickets use to restrict minted tokens to exactly this repository.
+    githubRepoId: bigint('github_repo_id', { mode: 'number' }),
+    githubRepoFullName: varchar('github_repo_full_name', { length: 255 }),
     defaultBranch: varchar('default_branch', { length: 255 }).notNull().default('main'),
     // Checkout path on the machine agents run on — not meaningful to the web UI.
     workdir: varchar('workdir', { length: 500 }),

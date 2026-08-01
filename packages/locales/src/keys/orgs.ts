@@ -6,6 +6,30 @@ export const orgs = {
   organization: 'orgs.organization',
   organizations: 'orgs.organizations',
 
+  // GitHub connection (org settings card + install callback page)
+  github: {
+    title: 'orgs.github.title',
+    description: 'orgs.github.description',
+    notConfigured: 'orgs.github.notConfigured',
+    connect: 'orgs.github.connect',
+    connectedAs: 'orgs.github.connectedAs',
+    disconnect: 'orgs.github.disconnect',
+    disconnectHint: 'orgs.github.disconnectHint',
+    repositories: 'orgs.github.repositories',
+    reposHint: 'orgs.github.reposHint',
+    noRepos: 'orgs.github.noRepos',
+    connecting: 'orgs.github.connecting',
+    connectSuccess: 'orgs.github.connectSuccess',
+    connectFailed: 'orgs.github.connectFailed',
+    missingInstallationId: 'orgs.github.missingInstallationId',
+    backToSettings: 'orgs.github.backToSettings',
+    private: 'orgs.github.private',
+    errors: {
+      notConfigured: 'orgs.github.errors.notConfigured',
+      installationNotFound: 'orgs.github.errors.installationNotFound',
+    },
+  },
+
   // Errors
   errors: {
     notFound: 'orgs.errors.notFound',

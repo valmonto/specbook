@@ -6,6 +6,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrgService } from '@/org/org.service';
 import type { OrgRepository } from '@/org/org.repository';
+import type { GithubAppService } from '@/github/github-app.service';
 
 const ORG_A = '11111111-1111-4111-8111-111111111111';
 const ORG_B = '22222222-2222-4222-8222-222222222222';
@@ -39,6 +40,7 @@ describe('OrgService', () => {
     service = new OrgService(
       repository as unknown as OrgRepository,
       { auth: { issueTokens } } as unknown as IamService,
+      { enabled: false } as unknown as GithubAppService,
       new FakeLogger().as<PinoLogger>(),
     );
   });

@@ -8,6 +8,10 @@ export const ProjectSchema = z.object({
   name: z.string(),
   context: z.string().nullable(),
   repoUrl: z.string().nullable(),
+  /** Set when the repo was picked from the org's GitHub installation — later
+   *  credential minting restricts tokens to exactly this repository. */
+  githubRepoId: z.number().int().nullable(),
+  githubRepoFullName: z.string().nullable(),
   defaultBranch: z.string(),
   workdir: z.string().nullable(),
   createdBy: z.string().uuid(),
@@ -25,6 +29,10 @@ export const CreateProjectRequestSchema = z
     name: z.string().min(1).max(255),
     context: z.string().max(100_000).optional(),
     repoUrl: z.string().max(500).optional(),
+    /** Pick from the org's installation: the server verifies the repo is in
+     *  the grant and derives repoUrl + full name itself — the client cannot
+     *  bind a project to a repo the installation does not cover. */
+    githubRepoId: z.number().int().positive().optional(),
     defaultBranch: z.string().min(1).max(255).optional(),
     workdir: z.string().max(500).optional(),
   })
@@ -42,6 +50,9 @@ export const UpdateProjectRequestSchema = z
     name: z.string().min(1).max(255).optional(),
     context: z.string().max(100_000).nullable().optional(),
     repoUrl: z.string().max(500).nullable().optional(),
+    /** Number = rebind (verified against the installation grant, repoUrl and
+     *  full name derived server-side); null = clear the binding. */
+    githubRepoId: z.number().int().positive().nullable().optional(),
     defaultBranch: z.string().min(1).max(255).optional(),
     workdir: z.string().max(500).nullable().optional(),
   })
