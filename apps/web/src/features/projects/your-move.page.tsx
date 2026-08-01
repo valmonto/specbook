@@ -9,6 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
 import { StatusBadge } from './components/status-badge';
+import { CiStateDot, PrStateBadge } from './components/github-state-badges';
 import { TaskDetailSheet } from './components/task-detail-sheet';
 import {
   useBlockedQuestions,
@@ -82,6 +83,8 @@ export default function YourMovePage() {
     >
       <div className="flex items-center gap-2">
         <StatusBadge status={task.status} />
+        <PrStateBadge task={task} />
+        <CiStateDot task={task} />
         <span className="truncate text-xs text-muted-foreground">
           {projectName(task.projectId)}
         </span>

@@ -4,6 +4,7 @@ import { ExampleProcessor } from './example/example.processor';
 import { ExampleListener } from './example/example.listener';
 import { NotificationRepository } from './example/notification.repository';
 import { AttachmentsSweepProcessor } from './attachments-sweep/attachments-sweep.processor';
+import { GithubWebhookProcessor } from './github-webhook/github-webhook.processor';
 
 /**
  * Worker queues module.
@@ -22,6 +23,8 @@ import { AttachmentsSweepProcessor } from './attachments-sweep/attachments-sweep
     NotificationRepository,
     // Storage GC
     AttachmentsSweepProcessor,
+    // GitHub webhook → live task PR/CI state
+    GithubWebhookProcessor,
   ],
 })
 export class WorkerQueuesModule {}

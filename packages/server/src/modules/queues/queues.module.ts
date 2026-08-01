@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DEFAULT_JOB_OPTIONS } from './queues.config';
 import { EXAMPLE_QUEUE, ExampleProducer } from './example';
 import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
+import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
 
 /**
  * Shared queues module.
@@ -40,8 +41,9 @@ import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
     // Register queues
     BullModule.registerQueue({ name: EXAMPLE_QUEUE.name }),
     BullModule.registerQueue({ name: ATTACHMENTS_SWEEP_QUEUE.name }),
+    BullModule.registerQueue({ name: GITHUB_WEBHOOK_QUEUE.name }),
   ],
-  providers: [ExampleProducer],
-  exports: [BullModule, ExampleProducer],
+  providers: [ExampleProducer, GithubWebhookProducer],
+  exports: [BullModule, ExampleProducer, GithubWebhookProducer],
 })
 export class QueuesModule {}

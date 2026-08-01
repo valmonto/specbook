@@ -11,7 +11,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { TASK_STATUSES } from '@pkg/contracts';
+import { TASK_CI_STATES, TASK_PR_STATES, TASK_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { project } from './project';
 import { user } from './user';
@@ -51,6 +51,12 @@ export const task = pgTable(
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
     branch: varchar('branch', { length: 255 }),
     prUrl: varchar('pr_url', { length: 500 }),
+    // Live GitHub state, written only by the webhook worker (varchar + CHECK
+    // like status). Null = no event ever arrived for this task.
+    prState: varchar('pr_state', { length: 16 }),
+    prNumber: integer('pr_number'),
+    ciState: varchar('ci_state', { length: 16 }),
+    prSyncedAt: timestamp('pr_synced_at', { withTimezone: true }),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
     createdBy: uuid('created_by')
@@ -69,6 +75,18 @@ export const task = pgTable(
     check(
       'task_status_check',
       sql.raw(`status IN (${TASK_STATUSES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'task_pr_state_check',
+      sql.raw(
+        `pr_state IS NULL OR pr_state IN (${TASK_PR_STATES.map((v) => `'${v}'`).join(', ')})`,
+      ),
+    ),
+    check(
+      'task_ci_state_check',
+      sql.raw(
+        `ci_state IS NULL OR ci_state IN (${TASK_CI_STATES.map((v) => `'${v}'`).join(', ')})`,
+      ),
     ),
   ],
 );

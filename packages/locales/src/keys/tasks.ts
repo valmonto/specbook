@@ -57,6 +57,18 @@ export const tasks = {
   },
 
   // Statuses
+  prState: {
+    open: 'tasks.prState.open',
+    merged: 'tasks.prState.merged',
+    closed: 'tasks.prState.closed',
+  },
+
+  ciState: {
+    pending: 'tasks.ciState.pending',
+    passing: 'tasks.ciState.passing',
+    failing: 'tasks.ciState.failing',
+  },
+
   status: {
     draft: 'tasks.status.draft',
     ready: 'tasks.status.ready',
