@@ -79,7 +79,10 @@ export default function AppLayout() {
     <SidebarProvider>
       <AppSidebar variant="inset" />
       <CommandMenu />
-      <SidebarInset className="md:peer-data-[variant=inset]:shadow-[0_1px_3px_rgba(16,18,28,0.05),0_16px_40px_-20px_rgba(16,18,28,0.18)] md:peer-data-[variant=inset]:ring-1 md:peer-data-[variant=inset]:ring-border/60 dark:md:peer-data-[variant=inset]:ring-white/[0.06]">
+      {/* min-w-0: wide children (the task board) must scroll inside their own
+          container, not widen the page — without it the flex chain grows and
+          the last board column clips off-screen on laptop widths. */}
+      <SidebarInset className="min-w-0 md:peer-data-[variant=inset]:shadow-[0_1px_3px_rgba(16,18,28,0.05),0_16px_40px_-20px_rgba(16,18,28,0.18)] md:peer-data-[variant=inset]:ring-1 md:peer-data-[variant=inset]:ring-border/60 dark:md:peer-data-[variant=inset]:ring-white/[0.06]">
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 rounded-t-xl border-b border-border/50 bg-background/70 px-3 backdrop-blur-xl transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-1.5">
             <SidebarTrigger className="-ml-0.5 text-muted-foreground" />
@@ -121,7 +124,7 @@ export default function AppLayout() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <main className="min-w-0 flex-1 overflow-x-hidden p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <Outlet />
           </ErrorBoundary>

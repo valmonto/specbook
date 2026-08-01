@@ -84,8 +84,10 @@ export function TaskBoard({ tasks, onSelectTask }: Props) {
     (s) => ALWAYS_VISIBLE.includes(s) || (byStatus.get(s)?.length ?? 0) > 0,
   );
 
+  // Contained horizontal scroll, quiet: no permanent scrollbar chrome —
+  // trackpads/wheels scroll it; the layout above guarantees containment.
   return (
-    <div className="overflow-x-auto pb-2">
+    <div className="overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex min-w-max gap-4">
         {columns.map((status) => {
           const columnTasks = byStatus.get(status) ?? [];
