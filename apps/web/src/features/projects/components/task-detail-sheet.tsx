@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Check, ExternalLink, GitBranch, MessageSquare, User } from 'lucide-react';
+import { Bot, Check, ExternalLink, GitBranch, MessageSquare, Pencil, User } from 'lucide-react';
 import type { TaskCommentKind, TaskStatus, TransitionTaskRequest } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
@@ -18,6 +18,7 @@ import {
   useTransitionTask,
 } from '../hooks/use-projects';
 import { AttachmentsSection } from './attachments-section';
+import { TaskEditForm } from './task-edit-form';
 import { StatusBadge } from './status-badge';
 
 /**
@@ -94,6 +95,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
   const addComment = useAddComment();
   const deleteTask = useDeleteTask();
 
+  const [editing, setEditing] = useState(false);
   // Which action is waiting for its comment payload.
   const [pending, setPending] = useState<HumanAction | null>(null);
   const [actionComment, setActionComment] = useState('');
@@ -148,9 +150,27 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                   </span>
                 )}
               </div>
-              <SheetTitle className="text-left leading-snug">{task.title}</SheetTitle>
+              <div className="flex items-start justify-between gap-2">
+                <SheetTitle className="text-left leading-snug">{task.title}</SheetTitle>
+                {!editing && task.status !== 'done' && task.status !== 'cancelled' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground"
+                    onClick={() => setEditing(true)}
+                    aria-label={t(k.common.actions.edit)}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                )}
+              </div>
             </SheetHeader>
 
+            {editing ? (
+              <div className="px-4 pb-8">
+                <TaskEditForm task={task} onClose={() => setEditing(false)} />
+              </div>
+            ) : (
             <div className="space-y-5 px-4 pb-8">
               {/* Spec */}
               {task.context && (
@@ -398,6 +418,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                 </div>
               </section>
             </div>
+            )}
           </>
         )}
       </SheetContent>
