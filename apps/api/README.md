@@ -171,6 +171,14 @@ their first real use), and a project binds to a granted repo via
 row stores only the installation id (not a secret); installation tokens
 are minted per call and never persisted.
 
+Agents get repo credentials the same way, never as standing secrets: the
+`get_repo_token` MCP tool (scope `tasks:agent`) trades an API key for a
+1-hour installation token restricted at mint time to the project's bound
+repository and to `{ contents, pull_requests }` write, plus a ready-made
+`cloneUrl`. Project resolution is actor-org-scoped; every failure (App
+not configured, org not connected, project not bound, repo dropped from
+the grant) is a distinct `k.*` error key.
+
 ## Seeding
 
 `pnpm db:seed` picks a strategy from `NODE_ENV`: production seeds one owner and

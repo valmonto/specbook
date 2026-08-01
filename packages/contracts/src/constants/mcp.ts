@@ -60,6 +60,13 @@ export const MCP_TOOLS = [
       'Full project: the context document (read it first), repo URL, default branch, and workdir on the agent machine.',
   },
   {
+    name: 'get_repo_token',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Mint a 1-hour GitHub token restricted to this project's bound repository (contents + pull requests) — clone/push with it, then let it expire. Requires the org's GitHub connection.",
+  },
+  {
     name: 'list_tasks',
     scope: 'tasks:agent',
     needsOrgContext: true,

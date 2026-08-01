@@ -110,6 +110,9 @@ export const tasks = {
 
   // Errors
   errors: {
+    githubNotConnected: 'tasks.errors.githubNotConnected',
+    projectNotBound: 'tasks.errors.projectNotBound',
+    repoDroppedFromGrant: 'tasks.errors.repoDroppedFromGrant',
     repoNotInGrant: 'tasks.errors.repoNotInGrant',
     projectNotFound: 'tasks.errors.projectNotFound',
     notFound: 'tasks.errors.notFound',

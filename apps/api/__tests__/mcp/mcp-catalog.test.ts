@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { MCP_SCOPES, MCP_TOOLS, type McpToolDescriptor } from '@pkg/contracts';
+import { FakeLogger } from '@pkg/testing';
+import type { PinoLogger } from 'nestjs-pino';
 import { McpTools } from '@/mcp/mcp-tools';
+import type { GithubAppService } from '@/github/github-app.service';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
@@ -18,6 +21,8 @@ describe('MCP catalog ↔ @pkg/contracts descriptors', () => {
     {} as ProjectService,
     {} as TaskService,
     {} as AttachmentsService,
+    {} as GithubAppService,
+    new FakeLogger().as<PinoLogger>(),
   );
   const catalog = tools.catalog();
   // whoami is registered by McpServerFactory for every key, not via catalog().

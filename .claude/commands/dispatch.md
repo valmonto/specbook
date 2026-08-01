@@ -29,6 +29,11 @@ stop on your own just because sweeps keep coming back empty.
 
 - Read the ticket AND its attachments first (`list_attachments`; images are
   visual specs — download via readUrl and look at them).
+- Repo access: if the project is repo-bound (`githubRepoFullName` set on
+  `get_project`), call `get_repo_token` with the projectId and clone/push
+  via the returned `cloneUrl` — the token is repo-scoped and dies in an
+  hour, so re-mint rather than store it. Machine SSH credentials remain
+  the fallback for unbound projects.
 - Branch from fresh main. Implement. UI work is not done until driven in a
   real browser (playwright) with screenshots.
 - `pnpm verify` must pass. Push the branch. `update_task_links` with the

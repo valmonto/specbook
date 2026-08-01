@@ -66,6 +66,20 @@ anything the reviewer escalates. A ticket cannot opt itself out.
 Merged ≠ deployed, in every mode: production sits behind its own gates
 (deploy secrets, the opt-in E2E_GATE).
 
+## Repo credentials — minted, not standing
+
+When the ticket's project is bound to a GitHub repo (picked from the org's
+installation), the builder does not need any pre-provisioned git credential:
+call the `get_repo_token` MCP tool with the projectId and clone/push via the
+returned `cloneUrl`. The token is minted by the GitHub App, restricted to
+exactly that repository with `contents` + `pull_requests` write, and expires
+after one hour — use it, push, let it die. Never store it in a remote URL
+that outlives the task (`git remote set-url` with the token embeds a secret
+in `.git/config`; prefer using `cloneUrl` directly or re-minting).
+
+Machine SSH credentials remain the fallback for projects that are not
+repo-bound (free-text repo URL only).
+
 ## Verification ladder (what "looked at" means per target)
 
 1. Web + Expo-web: Playwright MCP against the dev stack, seed logins.
