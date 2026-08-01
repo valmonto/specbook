@@ -9,7 +9,15 @@ export {
   type AnalyticsEvent,
   type FeatureFlag,
 } from './constants/analytics';
-export { MCP_SCOPES, type McpScope } from './constants/mcp';
+export {
+  MCP_SCOPES,
+  MCP_TOOLS,
+  mcpToolsForScope,
+  mcpToolsForScopes,
+  type McpScope,
+  type McpToolDescriptor,
+  type McpToolName,
+} from './constants/mcp';
 export {
   TASK_STATUSES,
   TASK_COMMENT_KINDS,

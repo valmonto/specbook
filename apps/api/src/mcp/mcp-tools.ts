@@ -4,10 +4,12 @@ import { Injectable } from '@nestjs/common';
 import { z, type ZodRawShape } from 'zod-v3';
 import {
   ATTACHMENT_KINDS,
+  MCP_TOOLS,
   TASK_COMMENT_KINDS,
   TASK_STATUSES,
   type ActiveUser,
   type McpScope,
+  type McpToolName,
 } from '@pkg/contracts';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { OrgService } from '../org/org.service';
@@ -29,6 +31,18 @@ const MAX_LIMIT = 100;
 
 const str = (v: unknown): string => v as string;
 const optStr = (v: unknown): string | undefined => v as string | undefined;
+
+/**
+ * Metadata (name, scope, description, org-context flag) comes from the
+ * shared descriptors in @pkg/contracts — the same data the key-creation UI
+ * renders — so a catalog entry here only adds what contracts cannot hold:
+ * the input schema and the handler.
+ */
+const meta = (name: Exclude<McpToolName, 'whoami'>) => {
+  const descriptor = MCP_TOOLS.find((tool) => tool.name === name);
+  if (!descriptor) throw new Error(`MCP tool '${name}' has no descriptor in @pkg/contracts`);
+  return descriptor;
+};
 
 /**
  * The tool catalog — one place, each tool tagged with the scope that exposes
@@ -55,9 +69,7 @@ export class McpTools {
   catalog(): McpToolDef[] {
     return [
       {
-        name: 'list_organizations',
-        scope: 'orgs:read',
-        description: 'Every organization on the platform, with member counts.',
+        ...meta('list_organizations'),
         inputSchema: {
           skip: z.number().int().min(0).optional(),
           limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
@@ -69,9 +81,7 @@ export class McpTools {
           }),
       },
       {
-        name: 'platform_stats',
-        scope: 'platform:read',
-        description: 'Platform totals (organization count).',
+        ...meta('platform_stats'),
         handler: async () => {
           const { meta } = await this.orgService.adminListOrgs({ skip: 0, limit: 1 });
           return { organizations: meta.total };
@@ -80,11 +90,7 @@ export class McpTools {
 
       // --- Agent court: the task protocol ---
       {
-        name: 'list_projects',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Projects in this organization. Read a project (get_project) before working its tasks — its context document is the constitution.',
+        ...meta('list_projects'),
         inputSchema: {
           skip: z.number().int().min(0).optional(),
           limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
@@ -96,20 +102,12 @@ export class McpTools {
           }),
       },
       {
-        name: 'get_project',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Full project: the context document (read it first), repo URL, default branch, and workdir on the agent machine.',
+        ...meta('get_project'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) => this.projectService.getById(actor!, str(args.id)),
       },
       {
-        name: 'list_tasks',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Tasks, filterable by project and status. available=true is THE work queue: ready tasks whose dependencies are all finished — pull from here.',
+        ...meta('list_tasks'),
         inputSchema: {
           projectId: z.string().uuid().optional(),
           status: z.enum(TASK_STATUSES).optional(),
@@ -127,20 +125,12 @@ export class McpTools {
           }),
       },
       {
-        name: 'get_task',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Full task: spec (context, out-of-scope, acceptance criteria), the comment log, and dependency state.',
+        ...meta('get_task'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) => this.taskService.getById(actor!, str(args.id)),
       },
       {
-        name: 'create_task',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          "File a task spec on the human's behalf. ALWAYS lands as a draft — only the human can dispatch it to ready (the dispatch gate), so use this to capture specs, not to queue work for yourself.",
+        ...meta('create_task'),
         inputSchema: {
           projectId: z.string().uuid(),
           title: z.string().min(1).max(500),
@@ -160,21 +150,13 @@ export class McpTools {
           }),
       },
       {
-        name: 'claim_task',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Atomically claim a ready task (ready → in_progress). If another session won the race you get a conflict — pull the next available task instead.',
+        ...meta('claim_task'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) =>
           this.taskService.transition(actor!, 'agent', { id: str(args.id), to: 'in_progress' }),
       },
       {
-        name: 'update_status',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Move a task through the agent transitions: in_progress → blocked (comment = your question, required) or → needs_review (requires a summary comment AND branch + prUrl set on the task first, via update_task_links); blocked/changes_requested → in_progress to resume.',
+        ...meta('update_status'),
         inputSchema: {
           id: z.string().uuid(),
           to: z.enum(TASK_STATUSES),
@@ -188,11 +170,7 @@ export class McpTools {
           }),
       },
       {
-        name: 'update_task_links',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Record where the work lives: branch name and PR URL. Required before update_status → needs_review.',
+        ...meta('update_task_links'),
         inputSchema: {
           id: z.string().uuid(),
           branch: z.string().max(255).optional(),
@@ -206,11 +184,7 @@ export class McpTools {
           }),
       },
       {
-        name: 'check_criterion',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Tick (or untick) one acceptance criterion by index as you complete it — this is live progress reporting.',
+        ...meta('check_criterion'),
         inputSchema: {
           id: z.string().uuid(),
           index: z.number().int().min(0),
@@ -224,11 +198,7 @@ export class McpTools {
           }),
       },
       {
-        name: 'list_attachments',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          "A task's files with presigned read URLs — fetch the bytes with a plain HTTP GET. Specs may carry design screenshots; read them before working.",
+        ...meta('list_attachments'),
         inputSchema: { taskId: z.string().uuid() },
         handler: async (args, actor) =>
           this.attachmentsService.list(actor!, {
@@ -237,11 +207,7 @@ export class McpTools {
           }),
       },
       {
-        name: 'create_attachment_upload',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Attach proof-of-work to a task, step 1 of 3: declares the file and returns a presigned PUT URL. Upload the bytes with HTTP PUT (Content-Type must match), then call confirm_attachment. Task policy applies (image/file only, size ceilings).',
+        ...meta('create_attachment_upload'),
         inputSchema: {
           taskId: z.string().uuid(),
           kind: z.enum(ATTACHMENT_KINDS),
@@ -261,21 +227,13 @@ export class McpTools {
           }),
       },
       {
-        name: 'confirm_attachment',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          'Step 3: after the PUT succeeds, confirm — the server verifies what actually landed and the file becomes visible on the task.',
+        ...meta('confirm_attachment'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) =>
           this.attachmentsService.confirm(actor!, { id: str(args.id) }),
       },
       {
-        name: 'add_comment',
-        scope: 'tasks:agent',
-        needsOrgContext: true,
-        description:
-          "Write to the task's work log. kind 'progress' for narration mid-flight, 'comment' for everything else (questions go through update_status → blocked).",
+        ...meta('add_comment'),
         inputSchema: {
           id: z.string().uuid(),
           kind: z.enum(TASK_COMMENT_KINDS).optional(),
