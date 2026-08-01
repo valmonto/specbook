@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderKanban, Lock } from 'lucide-react';
+import { FolderKanban, Lock, Sparkles } from 'lucide-react';
 import type { Project } from '@pkg/contracts';
 import { k } from '@pkg/locales';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +29,18 @@ interface Props {
 
 /** Sentinel for "type a URL yourself" in the repo picker. */
 const MANUAL = 'manual';
+/** Sentinel for "provision a brand-new repository" (create mode only). */
+const CREATE_NEW = 'create-new';
+
+/** GitHub repo-name shape, mirrored from the contracts schema. */
+const REPO_NAME_RE = /^[A-Za-z0-9._-]+$/;
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 /**
  * One modal for create and edit — same fields, different verb. WideModal (not
@@ -49,18 +62,27 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
   const [name, setName] = useState('');
   const [repoChoice, setRepoChoice] = useState<string>(MANUAL);
   const [repoUrl, setRepoUrl] = useState('');
+  const [newRepoName, setNewRepoName] = useState('');
+  const [fromTemplate, setFromTemplate] = useState(true);
   const [defaultBranch, setDefaultBranch] = useState('main');
   const [workdir, setWorkdir] = useState('');
   const [context, setContext] = useState('');
 
   const repos = github.data?.connected ? github.data.repositories : [];
   const pickerAvailable = repos.length > 0;
+  // Provisioning: create mode only, and only when the installation granted
+  // the Administration permission — otherwise the option simply is not there.
+  const canCreateRepo = !project && Boolean(github.data?.canCreateRepos);
+  const templateRepo = github.data?.templateRepo ?? null;
+  const creating = repoChoice === CREATE_NEW;
 
   useEffect(() => {
     if (!open) return;
     setName(project?.name ?? '');
     setRepoChoice(project?.githubRepoId ? String(project.githubRepoId) : MANUAL);
     setRepoUrl(project?.repoUrl ?? '');
+    setNewRepoName('');
+    setFromTemplate(true);
     setDefaultBranch(project?.defaultBranch ?? 'main');
     setWorkdir(project?.workdir ?? '');
     setContext(project?.context ?? '');
@@ -70,10 +92,14 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
     setRepoChoice(value);
     const repo = repos.find((r) => String(r.id) === value);
     if (repo) setDefaultBranch(repo.defaultBranch);
+    if (value === CREATE_NEW && !newRepoName) setNewRepoName(slugify(name));
   };
 
+  const newRepoInvalid = creating && (!newRepoName.trim() || !REPO_NAME_RE.test(newRepoName.trim()));
+
   const submit = async () => {
-    const pickedId = repoChoice === MANUAL ? undefined : Number(repoChoice);
+    const pickedId =
+      repoChoice === MANUAL || repoChoice === CREATE_NEW ? undefined : Number(repoChoice);
     const base = {
       name: name.trim(),
       defaultBranch: defaultBranch.trim() || undefined,
@@ -91,7 +117,14 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
       : await create.execute({
           ...base,
           githubRepoId: pickedId,
-          ...(pickedId ? {} : { repoUrl: repoUrl.trim() || undefined }),
+          ...(creating
+            ? {
+                newRepoName: newRepoName.trim(),
+                newRepoFromTemplate: Boolean(templateRepo) && fromTemplate,
+              }
+            : pickedId
+              ? {}
+              : { repoUrl: repoUrl.trim() || undefined }),
         });
     if (!res.e) onOpenChange(false);
   };
@@ -107,7 +140,7 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
             {t(k.common.actions.cancel)}
           </Button>
-          <Button onClick={submit} disabled={busy || !name.trim()}>
+          <Button onClick={submit} disabled={busy || !name.trim() || newRepoInvalid}>
             {t(project ? k.common.actions.save : k.common.actions.create)}
           </Button>
         </>
@@ -121,13 +154,21 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="project-repo">{t(k.tasks.repoUrl)}</Label>
-            {pickerAvailable ? (
+            {pickerAvailable || canCreateRepo ? (
               <>
                 <Select value={repoChoice} onValueChange={pickRepo}>
                   <SelectTrigger id="project-repo">
                     <SelectValue placeholder={t(k.tasks.repoPickerPlaceholder)} />
                   </SelectTrigger>
                   <SelectContent>
+                    {canCreateRepo && (
+                      <SelectItem value={CREATE_NEW}>
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles className="size-3 text-muted-foreground" />
+                          {t(k.tasks.repoCreateNew)}
+                        </span>
+                      </SelectItem>
+                    )}
                     {repos.map((repo) => (
                       <SelectItem key={repo.id} value={String(repo.id)}>
                         <span className="flex items-center gap-1.5">
@@ -145,6 +186,26 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
                     onChange={(e) => setRepoUrl(e.target.value)}
                     placeholder="https://github.com/…"
                   />
+                )}
+                {creating && (
+                  <div className="grid gap-2">
+                    <Input
+                      aria-label={t(k.tasks.repoNewName)}
+                      value={newRepoName}
+                      onChange={(e) => setNewRepoName(e.target.value)}
+                      placeholder={slugify(name) || 'my-product'}
+                    />
+                    {templateRepo && (
+                      <label className="flex items-center gap-2 text-xs">
+                        <Checkbox
+                          checked={fromTemplate}
+                          onCheckedChange={(checked) => setFromTemplate(checked === true)}
+                        />
+                        {t(k.tasks.repoFromTemplate, { template: templateRepo })}
+                      </label>
+                    )}
+                    <p className="text-xs text-muted-foreground">{t(k.tasks.repoCreateHint)}</p>
+                  </div>
                 )}
               </>
             ) : (

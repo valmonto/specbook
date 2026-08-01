@@ -7,6 +7,8 @@ import type { GithubRepo } from '@pkg/contracts';
 export interface GithubInstallation {
   id: number;
   accountLogin: string;
+  /** True when the installation granted Administration write — repo provisioning. */
+  canCreateRepos: boolean;
 }
 
 export interface GithubRepoToken {
@@ -37,12 +39,15 @@ export class GithubAppService {
   private readonly appId?: string;
   private readonly slug?: string;
   private readonly privateKey?: string;
+  /** owner/repo of the template new projects are generated from (env, optional). */
+  readonly templateRepo: string | null;
   private readonly http: AxiosInstance;
 
   constructor(config: ConfigService) {
     this.appId = config.get<string>('GITHUB_APP_ID');
     this.slug = config.get<string>('GITHUB_APP_SLUG');
     this.privateKey = config.get<string>('GITHUB_APP_PRIVATE_KEY');
+    this.templateRepo = config.get<string>('GITHUB_TEMPLATE_REPO') ?? null;
     this.http = axios.create({
       baseURL: config.get<string>('GITHUB_API_BASE', 'https://api.github.com'),
       timeout: 10_000,
@@ -70,11 +75,18 @@ export class GithubAppService {
    */
   async getInstallation(installationId: number): Promise<GithubInstallation | null> {
     try {
-      const { data } = await this.http.get<{ id: number; account: { login: string } | null }>(
-        `/app/installations/${installationId}`,
-        { headers: { Authorization: `Bearer ${this.appJwt()}` } },
-      );
-      return { id: data.id, accountLogin: data.account?.login ?? '' };
+      const { data } = await this.http.get<{
+        id: number;
+        account: { login: string } | null;
+        permissions?: Record<string, string>;
+      }>(`/app/installations/${installationId}`, {
+        headers: { Authorization: `Bearer ${this.appJwt()}` },
+      });
+      return {
+        id: data.id,
+        accountLogin: data.account?.login ?? '',
+        canCreateRepos: data.permissions?.administration === 'write',
+      };
     } catch (error) {
       if (error instanceof AxiosError && error.response?.status === 404) return null;
       throw error;
@@ -147,10 +159,100 @@ export class GithubAppService {
     }
   }
 
-  private async installationToken(installationId: number): Promise<string> {
+  /**
+   * Provision a repository for a project: private, generated from the
+   * template when one is configured, otherwise created bare in the
+   * installation's account.
+   *
+   * The Administration-capable token minted here is downscoped to exactly
+   * what the call needs, lives inside this method, and is never returned,
+   * logged or persisted — no caller (MCP or HTTP) ever receives an
+   * admin-capable credential.
+   */
+  async createProjectRepo(
+    installationId: number,
+    opts: { owner: string; name: string; fromTemplate: boolean },
+  ): Promise<GithubRepo> {
+    const token = await this.installationToken(installationId, {
+      administration: 'write',
+      contents: 'write',
+    });
+    const auth = { headers: { Authorization: `Bearer ${token}` } };
+
+    const map = (repo: {
+      id: number;
+      full_name: string;
+      html_url: string;
+      private: boolean;
+      default_branch: string;
+    }): GithubRepo => ({
+      id: repo.id,
+      fullName: repo.full_name,
+      htmlUrl: repo.html_url,
+      private: repo.private,
+      defaultBranch: repo.default_branch,
+    });
+
+    if (opts.fromTemplate && this.templateRepo) {
+      const { data } = await this.http.post(
+        `/repos/${this.templateRepo}/generate`,
+        { owner: opts.owner, name: opts.name, private: true },
+        auth,
+      );
+      return map(data);
+    }
+
+    const { data } = await this.http.post(`/orgs/${opts.owner}/repos`, { name: opts.name, private: true }, auth);
+    return map(data);
+  }
+
+  /**
+   * Every provisioned repo is born protected: the same ruleset the human
+   * applies by hand to existing repos — no force pushes, no deletions, PRs
+   * only into the default branch. Applied before the repo is bound to a
+   * project, so no window exists where agents work in an unprotected repo.
+   */
+  async applyProtectionRuleset(installationId: number, repoFullName: string): Promise<void> {
+    const token = await this.installationToken(installationId, { administration: 'write' });
+    await this.http.post(
+      `/repos/${repoFullName}/rulesets`,
+      {
+        name: 'protect-main',
+        target: 'branch',
+        enforcement: 'active',
+        conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
+        rules: [
+          { type: 'deletion' },
+          { type: 'non_fast_forward' },
+          {
+            type: 'pull_request',
+            parameters: {
+              required_approving_review_count: 0,
+              dismiss_stale_reviews_on_push: false,
+              require_code_owner_review: false,
+              require_last_push_approval: false,
+              required_review_thread_resolution: false,
+              allowed_merge_methods: ['merge', 'squash', 'rebase'],
+            },
+          },
+        ],
+      },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  }
+
+  /**
+   * Tokens are downscoped per call: an omitted permissions object inherits
+   * the installation's full grant (read paths), an explicit one narrows to
+   * exactly what the operation needs.
+   */
+  private async installationToken(
+    installationId: number,
+    permissions?: Record<string, string>,
+  ): Promise<string> {
     const { data } = await this.http.post<{ token: string }>(
       `/app/installations/${installationId}/access_tokens`,
-      {},
+      permissions ? { permissions } : {},
       { headers: { Authorization: `Bearer ${this.appJwt()}` } },
     );
     return data.token;

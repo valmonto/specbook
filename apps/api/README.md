@@ -179,6 +179,16 @@ repository and to `{ contents, pull_requests }` write, plus a ready-made
 not configured, org not connected, project not bound, repo dropped from
 the grant) is a distinct `k.*` error key.
 
+**Repo provisioning** — with the Administration permission granted (a
+separate consent step) and `GITHUB_TEMPLATE_REPO` set, project create
+can provision a new private repository: generated from the template,
+verified into the installation's grant, protected by a ruleset (no
+force pushes, no deletions, PRs only) BEFORE it is bound, then bound
+like a picked repo with an init task filed as a draft. The
+admin-capable token is minted per call, downscoped to the operation,
+and never returned or logged; a unit test enumerates the GitHub seam's
+surface and fails if a destructive method ever appears.
+
 **Inbound webhook** — `POST /api/webhooks/github` is the repo's first
 unauthenticated non-health route: `@PublicRoute` skips the session
 chain and the HMAC IS the auth — `X-Hub-Signature-256` verified in

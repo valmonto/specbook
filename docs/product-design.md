@@ -239,7 +239,24 @@ lets tests point it at a stub.
 normalized event to a worker job; the worker resolves installation →
 org → that org's projects on the event's repo → tasks by branch/PR URL,
 and writes `pr_state`/`pr_number`/`ci_state` onto the task. The review
-card and task detail render the live badges. Steps 2-3 remain open.
+card and task detail render the live badges.
+
+**Step 2 (`get_repo_token`) is SHIPPED** — agents trade their MCP key
+for a 1-hour installation token restricted at mint time to the
+project's bound repo and `{contents, pull_requests}` write; no standing
+GitHub credential on agent machines (docs/agent-loop.md has the flow).
+
+**Step 3 (repo provisioning) is SHIPPED** — project create offers
+"Create new repository" when the installation granted Administration
+write: the repo is generated from `GITHUB_TEMPLATE_REPO` (or created
+bare), verified into the installation's grant, **born protected** (a
+ruleset blocking force pushes and deletions and requiring PRs is
+applied before the repo is bound), bound to the project, and the init
+task is filed as a draft. Admin-capable tokens are minted per call
+inside the server, downscoped to the operation, and never leave it; a
+unit test enforces that the GitHub seam exposes no destructive method.
+The v2 arc is complete: connect your GitHub org, describe work, agents
+ship it through a review gate.
 
 Delivered in three steps, each independently valuable:
 
