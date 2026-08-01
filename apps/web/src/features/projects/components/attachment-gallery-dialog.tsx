@@ -52,21 +52,23 @@ export function AttachmentGalleryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="sm:max-w-5xl">
-        <DialogHeader>
+      {/* Near-fullscreen: evidence wants pixels. Sized here via className
+          overrides (tailwind-merge in cn) — the base Dialog stays untouched. */}
+      <DialogContent className="flex h-[92vh] w-[92vw] max-w-[92vw] flex-col sm:max-w-[92vw]">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="truncate pr-8 font-mono text-sm">
             {attachment.fileName ?? attachment.mimeType}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
           {/* Preview */}
-          <div className="flex min-h-80 items-center justify-center overflow-hidden rounded-lg border bg-muted/30">
+          <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/30">
             {attachment.kind === 'image' ? (
               <img
                 src={readUrl}
                 alt={attachment.fileName ?? 'attachment'}
-                className="max-h-[65vh] w-auto max-w-full object-contain"
+                className="max-h-full w-auto max-w-full object-contain"
               />
             ) : (
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -82,7 +84,7 @@ export function AttachmentGalleryDialog({
           </div>
 
           {/* The set — click any to swap the preview */}
-          <div className="flex max-h-[65vh] flex-col gap-2 overflow-y-auto pr-1">
+          <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
             {items.map((item, itemIndex) => (
               <button
                 key={item.attachment.id}
@@ -112,7 +114,7 @@ export function AttachmentGalleryDialog({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => step(-1)} disabled={items.length < 2}>
             <ChevronLeft className="size-4" />
           </Button>
