@@ -20,6 +20,14 @@ export const TASK_STATUSES = [
 
 export const TASK_COMMENT_KINDS = ['comment', 'progress', 'question', 'answer'] as const;
 
+/**
+ * Live GitHub state on a task, written only by the webhook worker — never by
+ * users or agents. Null = no event ever arrived (the UI falls back to the
+ * plain PR link).
+ */
+export const TASK_PR_STATES = ['open', 'merged', 'closed'] as const;
+export const TASK_CI_STATES = ['pending', 'passing', 'failing'] as const;
+
 export const TASK_AUTHOR_TYPES = ['user', 'agent'] as const;
 
 type Status = (typeof TASK_STATUSES)[number];

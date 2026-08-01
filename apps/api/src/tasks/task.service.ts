@@ -356,8 +356,11 @@ export class TaskService {
     return {
       ...t,
       status: t.status as TaskStatus,
+      prState: t.prState as TaskDto['prState'],
+      ciState: t.ciState as TaskDto['ciState'],
       claimedAt: t.claimedAt?.toISOString() ?? null,
       statusChangedAt: t.statusChangedAt?.toISOString() ?? null,
+      prSyncedAt: t.prSyncedAt?.toISOString() ?? null,
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
     };

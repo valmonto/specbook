@@ -232,8 +232,14 @@ project form binds a project to a repo from the installation's grant
 the URL). `GithubAppService` (apps/api/src/github/) is the single seam
 that talks to GitHub; `GITHUB_APP_ID` / `GITHUB_APP_SLUG` /
 `GITHUB_APP_PRIVATE_KEY` (base64 PEM) switch it on, `GITHUB_API_BASE`
-lets tests point it at a stub. The three steps below build on it and
-remain open.
+lets tests point it at a stub.
+
+**Step 1 (inbound webhook) is SHIPPED** — `POST /api/webhooks/github`
+(HMAC over raw bytes, `GITHUB_WEBHOOK_SECRET`) acks fast and hands the
+normalized event to a worker job; the worker resolves installation →
+org → that org's projects on the event's repo → tasks by branch/PR URL,
+and writes `pr_state`/`pr_number`/`ci_state` onto the task. The review
+card and task detail render the live badges. Steps 2-3 remain open.
 
 Delivered in three steps, each independently valuable:
 

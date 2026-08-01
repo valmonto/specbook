@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { TASK_AUTHOR_TYPES, TASK_COMMENT_KINDS, TASK_STATUSES } from '../constants';
+import {
+  TASK_AUTHOR_TYPES,
+  TASK_CI_STATES,
+  TASK_COMMENT_KINDS,
+  TASK_PR_STATES,
+  TASK_STATUSES,
+} from '../constants';
 import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
 
 // --- Task Enums ---
@@ -8,10 +14,14 @@ import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.sc
 export const TaskStatusSchema = z.enum(TASK_STATUSES);
 export const TaskCommentKindSchema = z.enum(TASK_COMMENT_KINDS);
 export const TaskAuthorTypeSchema = z.enum(TASK_AUTHOR_TYPES);
+export const TaskPrStateSchema = z.enum(TASK_PR_STATES);
+export const TaskCiStateSchema = z.enum(TASK_CI_STATES);
 
 export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export type TaskCommentKind = z.infer<typeof TaskCommentKindSchema>;
 export type TaskAuthorType = z.infer<typeof TaskAuthorTypeSchema>;
+export type TaskPrState = z.infer<typeof TaskPrStateSchema>;
+export type TaskCiState = z.infer<typeof TaskCiStateSchema>;
 
 // --- Acceptance Criterion ---
 // The checklist that replaces subtasks: "all boxes ticked" is the
@@ -37,6 +47,11 @@ export const TaskSchema = z.object({
   claimedAt: z.string().nullable(),
   branch: z.string().nullable(),
   prUrl: z.string().nullable(),
+  // Live GitHub state, webhook-written only; null until an event arrives.
+  prState: TaskPrStateSchema.nullable(),
+  prNumber: z.number().int().nullable(),
+  ciState: TaskCiStateSchema.nullable(),
+  prSyncedAt: z.string().nullable(),
   statusChangedBy: z.string().uuid().nullable(),
   statusChangedAt: z.string().nullable(),
   createdBy: z.string().uuid(),

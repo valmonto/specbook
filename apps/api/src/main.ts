@@ -19,6 +19,10 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter({ trustProxy: process.env.TRUST_PROXY === 'true' }),
     {
       bufferLogs: true,
+      // Keeps the raw request bytes available (req.rawBody) — webhook HMAC
+      // verification must run over the exact bytes GitHub signed, not a
+      // re-serialization of the parsed JSON.
+      rawBody: true,
     },
   );
 

@@ -31,3 +31,4 @@ ignored
 # only user-local state stays ignored.
 .claude/settings.local.json
 .claude/*.local.*
+.claude/worktrees/

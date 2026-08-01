@@ -18,6 +18,7 @@ import {
   useTransitionTask,
 } from '../hooks/use-projects';
 import { AttachmentsSection } from './attachments-section';
+import { CiStateDot, PrStateBadge } from './github-state-badges';
 import { TaskEditForm } from './task-edit-form';
 import { StatusBadge } from './status-badge';
 
@@ -224,7 +225,9 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                 </section>
               )}
 
-              {/* Work product links */}
+              {/* Work product links + live GitHub state (webhook-fed; badges
+                  render only once an event has arrived, the link is the
+                  fallback) */}
               {(task.branch ?? task.prUrl) && (
                 <section className="flex flex-wrap items-center gap-3 text-sm">
                   {task.branch && (
@@ -233,6 +236,8 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                       {task.branch}
                     </span>
                   )}
+                  <PrStateBadge task={task} />
+                  <CiStateDot task={task} />
                   {task.prUrl && (
                     <a
                       href={task.prUrl}

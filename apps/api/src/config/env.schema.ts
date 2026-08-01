@@ -100,6 +100,9 @@ export const envSchema = z.object({
       return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
     }),
   GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
+  // Signs webhook deliveries (independent of the App trio: the endpoint only
+  // needs this). Absent → the webhook endpoint refuses everything.
+  GITHUB_WEBHOOK_SECRET: z.string().min(16).optional(),
 
   // Telemetry — all optional; absent means the corresponding service is a
   // no-op. SENTRY_DSN wakes backend error reporting, POSTHOG_KEY wakes

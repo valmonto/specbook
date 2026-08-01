@@ -171,6 +171,18 @@ their first real use), and a project binds to a granted repo via
 row stores only the installation id (not a secret); installation tokens
 are minted per call and never persisted.
 
+**Inbound webhook** — `POST /api/webhooks/github` is the repo's first
+unauthenticated non-health route: `@PublicRoute` skips the session
+chain and the HMAC IS the auth — `X-Hub-Signature-256` verified in
+constant time over the RAW request bytes (`rawBody: true` in
+bootstrap) against `GITHUB_WEBHOOK_SECRET`; unset secret → the route
+404s. Verified deliveries are normalized (`github-webhook.mapper.ts`)
+and enqueued; the worker's `GithubWebhookProcessor` resolves
+installation → org → projects → tasks and writes the live
+`pr_state`/`pr_number`/`ci_state` the review UI renders. Events nobody
+consumes are acked and dropped — GitHub retries 5xx, and there is
+nothing to retry about a `star` event.
+
 ## Seeding
 
 `pnpm db:seed` picks a strategy from `NODE_ENV`: production seeds one owner and
