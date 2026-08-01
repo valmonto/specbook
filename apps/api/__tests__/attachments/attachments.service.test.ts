@@ -140,6 +140,29 @@ describe('AttachmentsService — the three-step protocol', () => {
     expect(repo.insert).not.toHaveBeenCalled();
   });
 
+  // --- Subject policy: kinds and per-subject ceilings ---
+
+  it('rejects a kind the subject policy does not accept (tasks take no video)', async () => {
+    await expect(
+      service.createUpload(human, {
+        subjectType: 'task',
+        subjectId: TASK,
+        kind: 'video',
+        mimeType: 'video/mp4',
+        sizeBytes: 1000,
+        withThumbnail: false,
+      }),
+    ).rejects.toThrow(UnprocessableEntityException);
+    expect(repo.insert).not.toHaveBeenCalled();
+  });
+
+  it('enforces the per-subject ceiling at confirm against the HEAD truth', async () => {
+    // 11 MB image: over the task policy's 10 MB image ceiling.
+    storage.headObject!.mockResolvedValue({ contentLength: 11 * 1024 * 1024 });
+    await expect(service.confirm(human, { id: ATT })).rejects.toThrow(UnprocessableEntityException);
+    expect(repo.hardDelete).toHaveBeenCalledWith(ATT, ORG);
+  });
+
   // --- Confirm: the truth step ---
 
   it('confirms with the HEAD-verified size, not the declared one', async () => {

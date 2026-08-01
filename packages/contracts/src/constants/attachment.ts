@@ -24,3 +24,45 @@ export const ATTACHMENT_MAX_BYTES: Readonly<Record<(typeof ATTACHMENT_KINDS)[num
   audio: 25 * 1024 * 1024,
   file: 25 * 1024 * 1024,
 };
+
+export type AttachmentKindName = (typeof ATTACHMENT_KINDS)[number];
+export type AttachmentSubjectTypeName = (typeof ATTACHMENT_SUBJECT_TYPES)[number];
+
+export interface AttachmentPolicy {
+  /** Kinds this subject accepts. Absent kind → declare is rejected. */
+  kinds: readonly AttachmentKindName[];
+  /** Optional per-kind ceilings BELOW the platform caps — a policy can
+   *  tighten ATTACHMENT_MAX_BYTES, never exceed it. */
+  maxBytes?: Partial<Record<AttachmentKindName, number>>;
+}
+
+/**
+ * Per-subject upload rules — the product layer above the platform caps.
+ * Single source for the server (declare + confirm) and the client
+ * (pre-upload validation), so the browser never starts an upload the
+ * server would refuse.
+ *
+ * Tasks carry proof-of-work: screenshots and logs/artifacts. No video or
+ * audio — a demo recording belongs in the PR, not the ticket.
+ */
+export const ATTACHMENT_POLICIES: Readonly<Record<AttachmentSubjectTypeName, AttachmentPolicy>> = {
+  task: {
+    kinds: ['image', 'file'],
+    maxBytes: { image: 10 * 1024 * 1024, file: 25 * 1024 * 1024 },
+  },
+};
+
+/** Effective ceiling: the policy may tighten the platform cap, never raise it. */
+export const attachmentLimitFor = (
+  subjectType: AttachmentSubjectTypeName,
+  kind: AttachmentKindName,
+): number => {
+  const platform = ATTACHMENT_MAX_BYTES[kind];
+  const policy = ATTACHMENT_POLICIES[subjectType]?.maxBytes?.[kind];
+  return policy === undefined ? platform : Math.min(policy, platform);
+};
+
+export const attachmentKindAllowed = (
+  subjectType: AttachmentSubjectTypeName,
+  kind: AttachmentKindName,
+): boolean => ATTACHMENT_POLICIES[subjectType]?.kinds.includes(kind) ?? false;

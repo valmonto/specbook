@@ -37,6 +37,7 @@
   "attachments.deleteConfirm": "Ištrinti šį priedą?",
   "attachments.download": "Atsisiųsti",
   "attachments.empty": "Priedų nėra",
+  "attachments.errors.kindNotAllowed": "Šio tipo failai čia nepriimami",
   "attachments.errors.notFound": "Priedas nerastas",
   "attachments.errors.notUploaded": "Failas dar neįkeltas — bandykite dar kartą",
   "attachments.errors.sizeMismatch": "Įkeltas failas neatitinka deklaracijos ir buvo atmestas",

@@ -8,7 +8,8 @@ import {
 import { randomUUID } from 'node:crypto';
 import { InjectLogger, PinoLogger, StorageService } from '@pkg/server';
 import {
-  ATTACHMENT_MAX_BYTES,
+  attachmentKindAllowed,
+  attachmentLimitFor,
   type ActiveUser,
   type Attachment,
   type AttachmentWithUrls,
@@ -52,9 +53,15 @@ export class AttachmentsService {
   ): Promise<CreateAttachmentUploadResponse> {
     await this.requireSubject(dto.subjectType, dto.subjectId, activeUser.orgId);
 
+    // Subject policy: which kinds this subject accepts at all.
+    if (!attachmentKindAllowed(dto.subjectType, dto.kind)) {
+      throw new UnprocessableEntityException(k.attachments.errors.kindNotAllowed);
+    }
+
     // The declared size is a claim (verified at confirm), but an honest
-    // client declaring over the ceiling should fail before uploading.
-    if (dto.sizeBytes > ATTACHMENT_MAX_BYTES[dto.kind]) {
+    // client declaring over the effective ceiling (min of platform cap and
+    // subject policy) should fail before uploading a byte.
+    if (dto.sizeBytes > attachmentLimitFor(dto.subjectType, dto.kind)) {
       throw new UnprocessableEntityException(k.attachments.errors.tooLarge);
     }
 
@@ -113,7 +120,12 @@ export class AttachmentsService {
       throw new UnprocessableEntityException(k.attachments.errors.notUploaded);
     }
 
-    const ceiling = ATTACHMENT_MAX_BYTES[row.kind as keyof typeof ATTACHMENT_MAX_BYTES];
+    // Same effective ceiling the declare used — recomputed from the row so a
+    // policy change between declare and confirm still applies.
+    const ceiling = attachmentLimitFor(
+      row.subjectType as Parameters<typeof attachmentLimitFor>[0],
+      row.kind as Parameters<typeof attachmentLimitFor>[1],
+    );
     if (head.contentLength > ceiling || head.contentLength > row.sizeBytes * 1.1 + 4096) {
       await this.storage.deleteFile({ bucket: row.bucket, key: this.keyOf(row) });
       await this.repository.hardDelete(row.id, activeUser.orgId);

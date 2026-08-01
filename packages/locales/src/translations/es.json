@@ -37,6 +37,7 @@
   "attachments.deleteConfirm": "¿Eliminar este adjunto?",
   "attachments.download": "Descargar",
   "attachments.empty": "Sin adjuntos",
+  "attachments.errors.kindNotAllowed": "Este tipo de archivo no se acepta aquí",
   "attachments.errors.notFound": "Adjunto no encontrado",
   "attachments.errors.notUploaded": "El archivo no terminó de subirse — inténtalo de nuevo",
   "attachments.errors.sizeMismatch": "El archivo subido no coincide con su declaración y fue rechazado",

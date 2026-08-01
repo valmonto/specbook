@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AttachmentKind, ListAttachmentsResponse } from '@pkg/contracts';
-import { ATTACHMENT_MAX_BYTES } from '@pkg/contracts';
+import { attachmentKindAllowed, attachmentLimitFor } from '@pkg/contracts';
 import { useAuth } from '@/shared/auth/auth-context';
 import { useCachedRequest } from '@/shared/hooks/use-cached-request';
 import { useCan } from '@/shared/hooks/use-permissions';
@@ -39,7 +39,10 @@ export function useUploadAttachment(onDone: () => Promise<unknown> | void) {
     setError(null);
     try {
       const kind = kindOf(file);
-      if (file.size > ATTACHMENT_MAX_BYTES[kind]) {
+      if (!attachmentKindAllowed('task', kind)) {
+        throw new Error('attachments.errors.kindNotAllowed');
+      }
+      if (file.size > attachmentLimitFor('task', kind)) {
         throw new Error('attachments.errors.tooLarge');
       }
       const declared = await projectsApi.createAttachmentUpload({

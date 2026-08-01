@@ -24,4 +24,8 @@ export {
   ATTACHMENT_STATUSES,
   ATTACHMENT_SUBJECT_TYPES,
   ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_POLICIES,
+  attachmentLimitFor,
+  attachmentKindAllowed,
+  type AttachmentPolicy,
 } from './constants/attachment';
