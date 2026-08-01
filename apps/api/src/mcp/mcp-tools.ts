@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectLogger, PinoLogger } from '@pkg/server';
+import { k } from '@pkg/locales';
 // The MCP SDK is built against zod v3; the workspace is v4. Tool input schemas
 // use the aliased v3 so they match the SDK's ZodRawShape at runtime.
 import { z, type ZodRawShape } from 'zod-v3';
@@ -12,6 +14,7 @@ import {
   type McpToolName,
 } from '@pkg/contracts';
 import { AttachmentsService } from '../attachments/attachments.service';
+import { GithubAppService } from '../github/github-app.service';
 import { OrgService } from '../org/org.service';
 import { ProjectService } from '../tasks/project.service';
 import { TaskService } from '../tasks/task.service';
@@ -64,6 +67,8 @@ export class McpTools {
     private readonly projectService: ProjectService,
     private readonly taskService: TaskService,
     private readonly attachmentsService: AttachmentsService,
+    private readonly githubApp: GithubAppService,
+    @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
   catalog(): McpToolDef[] {
@@ -105,6 +110,11 @@ export class McpTools {
         ...meta('get_project'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) => this.projectService.getById(actor!, str(args.id)),
+      },
+      {
+        ...meta('get_repo_token'),
+        inputSchema: { projectId: z.string().uuid() },
+        handler: async (args, actor) => this.mintRepoToken(actor!, str(args.projectId)),
       },
       {
         ...meta('list_tasks'),
@@ -247,5 +257,48 @@ export class McpTools {
           }),
       },
     ];
+  }
+
+  /**
+   * The standing-credential killer: an agent trades its API key for a 1-hour
+   * GitHub token restricted to the project's bound repo. Project resolution
+   * goes through ProjectService with the ACTOR's org — a key of org A cannot
+   * mint for org B's project. Every failure is a distinct k.* key, never a 500.
+   */
+  private async mintRepoToken(actor: ActiveUser, projectId: string) {
+    if (!this.githubApp.enabled) {
+      throw new BadRequestException(k.orgs.github.errors.notConfigured);
+    }
+
+    // Org-scoped lookup — throws projectNotFound for another org's project.
+    const project = await this.projectService.getById(actor, projectId);
+    if (!project.githubRepoId || !project.githubRepoFullName) {
+      throw new BadRequestException(k.tasks.errors.projectNotBound);
+    }
+
+    const connection = await this.orgService.githubConnection(actor.orgId);
+    if (!connection) {
+      throw new BadRequestException(k.tasks.errors.githubNotConnected);
+    }
+
+    const minted = await this.githubApp.mintRepoToken(
+      connection.installationId,
+      project.githubRepoFullName,
+    );
+    if (!minted) {
+      throw new BadRequestException(k.tasks.errors.repoDroppedFromGrant);
+    }
+
+    this.logger.info(
+      { projectId, repoFullName: project.githubRepoFullName },
+      'Repo-scoped GitHub token minted',
+    );
+
+    return {
+      token: minted.token,
+      expiresAt: minted.expiresAt,
+      repoFullName: project.githubRepoFullName,
+      cloneUrl: `https://x-access-token:${minted.token}@github.com/${project.githubRepoFullName}.git`,
+    };
   }
 }

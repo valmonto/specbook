@@ -9,6 +9,12 @@ export interface GithubInstallation {
   accountLogin: string;
 }
 
+export interface GithubRepoToken {
+  token: string;
+  /** ISO timestamp from GitHub — installation tokens live one hour. */
+  expiresAt: string;
+}
+
 const b64url = (input: string | Buffer): string =>
   Buffer.from(input).toString('base64url');
 
@@ -105,6 +111,40 @@ export class GithubAppService {
       if (repos.length >= data.total_count || data.repositories.length === 0) break;
     }
     return repos;
+  }
+
+  /**
+   * A 1-hour agent credential: restricted at MINT TIME to one repository and
+   * to { contents, pull_requests } write — GitHub enforces the boundary, so a
+   * leaked token is one repo for one hour, nothing more. Never cached, never
+   * persisted. Null means GitHub refused the restriction (404/422) — the repo
+   * was dropped from the installation's grant since the project bound it.
+   */
+  async mintRepoToken(
+    installationId: number,
+    repoFullName: string,
+  ): Promise<GithubRepoToken | null> {
+    // GitHub's access_tokens body takes repo SHORT names (no owner).
+    const shortName = repoFullName.split('/').pop() ?? repoFullName;
+    try {
+      const { data } = await this.http.post<{ token: string; expires_at: string }>(
+        `/app/installations/${installationId}/access_tokens`,
+        {
+          repositories: [shortName],
+          permissions: { contents: 'write', pull_requests: 'write' },
+        },
+        { headers: { Authorization: `Bearer ${this.appJwt()}` } },
+      );
+      return { token: data.token, expiresAt: data.expires_at };
+    } catch (error) {
+      if (
+        error instanceof AxiosError &&
+        (error.response?.status === 404 || error.response?.status === 422)
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   private async installationToken(installationId: number): Promise<string> {

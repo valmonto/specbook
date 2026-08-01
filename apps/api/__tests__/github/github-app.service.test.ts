@@ -118,4 +118,50 @@ describe('GithubAppService', () => {
       }),
     );
   });
+
+  it('mints a repo token restricted to the repo SHORT name and write permissions', async () => {
+    const service = configured();
+    const http = { get: vi.fn(), post: vi.fn() };
+    Object.assign(service, { http });
+
+    http.post.mockResolvedValueOnce({
+      data: { token: 'ghs_scoped', expires_at: '2026-08-01T13:00:00Z' },
+    });
+
+    await expect(service.mintRepoToken(777, 'valmonto/specbook')).resolves.toEqual({
+      token: 'ghs_scoped',
+      expiresAt: '2026-08-01T13:00:00Z',
+    });
+
+    expect(http.post).toHaveBeenCalledWith(
+      '/app/installations/777/access_tokens',
+      {
+        repositories: ['specbook'],
+        permissions: { contents: 'write', pull_requests: 'write' },
+      },
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Bearer /) }),
+      }),
+    );
+  });
+
+  it('treats a 404/422 on the restricted mint as dropped-from-grant (null), rethrows the rest', async () => {
+    const service = configured();
+    const http = { get: vi.fn(), post: vi.fn() };
+    Object.assign(service, { http });
+
+    const { AxiosError } = await import('axios');
+    http.post.mockRejectedValueOnce(
+      new AxiosError('gone', '404', undefined, undefined, { status: 404 } as never),
+    );
+    await expect(service.mintRepoToken(1, 'valmonto/specbook')).resolves.toBeNull();
+
+    http.post.mockRejectedValueOnce(
+      new AxiosError('unprocessable', '422', undefined, undefined, { status: 422 } as never),
+    );
+    await expect(service.mintRepoToken(1, 'valmonto/specbook')).resolves.toBeNull();
+
+    http.post.mockRejectedValueOnce(new Error('network down'));
+    await expect(service.mintRepoToken(1, 'valmonto/specbook')).rejects.toThrow('network down');
+  });
 });

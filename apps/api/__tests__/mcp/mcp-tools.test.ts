@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ActiveUser } from '@pkg/contracts';
+import { FakeLogger } from '@pkg/testing';
+import type { PinoLogger } from 'nestjs-pino';
 import { McpTools } from '@/mcp/mcp-tools';
+import type { GithubAppService } from '@/github/github-app.service';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
@@ -26,6 +29,8 @@ describe('McpTools — attachment tools', () => {
     {} as ProjectService,
     {} as TaskService,
     attachments as unknown as AttachmentsService,
+    {} as GithubAppService,
+    new FakeLogger().as<PinoLogger>(),
   );
   const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
 
