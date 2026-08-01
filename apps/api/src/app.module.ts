@@ -23,6 +23,8 @@ import { JobsModule } from './jobs';
 import { NotificationModule } from './notifications';
 import { TasksModule } from './tasks';
 import { AttachmentsModule } from './attachments';
+import type { SubjectResolvers } from './attachments/attachment.tokens';
+import { TaskRepository } from './tasks/task.repository';
 import { ApiKeyModule } from './api-key';
 import { McpModule } from './mcp';
 import { I18nModule } from './i18n';
@@ -104,7 +106,19 @@ import { validateEnv } from './config';
         };
       },
     }),
-    AttachmentsModule,
+    // Attachments are domain-blind; the app registers its subjects here.
+    AttachmentsModule.register({
+      imports: [TasksModule],
+      resolvers: {
+        inject: [TaskRepository],
+        useFactory: (...args: unknown[]): SubjectResolvers => {
+          const tasks = args[0] as TaskRepository;
+          return {
+            task: async (subjectId, orgId) => (await tasks.findById(subjectId, orgId)) !== null,
+          };
+        },
+      },
+    }),
     ApiKeyModule,
     McpModule,
     SeedModule.forApp(),
