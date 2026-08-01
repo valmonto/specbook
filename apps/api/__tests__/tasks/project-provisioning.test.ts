@@ -56,7 +56,11 @@ describe('ProjectService — repo provisioning', () => {
       update: vi.fn().mockImplementation((_id, _org, data: Record<string, unknown>) => row(data)),
       findById: vi.fn().mockResolvedValue(row({ githubRepoId: 99 })),
     };
-    orgService = { githubConnection: vi.fn().mockResolvedValue({ installationId: 777 }) };
+    orgService = {
+      githubConnection: vi
+        .fn()
+        .mockResolvedValue({ installationId: 777, templateRepo: 'valmonto/valmatic' }),
+    };
     github = {
       enabled: true,
       templateRepo: 'valmonto/valmatic',
@@ -93,7 +97,7 @@ describe('ProjectService — repo provisioning', () => {
     expect(github.createProjectRepo).toHaveBeenCalledWith(777, {
       owner: 'valmonto',
       name: 'new-product',
-      fromTemplate: true,
+      templateFullName: 'valmonto/valmatic',
     });
     expect(repository.update).toHaveBeenCalledWith(
       'p1',
@@ -141,6 +145,15 @@ describe('ProjectService — repo provisioning', () => {
     await expect(service.create(actor, dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.update).not.toHaveBeenCalled();
     expect(taskService.create).not.toHaveBeenCalled();
+  });
+
+  it('no template chosen → still provisions, bare', async () => {
+    orgService.githubConnection.mockResolvedValue({ installationId: 777, templateRepo: null });
+    await service.create(actor, dto);
+    expect(github.createProjectRepo).toHaveBeenCalledWith(
+      777,
+      expect.objectContaining({ templateFullName: null }),
+    );
   });
 
   it('two-tenant: provisioning resolves the connection from the ACTOR org only', async () => {

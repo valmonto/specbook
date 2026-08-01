@@ -100,12 +100,9 @@ export const envSchema = z.object({
       return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
     }),
   GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
-  // owner/repo new projects are generated from (repo provisioning). Optional:
-  // absent → the "from template" toggle simply does not appear.
-  GITHUB_TEMPLATE_REPO: z
-    .string()
-    .regex(/^[^/\s]+\/[^/\s]+$/, 'GITHUB_TEMPLATE_REPO must be owner/repo')
-    .optional(),
+  // NOTE: the provisioning template is deliberately NOT env config — it is an
+  // org setting (organization.github_template_repo), edited in the GitHub
+  // card, because a template must live in that org's installation grant.
   // Signs webhook deliveries (independent of the App trio: the endpoint only
   // needs this). Absent → the webhook endpoint refuses everything.
   GITHUB_WEBHOOK_SECRET: z.string().min(16).optional(),

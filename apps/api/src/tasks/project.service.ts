@@ -95,7 +95,8 @@ export class ProjectService {
       created = await this.githubApp.createProjectRepo(connection.installationId, {
         owner: installation.accountLogin,
         name: repo.name,
-        fromTemplate: repo.fromTemplate && Boolean(this.githubApp.templateRepo),
+        // The template is the ORG's setting, resolved from its connection row.
+        templateFullName: repo.fromTemplate ? connection.templateRepo : null,
       });
     } catch (error) {
       this.logger.error(

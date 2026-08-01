@@ -80,6 +80,8 @@ export const GithubRepoSchema = z.object({
   htmlUrl: z.string(),
   private: z.boolean(),
   defaultBranch: z.string(),
+  /** GitHub's template flag — only these are offered as provisioning templates. */
+  isTemplate: z.boolean(),
 });
 
 export type GithubRepo = z.infer<typeof GithubRepoSchema>;
@@ -116,6 +118,23 @@ export const ConnectGithubResponseSchema = GetGithubStatusResponseSchema;
 
 export type ConnectGithubRequest = z.infer<typeof ConnectGithubRequestSchema>;
 export type ConnectGithubResponse = z.infer<typeof ConnectGithubResponseSchema>;
+
+// The org's provisioning template. Server-validated: the value must be a repo
+// the installation grants AND one GitHub flags as a template — an org can
+// never point provisioning at a repo it cannot read.
+export const UpdateGithubSettingsRequestSchema = z
+  .object({
+    orgId: z.string().uuid(),
+    templateRepo: z
+      .string()
+      .regex(/^[^/\s]+\/[^/\s]+$/, 'must be owner/repo')
+      .nullable(),
+  })
+  .strict();
+export const UpdateGithubSettingsResponseSchema = GetGithubStatusResponseSchema;
+
+export type UpdateGithubSettingsRequest = z.infer<typeof UpdateGithubSettingsRequestSchema>;
+export type UpdateGithubSettingsResponse = z.infer<typeof UpdateGithubSettingsResponseSchema>;
 
 export const DisconnectGithubRequestSchema = z.object({ orgId: z.string().uuid() }).strict();
 export const DisconnectGithubResponseSchema = z.object({});

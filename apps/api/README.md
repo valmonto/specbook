@@ -180,8 +180,10 @@ not configured, org not connected, project not bound, repo dropped from
 the grant) is a distinct `k.*` error key.
 
 **Repo provisioning** — with the Administration permission granted (a
-separate consent step) and `GITHUB_TEMPLATE_REPO` set, project create
-can provision a new private repository: generated from the template,
+separate consent step), project create can provision a new private
+repository: generated from the org's chosen template (an ORG setting —
+`organization.github_template_repo`, edited in the settings GitHub
+card, validated to be a granted repo GitHub flags as a template),
 verified into the installation's grant, protected by a ruleset (no
 force pushes, no deletions, PRs only) BEFORE it is bound, then bound
 like a picked repo with an init task filed as a draft. The

@@ -75,14 +75,7 @@ describe('GithubAppService', () => {
   });
 
   it('createProjectRepo generates from the template with an admin-downscoped token', async () => {
-    const service = new GithubAppService(
-      configWith({
-        GITHUB_APP_ID: '12345',
-        GITHUB_APP_SLUG: 'valmonto-specbook',
-        GITHUB_APP_PRIVATE_KEY: PEM,
-        GITHUB_TEMPLATE_REPO: 'valmonto/valmatic',
-      }),
-    );
+    const service = configured();
     const http = { get: vi.fn(), post: vi.fn() };
     Object.assign(service, { http });
 
@@ -101,7 +94,8 @@ describe('GithubAppService', () => {
     const repo = await service.createProjectRepo(777, {
       owner: 'valmonto',
       name: 'new-product',
-      fromTemplate: true,
+      // The template is the ORG's setting, passed in explicitly.
+      templateFullName: 'valmonto/valmatic',
     });
 
     expect(repo.fullName).toBe('valmonto/new-product');
@@ -136,7 +130,7 @@ describe('GithubAppService', () => {
         },
       });
 
-    await service.createProjectRepo(777, { owner: 'valmonto', name: 'bare', fromTemplate: false });
+    await service.createProjectRepo(777, { owner: 'valmonto', name: 'bare', templateFullName: null });
     expect(http.post).toHaveBeenNthCalledWith(
       2,
       '/orgs/valmonto/repos',
@@ -219,6 +213,7 @@ describe('GithubAppService', () => {
         htmlUrl: 'https://github.com/valmonto/specbook',
         private: true,
         defaultBranch: 'main',
+        isTemplate: false,
       },
     ]);
 

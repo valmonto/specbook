@@ -15,6 +15,7 @@ import type {
   CreateOrgRequest,
   CreateOrgResponse,
   GetGithubStatusResponse,
+  UpdateGithubSettingsRequest,
   ListOrgsResponse,
   GetOrgByIdResponse,
   UpdateOrgRequest,
@@ -156,8 +157,46 @@ export class OrgService {
       connectedAt: connection.connectedAt ? connection.connectedAt.toISOString() : null,
       repositories,
       canCreateRepos,
-      templateRepo: this.githubApp.templateRepo,
+      templateRepo: connection.templateRepo,
     };
+  }
+
+  /**
+   * The org's provisioning template. Validated against GitHub, not trusted:
+   * the value must be a repo the installation grants AND one GitHub flags as
+   * a template — an org can never point provisioning at a repo outside its
+   * own grant. Null clears the choice.
+   */
+  async updateGithubSettings(
+    activeUser: ActiveUser,
+    dto: UpdateGithubSettingsRequest,
+  ): Promise<GetGithubStatusResponse> {
+    if (!this.githubApp.enabled) {
+      throw new BadRequestException(k.orgs.github.errors.notConfigured);
+    }
+    const connection = await this.orgRepository.findGithubConnection(dto.orgId);
+    if (!connection) {
+      throw new BadRequestException(k.orgs.github.errors.notConnected);
+    }
+
+    if (dto.templateRepo !== null) {
+      const granted = await this.githubApp.listRepositories(connection.installationId);
+      const match = granted.find((repo) => repo.fullName === dto.templateRepo);
+      if (!match) {
+        throw new BadRequestException(k.orgs.github.errors.templateNotInGrant);
+      }
+      if (!match.isTemplate) {
+        throw new BadRequestException(k.orgs.github.errors.templateNotATemplate);
+      }
+    }
+
+    await this.orgRepository.setGithubTemplateRepo(dto.orgId, dto.templateRepo);
+    this.logger.info(
+      { orgId: dto.orgId, templateRepo: dto.templateRepo, userId: activeUser.userId },
+      'GitHub template repo updated',
+    );
+
+    return this.getGithubStatus(activeUser, dto.orgId);
   }
 
   /**

@@ -248,7 +248,8 @@ GitHub credential on agent machines (docs/agent-loop.md has the flow).
 
 **Step 3 (repo provisioning) is SHIPPED** — project create offers
 "Create new repository" when the installation granted Administration
-write: the repo is generated from `GITHUB_TEMPLATE_REPO` (or created
+write: the repo is generated from the org's template setting — chosen
+in the settings GitHub card from granted template-flagged repos (or created
 bare), verified into the installation's grant, **born protected** (a
 ruleset blocking force pushes and deletions and requiring PRs is
 applied before the repo is bound), bound to the project, and the init
