@@ -84,6 +84,23 @@ export const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  // GitHub App ("Specbook") — all optional; absent means the GitHub
+  // connection feature is a no-op (settings card reports "not configured").
+  // The private key is the single server-side secret of the integration; it
+  // arrives base64-encoded (a PEM is multiline, .env files are not) and is
+  // decoded here. GITHUB_API_BASE exists so tests and local verification can
+  // point the whole integration at a stub server.
+  GITHUB_APP_ID: z.string().regex(/^\d+$/, 'GITHUB_APP_ID must be numeric').optional(),
+  GITHUB_APP_SLUG: z.string().optional(),
+  GITHUB_APP_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
+    }),
+  GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
+
   // Telemetry — all optional; absent means the corresponding service is a
   // no-op. SENTRY_DSN wakes backend error reporting, POSTHOG_KEY wakes
   // product analytics and feature flags.
@@ -115,6 +132,29 @@ export const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 }).superRefine((env, ctx) => {
+  // GitHub App config is all-or-nothing: a partial set means a typo'd deploy,
+  // not a choice — fail loudly at startup rather than half-working at runtime.
+  const githubKeys = ['GITHUB_APP_ID', 'GITHUB_APP_SLUG', 'GITHUB_APP_PRIVATE_KEY'] as const;
+  const githubSet = githubKeys.filter((key) => env[key]);
+  if (githubSet.length > 0 && githubSet.length < githubKeys.length) {
+    for (const key of githubKeys) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} is required when any GITHUB_APP_* variable is set`,
+        });
+      }
+    }
+  }
+  if (env.GITHUB_APP_PRIVATE_KEY && !env.GITHUB_APP_PRIVATE_KEY.includes('-----BEGIN')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GITHUB_APP_PRIVATE_KEY'],
+      message: 'GITHUB_APP_PRIVATE_KEY must be a PEM or a base64-encoded PEM',
+    });
+  }
+
   if (env.NODE_ENV !== 'production') return;
 
   for (const key of ['SEED_INITIAL_EMAIL', 'SEED_INITIAL_PASSWORD'] as const) {

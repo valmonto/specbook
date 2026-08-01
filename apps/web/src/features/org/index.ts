@@ -6,4 +6,5 @@
  */
 export { orgResource } from './api';
 export { OrgSwitcher } from './components/org-switcher';
+export { GithubCard } from './components/github-card';
 export { useOrgs, useSwitchOrg, useCreateOrg } from './hooks/use-orgs';

@@ -19,9 +19,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Eye, EyeOff, Loader2, LogOut, Shield, KeyRound, Settings } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2, LogOut, Shield, KeyRound, Settings } from 'lucide-react';
 import { PASSWORD_REGEX, type ChangePasswordRequest } from '@pkg/contracts';
 import { PageHeader } from '@/shared/components/page-header';
+import { useSearchParams } from 'react-router';
+import { GithubCard } from '@/features/org';
 
 // --- Password validation helper ---
 const validatePassword = (password: string) => {
@@ -282,6 +284,10 @@ function LogoutAllDevicesCard() {
 
 export default function SettingsPage() {
   const { t } = useTranslation();
+  // ?tab=organization deep-links straight to the org tab — the GitHub install
+  // callback sends people back here.
+  const [params] = useSearchParams();
+  const initialTab = params.get('tab') === 'organization' ? 'organization' : 'security';
 
   return (
     <div className="space-y-6">
@@ -292,17 +298,25 @@ export default function SettingsPage() {
       />
 
       {/* Tabs */}
-      <Tabs defaultValue="security">
+      <Tabs defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="security">
             <Shield className="size-4" />
             {t(k.auth.settings.security)}
+          </TabsTrigger>
+          <TabsTrigger value="organization">
+            <Building2 className="size-4" />
+            {t(k.orgs.organization)}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="security" className="mt-6 space-y-6">
           <ChangePasswordForm />
           <LogoutAllDevicesCard />
+        </TabsContent>
+
+        <TabsContent value="organization" className="mt-6 space-y-6">
+          <GithubCard />
         </TabsContent>
       </Tabs>
     </div>

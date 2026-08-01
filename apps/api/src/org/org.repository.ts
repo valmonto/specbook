@@ -19,6 +19,12 @@ export interface OrgRecord {
   updatedAt: Date;
 }
 
+export interface GithubConnectionRecord {
+  installationId: number;
+  accountLogin: string | null;
+  connectedAt: Date | null;
+}
+
 @Injectable()
 export class OrgRepository {
   constructor(@Inject(DATABASE_CLIENT) private readonly dbClient: DatabaseClient) {}
@@ -174,6 +180,51 @@ export class OrgRepository {
       .limit(1);
 
     return row ?? null;
+  }
+
+  /** The org's GitHub App installation, or null when not connected. */
+  async findGithubConnection(orgId: string): Promise<GithubConnectionRecord | null> {
+    const [row] = await this.dbClient.db
+      .select({
+        installationId: organization.githubInstallationId,
+        accountLogin: organization.githubAccountLogin,
+        connectedAt: organization.githubConnectedAt,
+      })
+      .from(organization)
+      .where(eq(organization.id, orgId))
+      .limit(1);
+
+    if (!row || row.installationId === null) return null;
+    return {
+      installationId: row.installationId,
+      accountLogin: row.accountLogin,
+      connectedAt: row.connectedAt,
+    };
+  }
+
+  async setGithubConnection(
+    orgId: string,
+    data: { installationId: number; accountLogin: string; connectedAt: Date },
+  ): Promise<void> {
+    await this.dbClient.db
+      .update(organization)
+      .set({
+        githubInstallationId: data.installationId,
+        githubAccountLogin: data.accountLogin,
+        githubConnectedAt: data.connectedAt,
+      })
+      .where(eq(organization.id, orgId));
+  }
+
+  async clearGithubConnection(orgId: string): Promise<void> {
+    await this.dbClient.db
+      .update(organization)
+      .set({
+        githubInstallationId: null,
+        githubAccountLogin: null,
+        githubConnectedAt: null,
+      })
+      .where(eq(organization.id, orgId));
   }
 
   async countUserOrgs(userId: string): Promise<number> {

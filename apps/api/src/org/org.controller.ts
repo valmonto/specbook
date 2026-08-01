@@ -1,10 +1,19 @@
-import { Controller, Get, Patch, Post, Res } from '@nestjs/common';
+import { Controller, Delete, Get, Patch, Post, Res } from '@nestjs/common';
 import { OrgService } from './org.service';
 import { ActiveUser, Permissions, ZodRequest, COOKIE_OPTIONS, COOKIE_TTL } from '@pkg/server';
 import {
+  ConnectGithubRequest,
+  ConnectGithubRequestSchema,
+  ConnectGithubResponse,
   CreateOrgRequest,
   CreateOrgRequestSchema,
   CreateOrgResponse,
+  DisconnectGithubRequest,
+  DisconnectGithubRequestSchema,
+  DisconnectGithubResponse,
+  GetGithubStatusRequest,
+  GetGithubStatusRequestSchema,
+  GetGithubStatusResponse,
   GetOrgByIdRequest,
   GetOrgByIdRequestSchema,
   GetOrgByIdResponse,
@@ -71,6 +80,38 @@ export class OrgController {
   // There is deliberately no DELETE here. Organization users, including
   // OWNERs, cannot delete organizations — that is a platform operation, on
   // /admin/orgs behind @SystemRoles(ADMIN). See AdminOrgController.
+
+  // --- GitHub connection (first real use of the settings:* permissions) ---
+  // `:orgId` on all three: ActiveOrgGuard pins them to the session's org, so
+  // connect/disconnect can only ever administer the caller's own tenant.
+
+  @Get(':orgId/github')
+  @Permissions('settings:read')
+  async githubStatus(
+    @ZodRequest(GetGithubStatusRequestSchema) dto: GetGithubStatusRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GetGithubStatusResponse> {
+    return this.orgService.getGithubStatus(activeUser, dto.orgId);
+  }
+
+  @Post(':orgId/github')
+  @Permissions('settings:update')
+  async connectGithub(
+    @ZodRequest(ConnectGithubRequestSchema) dto: ConnectGithubRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ConnectGithubResponse> {
+    return this.orgService.connectGithub(activeUser, dto);
+  }
+
+  @Delete(':orgId/github')
+  @Permissions('settings:update')
+  async disconnectGithub(
+    @ZodRequest(DisconnectGithubRequestSchema) dto: DisconnectGithubRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<DisconnectGithubResponse> {
+    await this.orgService.disconnectGithub(activeUser, dto.orgId);
+    return {};
+  }
 
   @Post('switch')
   @Permissions('org:switch')

@@ -152,6 +152,25 @@ logging the HTTP surface has. Connect with:
   "headers": { "Authorization": "Bearer sk_…" } } } }
 ```
 
+## GitHub App — the org ↔ repository connection
+
+`src/github/GithubAppService` is the ONLY code path that talks to GitHub.
+It wakes when `GITHUB_APP_ID`, `GITHUB_APP_SLUG` and
+`GITHUB_APP_PRIVATE_KEY` (base64-encoded PEM — the single server-side
+secret of the integration) are set; absent, every GitHub feature
+degrades to pre-integration behaviour. `GITHUB_API_BASE` (default
+`https://api.github.com`) exists so tests and local verification can
+point the seam at a stub.
+
+An organization connects by installing the App with **selected
+repositories** — GitHub enforces that specbook never sees anything
+outside the grant. The routes live on `/orgs/:orgId/github`
+(status/connect/disconnect, behind `settings:read`/`settings:update` —
+their first real use), and a project binds to a granted repo via
+`githubRepoId`, verified server-side against the installation. The org
+row stores only the installation id (not a secret); installation tokens
+are minted per call and never persisted.
+
 ## Seeding
 
 `pnpm db:seed` picks a strategy from `NODE_ENV`: production seeds one owner and

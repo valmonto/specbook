@@ -224,6 +224,17 @@ not a secret. The App's private key is the single server-side secret in
 the whole system (the one deliberate amendment to the no-secrets rule;
 user tokens are still never stored).
 
+**Status: the connection foundation is SHIPPED** — org settings has a
+GitHub card (connect via App install redirect, granted-repo list,
+disconnect), `/settings/github` consumes the install callback, and the
+project form binds a project to a repo from the installation's grant
+(`github_repo_id` on project; the server verifies the pick and derives
+the URL). `GithubAppService` (apps/api/src/github/) is the single seam
+that talks to GitHub; `GITHUB_APP_ID` / `GITHUB_APP_SLUG` /
+`GITHUB_APP_PRIVATE_KEY` (base64 PEM) switch it on, `GITHUB_API_BASE`
+lets tests point it at a stub. The three steps below build on it and
+remain open.
+
 Delivered in three steps, each independently valuable:
 
 1. **Inbound webhook → PR status on tasks.** GitHub pushes PR events;

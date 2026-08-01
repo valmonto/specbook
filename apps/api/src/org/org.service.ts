@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -10,14 +11,17 @@ import { k } from '@pkg/locales';
 import type {
   AdminListOrgsRequest,
   AdminListOrgsResponse,
+  ConnectGithubRequest,
   CreateOrgRequest,
   CreateOrgResponse,
+  GetGithubStatusResponse,
   ListOrgsResponse,
   GetOrgByIdResponse,
   UpdateOrgRequest,
   UpdateOrgResponse,
   ActiveUser,
 } from '@pkg/contracts';
+import { GithubAppService } from '../github/github-app.service';
 import { OrgRepository } from './org.repository';
 
 @Injectable()
@@ -25,6 +29,7 @@ export class OrgService {
   constructor(
     private readonly orgRepository: OrgRepository,
     private readonly iamService: IamService,
+    private readonly githubApp: GithubAppService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -100,6 +105,91 @@ export class OrgService {
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  /**
+   * Connection status + the granted repo list. ActiveOrgGuard has already
+   * pinned orgId to the session's org; unconfigured and unconnected states
+   * both degrade to a well-formed "nothing here" response so the UI renders
+   * the same card in every deploy.
+   */
+  async getGithubStatus(activeUser: ActiveUser, orgId: string): Promise<GetGithubStatusResponse> {
+    const empty: GetGithubStatusResponse = {
+      configured: this.githubApp.enabled,
+      installUrl: this.githubApp.enabled ? this.githubApp.installUrl() : null,
+      connected: false,
+      accountLogin: null,
+      connectedAt: null,
+      repositories: [],
+    };
+
+    if (!this.githubApp.enabled) return empty;
+
+    const connection = await this.orgRepository.findGithubConnection(orgId);
+    if (!connection) return empty;
+
+    // A revoked installation (uninstalled on GitHub's side) surfaces as a
+    // connected org with an empty repo list rather than a 5xx — the card
+    // stays usable and Disconnect remains reachable to clean up.
+    let repositories: GetGithubStatusResponse['repositories'] = [];
+    try {
+      repositories = await this.githubApp.listRepositories(connection.installationId);
+    } catch (error) {
+      this.logger.warn(
+        { orgId, installationId: connection.installationId, err: error },
+        'GitHub repo listing failed — returning connected status with no repos',
+      );
+    }
+
+    return {
+      ...empty,
+      connected: true,
+      accountLogin: connection.accountLogin,
+      connectedAt: connection.connectedAt ? connection.connectedAt.toISOString() : null,
+      repositories,
+    };
+  }
+
+  /**
+   * Store the installation GitHub redirected back with — after verifying with
+   * GitHub that it exists and belongs to OUR App. Without that check, any
+   * number typed into the callback URL would become the org's connection.
+   */
+  async connectGithub(
+    activeUser: ActiveUser,
+    dto: ConnectGithubRequest,
+  ): Promise<GetGithubStatusResponse> {
+    if (!this.githubApp.enabled) {
+      throw new BadRequestException(k.orgs.github.errors.notConfigured);
+    }
+
+    const installation = await this.githubApp.getInstallation(dto.installationId);
+    if (!installation) {
+      throw new NotFoundException(k.orgs.github.errors.installationNotFound);
+    }
+
+    await this.orgRepository.setGithubConnection(dto.orgId, {
+      installationId: installation.id,
+      accountLogin: installation.accountLogin,
+      connectedAt: new Date(),
+    });
+
+    this.logger.info(
+      { orgId: dto.orgId, installationId: installation.id, account: installation.accountLogin },
+      'GitHub installation connected',
+    );
+
+    return this.getGithubStatus(activeUser, dto.orgId);
+  }
+
+  /** Internal cross-module read (project repo binding); null = not connected. */
+  async githubConnection(orgId: string) {
+    return this.orgRepository.findGithubConnection(orgId);
+  }
+
+  async disconnectGithub(activeUser: ActiveUser, orgId: string): Promise<void> {
+    await this.orgRepository.clearGithubConnection(orgId);
+    this.logger.info({ orgId, userId: activeUser.userId }, 'GitHub installation disconnected');
   }
 
   /** Platform-admin view of every organization; no membership filter. */

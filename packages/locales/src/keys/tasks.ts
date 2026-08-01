@@ -14,6 +14,9 @@ export const tasks = {
   contextDoc: 'tasks.contextDoc',
   contextDocHint: 'tasks.contextDocHint',
   repoUrl: 'tasks.repoUrl',
+  repoPickerPlaceholder: 'tasks.repoPickerPlaceholder',
+  repoManualUrl: 'tasks.repoManualUrl',
+  repoFromInstallation: 'tasks.repoFromInstallation',
   defaultBranch: 'tasks.defaultBranch',
   workdir: 'tasks.workdir',
   workdirHint: 'tasks.workdirHint',
@@ -107,6 +110,7 @@ export const tasks = {
 
   // Errors
   errors: {
+    repoNotInGrant: 'tasks.errors.repoNotInGrant',
     projectNotFound: 'tasks.errors.projectNotFound',
     notFound: 'tasks.errors.notFound',
     invalidTransition: 'tasks.errors.invalidTransition',

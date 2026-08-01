@@ -70,6 +70,55 @@ export const UpdateOrgResponseSchema = OrganizationSchema;
 export type UpdateOrgRequest = z.infer<typeof UpdateOrgRequestSchema>;
 export type UpdateOrgResponse = z.infer<typeof UpdateOrgResponseSchema>;
 
+// --- GitHub connection ---
+// One org ↔ one GitHub App installation (the v2 scope guard). The
+// installation id is the tenancy boundary and is not a secret; the repo list
+// is exactly what the installation grants — GitHub enforces "never all".
+export const GithubRepoSchema = z.object({
+  id: z.number().int(),
+  fullName: z.string(),
+  htmlUrl: z.string(),
+  private: z.boolean(),
+  defaultBranch: z.string(),
+});
+
+export type GithubRepo = z.infer<typeof GithubRepoSchema>;
+
+// `orgId` on every request: the routes live at /orgs/:orgId/github, under
+// ActiveOrgGuard — a session can only ever read or administer its own
+// organization's connection.
+export const GetGithubStatusRequestSchema = z.object({ orgId: z.string().uuid() }).strict();
+export const GetGithubStatusResponseSchema = z.object({
+  /** False when the deploy has no GitHub App credentials — feature absent. */
+  configured: z.boolean(),
+  installUrl: z.string().nullable(),
+  connected: z.boolean(),
+  accountLogin: z.string().nullable(),
+  connectedAt: isoTimestamp.nullable(),
+  /** Empty unless connected; then exactly the installation's granted repos. */
+  repositories: z.array(GithubRepoSchema),
+});
+
+export type GetGithubStatusRequest = z.infer<typeof GetGithubStatusRequestSchema>;
+export type GetGithubStatusResponse = z.infer<typeof GetGithubStatusResponseSchema>;
+
+export const ConnectGithubRequestSchema = z
+  .object({
+    orgId: z.string().uuid(),
+    installationId: z.number().int().positive(),
+  })
+  .strict();
+export const ConnectGithubResponseSchema = GetGithubStatusResponseSchema;
+
+export type ConnectGithubRequest = z.infer<typeof ConnectGithubRequestSchema>;
+export type ConnectGithubResponse = z.infer<typeof ConnectGithubResponseSchema>;
+
+export const DisconnectGithubRequestSchema = z.object({ orgId: z.string().uuid() }).strict();
+export const DisconnectGithubResponseSchema = z.object({});
+
+export type DisconnectGithubRequest = z.infer<typeof DisconnectGithubRequestSchema>;
+export type DisconnectGithubResponse = z.infer<typeof DisconnectGithubResponseSchema>;
+
 // --- Admin: List All Organizations ---
 // Platform surface (`/admin/orgs`, @SystemRoles(ADMIN)) — deliberately NOT part
 // of the tenant routes above. Organization users, including OWNERs, cannot
