@@ -13,3 +13,5 @@ Read ./README.md before changing this workspace.
 - New endpoint = schema + permission in @pkg/contracts FIRST, then the route.
 - MCP tools (src/mcp/mcp-tools.ts) wrap service methods, never raw SQL, and
   every tool declares a scope — an unscoped tool is exposed to every key.
+  Tool metadata (name, scope, description) is data in @pkg/contracts
+  (MCP_TOOLS); add the descriptor there first, a test enforces the 1:1 match.

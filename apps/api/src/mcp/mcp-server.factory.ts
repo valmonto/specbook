@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { MCP_TOOLS } from '@pkg/contracts';
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import type { McpAuth } from './mcp-auth.guard';
 import { McpTools } from './mcp-tools';
+
+// whoami is not a catalog entry (its handler answers from auth, not a
+// service), but its metadata lives with the rest in @pkg/contracts.
+const whoami = MCP_TOOLS.find((tool) => tool.name === 'whoami')!;
 
 const text = (data: unknown): { content: { type: 'text'; text: string }[] } => ({
   content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
@@ -26,8 +31,8 @@ export class McpServerFactory {
 
     // Always present: lets an agent discover what this key was granted.
     server.registerTool(
-      'whoami',
-      { description: 'This API key: its name and the scopes it was granted.' },
+      whoami.name,
+      { description: whoami.description },
       async () => text({ name: auth.name, scopes: auth.scopes }),
     );
 

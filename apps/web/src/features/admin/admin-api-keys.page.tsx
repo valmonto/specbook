@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { k } from '@pkg/locales';
-import { MCP_SCOPES, type ApiKey, type McpScope } from '@pkg/contracts';
+import {
+  MCP_SCOPES,
+  mcpToolsForScope,
+  mcpToolsForScopes,
+  type ApiKey,
+  type McpScope,
+} from '@pkg/contracts';
 import { Check, Copy, Info, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
   Table,
@@ -229,6 +235,7 @@ function CreateKeyDialog({
                     {domainScopes.map((scope) => {
                       const selected = scopes.includes(scope);
                       const action = scope.split(':')[1]!;
+                      const scopeTools = mcpToolsForScope(scope);
                       return (
                         <Tooltip key={scope}>
                           <TooltipTrigger asChild>
@@ -243,17 +250,35 @@ function CreateKeyDialog({
                                 className="pointer-events-none size-3.5"
                               />
                               <code className="font-mono text-xs">{action}</code>
-                              {scopeDesc(scope) && (
-                                <Info className="size-3 text-muted-foreground/50" />
-                              )}
+                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                                {scopeTools.length}
+                              </span>
+                              <Info className="size-3 text-muted-foreground/50" />
                             </button>
                           </TooltipTrigger>
-                          {scopeDesc(scope) && (
-                            <TooltipContent className="max-w-xs">
-                              <p className="mb-0.5 font-mono text-[11px]">{scope}</p>
-                              <p>{scopeDesc(scope)}</p>
-                            </TooltipContent>
-                          )}
+                          {/* Anchored beside the chip: a 13-tool list rendered
+                              above would blanket the other scope rows and trap
+                              their hover. */}
+                          <TooltipContent side="right" align="start" className="max-w-sm">
+                            <p className="mb-0.5 font-mono text-[11px]">
+                              {scope} —{' '}
+                              {t(k.admin.apiKeys.toolCount, { count: scopeTools.length })}
+                            </p>
+                            {scopeDesc(scope) && <p>{scopeDesc(scope)}</p>}
+                            {/* The exposure list: rendered from the same MCP_TOOLS
+                                constant the server builds its catalog from. One
+                                truncated line per tool keeps 13 rows hoverable. */}
+                            <ul className="mt-1.5 grid gap-0.5 border-t border-white/20 pt-1.5">
+                              {scopeTools.map((tool) => (
+                                <li key={tool.name} className="flex min-w-0 gap-1.5 text-[11px]">
+                                  <span className="shrink-0 font-mono">{tool.name}</span>
+                                  <span className="min-w-0 truncate opacity-75">
+                                    {tool.description}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </TooltipContent>
                         </Tooltip>
                       );
                     })}
@@ -263,6 +288,9 @@ function CreateKeyDialog({
             })}
           </div>
           </TooltipProvider>
+          <p className="text-xs text-muted-foreground">
+            {t(k.admin.apiKeys.scopeGrowthConsent)}
+          </p>
         </div>
         {create.error && <p className="text-sm text-destructive">{t(create.error.message)}</p>}
       </div>
@@ -333,7 +361,7 @@ function AdminApiKeysView() {
                   {apiKey.prefix}…
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap items-center gap-1">
                     {apiKey.scopes.map((scope) => (
                       <code
                         key={scope}
@@ -342,6 +370,13 @@ function AdminApiKeysView() {
                         {scope}
                       </code>
                     ))}
+                    {/* Resolved from the shared MCP_TOOLS constant — the growth
+                        detector: this number moves when a scope gains tools. */}
+                    <span className="text-[11px] whitespace-nowrap text-muted-foreground">
+                      {t(k.admin.apiKeys.toolCount, {
+                        count: mcpToolsForScopes(apiKey.scopes).length,
+                      })}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">

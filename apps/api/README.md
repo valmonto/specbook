@@ -136,9 +136,15 @@ key sees exactly the tools its scopes cover, filtered at registration, so
 granting a scope IS the exposure decision. The plaintext key is shown once;
 only its hash is stored.
 
-Tools live in `src/mcp/mcp-tools.ts`, one catalog, each tagged with a scope.
-The convention for adding one: wrap a SERVICE method, never raw SQL — tools
-inherit the same rules and logging the HTTP surface has. Connect with:
+Tool metadata (name, scope, description) lives as data in `@pkg/contracts`
+(`MCP_TOOLS`); `src/mcp/mcp-tools.ts` is the one catalog that attaches input
+schemas and handlers to those descriptors, and
+`__tests__/mcp/mcp-catalog.test.ts` fails if the two sets diverge. The
+key-creation UI renders scope tooltips and tool counts from the same
+constant, so what the picker shows cannot drift from what the server
+exposes. The convention for adding a tool: add its descriptor to contracts,
+then wrap a SERVICE method, never raw SQL — tools inherit the same rules and
+logging the HTTP surface has. Connect with:
 
 ```json
 { "mcpServers": { "myapp": {

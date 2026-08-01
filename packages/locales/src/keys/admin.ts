@@ -21,6 +21,8 @@ export const admin = {
     namePlaceholder: 'admin.apiKeys.namePlaceholder',
     scopes: 'admin.apiKeys.scopes',
     scopesHint: 'admin.apiKeys.scopesHint',
+    scopeGrowthConsent: 'admin.apiKeys.scopeGrowthConsent',
+    toolCount: 'admin.apiKeys.toolCount',
     scopeDesc: {
       'platform:read': 'admin.apiKeys.scopeDesc.platform-read',
       'orgs:read': 'admin.apiKeys.scopeDesc.orgs-read',
