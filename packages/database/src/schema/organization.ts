@@ -16,6 +16,10 @@ export const organization = pgTable(
     githubInstallationId: bigint('github_installation_id', { mode: 'number' }),
     githubAccountLogin: varchar('github_account_login', { length: 255 }),
     githubConnectedAt: timestamp('github_connected_at', { withTimezone: true }),
+    // owner/repo new projects are generated from — org-scoped because the
+    // template must live in THIS org's installation grant. Null = no template
+    // chosen; picking one is a conscious act in the settings card.
+    githubTemplateRepo: varchar('github_template_repo', { length: 255 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

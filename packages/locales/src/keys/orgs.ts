@@ -24,9 +24,16 @@ export const orgs = {
     missingInstallationId: 'orgs.github.missingInstallationId',
     backToSettings: 'orgs.github.backToSettings',
     private: 'orgs.github.private',
+    template: 'orgs.github.template',
+    templateNone: 'orgs.github.templateNone',
+    templateHint: 'orgs.github.templateHint',
+    templateBadge: 'orgs.github.templateBadge',
     errors: {
       notConfigured: 'orgs.github.errors.notConfigured',
       installationNotFound: 'orgs.github.errors.installationNotFound',
+      notConnected: 'orgs.github.errors.notConnected',
+      templateNotInGrant: 'orgs.github.errors.templateNotInGrant',
+      templateNotATemplate: 'orgs.github.errors.templateNotATemplate',
     },
   },
 

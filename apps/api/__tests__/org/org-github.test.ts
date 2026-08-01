@@ -15,6 +15,7 @@ const CONNECTION = {
   installationId: 777,
   accountLogin: 'valmonto',
   connectedAt: new Date('2026-08-01T12:00:00Z'),
+  templateRepo: 'valmonto/valmatic',
 };
 
 const REPO = {
@@ -23,6 +24,7 @@ const REPO = {
   htmlUrl: 'https://github.com/valmonto/specbook',
   private: true,
   defaultBranch: 'main',
+  isTemplate: false,
 };
 
 describe('OrgService — GitHub connection', () => {
@@ -141,5 +143,46 @@ describe('OrgService — GitHub connection', () => {
   it('disconnect clears the stored connection', async () => {
     await service.disconnectGithub(actor, ORG);
     expect(repository.clearGithubConnection).toHaveBeenCalledWith(ORG);
+  });
+
+  describe('template setting', () => {
+    const TEMPLATE = { ...REPO, id: 43, fullName: 'valmonto/valmatic', isTemplate: true };
+
+    it('stores a granted template repo and returns fresh status', async () => {
+      repository.setGithubTemplateRepo = vi.fn().mockResolvedValue(undefined);
+      github.listRepositories.mockResolvedValue([REPO, TEMPLATE]);
+      await service.updateGithubSettings(actor, { orgId: ORG, templateRepo: 'valmonto/valmatic' });
+      expect(repository.setGithubTemplateRepo).toHaveBeenCalledWith(ORG, 'valmonto/valmatic');
+    });
+
+    it('refuses a repo outside the grant', async () => {
+      repository.setGithubTemplateRepo = vi.fn();
+      github.listRepositories.mockResolvedValue([REPO]);
+      await expect(
+        service.updateGithubSettings(actor, { orgId: ORG, templateRepo: 'valmonto/other' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.setGithubTemplateRepo).not.toHaveBeenCalled();
+    });
+
+    it('refuses a granted repo GitHub does not flag as a template', async () => {
+      repository.setGithubTemplateRepo = vi.fn();
+      github.listRepositories.mockResolvedValue([REPO]); // isTemplate: false
+      await expect(
+        service.updateGithubSettings(actor, { orgId: ORG, templateRepo: 'valmonto/specbook' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.setGithubTemplateRepo).not.toHaveBeenCalled();
+    });
+
+    it('null clears the choice without consulting GitHub', async () => {
+      repository.setGithubTemplateRepo = vi.fn().mockResolvedValue(undefined);
+      github.listRepositories.mockClear();
+      await service.updateGithubSettings(actor, { orgId: ORG, templateRepo: null });
+      expect(repository.setGithubTemplateRepo).toHaveBeenCalledWith(ORG, null);
+    });
+
+    it('status surfaces the org row value, not deploy config', async () => {
+      const status = await service.getGithubStatus(actor, ORG);
+      expect(status.templateRepo).toBe('valmonto/valmatic');
+    });
   });
 });

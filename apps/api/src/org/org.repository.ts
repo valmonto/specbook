@@ -23,6 +23,8 @@ export interface GithubConnectionRecord {
   installationId: number;
   accountLogin: string | null;
   connectedAt: Date | null;
+  /** The org's provisioning template (owner/repo) — null until chosen. */
+  templateRepo: string | null;
 }
 
 @Injectable()
@@ -189,6 +191,7 @@ export class OrgRepository {
         installationId: organization.githubInstallationId,
         accountLogin: organization.githubAccountLogin,
         connectedAt: organization.githubConnectedAt,
+        templateRepo: organization.githubTemplateRepo,
       })
       .from(organization)
       .where(eq(organization.id, orgId))
@@ -199,7 +202,15 @@ export class OrgRepository {
       installationId: row.installationId,
       accountLogin: row.accountLogin,
       connectedAt: row.connectedAt,
+      templateRepo: row.templateRepo,
     };
+  }
+
+  async setGithubTemplateRepo(orgId: string, templateRepo: string | null): Promise<void> {
+    await this.dbClient.db
+      .update(organization)
+      .set({ githubTemplateRepo: templateRepo })
+      .where(eq(organization.id, orgId));
   }
 
   async setGithubConnection(
@@ -223,6 +234,8 @@ export class OrgRepository {
         githubInstallationId: null,
         githubAccountLogin: null,
         githubConnectedAt: null,
+        // A template only means something inside a connection's grant.
+        githubTemplateRepo: null,
       })
       .where(eq(organization.id, orgId));
   }

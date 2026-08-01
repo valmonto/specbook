@@ -7,6 +7,8 @@ import type {
   DisconnectGithubResponse,
   GetGithubStatusRequest,
   GetGithubStatusResponse,
+  UpdateGithubSettingsRequest,
+  UpdateGithubSettingsResponse,
 } from '@pkg/contracts';
 import { http } from '@/shared/api/http';
 import { useCachedRequest } from '@/shared/hooks/use-cached-request';
@@ -29,6 +31,9 @@ export const githubApi = {
 
   disconnect: (dto: DisconnectGithubRequest): Promise<DisconnectGithubResponse> =>
     http.delete(`/api/orgs/${dto.orgId}/github`),
+
+  updateSettings: (dto: UpdateGithubSettingsRequest): Promise<UpdateGithubSettingsResponse> =>
+    http.patch(`/api/orgs/${dto.orgId}/github`, dto),
 };
 
 /** Org-scoped on purpose: an org switch resets all caches, re-keying this. */
@@ -50,6 +55,17 @@ export function useConnectGithub(orgId: string | undefined) {
   const invalidate = useInvalidateGithub(orgId);
   const req = useActionRequest(githubApi.connect);
   const execute = async (dto: ConnectGithubRequest) => {
+    const res = await req.execute(dto);
+    if (!res.e) await invalidate();
+    return res;
+  };
+  return { ...req, execute };
+}
+
+export function useUpdateGithubSettings(orgId: string | undefined) {
+  const invalidate = useInvalidateGithub(orgId);
+  const req = useActionRequest(githubApi.updateSettings);
+  const execute = async (dto: UpdateGithubSettingsRequest) => {
     const res = await req.execute(dto);
     if (!res.e) await invalidate();
     return res;

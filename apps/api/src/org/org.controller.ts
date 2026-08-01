@@ -13,6 +13,9 @@ import {
   DisconnectGithubResponse,
   GetGithubStatusRequest,
   GetGithubStatusRequestSchema,
+  UpdateGithubSettingsRequest,
+  UpdateGithubSettingsRequestSchema,
+  UpdateGithubSettingsResponse,
   GetGithubStatusResponse,
   GetOrgByIdRequest,
   GetOrgByIdRequestSchema,
@@ -101,6 +104,15 @@ export class OrgController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<ConnectGithubResponse> {
     return this.orgService.connectGithub(activeUser, dto);
+  }
+
+  @Patch(':orgId/github')
+  @Permissions('settings:update')
+  async updateGithubSettings(
+    @ZodRequest(UpdateGithubSettingsRequestSchema) dto: UpdateGithubSettingsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<UpdateGithubSettingsResponse> {
+    return this.orgService.updateGithubSettings(activeUser, dto);
   }
 
   @Delete(':orgId/github')

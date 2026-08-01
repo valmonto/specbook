@@ -98,4 +98,38 @@ describeIntegration('OrgRepository — GitHub connection', () => {
   it('an unconnected org reads as null, not a half-empty record', async () => {
     await expect(repository.findGithubConnection(orgA)).resolves.toBeNull();
   });
+
+  it('the template setting is org-scoped and dies with the connection', async () => {
+    await repository.setGithubConnection(orgA, {
+      installationId: 777,
+      accountLogin: 'valmonto',
+      connectedAt: new Date(),
+    });
+    await repository.setGithubConnection(orgB, {
+      installationId: 888,
+      accountLogin: 'other-org',
+      connectedAt: new Date(),
+    });
+
+    await repository.setGithubTemplateRepo(orgA, 'valmonto/valmatic');
+
+    await expect(repository.findGithubConnection(orgA)).resolves.toMatchObject({
+      templateRepo: 'valmonto/valmatic',
+    });
+    // Org B untouched by org A's choice.
+    await expect(repository.findGithubConnection(orgB)).resolves.toMatchObject({
+      templateRepo: null,
+    });
+
+    // Disconnect clears the template too — it only means something inside a grant.
+    await repository.clearGithubConnection(orgA);
+    await repository.setGithubConnection(orgA, {
+      installationId: 777,
+      accountLogin: 'valmonto',
+      connectedAt: new Date(),
+    });
+    await expect(repository.findGithubConnection(orgA)).resolves.toMatchObject({
+      templateRepo: null,
+    });
+  });
 });

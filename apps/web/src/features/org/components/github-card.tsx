@@ -11,9 +11,23 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/shared/auth/auth-context';
 import { useCan } from '@/shared/hooks/use-permissions';
-import { useDisconnectGithub, useGithubStatus } from '@/shared/github/use-github';
+import {
+  useDisconnectGithub,
+  useGithubStatus,
+  useUpdateGithubSettings,
+} from '@/shared/github/use-github';
+
+/** Sentinel: shadcn Select cannot hold an empty-string value. */
+const NO_TEMPLATE = 'none';
 
 /**
  * The org ↔ GitHub App connection. Connect is a redirect to GitHub's own
@@ -27,7 +41,17 @@ export function GithubCard() {
   const orgId = user?.orgId;
   const { data, isLoading } = useGithubStatus(orgId);
   const disconnect = useDisconnectGithub(orgId);
+  const updateSettings = useUpdateGithubSettings(orgId);
   const canUpdate = useCan('settings:update');
+
+  const templates = data?.repositories.filter((repo) => repo.isTemplate) ?? [];
+  const pickTemplate = (value: string) => {
+    if (!orgId) return;
+    void updateSettings.execute({
+      orgId,
+      templateRepo: value === NO_TEMPLATE ? null : value,
+    });
+  };
 
   return (
     <Card>
@@ -76,6 +100,11 @@ export function GithubCard() {
                           {t(k.orgs.github.private)}
                         </Badge>
                       )}
+                      {repo.isTemplate && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {t(k.orgs.github.templateBadge)}
+                        </Badge>
+                      )}
                       <a
                         href={repo.htmlUrl}
                         target="_blank"
@@ -90,6 +119,35 @@ export function GithubCard() {
               )}
               <p className="text-xs text-muted-foreground">{t(k.orgs.github.reposHint)}</p>
             </div>
+            {/* The org's provisioning template — an ORG setting, not deploy
+                config. Choices are limited to granted repos GitHub flags as
+                templates; the server re-validates the same rule. */}
+            {canUpdate && (
+              <div className="grid max-w-md gap-1.5">
+                <p className="text-sm font-medium">{t(k.orgs.github.template)}</p>
+                <Select
+                  value={data.templateRepo ?? NO_TEMPLATE}
+                  onValueChange={pickTemplate}
+                  disabled={updateSettings.isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_TEMPLATE}>{t(k.orgs.github.templateNone)}</SelectItem>
+                    {templates.map((repo) => (
+                      <SelectItem key={repo.id} value={repo.fullName}>
+                        <code className="font-mono text-xs">{repo.fullName}</code>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t(k.orgs.github.templateHint)}</p>
+                {updateSettings.error && (
+                  <p className="text-xs text-destructive">{t(updateSettings.error.message)}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

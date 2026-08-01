@@ -1,0 +1,1 @@
+ALTER TABLE "organization" ADD COLUMN "github_template_repo" varchar(255);

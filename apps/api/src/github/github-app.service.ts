@@ -39,15 +39,12 @@ export class GithubAppService {
   private readonly appId?: string;
   private readonly slug?: string;
   private readonly privateKey?: string;
-  /** owner/repo of the template new projects are generated from (env, optional). */
-  readonly templateRepo: string | null;
   private readonly http: AxiosInstance;
 
   constructor(config: ConfigService) {
     this.appId = config.get<string>('GITHUB_APP_ID');
     this.slug = config.get<string>('GITHUB_APP_SLUG');
     this.privateKey = config.get<string>('GITHUB_APP_PRIVATE_KEY');
-    this.templateRepo = config.get<string>('GITHUB_TEMPLATE_REPO') ?? null;
     this.http = axios.create({
       baseURL: config.get<string>('GITHUB_API_BASE', 'https://api.github.com'),
       timeout: 10_000,
@@ -105,6 +102,7 @@ export class GithubAppService {
           html_url: string;
           private: boolean;
           default_branch: string;
+          is_template?: boolean;
         }>;
         total_count: number;
       }>('/installation/repositories', {
@@ -118,6 +116,7 @@ export class GithubAppService {
           htmlUrl: repo.html_url,
           private: repo.private,
           defaultBranch: repo.default_branch,
+          isTemplate: repo.is_template ?? false,
         })),
       );
       if (repos.length >= data.total_count || data.repositories.length === 0) break;
@@ -171,7 +170,7 @@ export class GithubAppService {
    */
   async createProjectRepo(
     installationId: number,
-    opts: { owner: string; name: string; fromTemplate: boolean },
+    opts: { owner: string; name: string; templateFullName: string | null },
   ): Promise<GithubRepo> {
     const token = await this.installationToken(installationId, {
       administration: 'write',
@@ -185,17 +184,19 @@ export class GithubAppService {
       html_url: string;
       private: boolean;
       default_branch: string;
+      is_template?: boolean;
     }): GithubRepo => ({
       id: repo.id,
       fullName: repo.full_name,
       htmlUrl: repo.html_url,
       private: repo.private,
       defaultBranch: repo.default_branch,
+      isTemplate: repo.is_template ?? false,
     });
 
-    if (opts.fromTemplate && this.templateRepo) {
+    if (opts.templateFullName) {
       const { data } = await this.http.post(
-        `/repos/${this.templateRepo}/generate`,
+        `/repos/${opts.templateFullName}/generate`,
         { owner: opts.owner, name: opts.name, private: true },
         auth,
       );
