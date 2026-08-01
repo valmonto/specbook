@@ -33,10 +33,24 @@ export const CreateProjectRequestSchema = z
      *  the grant and derives repoUrl + full name itself — the client cannot
      *  bind a project to a repo the installation does not cover. */
     githubRepoId: z.number().int().positive().optional(),
+    /** Provision a NEW repository with this name (GitHub repo-name charset)
+     *  in the connected account — mutually exclusive with githubRepoId. */
+    newRepoName: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(/^[A-Za-z0-9._-]+$/, 'invalid repository name')
+      .optional(),
+    /** Generate the new repo from the deploy's configured template. */
+    newRepoFromTemplate: z.boolean().optional(),
     defaultBranch: z.string().min(1).max(255).optional(),
     workdir: z.string().max(500).optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => !(v.githubRepoId && v.newRepoName), {
+    message: 'pick an existing repository or create a new one, not both',
+    path: ['newRepoName'],
+  });
 
 export const CreateProjectResponseSchema = ProjectSchema;
 

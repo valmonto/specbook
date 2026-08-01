@@ -97,6 +97,10 @@ export const GetGithubStatusResponseSchema = z.object({
   connectedAt: isoTimestamp.nullable(),
   /** Empty unless connected; then exactly the installation's granted repos. */
   repositories: z.array(GithubRepoSchema),
+  /** True when the installation granted Administration write — enables repo provisioning. */
+  canCreateRepos: z.boolean(),
+  /** owner/repo new projects are generated from, when the deploy configures one. */
+  templateRepo: z.string().nullable(),
 });
 
 export type GetGithubStatusRequest = z.infer<typeof GetGithubStatusRequestSchema>;

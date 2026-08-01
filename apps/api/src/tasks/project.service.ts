@@ -17,6 +17,7 @@ import { k } from '@pkg/locales';
 import { GithubAppService } from '../github/github-app.service';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
+import { TaskService } from './task.service';
 
 @Injectable()
 export class ProjectService {
@@ -24,6 +25,7 @@ export class ProjectService {
     private readonly projectRepository: ProjectRepository,
     private readonly orgService: OrgService,
     private readonly githubApp: GithubAppService,
+    private readonly taskService: TaskService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -48,7 +50,113 @@ export class ProjectService {
 
     this.logger.info({ projectId: created.id, name: created.name }, 'Project created');
 
+    // Provisioning happens AFTER the project row exists: a GitHub-side
+    // failure leaves a clean unbound project plus a surfaced error — never a
+    // half-bound state, never a lost project.
+    if (dto.newRepoName) {
+      await this.provisionRepo(activeUser, created.id, dto.name, {
+        name: dto.newRepoName,
+        fromTemplate: dto.newRepoFromTemplate ?? true,
+      });
+      const bound = await this.projectRepository.findById(created.id, activeUser.orgId);
+      return this.serialize(bound ?? created);
+    }
+
     return this.serialize(created);
+  }
+
+  /**
+   * Create the repository, verify it landed in the installation's grant,
+   * apply the protection ruleset, bind it, and file the init task — in that
+   * order, because a repo must never be bound (and thus workable by agents)
+   * before it is protected. Any failure surfaces as an error; the project
+   * stays unbound and the human sees exactly what happened.
+   */
+  private async provisionRepo(
+    activeUser: ActiveUser,
+    projectId: string,
+    projectName: string,
+    repo: { name: string; fromTemplate: boolean },
+  ): Promise<void> {
+    if (!this.githubApp.enabled) {
+      throw new BadRequestException(k.orgs.github.errors.notConfigured);
+    }
+    const connection = await this.orgService.githubConnection(activeUser.orgId);
+    if (!connection) {
+      throw new BadRequestException(k.tasks.errors.repoProvisionUnavailable);
+    }
+    const installation = await this.githubApp.getInstallation(connection.installationId);
+    if (!installation?.canCreateRepos) {
+      throw new BadRequestException(k.tasks.errors.repoProvisionUnavailable);
+    }
+
+    let created: GithubRepo;
+    try {
+      created = await this.githubApp.createProjectRepo(connection.installationId, {
+        owner: installation.accountLogin,
+        name: repo.name,
+        fromTemplate: repo.fromTemplate && Boolean(this.githubApp.templateRepo),
+      });
+    } catch (error) {
+      this.logger.error(
+        { orgId: activeUser.orgId, projectId, repoName: repo.name, err: error },
+        'GitHub repo creation failed — project left unbound',
+      );
+      throw new BadRequestException(k.tasks.errors.repoProvisionFailed);
+    }
+
+    // GitHub adds App-created repos to a selected-repos installation
+    // automatically — verified rather than assumed, because a repo outside
+    // the grant would be invisible to every later call.
+    const granted = await this.githubApp.listRepositories(connection.installationId);
+    if (!granted.some((r) => r.id === created.id)) {
+      this.logger.error(
+        { projectId, repo: created.fullName },
+        'Provisioned repo did not land in the installation grant — add it on GitHub',
+      );
+      throw new BadRequestException(k.tasks.errors.repoProvisionNotGranted);
+    }
+
+    try {
+      await this.githubApp.applyProtectionRuleset(connection.installationId, created.fullName);
+    } catch (error) {
+      // Born-protected is part of the contract: an unprotected repo is an
+      // error state, not a silently-open success.
+      this.logger.error(
+        { projectId, repo: created.fullName, err: error },
+        'Protection ruleset failed on provisioned repo — project left unbound',
+      );
+      throw new BadRequestException(k.tasks.errors.repoProvisionUnprotected);
+    }
+
+    await this.projectRepository.update(projectId, activeUser.orgId, {
+      repoUrl: created.htmlUrl,
+      githubRepoId: created.id,
+      githubRepoFullName: created.fullName,
+      defaultBranch: created.defaultBranch,
+    });
+
+    // The new project's first unit of work, as a DRAFT — the dispatch gate
+    // stays the human's.
+    await this.taskService.create(activeUser, {
+      projectId,
+      title: `Initialize ${projectName} from the template`,
+      context:
+        `The repository ${created.fullName} was just generated from the template. ` +
+        'Boot it end to end: install dependencies, run the verify pipeline, rename template ' +
+        'placeholders to this product, and confirm the dev stack starts. Record anything ' +
+        'missing from the template as follow-up drafts.',
+      acceptanceCriteria: [
+        'pnpm install and pnpm verify exit 0 on a fresh clone',
+        'Template placeholder names/branding replaced with this project',
+        'Dev stack boots (api + web) and the seed login works',
+      ],
+    });
+
+    this.logger.info(
+      { projectId, repo: created.fullName, template: repo.fromTemplate },
+      'Repository provisioned, protected and bound',
+    );
   }
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {

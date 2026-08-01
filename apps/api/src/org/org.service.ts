@@ -121,6 +121,8 @@ export class OrgService {
       accountLogin: null,
       connectedAt: null,
       repositories: [],
+      canCreateRepos: false,
+      templateRepo: null,
     };
 
     if (!this.githubApp.enabled) return empty;
@@ -132,8 +134,14 @@ export class OrgService {
     // connected org with an empty repo list rather than a 5xx — the card
     // stays usable and Disconnect remains reachable to clean up.
     let repositories: GetGithubStatusResponse['repositories'] = [];
+    let canCreateRepos = false;
     try {
-      repositories = await this.githubApp.listRepositories(connection.installationId);
+      const [repos, installation] = await Promise.all([
+        this.githubApp.listRepositories(connection.installationId),
+        this.githubApp.getInstallation(connection.installationId),
+      ]);
+      repositories = repos;
+      canCreateRepos = installation?.canCreateRepos ?? false;
     } catch (error) {
       this.logger.warn(
         { orgId, installationId: connection.installationId, err: error },
@@ -147,6 +155,8 @@ export class OrgService {
       accountLogin: connection.accountLogin,
       connectedAt: connection.connectedAt ? connection.connectedAt.toISOString() : null,
       repositories,
+      canCreateRepos,
+      templateRepo: this.githubApp.templateRepo,
     };
   }
 

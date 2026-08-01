@@ -74,6 +74,123 @@ describe('GithubAppService', () => {
     await expect(service.getInstallation(1)).rejects.toThrow('network down');
   });
 
+  it('createProjectRepo generates from the template with an admin-downscoped token', async () => {
+    const service = new GithubAppService(
+      configWith({
+        GITHUB_APP_ID: '12345',
+        GITHUB_APP_SLUG: 'valmonto-specbook',
+        GITHUB_APP_PRIVATE_KEY: PEM,
+        GITHUB_TEMPLATE_REPO: 'valmonto/valmatic',
+      }),
+    );
+    const http = { get: vi.fn(), post: vi.fn() };
+    Object.assign(service, { http });
+
+    http.post
+      .mockResolvedValueOnce({ data: { token: 'ghs_admin' } }) // access_tokens
+      .mockResolvedValueOnce({
+        data: {
+          id: 99,
+          full_name: 'valmonto/new-product',
+          html_url: 'https://github.com/valmonto/new-product',
+          private: true,
+          default_branch: 'main',
+        },
+      });
+
+    const repo = await service.createProjectRepo(777, {
+      owner: 'valmonto',
+      name: 'new-product',
+      fromTemplate: true,
+    });
+
+    expect(repo.fullName).toBe('valmonto/new-product');
+    // The admin token is DOWNSCOPED at mint time to exactly the call's needs.
+    expect(http.post).toHaveBeenNthCalledWith(
+      1,
+      '/app/installations/777/access_tokens',
+      { permissions: { administration: 'write', contents: 'write' } },
+      expect.anything(),
+    );
+    expect(http.post).toHaveBeenNthCalledWith(
+      2,
+      '/repos/valmonto/valmatic/generate',
+      { owner: 'valmonto', name: 'new-product', private: true },
+      expect.objectContaining({ headers: { Authorization: 'Bearer ghs_admin' } }),
+    );
+  });
+
+  it('createProjectRepo without a template creates a bare private org repo', async () => {
+    const service = configured();
+    const http = { get: vi.fn(), post: vi.fn() };
+    Object.assign(service, { http });
+    http.post
+      .mockResolvedValueOnce({ data: { token: 'ghs_admin' } })
+      .mockResolvedValueOnce({
+        data: {
+          id: 99,
+          full_name: 'valmonto/bare',
+          html_url: 'https://github.com/valmonto/bare',
+          private: true,
+          default_branch: 'main',
+        },
+      });
+
+    await service.createProjectRepo(777, { owner: 'valmonto', name: 'bare', fromTemplate: false });
+    expect(http.post).toHaveBeenNthCalledWith(
+      2,
+      '/orgs/valmonto/repos',
+      { name: 'bare', private: true },
+      expect.anything(),
+    );
+  });
+
+  it('applyProtectionRuleset applies the born-protected rules with an admin-only token', async () => {
+    const service = configured();
+    const http = { get: vi.fn(), post: vi.fn() };
+    Object.assign(service, { http });
+    http.post
+      .mockResolvedValueOnce({ data: { token: 'ghs_admin_only' } })
+      .mockResolvedValueOnce({ data: { id: 1 } });
+
+    await service.applyProtectionRuleset(777, 'valmonto/new-product');
+
+    expect(http.post).toHaveBeenNthCalledWith(
+      1,
+      '/app/installations/777/access_tokens',
+      { permissions: { administration: 'write' } },
+      expect.anything(),
+    );
+    const [url, body] = http.post.mock.calls[1] as [string, { rules: Array<{ type: string }> }];
+    expect(url).toBe('/repos/valmonto/new-product/rulesets');
+    expect(body.rules.map((rule) => rule.type).sort()).toEqual([
+      'deletion',
+      'non_fast_forward',
+      'pull_request',
+    ]);
+  });
+
+  it('exposes NO destructive repository method — a tested invariant, not a convention', () => {
+    const service = configured();
+    const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(service)).filter(
+      (name) => name !== 'constructor' && typeof (service as never)[name] === 'function',
+    );
+    for (const method of surface) {
+      expect(method).not.toMatch(/delete|remove|destroy|archive|transfer|rename/i);
+    }
+    // The surface stays enumerated so a new method is a conscious addition here.
+    expect(surface.sort()).toEqual([
+      'appJwt',
+      'applyProtectionRuleset',
+      'createProjectRepo',
+      'getInstallation',
+      'installUrl',
+      'installationToken',
+      'listRepositories',
+      'mintRepoToken',
+    ]);
+  });
+
   it('lists repositories via a minted installation token, mapped to the contract shape', async () => {
     const service = configured();
     const http = { get: vi.fn(), post: vi.fn() };

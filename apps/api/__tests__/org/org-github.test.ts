@@ -29,6 +29,7 @@ describe('OrgService — GitHub connection', () => {
   let repository: Record<string, ReturnType<typeof vi.fn>>;
   let github: {
     enabled: boolean;
+    templateRepo: string | null;
     installUrl: ReturnType<typeof vi.fn>;
     getInstallation: ReturnType<typeof vi.fn>;
     listRepositories: ReturnType<typeof vi.fn>;
@@ -43,8 +44,11 @@ describe('OrgService — GitHub connection', () => {
     };
     github = {
       enabled: true,
+      templateRepo: 'valmonto/valmatic',
       installUrl: vi.fn().mockReturnValue('https://github.com/apps/valmonto-specbook/installations/new'),
-      getInstallation: vi.fn().mockResolvedValue({ id: 777, accountLogin: 'valmonto' }),
+      getInstallation: vi
+        .fn()
+        .mockResolvedValue({ id: 777, accountLogin: 'valmonto', canCreateRepos: true }),
       listRepositories: vi.fn().mockResolvedValue([REPO]),
     };
     service = new OrgService(
@@ -65,6 +69,8 @@ describe('OrgService — GitHub connection', () => {
       accountLogin: null,
       connectedAt: null,
       repositories: [],
+      canCreateRepos: false,
+      templateRepo: null,
     });
     expect(repository.findGithubConnection).not.toHaveBeenCalled();
   });
@@ -84,6 +90,21 @@ describe('OrgService — GitHub connection', () => {
     expect(status.accountLogin).toBe('valmonto');
     expect(status.repositories).toEqual([REPO]);
     expect(github.listRepositories).toHaveBeenCalledWith(777);
+    // Provisioning surface: the installation's Administration grant + the
+    // deploy's template, both surfaced for the project form.
+    expect(status.canCreateRepos).toBe(true);
+    expect(status.templateRepo).toBe('valmonto/valmatic');
+  });
+
+  it('an installation without Administration reports canCreateRepos false', async () => {
+    github.getInstallation.mockResolvedValue({
+      id: 777,
+      accountLogin: 'valmonto',
+      canCreateRepos: false,
+    });
+    const status = await service.getGithubStatus(actor, ORG);
+    expect(status.connected).toBe(true);
+    expect(status.canCreateRepos).toBe(false);
   });
 
   it('a failing repo listing degrades to connected-with-no-repos, not a 5xx', async () => {

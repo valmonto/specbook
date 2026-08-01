@@ -7,6 +7,7 @@ import { ProjectService } from '@/tasks/project.service';
 import type { ProjectRepository } from '@/tasks/project.repository';
 import type { OrgService } from '@/org/org.service';
 import type { GithubAppService } from '@/github/github-app.service';
+import type { TaskService } from '@/tasks/task.service';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';
@@ -53,6 +54,7 @@ describe('ProjectService — GitHub repo binding', () => {
       repository as unknown as ProjectRepository,
       orgService as unknown as OrgService,
       github as unknown as GithubAppService,
+      { create: vi.fn() } as unknown as TaskService,
       new FakeLogger().as<PinoLogger>(),
     );
   });
