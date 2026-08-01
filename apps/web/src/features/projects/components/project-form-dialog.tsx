@@ -146,78 +146,16 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
         </>
       }
     >
-      <div className="grid gap-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="grid gap-2">
+      <div className="grid gap-5">
+        {/* Name + branch: two short fields of equal height share a row;
+            content-start keeps label+input pinned together if a sibling ever
+            grows (the stretch artifact this layout replaces). */}
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="grid content-start gap-2">
             <Label htmlFor="project-name">{t(k.tasks.projectName)}</Label>
             <Input id="project-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="project-repo">{t(k.tasks.repoUrl)}</Label>
-            {pickerAvailable || canCreateRepo ? (
-              <>
-                <Select value={repoChoice} onValueChange={pickRepo}>
-                  <SelectTrigger id="project-repo">
-                    <SelectValue placeholder={t(k.tasks.repoPickerPlaceholder)} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {canCreateRepo && (
-                      <SelectItem value={CREATE_NEW}>
-                        <span className="flex items-center gap-1.5">
-                          <Sparkles className="size-3 text-muted-foreground" />
-                          {t(k.tasks.repoCreateNew)}
-                        </span>
-                      </SelectItem>
-                    )}
-                    {repos.map((repo) => (
-                      <SelectItem key={repo.id} value={String(repo.id)}>
-                        <span className="flex items-center gap-1.5">
-                          <code className="font-mono text-xs">{repo.fullName}</code>
-                          {repo.private && <Lock className="size-3 text-muted-foreground" />}
-                        </span>
-                      </SelectItem>
-                    ))}
-                    <SelectItem value={MANUAL}>{t(k.tasks.repoManualUrl)}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {repoChoice === MANUAL && (
-                  <Input
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                    placeholder="https://github.com/…"
-                  />
-                )}
-                {creating && (
-                  <div className="grid gap-2">
-                    <Input
-                      aria-label={t(k.tasks.repoNewName)}
-                      value={newRepoName}
-                      onChange={(e) => setNewRepoName(e.target.value)}
-                      placeholder={slugify(name) || 'my-product'}
-                    />
-                    {templateRepo && (
-                      <label className="flex items-center gap-2 text-xs">
-                        <Checkbox
-                          checked={fromTemplate}
-                          onCheckedChange={(checked) => setFromTemplate(checked === true)}
-                        />
-                        {t(k.tasks.repoFromTemplate, { template: templateRepo })}
-                      </label>
-                    )}
-                    <p className="text-xs text-muted-foreground">{t(k.tasks.repoCreateHint)}</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <Input
-                id="project-repo"
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                placeholder="https://github.com/…"
-              />
-            )}
-          </div>
-          <div className="grid gap-2">
+          <div className="grid content-start gap-2">
             <Label htmlFor="project-branch">{t(k.tasks.defaultBranch)}</Label>
             <Input
               id="project-branch"
@@ -225,6 +163,81 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
               onChange={(e) => setDefaultBranch(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* Repository: its own full-width section — the one field whose
+            height changes with the choice, so it must not share a row. */}
+        <div className="grid content-start gap-2">
+          <Label htmlFor="project-repo">{t(k.tasks.repoUrl)}</Label>
+          {pickerAvailable || canCreateRepo ? (
+            <>
+              <Select value={repoChoice} onValueChange={pickRepo}>
+                <SelectTrigger id="project-repo" className="max-w-md">
+                  <SelectValue placeholder={t(k.tasks.repoPickerPlaceholder)} />
+                </SelectTrigger>
+                <SelectContent>
+                  {canCreateRepo && (
+                    <SelectItem value={CREATE_NEW}>
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="size-3 text-muted-foreground" />
+                        {t(k.tasks.repoCreateNew)}
+                      </span>
+                    </SelectItem>
+                  )}
+                  {repos.map((repo) => (
+                    <SelectItem key={repo.id} value={String(repo.id)}>
+                      <span className="flex items-center gap-1.5">
+                        <code className="font-mono text-xs">{repo.fullName}</code>
+                        {repo.private && <Lock className="size-3 text-muted-foreground" />}
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={MANUAL}>{t(k.tasks.repoManualUrl)}</SelectItem>
+                </SelectContent>
+              </Select>
+              {repoChoice === MANUAL && (
+                <Input
+                  className="max-w-md"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  placeholder="https://github.com/…"
+                />
+              )}
+              {creating && (
+                <div className="grid max-w-md gap-2.5 rounded-lg border bg-muted/30 p-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="new-repo-name" className="text-xs">
+                      {t(k.tasks.repoNewName)}
+                    </Label>
+                    <Input
+                      id="new-repo-name"
+                      value={newRepoName}
+                      onChange={(e) => setNewRepoName(e.target.value)}
+                      placeholder={slugify(name) || 'my-product'}
+                    />
+                  </div>
+                  {templateRepo && (
+                    <label className="flex items-center gap-2 text-xs">
+                      <Checkbox
+                        checked={fromTemplate}
+                        onCheckedChange={(checked) => setFromTemplate(checked === true)}
+                      />
+                      {t(k.tasks.repoFromTemplate, { template: templateRepo })}
+                    </label>
+                  )}
+                  <p className="text-xs text-muted-foreground">{t(k.tasks.repoCreateHint)}</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <Input
+              id="project-repo"
+              className="max-w-md"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              placeholder="https://github.com/…"
+            />
+          )}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="project-workdir">{t(k.tasks.workdir)}</Label>
