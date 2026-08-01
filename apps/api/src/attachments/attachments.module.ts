@@ -35,6 +35,9 @@ export class AttachmentsModule {
   static register(options: AttachmentsModuleOptions): DynamicModule {
     return {
       module: AttachmentsModule,
+      // Global like Storage/Database: registered once at the app root,
+      // injectable by other feature modules (MCP tools wrap the service).
+      global: true,
       imports: options.imports ?? [],
       controllers: [AttachmentController],
       providers: [
