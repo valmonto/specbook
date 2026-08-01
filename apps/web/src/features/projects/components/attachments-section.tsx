@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, FileText, Loader2, Paperclip, Plus, Trash2 } from 'lucide-react';
 import type { AttachmentWithUrls } from '@pkg/contracts';
@@ -9,6 +9,7 @@ import {
   useTaskAttachments,
   useUploadAttachment,
 } from '../hooks/use-attachments';
+import { AttachmentGalleryDialog } from './attachment-gallery-dialog';
 
 function prettySize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -18,10 +19,12 @@ function prettySize(bytes: number): string {
 
 function AttachmentTile({
   item,
+  onOpen,
   onDelete,
   deleting,
 }: {
   item: AttachmentWithUrls;
+  onOpen: () => void;
   onDelete: () => void;
   deleting: boolean;
 }) {
@@ -31,25 +34,26 @@ function AttachmentTile({
 
   return (
     <div className="group relative overflow-hidden rounded-lg border bg-card">
+      {/* Opens the gallery — never a download; the gallery holds the one
+          explicit Download action. */}
       {isImage ? (
-        <a href={readUrl} target="_blank" rel="noreferrer">
+        <button type="button" onClick={onOpen} className="block w-full cursor-zoom-in">
           <img
             src={readUrl}
             alt={attachment.fileName ?? 'attachment'}
             className="h-24 w-full object-cover"
           />
-        </a>
+        </button>
       ) : (
-        <a
-          href={readUrl}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={onOpen}
           className="flex h-24 w-full flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-          title={t(k.attachments.download)}
+          title={t(k.attachments.title)}
         >
           <FileText className="size-6" />
           <Download className="size-3.5" />
-        </a>
+        </button>
       )}
       <div className="flex items-center gap-1 px-2 py-1">
         <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
@@ -80,6 +84,7 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
   const uploadCtl = useUploadAttachment(() => mutate());
   const deleteCtl = useDeleteAttachment(() => mutate());
   const fileInput = useRef<HTMLInputElement>(null);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
 
   const items = data?.data ?? [];
 
@@ -103,15 +108,23 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
       )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {items.map((item) => (
+        {items.map((item, itemIndex) => (
           <AttachmentTile
             key={item.attachment.id}
             item={item}
             deleting={deleteCtl.isDeleting}
+            onOpen={() => setGalleryIndex(itemIndex)}
             onDelete={() => void deleteCtl.remove(item.attachment.id)}
           />
         ))}
       </div>
+
+      <AttachmentGalleryDialog
+        items={items}
+        index={galleryIndex}
+        onClose={() => setGalleryIndex(null)}
+        onSelect={setGalleryIndex}
+      />
 
       {uploadCtl.error && (
         <p className="text-sm text-destructive">{t(uploadCtl.error.message)}</p>
