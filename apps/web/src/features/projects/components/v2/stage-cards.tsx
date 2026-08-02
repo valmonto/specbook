@@ -4,12 +4,14 @@ import { toast } from 'sonner';
 import {
   Bot,
   Check,
+  ChevronRight,
   ExternalLink,
   GitBranch,
   GitMerge,
   ListChecks,
   Loader2,
   MessageCircleQuestion,
+  PanelRight,
   RotateCcw,
   Undo2,
 } from 'lucide-react';
@@ -23,33 +25,47 @@ import { AttachmentsSection } from '../attachments-section';
 import { CiStateDot, PrStateBadge } from '../github-state-badges';
 
 /**
- * Stage-shaped cards for the v2 pipeline view: the selected stage decides
- * the card's shape, so review cards carry their evidence inline (summary,
- * criteria, screenshots, scope) and the merge queue is a row of one-click
- * merges. Clicking a title always opens the full detail sheet — these cards
- * are the fast path, not the only path.
+ * Stage-shaped cards for the v2 pipeline view, as an accordion: every card
+ * collapses to one row, clicking it expands it in place — and only ONE card
+ * is expanded at a time (state owned by the page), so the list never turns
+ * into a wall. The detail sheet remains the deep layer (full context, full
+ * activity, editing) behind the panel button; these cards are the fast path.
  */
 
-interface CardProps {
+export interface CardProps {
   task: Task;
-  onOpen: (id: string) => void;
+  expanded: boolean;
+  /** Expand/collapse this card (the page enforces one-at-a-time). */
+  onToggle: (id: string) => void;
+  /** Open the full detail sheet — edit, complete activity, dependencies. */
+  onDetails: (id: string) => void;
 }
 
 function CardShell({
   task,
-  onOpen,
+  expanded,
+  onToggle,
+  onDetails,
   children,
   actions,
 }: CardProps & { children?: React.ReactNode; actions?: React.ReactNode }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border bg-card shadow-xs">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-3">
         <button
           type="button"
-          onClick={() => onOpen(task.id)}
-          className="min-w-0 flex-1 truncate text-left text-sm font-semibold hover:underline"
+          onClick={() => onToggle(task.id)}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm font-semibold"
         >
-          {task.title}
+          <ChevronRight
+            className={cn(
+              'size-4 shrink-0 text-muted-foreground transition-transform',
+              expanded && 'rotate-90',
+            )}
+          />
+          <span className="truncate">{task.title}</span>
         </button>
         <PrStateBadge task={task} />
         <CiStateDot task={task} />
@@ -57,19 +73,57 @@ function CardShell({
           <span className="text-xs font-medium text-muted-foreground">P{task.priority}</span>
         )}
         {actions}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 text-muted-foreground"
+          title={t(k.tasks.v2.details)}
+          aria-label={t(k.tasks.v2.details)}
+          onClick={() => onDetails(task.id)}
+        >
+          <PanelRight className="size-4" />
+        </Button>
       </div>
-      {children}
+      {expanded && children}
     </div>
   );
 }
 
+function CriteriaList({ task }: { task: Task }) {
+  if (task.acceptanceCriteria.length === 0) return null;
+  return (
+    <ul className="grid gap-1">
+      {task.acceptanceCriteria.map((c, i) => (
+        <li key={i} className="flex items-start gap-1.5 text-sm">
+          <Check
+            className={cn(
+              'mt-0.5 size-3.5 shrink-0',
+              c.done ? 'text-emerald-500' : 'text-muted-foreground/40',
+            )}
+          />
+          <span className={cn(!c.done && 'text-muted-foreground')}>{c.text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The one-paragraph "what changed" the agent recorded when submitting. */
-function useAgentSummary(taskId: string) {
+function AgentSummary({ taskId }: { taskId: string }) {
+  const { t } = useTranslation();
   const { data } = useTask(taskId);
   const summary = data?.comments
     .filter((c) => c.authorType === 'agent' && (c.kind === 'comment' || c.kind === 'progress'))
     .at(-1);
-  return summary?.body ?? null;
+  return (
+    <div>
+      <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <Bot className="size-3.5" />
+        {t(k.tasks.v2.agentSummary)}
+      </h4>
+      <p className="text-sm whitespace-pre-wrap">{summary?.body ?? t(k.tasks.v2.noSummary)}</p>
+    </div>
+  );
 }
 
 /** "6 files · +214 −38 · touches apps/web, packages/contracts" — live from GitHub. */
@@ -126,17 +180,67 @@ function WorkLinks({ task }: { task: Task }) {
   );
 }
 
+/** Shared inline feedback box for the two "send back" paths. */
+function FeedbackBox({
+  taskId,
+  onClose,
+}: {
+  taskId: string;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const transition = useTransitionTask();
+  const [feedback, setFeedback] = useState('');
+
+  const sendBack = async () => {
+    if (!feedback.trim()) return;
+    const res = await transition.execute({
+      id: taskId,
+      to: 'changes_requested',
+      comment: feedback.trim(),
+    });
+    if (res.e) toast.error(t(res.e.message));
+    else onClose();
+  };
+
+  return (
+    <div className="grid gap-2">
+      <Textarea
+        autoFocus
+        rows={3}
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        placeholder={t(k.tasks.actions.feedbackPlaceholder)}
+      />
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive"
+          disabled={transition.isLoading || !feedback.trim()}
+          onClick={() => void sendBack()}
+        >
+          {t(k.tasks.actions.requestChanges)}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          {t(k.common.actions.cancel)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * needs_review: everything needed to decide, inline — then one click.
  * "Approve & merge" chains the two server calls; a merge failure leaves the
  * task safely in the merge queue with the error surfaced.
  */
-export function ReviewCard({ task, onOpen }: CardProps) {
+export function ReviewCard(props: CardProps) {
+  const { task } = props;
   const { t } = useTranslation();
   const transition = useTransitionTask();
   const merge = useMergeTask();
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const summary = useAgentSummary(task.id);
+  const [givingFeedback, setGivingFeedback] = useState(false);
   const busy = transition.isLoading || merge.isLoading;
   const ciFailing = task.ciState === 'failing';
   const mergeable = Boolean(task.branch ?? task.prUrl) && !ciFailing;
@@ -156,49 +260,18 @@ export function ReviewCard({ task, onOpen }: CardProps) {
     else toast.success(t(k.tasks.v2.mergedToast));
   };
 
-  const sendBack = async () => {
-    if (!feedback?.trim()) return;
-    const res = await transition.execute({
-      id: task.id,
-      to: 'changes_requested',
-      comment: feedback.trim(),
-    });
-    if (res.e) toast.error(t(res.e.message));
-    else setFeedback(null);
-  };
-
   return (
-    <CardShell task={task} onOpen={onOpen}>
+    <CardShell {...props}>
       <div className="grid gap-3 border-t px-4 py-3">
-        <div>
-          <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <Bot className="size-3.5" />
-            {t(k.tasks.v2.agentSummary)}
-          </h4>
-          <p className="text-sm whitespace-pre-wrap">{summary ?? t(k.tasks.v2.noSummary)}</p>
-        </div>
-
-        {task.acceptanceCriteria.length > 0 && (
-          <ul className="grid gap-1">
-            {task.acceptanceCriteria.map((c, i) => (
-              <li key={i} className="flex items-start gap-1.5 text-sm">
-                <Check
-                  className={cn(
-                    'mt-0.5 size-3.5 shrink-0',
-                    c.done ? 'text-emerald-500' : 'text-muted-foreground/40',
-                  )}
-                />
-                <span className={cn(!c.done && 'text-muted-foreground')}>{c.text}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
+        <AgentSummary taskId={task.id} />
+        <CriteriaList task={task} />
         <WorkLinks task={task} />
         <PrScopeLine task={task} />
         <AttachmentsSection taskId={task.id} />
 
-        {feedback === null ? (
+        {givingFeedback ? (
+          <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
+        ) : (
           <div className="flex flex-wrap items-center gap-2">
             {mergeable ? (
               <Button size="sm" disabled={busy} onClick={() => void approve(true)}>
@@ -219,7 +292,7 @@ export function ReviewCard({ task, onOpen }: CardProps) {
               variant="outline"
               className="text-destructive"
               disabled={busy}
-              onClick={() => setFeedback('')}
+              onClick={() => setGivingFeedback(true)}
             >
               {t(k.tasks.actions.requestChanges)}
             </Button>
@@ -227,42 +300,22 @@ export function ReviewCard({ task, onOpen }: CardProps) {
               {ciFailing ? t(k.tasks.v2.mergeBlockedCi) : mergeable ? t(k.tasks.v2.ciGreenHint) : null}
             </span>
           </div>
-        ) : (
-          <div className="grid gap-2">
-            <Textarea
-              autoFocus
-              rows={3}
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              placeholder={t(k.tasks.actions.feedbackPlaceholder)}
-            />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive"
-                disabled={busy || !feedback.trim()}
-                onClick={() => void sendBack()}
-              >
-                {t(k.tasks.actions.requestChanges)}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setFeedback(null)}>
-                {t(k.common.actions.cancel)}
-              </Button>
-            </div>
-          </div>
         )}
       </div>
     </CardShell>
   );
 }
 
-/** approved: the merge queue — a one-click Merge per row, undo, send back. */
-export function ApprovedCard({ task, onOpen }: CardProps) {
+/**
+ * approved: the merge queue. Merge stays a one-click head action even when
+ * collapsed; expanding shows the evidence (summary, links, scope).
+ */
+export function ApprovedCard(props: CardProps) {
+  const { task, expanded } = props;
   const { t } = useTranslation();
   const transition = useTransitionTask();
   const merge = useMergeTask();
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [givingFeedback, setGivingFeedback] = useState(false);
   const busy = transition.isLoading || merge.isLoading;
   const ciFailing = task.ciState === 'failing';
 
@@ -272,21 +325,9 @@ export function ApprovedCard({ task, onOpen }: CardProps) {
     else toast.success(t(k.tasks.v2.mergedToast));
   };
 
-  const sendBack = async () => {
-    if (!feedback?.trim()) return;
-    const res = await transition.execute({
-      id: task.id,
-      to: 'changes_requested',
-      comment: feedback.trim(),
-    });
-    if (res.e) toast.error(t(res.e.message));
-    else setFeedback(null);
-  };
-
   return (
     <CardShell
-      task={task}
-      onOpen={onOpen}
+      {...props}
       actions={
         <div className="flex items-center gap-1.5">
           <Button size="sm" disabled={busy || ciFailing} onClick={() => void doMerge()}>
@@ -302,6 +343,7 @@ export function ApprovedCard({ task, onOpen }: CardProps) {
             variant="ghost"
             disabled={busy}
             title={t(k.tasks.actions.undoApprove)}
+            aria-label={t(k.tasks.actions.undoApprove)}
             onClick={() => void transition.execute({ id: task.id, to: 'needs_review' })}
           >
             <Undo2 className="size-4" />
@@ -312,7 +354,11 @@ export function ApprovedCard({ task, onOpen }: CardProps) {
               variant="outline"
               className="text-destructive"
               disabled={busy}
-              onClick={() => setFeedback(feedback === null ? '' : null)}
+              onClick={() => {
+                // The feedback box lives in the body — make sure it's visible.
+                if (!expanded) props.onToggle(task.id);
+                setGivingFeedback((open) => !open);
+              }}
             >
               {t(k.tasks.actions.requestChanges)}
             </Button>
@@ -320,42 +366,24 @@ export function ApprovedCard({ task, onOpen }: CardProps) {
         </div>
       }
     >
-      {ciFailing && (
-        <p className="border-t px-4 py-2 text-xs text-destructive">{t(k.tasks.v2.mergeBlockedCi)}</p>
-      )}
-      {feedback !== null && (
-        <div className="grid gap-2 border-t px-4 py-3">
-          <Textarea
-            autoFocus
-            rows={3}
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            placeholder={t(k.tasks.actions.feedbackPlaceholder)}
-          />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive"
-              disabled={busy || !feedback.trim()}
-              onClick={() => void sendBack()}
-            >
-              {t(k.tasks.actions.requestChanges)}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setFeedback(null)}>
-              {t(k.common.actions.cancel)}
-            </Button>
-          </div>
-        </div>
-      )}
+      <div className="grid gap-3 border-t px-4 py-3">
+        {ciFailing && <p className="text-xs text-destructive">{t(k.tasks.v2.mergeBlockedCi)}</p>}
+        <AgentSummary taskId={task.id} />
+        <WorkLinks task={task} />
+        <PrScopeLine task={task} />
+        {givingFeedback && (
+          <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
+        )}
+      </div>
     </CardShell>
   );
 }
 
 /** blocked: the agent's question with the answer box right there. */
-export function BlockedCard({ task, onOpen }: CardProps) {
+export function BlockedCard(props: CardProps) {
+  const { task, expanded } = props;
   const { t } = useTranslation();
-  const { data } = useTask(task.id);
+  const { data } = useTask(expanded ? task.id : null);
   const transition = useTransitionTask();
   const [answer, setAnswer] = useState('');
   const question = data?.comments.filter((c) => c.kind === 'question').at(-1)?.body;
@@ -368,7 +396,7 @@ export function BlockedCard({ task, onOpen }: CardProps) {
   };
 
   return (
-    <CardShell task={task} onOpen={onOpen}>
+    <CardShell {...props}>
       <div className="grid gap-2 border-t px-4 py-3">
         {question && (
           <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
@@ -397,14 +425,17 @@ export function BlockedCard({ task, onOpen }: CardProps) {
   );
 }
 
-/** Everything else: a compact row; the detail sheet has the rest. */
-export function PlainCard({ task, onOpen }: CardProps) {
+/**
+ * Everything else: collapsed row; expanding shows the spec at a glance —
+ * clamped context (the sheet has the full document), criteria, links.
+ */
+export function PlainCard(props: CardProps) {
+  const { task } = props;
   const total = task.acceptanceCriteria.length;
   const done = task.acceptanceCriteria.filter((c) => c.done).length;
   return (
     <CardShell
-      task={task}
-      onOpen={onOpen}
+      {...props}
       actions={
         total > 0 ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
@@ -413,6 +444,17 @@ export function PlainCard({ task, onOpen }: CardProps) {
           </span>
         ) : undefined
       }
-    />
+    >
+      <div className="grid gap-3 border-t px-4 py-3">
+        {task.context && (
+          <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
+            {task.context}
+          </p>
+        )}
+        <CriteriaList task={task} />
+        <WorkLinks task={task} />
+        <PrScopeLine task={task} />
+      </div>
+    </CardShell>
   );
 }
