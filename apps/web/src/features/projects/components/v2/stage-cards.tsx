@@ -1,42 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Bot,
-  Check,
   ChevronRight,
   ExternalLink,
   GitBranch,
   GitMerge,
-  ListChecks,
   Loader2,
+  ListChecks,
   MessageCircleQuestion,
   MessageSquare,
-  PanelRight,
+  Plus,
   RotateCcw,
   Undo2,
   User,
+  X,
 } from 'lucide-react';
-import type { Task } from '@pkg/contracts';
+import type { AcceptanceCriterion, Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
+  useCheckCriterion,
+  useDeleteTask,
   useMergeTask,
   useTask,
   useTaskPr,
   useTransitionTask,
+  useUpdateTask,
 } from '../../hooks/use-projects';
 import { AttachmentsSection } from '../attachments-section';
+import { StatusBadge } from '../status-badge';
 
 /**
- * Stage-shaped cards for the v2 pipeline view, as an accordion: every card
- * collapses to one row, clicking it expands it in place — and only ONE card
- * is expanded at a time (state owned by the page), so the list never turns
- * into a wall. The detail sheet remains the deep layer (full context, full
- * activity, editing) behind the panel button; these cards are the fast path.
+ * The v2 task rows: an accordion where the EXPANDED ROW IS the task detail —
+ * context, out-of-scope, criteria, PR, attachments, activity, all visible,
+ * and the spec edits in place, Notion-style: click the title, the context or
+ * a criterion and it becomes editable; blur saves, Escape reverts. There is
+ * no detail sheet and no edit dialog on this page.
  */
 
 export interface CardProps {
@@ -44,9 +49,9 @@ export interface CardProps {
   expanded: boolean;
   /** Expand/collapse this card (the page enforces one-at-a-time). */
   onToggle: (id: string) => void;
-  /** Open the full detail sheet — edit, complete activity, dependencies. */
-  onDetails: (id: string) => void;
 }
+
+const isTerminal = (task: Task) => task.status === 'done' || task.status === 'cancelled';
 
 /** "2h" / "3d" — magnitude, not clocks (same idiom as the dashboard). */
 const ago = (iso: string | null): string => {
@@ -100,22 +105,37 @@ function CiDot({ task }: { task: Task }) {
   );
 }
 
+const SECTION_HEADING =
+  'flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase';
+
 /**
  * A list row, not a card: the page wraps rows in ONE bordered container with
- * hairline dividers. Meta is compact and right-aligned (icons + numbers,
- * words in tooltips); the details affordance appears on hover/focus only.
+ * hairline dividers. Collapsed, clicking the title toggles; expanded, the
+ * title becomes click-to-rename (the chevron keeps toggling).
  */
 function CardShell({
   task,
   expanded,
   onToggle,
-  onDetails,
   children,
   actions,
 }: CardProps & { children?: React.ReactNode; actions?: React.ReactNode }) {
   const { t } = useTranslation();
+  const update = useUpdateTask();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const editable = !isTerminal(task);
   const total = task.acceptanceCriteria.length;
   const ticked = task.acceptanceCriteria.filter((c) => c.done).length;
+
+  const saveTitle = async () => {
+    setEditingTitle(false);
+    const next = titleDraft.trim();
+    if (!next || next === task.title) return;
+    const res = await update.execute({ id: task.id, title: next });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
   return (
     <div className={cn(expanded && 'bg-muted/20')}>
       <div className="group flex h-11 items-center gap-2.5 px-3 transition-colors hover:bg-muted/40">
@@ -123,16 +143,47 @@ function CardShell({
           type="button"
           onClick={() => onToggle(task.id)}
           aria-expanded={expanded}
-          className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
+          aria-label={task.title}
+          className="flex h-full shrink-0 items-center px-0.5"
         >
           <ChevronRight
             className={cn(
-              'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
+              'size-3.5 text-muted-foreground/60 transition-transform',
               expanded && 'rotate-90',
             )}
           />
-          <span className="truncate text-sm font-medium">{task.title}</span>
         </button>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => void saveTitle()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setEditingTitle(false);
+            }}
+            className="min-w-0 flex-1 border-b border-primary/40 bg-transparent text-sm font-medium outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (expanded && editable) {
+                setTitleDraft(task.title);
+                setEditingTitle(true);
+              } else {
+                onToggle(task.id);
+              }
+            }}
+            className={cn(
+              'h-full min-w-0 flex-1 truncate text-left text-sm font-medium',
+              expanded && editable && 'cursor-text',
+            )}
+          >
+            {task.title}
+          </button>
+        )}
         <PrChip task={task} />
         <CiDot task={task} />
         {total > 0 && (
@@ -150,38 +201,249 @@ function CardShell({
           {ago(task.statusChangedAt ?? task.updatedAt)}
         </span>
         {actions}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-          title={t(k.tasks.v2.details)}
-          aria-label={t(k.tasks.v2.details)}
-          onClick={() => onDetails(task.id)}
-        >
-          <PanelRight className="size-4" />
-        </Button>
       </div>
       {expanded && children}
     </div>
   );
 }
 
-function CriteriaList({ task }: { task: Task }) {
-  if (task.acceptanceCriteria.length === 0) return null;
+/**
+ * Notion-style text block: rendered prose that turns into a textarea on
+ * click; blur saves (empty clears the field), Escape reverts. Hidden
+ * entirely when empty and not editable.
+ */
+function InlineArea({
+  task,
+  field,
+  labelKey,
+  placeholderKey,
+}: {
+  task: Task;
+  field: 'context' | 'outOfScope';
+  labelKey: string;
+  placeholderKey: string;
+}) {
+  const { t } = useTranslation();
+  const update = useUpdateTask();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const value = task[field];
+  const editable = !isTerminal(task);
+  if (!value && !editable) return null;
+
+  const save = async () => {
+    setEditing(false);
+    const next = draft.trim() || null;
+    if ((value ?? null) === next) return;
+    const res = await update.execute({ id: task.id, [field]: next });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
   return (
-    <ul className="grid gap-1">
-      {task.acceptanceCriteria.map((c, i) => (
-        <li key={i} className="flex items-start gap-1.5 text-sm">
-          <Check
-            className={cn(
-              'mt-0.5 size-3.5 shrink-0',
-              c.done ? 'text-emerald-500' : 'text-muted-foreground/40',
+    <div className="grid gap-1">
+      <h4 className={SECTION_HEADING}>{t(labelKey)}</h4>
+      {editing ? (
+        <Textarea
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          rows={Math.min(16, Math.max(4, draft.split('\n').length + 1))}
+          className="font-mono text-xs"
+        />
+      ) : (
+        <button
+          type="button"
+          disabled={!editable}
+          onClick={() => {
+            setDraft(value ?? '');
+            setEditing(true);
+          }}
+          className={cn(
+            '-mx-1.5 rounded-md px-1.5 py-0.5 text-left text-sm whitespace-pre-wrap',
+            editable && 'cursor-text hover:bg-muted/50',
+          )}
+        >
+          {value ?? <span className="text-muted-foreground/60 italic">{t(placeholderKey)}</span>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The checklist, live: checkboxes tick against the server, criterion text
+ * edits in place, rows add/remove inline. Text edits save the whole array
+ * (small by design), preserving done flags.
+ */
+function CriteriaEditor({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const update = useUpdateTask();
+  const checkCriterion = useCheckCriterion();
+  const editable = !isTerminal(task);
+  const [draft, setDraft] = useState<AcceptanceCriterion[]>(task.acceptanceCriteria);
+  // Server truth wins whenever the task refreshes (post-save revalidation).
+  useEffect(() => setDraft(task.acceptanceCriteria), [task.acceptanceCriteria]);
+
+  if (task.acceptanceCriteria.length === 0 && !editable) return null;
+
+  const persist = async (next: AcceptanceCriterion[]) => {
+    const cleaned = next.filter((c) => c.text.trim());
+    const res = await update.execute({ id: task.id, acceptanceCriteria: cleaned });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
+  const setText = (i: number, text: string) =>
+    setDraft((prev) => prev.map((c, idx) => (idx === i ? { ...c, text } : c)));
+  const remove = (i: number) => {
+    const next = draft.filter((_, idx) => idx !== i);
+    setDraft(next);
+    void persist(next);
+  };
+
+  return (
+    <div className="grid gap-1">
+      <h4 className={SECTION_HEADING}>
+        {t(k.tasks.acceptanceCriteria)} ({draft.filter((c) => c.done).length}/{draft.length})
+      </h4>
+      <ul className="grid gap-0.5">
+        {draft.map((c, i) => (
+          <li key={i} className="group/crit flex items-center gap-2">
+            <Checkbox
+              checked={c.done}
+              disabled={!editable || checkCriterion.isLoading}
+              onCheckedChange={(checked) =>
+                void checkCriterion.execute({ id: task.id, index: i, done: checked === true })
+              }
+            />
+            {editable ? (
+              <input
+                value={c.text}
+                onChange={(e) => setText(i, e.target.value)}
+                onBlur={() => {
+                  if (draft[i]?.text !== task.acceptanceCriteria[i]?.text) void persist(draft);
+                }}
+                className={cn(
+                  'min-w-0 flex-1 bg-transparent text-sm outline-none',
+                  c.done && 'text-muted-foreground line-through',
+                )}
+              />
+            ) : (
+              <span className={cn('text-sm', c.done && 'text-muted-foreground line-through')}>
+                {c.text}
+              </span>
             )}
-          />
-          <span className={cn(!c.done && 'text-muted-foreground')}>{c.text}</span>
-        </li>
-      ))}
-    </ul>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="text-muted-foreground/50 opacity-0 transition-opacity group-hover/crit:opacity-100 hover:text-destructive"
+                aria-label={t(k.common.actions.delete)}
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {editable && (
+        <button
+          type="button"
+          onClick={() => setDraft((prev) => [...prev, { text: '', done: false }])}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+          {t(k.tasks.addCriterion)}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** "6 files · +214 −38 · touches apps/web, packages/contracts" — live from GitHub. */
+function PrScopeLine({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const hasRemote = Boolean(task.branch ?? task.prUrl);
+  const { data, isLoading } = useTaskPr(hasRemote ? task.id : null);
+  if (!hasRemote || (!data && !isLoading)) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+      {isLoading || !data ? (
+        <Loader2 className="size-3 animate-spin" />
+      ) : (
+        <>
+          <span className="tabular-nums">
+            {t(k.tasks.v2.diffStats, {
+              files: data.changedFiles,
+              additions: data.additions,
+              deletions: data.deletions,
+            })}
+          </span>
+          {data.areas.length > 0 && (
+            <span>· {t(k.tasks.v2.touches, { areas: data.areas.join(', ') })}</span>
+          )}
+        </>
+      )}
+    </p>
+  );
+}
+
+function WorkLinks({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  if (!task.branch && !task.prUrl) return null;
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        {task.branch && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono">
+            <GitBranch className="size-3" />
+            {task.branch}
+          </span>
+        )}
+        {task.prUrl && (
+          <a
+            href={task.prUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
+          >
+            <ExternalLink className="size-3" />
+            {t(k.tasks.detail.openPr)}
+          </a>
+        )}
+      </div>
+      <PrScopeLine task={task} />
+    </div>
+  );
+}
+
+/** Dependency arrows, display-only — sequencing is rare and set at authoring. */
+function DependenciesNote({ taskId }: { taskId: string }) {
+  const { t } = useTranslation();
+  const { data } = useTask(taskId);
+  if (!data || (data.dependencies.length === 0 && data.dependents.length === 0)) return null;
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {(['dependencies', 'dependents'] as const).map(
+        (kind) =>
+          data[kind].length > 0 && (
+            <div key={kind} className="grid gap-1">
+              <h4 className={SECTION_HEADING}>{t(k.tasks.detail[kind])}</h4>
+              <ul className="grid gap-1">
+                {data[kind].map((d) => (
+                  <li key={d.id} className="flex items-center gap-2 text-sm">
+                    <StatusBadge status={d.status} />
+                    <span className="truncate">{d.title}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+      )}
+    </div>
   );
 }
 
@@ -192,11 +454,7 @@ const kindStyles: Record<string, string> = {
   answer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
 };
 
-/**
- * The task's conversation, compact, with a reply box — the sheet's activity
- * log brought into the expanded row so review never requires leaving the
- * list. Chronological like the sheet; the newest entry is the one to read.
- */
+/** The task's conversation with a reply box — the last section of every row. */
 function ActivityThread({ taskId }: { taskId: string }) {
   const { t, i18n } = useTranslation();
   const { data } = useTask(taskId);
@@ -214,7 +472,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
 
   return (
     <div className="grid gap-2">
-      <h4 className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <h4 className={SECTION_HEADING}>
         <MessageSquare className="size-3.5" />
         {t(k.tasks.detail.comments)}
       </h4>
@@ -225,7 +483,11 @@ function ActivityThread({ taskId }: { taskId: string }) {
           {data.comments.map((c) => (
             <li key={c.id} className="rounded-lg border bg-background/60 px-3 py-2">
               <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                {c.authorType === 'agent' ? <Bot className="size-3.5" /> : <User className="size-3.5" />}
+                {c.authorType === 'agent' ? (
+                  <Bot className="size-3.5" />
+                ) : (
+                  <User className="size-3.5" />
+                )}
                 <span>
                   {t(c.authorType === 'agent' ? k.tasks.detail.agent : k.tasks.detail.you)}
                 </span>
@@ -265,6 +527,130 @@ function ActivityThread({ taskId }: { taskId: string }) {
   );
 }
 
+/**
+ * The residual protocol moves the rich cards do not cover (dispatch, claim
+ * reset, requeue, cancel, draft delete) plus inline priority — a quiet
+ * footer, because these are rare.
+ */
+function StageMoves({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const transition = useTransitionTask();
+  const deleteTask = useDeleteTask();
+  const update = useUpdateTask();
+  const [priority, setPriority] = useState(String(task.priority));
+  useEffect(() => setPriority(String(task.priority)), [task.priority]);
+  if (isTerminal(task)) return null;
+
+  const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+    const res = await transition.execute({ id: task.id, to });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
+  const savePriority = async () => {
+    const next = Math.max(0, Math.min(1000, Number(priority) || 0));
+    if (next === task.priority) return;
+    const res = await update.execute({ id: task.id, priority: next });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
+  const busy = transition.isLoading || deleteTask.isLoading;
+  const moves: Array<{ labelKey: string; to: 'ready' | 'draft' }> = [];
+  if (task.status === 'draft') moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
+  if (task.status === 'ready') moves.push({ labelKey: k.tasks.actions.backToDraft, to: 'draft' });
+  if (task.status === 'in_progress')
+    moves.push({ labelKey: k.tasks.actions.resetClaim, to: 'ready' });
+  if (task.status === 'changes_requested')
+    moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      {moves.map((m) => (
+        <Button
+          key={m.labelKey}
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => void go(m.to)}
+        >
+          {t(m.labelKey)}
+        </Button>
+      ))}
+      {task.status === 'draft' && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive"
+          disabled={busy}
+          onClick={() => void deleteTask.execute({ id: task.id })}
+        >
+          {t(k.tasks.actions.deleteDraft)}
+        </Button>
+      )}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="text-muted-foreground"
+        disabled={busy}
+        onClick={() => void go('cancelled')}
+      >
+        {t(k.tasks.actions.cancelTask)}
+      </Button>
+      <label className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+        {t(k.tasks.priority)}
+        <input
+          type="number"
+          min={0}
+          max={1000}
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          onBlur={() => void savePriority()}
+          className="w-14 rounded-md border bg-transparent px-1.5 py-0.5 text-right text-xs tabular-nums outline-none focus:border-primary/50"
+        />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * The full detail body every stage shares — the sheet, dissolved into the
+ * row: context, out of scope, criteria, PR, the stage's own actions,
+ * attachments, dependencies, activity, then the residual moves.
+ */
+function ExpandedBody({
+  task,
+  headline,
+  actions,
+}: {
+  task: Task;
+  headline?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-4 border-t py-3 pr-4 pl-9">
+      {headline}
+      <InlineArea
+        task={task}
+        field="context"
+        labelKey={k.tasks.taskContext}
+        placeholderKey={k.tasks.taskContextHint}
+      />
+      <InlineArea
+        task={task}
+        field="outOfScope"
+        labelKey={k.tasks.outOfScope}
+        placeholderKey={k.tasks.outOfScope}
+      />
+      <CriteriaEditor task={task} />
+      <WorkLinks task={task} />
+      {actions}
+      <AttachmentsSection taskId={task.id} />
+      <DependenciesNote taskId={task.id} />
+      <ActivityThread taskId={task.id} />
+      <StageMoves task={task} />
+    </div>
+  );
+}
+
 /** The one-paragraph "what changed" the agent recorded when submitting. */
 function AgentSummary({ taskId }: { taskId: string }) {
   const { t } = useTranslation();
@@ -274,7 +660,7 @@ function AgentSummary({ taskId }: { taskId: string }) {
     .at(-1);
   return (
     <div>
-      <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <h4 className={cn(SECTION_HEADING, 'mb-1')}>
         <Bot className="size-3.5" />
         {t(k.tasks.v2.agentSummary)}
       </h4>
@@ -283,68 +669,8 @@ function AgentSummary({ taskId }: { taskId: string }) {
   );
 }
 
-/** "6 files · +214 −38 · touches apps/web, packages/contracts" — live from GitHub. */
-function PrScopeLine({ task }: { task: Task }) {
-  const { t } = useTranslation();
-  const hasRemote = Boolean(task.branch ?? task.prUrl);
-  const { data, isLoading } = useTaskPr(hasRemote ? task.id : null);
-  if (!hasRemote || (!data && !isLoading)) return null;
-  return (
-    <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-      {isLoading || !data ? (
-        <Loader2 className="size-3 animate-spin" />
-      ) : (
-        <>
-          <span className="tabular-nums">
-            {t(k.tasks.v2.diffStats, {
-              files: data.changedFiles,
-              additions: data.additions,
-              deletions: data.deletions,
-            })}
-          </span>
-          {data.areas.length > 0 && (
-            <span>· {t(k.tasks.v2.touches, { areas: data.areas.join(', ') })}</span>
-          )}
-        </>
-      )}
-    </p>
-  );
-}
-
-function WorkLinks({ task }: { task: Task }) {
-  const { t } = useTranslation();
-  if (!task.branch && !task.prUrl) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-3 text-xs">
-      {task.branch && (
-        <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono">
-          <GitBranch className="size-3" />
-          {task.branch}
-        </span>
-      )}
-      {task.prUrl && (
-        <a
-          href={task.prUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-primary hover:underline"
-        >
-          <ExternalLink className="size-3" />
-          {t(k.tasks.detail.openPr)}
-        </a>
-      )}
-    </div>
-  );
-}
-
 /** Shared inline feedback box for the two "send back" paths. */
-function FeedbackBox({
-  taskId,
-  onClose,
-}: {
-  taskId: string;
-  onClose: () => void;
-}) {
+function FeedbackBox({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const { t } = useTranslation();
   const transition = useTransitionTask();
   const [feedback, setFeedback] = useState('');
@@ -388,9 +714,8 @@ function FeedbackBox({
 }
 
 /**
- * needs_review: everything needed to decide, inline — then one click.
- * "Approve & merge" chains the two server calls; a merge failure leaves the
- * task safely in the merge queue with the error surfaced.
+ * needs_review: the decision card. "Approve & merge" chains the two server
+ * calls; a merge failure leaves the task safely in the merge queue.
  */
 export function ReviewCard(props: CardProps) {
   const { task } = props;
@@ -419,59 +744,55 @@ export function ReviewCard(props: CardProps) {
 
   return (
     <CardShell {...props}>
-      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
-        <AgentSummary taskId={task.id} />
-        {task.context && (
-          <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
-            {task.context}
-          </p>
-        )}
-        <CriteriaList task={task} />
-        <WorkLinks task={task} />
-        <PrScopeLine task={task} />
-        <AttachmentsSection taskId={task.id} />
-
-        {givingFeedback ? (
-          <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {mergeable ? (
-              <Button size="sm" disabled={busy} onClick={() => void approve(true)}>
-                <GitMerge className="size-4 mr-1" />
-                {t(k.tasks.actions.approveMerge)}
+      <ExpandedBody
+        task={task}
+        headline={<AgentSummary taskId={task.id} />}
+        actions={
+          givingFeedback ? (
+            <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              {mergeable ? (
+                <Button size="sm" disabled={busy} onClick={() => void approve(true)}>
+                  <GitMerge className="size-4 mr-1" />
+                  {t(k.tasks.actions.approveMerge)}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant={mergeable ? 'outline' : 'default'}
+                disabled={busy}
+                onClick={() => void approve(false)}
+              >
+                {t(k.tasks.actions.approve)}
               </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant={mergeable ? 'outline' : 'default'}
-              disabled={busy}
-              onClick={() => void approve(false)}
-            >
-              {t(k.tasks.actions.approve)}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive"
-              disabled={busy}
-              onClick={() => setGivingFeedback(true)}
-            >
-              {t(k.tasks.actions.requestChanges)}
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              {ciFailing ? t(k.tasks.v2.mergeBlockedCi) : mergeable ? t(k.tasks.v2.ciGreenHint) : null}
-            </span>
-          </div>
-        )}
-        <ActivityThread taskId={task.id} />
-      </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive"
+                disabled={busy}
+                onClick={() => setGivingFeedback(true)}
+              >
+                {t(k.tasks.actions.requestChanges)}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {ciFailing
+                  ? t(k.tasks.v2.mergeBlockedCi)
+                  : mergeable
+                    ? t(k.tasks.v2.ciGreenHint)
+                    : null}
+              </span>
+            </div>
+          )
+        }
+      />
     </CardShell>
   );
 }
 
 /**
  * approved: the merge queue. Merge stays a one-click head action even when
- * collapsed; expanding shows the evidence (summary, links, scope).
+ * collapsed; the expanded row is the same full detail as everywhere else.
  */
 export function ApprovedCard(props: CardProps) {
   const { task, expanded } = props;
@@ -518,7 +839,6 @@ export function ApprovedCard(props: CardProps) {
               className="text-destructive"
               disabled={busy}
               onClick={() => {
-                // The feedback box lives in the body — make sure it's visible.
                 if (!expanded) props.onToggle(task.id);
                 setGivingFeedback((open) => !open);
               }}
@@ -529,16 +849,22 @@ export function ApprovedCard(props: CardProps) {
         </div>
       }
     >
-      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
-        {ciFailing && <p className="text-xs text-destructive">{t(k.tasks.v2.mergeBlockedCi)}</p>}
-        <AgentSummary taskId={task.id} />
-        <WorkLinks task={task} />
-        <PrScopeLine task={task} />
-        {givingFeedback && (
-          <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
-        )}
-        <ActivityThread taskId={task.id} />
-      </div>
+      <ExpandedBody
+        task={task}
+        headline={
+          <>
+            {ciFailing && (
+              <p className="text-xs text-destructive">{t(k.tasks.v2.mergeBlockedCi)}</p>
+            )}
+            <AgentSummary taskId={task.id} />
+          </>
+        }
+        actions={
+          givingFeedback ? (
+            <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
+          ) : undefined
+        }
+      />
     </CardShell>
   );
 }
@@ -561,54 +887,46 @@ export function BlockedCard(props: CardProps) {
 
   return (
     <CardShell {...props}>
-      <div className="grid gap-2 border-t py-3 pr-4 pl-9">
-        {question && (
-          <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
-            <MessageCircleQuestion className="mt-0.5 size-4 shrink-0" />
-            <span className="break-words whitespace-pre-wrap">{question}</span>
-          </p>
-        )}
-        <Textarea
-          rows={2}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder={t(k.tasks.actions.answerPlaceholder)}
-        />
-        <div>
-          <Button
-            size="sm"
-            disabled={transition.isLoading || !answer.trim()}
-            onClick={() => void requeue()}
-          >
-            <RotateCcw className="size-4 mr-1" />
-            {t(k.tasks.actions.requeue)}
-          </Button>
-        </div>
-        <ActivityThread taskId={task.id} />
-      </div>
+      <ExpandedBody
+        task={task}
+        headline={
+          question ? (
+            <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
+              <MessageCircleQuestion className="mt-0.5 size-4 shrink-0" />
+              <span className="break-words whitespace-pre-wrap">{question}</span>
+            </p>
+          ) : undefined
+        }
+        actions={
+          <div className="grid gap-2">
+            <Textarea
+              rows={2}
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={t(k.tasks.actions.answerPlaceholder)}
+            />
+            <div>
+              <Button
+                size="sm"
+                disabled={transition.isLoading || !answer.trim()}
+                onClick={() => void requeue()}
+              >
+                <RotateCcw className="size-4 mr-1" />
+                {t(k.tasks.actions.requeue)}
+              </Button>
+            </div>
+          </div>
+        }
+      />
     </CardShell>
   );
 }
 
-/**
- * Everything else: collapsed row; expanding shows the spec at a glance —
- * clamped context (the sheet has the full document), criteria, links.
- */
+/** Everything else: same full detail, no stage-specific headline. */
 export function PlainCard(props: CardProps) {
-  const { task } = props;
   return (
     <CardShell {...props}>
-      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
-        {task.context && (
-          <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
-            {task.context}
-          </p>
-        )}
-        <CriteriaList task={task} />
-        <WorkLinks task={task} />
-        <PrScopeLine task={task} />
-        <ActivityThread taskId={task.id} />
-      </div>
+      <ExpandedBody task={props.task} />
     </CardShell>
   );
 }

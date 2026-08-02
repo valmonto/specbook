@@ -398,7 +398,6 @@
   "tasks.v2.agentSummary": "Agento santrauka",
   "tasks.v2.approvedToast": "Patvirtinta — perkelta į suliejimo eilę",
   "tasks.v2.ciGreenHint": "CI žalias — suliejimas vienu paspaudimu",
-  "tasks.v2.details": "Visa informacija",
   "tasks.v2.diffStats": "{{files}} failai · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Paskirstymas pristabdytas — pasiekta nesulietų riba ({{count}} patvirtintos laukia suliejimo)",
   "tasks.v2.legacyView": "Klasikinė lenta",

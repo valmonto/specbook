@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
 import { ProjectFormDialog } from './components/project-form-dialog';
-import { TaskDetailSheet } from './components/task-detail-sheet';
 import { TaskFormDialog } from './components/task-form-dialog';
 import { PipelineStrip } from './components/v2/pipeline-strip';
 import { ApprovedCard, BlockedCard, PlainCard, ReviewCard } from './components/v2/stage-cards';
@@ -45,7 +44,6 @@ export default function ProjectDetailV2Page() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [stage, setStageState] = useState<TaskStatus | null>(null);
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -169,7 +167,6 @@ export default function ProjectDetailV2Page() {
                   task={task}
                   expanded={expandedId === task.id}
                   onToggle={toggleExpanded}
-                  onDetails={setSelectedTaskId}
                 />
               ))}
             </div>
@@ -179,12 +176,6 @@ export default function ProjectDetailV2Page() {
 
       <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
       <TaskFormDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} projectId={project.id} />
-      <TaskDetailSheet
-        taskId={selectedTaskId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTaskId(null);
-        }}
-      />
     </div>
   );
 }
