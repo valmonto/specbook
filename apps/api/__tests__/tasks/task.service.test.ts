@@ -13,7 +13,7 @@ import type { TaskRepository } from '@/tasks/task.repository';
 import type { ProjectRepository } from '@/tasks/project.repository';
 import type { NotificationService } from '@/notifications/notification.service';
 import type { OrgService } from '@/org/org.service';
-import type { GithubAppService } from '@/github/github-app.service';
+import type { GithubAppService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectService } from '@/tasks/project.service';
 import type { ProjectRepository } from '@/tasks/project.repository';
 import type { OrgService } from '@/org/org.service';
-import type { GithubAppService } from '@/github/github-app.service';
+import type { GithubAppService } from '@pkg/server';
 import type { TaskService } from '@/tasks/task.service';
 
 const ORG_A = '11111111-1111-4111-8111-111111111111';

@@ -22,7 +22,7 @@ import type {
   UpdateOrgResponse,
   ActiveUser,
 } from '@pkg/contracts';
-import { GithubAppService } from '../github/github-app.service';
+import { GithubAppService } from '@pkg/server';
 import { OrgRepository } from './org.repository';
 
 @Injectable()

@@ -40,6 +40,21 @@ export const envSchema = z.object({
   STORAGE_ACCESS_KEY_ID: z.string().default('specbook'),
   STORAGE_SECRET_ACCESS_KEY: z.string().default('specbook'),
   STORAGE_BUCKET: z.string().default('specbook-attachments'),
+
+  // GitHub App — auto-mode progression merges PRs from the worker. All
+  // optional; absent means auto modes annotate state but never merge (the
+  // processor logs a warning). Same trio as the api: the private key arrives
+  // base64-encoded and is decoded here.
+  GITHUB_APP_ID: z.string().regex(/^\d+$/, 'GITHUB_APP_ID must be numeric').optional(),
+  GITHUB_APP_SLUG: z.string().optional(),
+  GITHUB_APP_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
+    }),
+  GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

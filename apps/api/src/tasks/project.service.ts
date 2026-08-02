@@ -14,7 +14,7 @@ import type {
 } from '@pkg/contracts';
 import type { Project } from '@pkg/database';
 import { k } from '@pkg/locales';
-import { GithubAppService } from '../github/github-app.service';
+import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
 import { TaskService } from './task.service';
@@ -45,6 +45,8 @@ export class ProjectService {
       githubRepoFullName: binding?.fullName,
       defaultBranch: dto.defaultBranch ?? binding?.defaultBranch,
       workdir: dto.workdir,
+      mode: dto.mode,
+      maxParallel: dto.maxParallel,
       createdBy: activeUser.userId,
     });
 
@@ -238,6 +240,8 @@ export class ProjectService {
   private serialize(p: Project): ProjectDto {
     return {
       ...p,
+      mode: p.mode as ProjectDto['mode'],
+      autoPausedAt: p.autoPausedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     };

@@ -206,6 +206,14 @@ moves, and only forward). Events nobody consumes are acked and
 dropped — GitHub retries 5xx, and there is nothing to retry about a
 `star` event.
 
+**Auto modes** — `project.mode` (`manual | auto_merge | auto`) moves the
+merge (and for `auto`, the approval) to the machine once CI is green, with
+a circuit breaker on a red default branch and a `max_parallel` claim cap
+enforced in the queue query. The GitHub seam lives in `@pkg/server`
+(`GithubAppModule`) so the webhook worker can merge too — the WORKER
+deployment therefore needs the same `GITHUB_APP_*` env trio; without it,
+auto modes annotate state but never merge (logged loudly).
+
 **Server-side merge** — `POST /tasks/:id/merge` (permission
 `task:merge`, OWNER/ADMIN; deliberately no MCP tool — an agent must
 never land its own work on main) merges an `approved` task's PR with a

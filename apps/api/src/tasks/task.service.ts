@@ -36,7 +36,7 @@ import {
 } from '@pkg/contracts';
 import type { NewTask, Task, TaskComment } from '@pkg/database';
 import { k } from '@pkg/locales';
-import { GithubAppService } from '../github/github-app.service';
+import { GithubAppService } from '@pkg/server';
 import { NotificationService } from '../notifications/notification.service';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
@@ -244,7 +244,51 @@ export class TaskService {
       }
     }
 
+    // Auto modes: the event may arrive with CI ALREADY green (the webhook
+    // path covers green-arrives-later). Best-effort — never fails the
+    // transition that triggered it.
+    if (
+      (dto.to === 'needs_review' && actor === 'agent') ||
+      (dto.to === 'approved' && actor === 'user')
+    ) {
+      try {
+        await this.maybeAutoProgress(activeUser, updated);
+      } catch (error) {
+        this.logger.warn({ taskId: dto.id, err: error }, 'Auto progression failed');
+      }
+    }
+
     return this.serialize(updated);
+  }
+
+  /**
+   * Per-project auto modes, api side: when a submission or approval lands
+   * with CI already green, progress it immediately instead of waiting for
+   * the next webhook. `auto` promotes needs_review → approved first; both
+   * auto modes then merge. Held while the circuit breaker (red default
+   * branch) is set.
+   */
+  private async maybeAutoProgress(activeUser: ActiveUser, current: Task): Promise<void> {
+    if (current.ciState !== 'passing' || current.prState === 'merged') return;
+    const proj = await this.projectRepository.findById(current.projectId, activeUser.orgId);
+    if (!proj || proj.mode === 'manual' || proj.autoPausedAt) return;
+
+    let status = current.status as TaskStatus;
+    if (status === 'needs_review') {
+      if (proj.mode !== 'auto') return;
+      const approved = await this.taskRepository.casUpdateStatus(
+        current.id,
+        activeUser.orgId,
+        'needs_review',
+        { status: 'approved', statusChangedAt: new Date() },
+      );
+      if (!approved) return;
+      status = 'approved';
+      this.logger.info({ taskId: current.id }, 'Auto: approved (CI green, mode=auto)');
+    }
+    if (status !== 'approved') return;
+    await this.merge(activeUser, { id: current.id });
+    this.logger.info({ taskId: current.id }, 'Auto: merged (task done)');
   }
 
   /**

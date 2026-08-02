@@ -158,6 +158,18 @@ criteria and `progress` comments.
 | Human | `draft→ready`, `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, any→`cancelled` |
 | Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
 
+**Automation modes (per project — the trust dial).** `manual` is the
+protocol above. `auto_merge` keeps review human but merges an approved task
+automatically once CI passes. `auto` goes further: a green `needs_review`
+submission approves AND merges itself — the machine check (CI) replaces the
+human at that project's gates. Guardrails: auto modes require CI signals
+(no `ciState` events → nothing progresses), a failing run on the DEFAULT
+branch trips a circuit breaker (`auto_paused_at`) that halts all auto
+progression AND the project's agent queue until main is green, and
+`max_parallel` (default 1 for auto modes) serializes claims so branch-CI
+approximates post-merge CI. The webhook worker drives progression; the api
+covers the CI-already-green orderings.
+
 Two gates make the protocol honest:
 
 1. **Dispatch gate** — `draft→ready` requires `context` filled and at

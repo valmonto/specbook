@@ -84,3 +84,15 @@ export const TERMINAL_TASK_STATUSES = ['done', 'cancelled'] as const;
  * Approving is cheap; letting unmerged branches pile up is how they go stale.
  */
 export const MERGE_DEBT_CAP = 3;
+
+/**
+ * Project automation modes — the trust dial, per project:
+ * - manual:     human reviews AND merges (the default protocol).
+ * - auto_merge: human reviews; an approved task merges itself once CI passes.
+ * - auto:       full auto — a reviewed submission (needs_review) approves and
+ *               merges itself once CI passes. Requires CI signals: a project
+ *               that never emits ciState events never auto-progresses, and a
+ *               red default branch pauses all auto progression (circuit
+ *               breaker) until it is green again.
+ */
+export const PROJECT_MODES = ['manual', 'auto_merge', 'auto'] as const;

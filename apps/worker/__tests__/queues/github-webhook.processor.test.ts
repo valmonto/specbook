@@ -12,7 +12,8 @@ import { describeIntegration, truncate, FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import type { Job } from 'bullmq';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import type { GithubWebhookJobPayload } from '@pkg/server';
+import type { GithubAppService, GithubWebhookJobPayload } from '@pkg/server';
+import { vi } from 'vitest';
 import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor';
 
 const jobOf = (data: GithubWebhookJobPayload): Job<GithubWebhookJobPayload> =>
@@ -26,7 +27,17 @@ const jobOf = (data: GithubWebhookJobPayload): Job<GithubWebhookJobPayload> =>
  */
 describeIntegration('GithubWebhookProcessor', () => {
   const client: DatabaseClient = createDatabaseClient({ url: process.env.DATABASE_URL! });
-  const processor = new GithubWebhookProcessor(client, new FakeLogger().as<PinoLogger>());
+  const githubApp = {
+    enabled: true,
+    getPullRequest: vi.fn().mockResolvedValue(null),
+    createPullRequest: vi.fn().mockResolvedValue(12),
+    mergePullRequest: vi.fn().mockResolvedValue(true),
+  };
+  const processor = new GithubWebhookProcessor(
+    client,
+    githubApp as unknown as GithubAppService,
+    new FakeLogger().as<PinoLogger>(),
+  );
 
   let taskA: string;
   let taskB: string;
@@ -77,6 +88,9 @@ describeIntegration('GithubWebhookProcessor', () => {
     await truncate(client.db, [task, project, organizationUser, organization, user]);
     taskA = await makeOrg('org-a', 777);
     taskB = await makeOrg('org-b', 888);
+    githubApp.getPullRequest.mockReset().mockResolvedValue(null);
+    githubApp.createPullRequest.mockReset().mockResolvedValue(12);
+    githubApp.mergePullRequest.mockReset().mockResolvedValue(true);
   });
 
   afterAll(async () => {
@@ -161,6 +175,95 @@ describeIntegration('GithubWebhookProcessor', () => {
     const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
     expect(a?.status).toBe('approved');
     expect(a?.prState).toBe('open');
+  });
+
+  const ciGreen = (
+    deliveryId: string,
+  ): Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }> => ({
+    kind: 'workflow_run',
+    deliveryId,
+    installationId: 777,
+    repoFullName: 'valmonto/specbook',
+    headBranch: 'feat/shared-branch-name',
+    ciState: 'passing',
+    prNumbers: [],
+  });
+
+  const setMode = (mode: string) =>
+    client.db
+      .update(project)
+      .set({ mode })
+      .where(eq(project.githubRepoFullName, 'valmonto/specbook'));
+
+  it('mode=auto: a green submission approves and merges itself (PR created from the branch)', async () => {
+    await setMode('auto');
+    await processor.process(jobOf(ciGreen('auto-1')));
+
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('done');
+    expect(a?.prState).toBe('merged');
+    expect(a?.prNumber).toBe(12);
+    expect(githubApp.createPullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', {
+      head: 'feat/shared-branch-name',
+      base: 'main',
+      title: 'org-a task',
+    });
+    expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 12);
+  });
+
+  it('mode=auto_merge: green needs_review stays put; green APPROVED merges itself', async () => {
+    await setMode('auto_merge');
+    await processor.process(jobOf(ciGreen('am-1')));
+    let [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('needs_review'); // approval stays the human's
+    expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+
+    await client.db.update(task).set({ status: 'approved' }).where(eq(task.id, taskA));
+    await processor.process(jobOf(ciGreen('am-2')));
+    [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('done');
+    expect(a?.prState).toBe('merged');
+  });
+
+  it('circuit breaker: a red default branch pauses auto progression; green resumes it', async () => {
+    await setMode('auto');
+    // Red run on main trips the breaker for org A's project.
+    await processor.process(
+      jobOf({ ...ciGreen('cb-red'), headBranch: 'main', ciState: 'failing' }),
+    );
+    const [pausedProject] = await client.db
+      .select()
+      .from(project)
+      .where(eq(project.name, 'org-a-project'));
+    expect(pausedProject?.autoPausedAt).not.toBeNull();
+
+    // Green feature CI arrives — held, nothing merges.
+    await processor.process(jobOf(ciGreen('cb-held')));
+    let [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('needs_review');
+    expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+
+    // Main goes green — breaker resets; the next green submission progresses.
+    await processor.process(jobOf({ ...ciGreen('cb-green'), headBranch: 'main' }));
+    const [resumed] = await client.db
+      .select()
+      .from(project)
+      .where(eq(project.name, 'org-a-project'));
+    expect(resumed?.autoPausedAt).toBeNull();
+
+    await processor.process(jobOf(ciGreen('cb-go')));
+    [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('done');
+  });
+
+  it('a merge GitHub refuses leaves the task approved for the human', async () => {
+    await setMode('auto');
+    githubApp.mergePullRequest.mockResolvedValue(false);
+    await processor.process(jobOf(ciGreen('refused')));
+
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('approved');
+    expect(a?.prState).not.toBe('merged');
   });
 
   it('a pre-existing prUrl is never overwritten by a PR event matched by branch', async () => {
