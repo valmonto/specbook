@@ -6,6 +6,7 @@ export const attachments = {
   add: 'attachments.add',
   uploading: 'attachments.uploading',
   empty: 'attachments.empty',
+  dropHint: 'attachments.dropHint',
   deleteConfirm: 'attachments.deleteConfirm',
   download: 'attachments.download',
 
