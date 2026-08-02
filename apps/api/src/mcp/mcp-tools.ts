@@ -14,7 +14,7 @@ import {
   type McpToolName,
 } from '@pkg/contracts';
 import { AttachmentsService } from '../attachments/attachments.service';
-import { GithubAppService } from '../github/github-app.service';
+import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
 import { ProjectService } from '../tasks/project.service';
 import { TaskService } from '../tasks/task.service';

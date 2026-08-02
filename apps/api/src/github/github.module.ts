@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { GithubAppService } from './github-app.service';
+import { GithubAppModule } from '@pkg/server';
 import { GithubWebhookController } from './github-webhook.controller';
 
 @Module({
-  // GithubWebhookProducer comes from the @Global QueuesModule.
+  // GithubWebhookProducer comes from the @Global QueuesModule; the GitHub
+  // App seam itself lives in @pkg/server (shared with the worker).
+  imports: [GithubAppModule],
   controllers: [GithubWebhookController],
-  providers: [GithubAppService],
-  exports: [GithubAppService],
+  exports: [GithubAppModule],
 })
 export class GithubModule {}

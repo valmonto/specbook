@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FolderKanban, Lock, Sparkles } from 'lucide-react';
-import type { Project } from '@pkg/contracts';
+import type { Project, ProjectMode } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,8 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
   const [defaultBranch, setDefaultBranch] = useState('main');
   const [workdir, setWorkdir] = useState('');
   const [context, setContext] = useState('');
+  const [mode, setMode] = useState<ProjectMode>('manual');
+  const [maxParallel, setMaxParallel] = useState('1');
 
   const repos = github.data?.connected ? github.data.repositories : [];
   const pickerAvailable = repos.length > 0;
@@ -86,6 +88,8 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
     setDefaultBranch(project?.defaultBranch ?? 'main');
     setWorkdir(project?.workdir ?? '');
     setContext(project?.context ?? '');
+    setMode(project?.mode ?? 'manual');
+    setMaxParallel(String(project?.maxParallel ?? 1));
   }, [open, project]);
 
   const pickRepo = (value: string) => {
@@ -105,6 +109,11 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
       defaultBranch: defaultBranch.trim() || undefined,
       workdir: workdir.trim() || undefined,
       context: context.trim() || undefined,
+      mode,
+      // Auto modes default to strictly sequential claims; manual keeps the
+      // runner's own concurrency (no project cap).
+      maxParallel:
+        mode === 'manual' ? null : Math.max(1, Math.min(10, Number(maxParallel) || 1)),
     };
     const res = project
       ? await update.execute({
@@ -238,6 +247,47 @@ export function ProjectFormDialog({ open, onOpenChange, project }: Props) {
               placeholder="https://github.com/…"
             />
           )}
+        </div>
+        {/* The automation trust dial. Full auto requires CI: without ciState
+            events nothing ever auto-progresses, and a red default branch
+            pauses everything (the hint says so). */}
+        <div className="grid gap-2">
+          <Label htmlFor="project-mode">{t(k.tasks.mode.label)}</Label>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={mode} onValueChange={(v) => setMode(v as ProjectMode)}>
+              <SelectTrigger id="project-mode" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">{t(k.tasks.mode.manual)}</SelectItem>
+                <SelectItem value="auto_merge">{t(k.tasks.mode.auto_merge)}</SelectItem>
+                <SelectItem value="auto">{t(k.tasks.mode.auto)}</SelectItem>
+              </SelectContent>
+            </Select>
+            {mode !== 'manual' && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                {t(k.tasks.mode.maxParallel)}
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={maxParallel}
+                  onChange={(e) => setMaxParallel(e.target.value)}
+                  className="w-16"
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              mode === 'manual'
+                ? k.tasks.mode.manualHint
+                : mode === 'auto_merge'
+                  ? k.tasks.mode.autoMergeHint
+                  : k.tasks.mode.autoHint,
+            )}
+            {mode !== 'manual' && ` — ${t(k.tasks.mode.maxParallelHint)}`}
+          </p>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="project-workdir">{t(k.tasks.workdir)}</Label>

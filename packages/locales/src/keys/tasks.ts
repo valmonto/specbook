@@ -102,6 +102,20 @@ export const tasks = {
     confirm: 'tasks.actions.confirm',
   },
 
+  // Project automation modes
+  mode: {
+    label: 'tasks.mode.label',
+    manual: 'tasks.mode.manual',
+    manualHint: 'tasks.mode.manualHint',
+    auto_merge: 'tasks.mode.auto_merge',
+    autoMergeHint: 'tasks.mode.autoMergeHint',
+    auto: 'tasks.mode.auto',
+    autoHint: 'tasks.mode.autoHint',
+    maxParallel: 'tasks.mode.maxParallel',
+    maxParallelHint: 'tasks.mode.maxParallelHint',
+    paused: 'tasks.mode.paused',
+  },
+
   // Pipeline project view (/v2/projects/:id)
   v2: {
     untitled: 'tasks.v2.untitled',

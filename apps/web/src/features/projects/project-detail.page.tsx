@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, FolderKanban, GitMerge, Pause, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, FolderKanban, GitMerge, Pause, Pencil, Plus, Zap } from 'lucide-react';
 import { MERGE_DEBT_CAP, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
@@ -124,7 +124,23 @@ export default function ProjectDetailV2Page() {
 
       <PageHeader
         icon={FolderKanban}
-        title={project.name}
+        title={
+          <span className="inline-flex items-center gap-2.5">
+              {project.name}
+              {project.mode !== 'manual' && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-500/25 ring-inset dark:text-violet-300">
+                  <Zap className="size-3" />
+                  {t(k.tasks.mode[project.mode])}
+                </span>
+              )}
+              {project.mode !== 'manual' && project.autoPausedAt && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-600 ring-1 ring-rose-500/20 ring-inset dark:text-rose-300">
+                  <Pause className="size-3" />
+                  {t(k.tasks.mode.paused)}
+                </span>
+              )}
+          </span>
+        }
         description={project.repoUrl ?? undefined}
         actions={
           <div className="flex gap-2">

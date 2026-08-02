@@ -1,4 +1,16 @@
-import { pgTable, uuid, varchar, text, timestamp, index, bigint } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  index,
+  bigint,
+  integer,
+  check,
+} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { PROJECT_MODES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { organization } from './organization';
 import { user } from './user';
@@ -26,6 +38,12 @@ export const project = pgTable(
     defaultBranch: varchar('default_branch', { length: 255 }).notNull().default('main'),
     // Checkout path on the machine agents run on — not meaningful to the web UI.
     workdir: varchar('workdir', { length: 500 }),
+    // The automation trust dial (varchar + CHECK; value set from @pkg/contracts).
+    mode: varchar('mode', { length: 16 }).notNull().default('manual'),
+    // Per-project claim cap for the agent queue; null = no project cap.
+    maxParallel: integer('max_parallel'),
+    // Circuit breaker: set while the default branch is red; auto modes hold.
+    autoPausedAt: timestamp('auto_paused_at', { withTimezone: true }),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => user.id, { onDelete: 'restrict' }),
@@ -35,7 +53,17 @@ export const project = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index('project_org_id_idx').on(table.orgId)],
+  (table) => [
+    index('project_org_id_idx').on(table.orgId),
+    check(
+      'project_mode_check',
+      sql.raw(`mode IN (${PROJECT_MODES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'project_max_parallel_check',
+      sql.raw('max_parallel IS NULL OR (max_parallel BETWEEN 1 AND 10)'),
+    ),
+  ],
 );
 
 export type Project = typeof project.$inferSelect;

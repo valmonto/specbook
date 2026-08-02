@@ -5,7 +5,7 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpTools } from '@/mcp/mcp-tools';
-import type { GithubAppService } from '@/github/github-app.service';
+import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';

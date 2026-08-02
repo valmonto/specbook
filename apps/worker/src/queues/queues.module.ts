@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { QueuesModule as SharedQueuesModule } from '@pkg/server';
+import { GithubAppModule, QueuesModule as SharedQueuesModule } from '@pkg/server';
 import { ExampleProcessor } from './example/example.processor';
 import { ExampleListener } from './example/example.listener';
 import { NotificationRepository } from './example/notification.repository';
@@ -13,7 +13,7 @@ import { GithubWebhookProcessor } from './github-webhook/github-webhook.processo
  * Add new processors here as you create them.
  */
 @Module({
-  imports: [SharedQueuesModule],
+  imports: [SharedQueuesModule, GithubAppModule],
   providers: [
     // Register all processors
     ExampleProcessor,

@@ -6,7 +6,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrgService } from '@/org/org.service';
 import type { OrgRepository } from '@/org/org.repository';
-import type { GithubAppService } from '@/github/github-app.service';
+import type { GithubAppService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const actor: ActiveUser = { userId: 'u', orgId: ORG, orgRole: 'ADMIN', systemRole: 'USER' };

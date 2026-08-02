@@ -63,6 +63,28 @@ export class TaskRepository {
   }
 
   /**
+   * Per-project throttles on the agent queue:
+   * - `max_parallel`: at N in_progress tasks the project stops serving ready
+   *   ones (auto modes default this to 1 in the UI — serialized claims are
+   *   what make branch-CI ≈ post-merge-CI overnight).
+   * - a tripped circuit breaker (red default branch, auto modes) stops the
+   *   queue entirely: building on a red main is waste.
+   */
+  private underProjectThrottles() {
+    return sql`NOT EXISTS (
+      SELECT 1 FROM project p
+      WHERE p.id = ${task.projectId}
+        AND (
+          (p.max_parallel IS NOT NULL AND (
+            SELECT COUNT(*) FROM task t3
+            WHERE t3.project_id = p.id AND t3.status = 'in_progress'
+          ) >= p.max_parallel)
+          OR (p.mode <> 'manual' AND p.auto_paused_at IS NOT NULL)
+        )
+    )`;
+  }
+
+  /**
    * The merge-debt gate: a project sitting on MERGE_DEBT_CAP approved
    * (merged-pending) tasks stops feeding the agent queue until the queue
    * drains. Enforced here, in the one query every runner uses, so no client
@@ -91,6 +113,7 @@ export class TaskRepository {
       conditions.push(eq(task.status, 'ready'));
       conditions.push(this.noUnfinishedDependencies());
       conditions.push(this.underMergeDebtCap());
+      conditions.push(this.underProjectThrottles());
     }
     const whereClause = and(...conditions);
 

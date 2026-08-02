@@ -107,6 +107,36 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
   });
 
+  it('max_parallel serializes a project: at the cap its ready tasks vanish; a finished claim releases them', async () => {
+    await client.db.update(project).set({ maxParallel: 1 }).where(eq(project.id, gatedProject));
+    await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
+    await makeTask(freeProject, ownerA, 'ready', 'free-ready');
+    const claimed = await makeTask(gatedProject, ownerA, 'in_progress', 'claimed');
+
+    let { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['free-ready']);
+
+    await client.db.update(task).set({ status: 'done' }).where(eq(task.id, claimed));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
+  });
+
+  it('a tripped circuit breaker (auto mode, red main) empties the project queue', async () => {
+    await client.db
+      .update(project)
+      .set({ mode: 'auto', autoPausedAt: new Date() })
+      .where(eq(project.id, gatedProject));
+    await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
+    await makeTask(freeProject, ownerA, 'ready', 'free-ready');
+
+    let { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['free-ready']);
+
+    await client.db.update(project).set({ autoPausedAt: null }).where(eq(project.id, gatedProject));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
+  });
+
   it('below the cap the gate is invisible', async () => {
     await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
     for (let i = 0; i < MERGE_DEBT_CAP - 1; i++) {
