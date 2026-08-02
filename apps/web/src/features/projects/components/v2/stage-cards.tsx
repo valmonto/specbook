@@ -47,6 +47,8 @@ import { StatusBadge } from '../status-badge';
 export interface CardProps {
   task: Task;
   expanded: boolean;
+  /** Just created via "+ New task": the row mounts with its title in edit mode. */
+  freshlyCreated?: boolean;
   /** Expand/collapse this card (the page enforces one-at-a-time). */
   onToggle: (id: string) => void;
 }
@@ -116,14 +118,16 @@ const SECTION_HEADING =
 function CardShell({
   task,
   expanded,
+  freshlyCreated,
   onToggle,
   children,
   actions,
 }: CardProps & { children?: React.ReactNode; actions?: React.ReactNode }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState('');
+  // A fresh "Untitled" draft mounts straight into renaming.
+  const [editingTitle, setEditingTitle] = useState(Boolean(freshlyCreated));
+  const [titleDraft, setTitleDraft] = useState(freshlyCreated ? task.title : '');
   const editable = !isTerminal(task);
   const total = task.acceptanceCriteria.length;
   const ticked = task.acceptanceCriteria.filter((c) => c.done).length;
@@ -157,6 +161,7 @@ function CardShell({
           <input
             autoFocus
             value={titleDraft}
+            onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => setTitleDraft(e.target.value)}
             onBlur={() => void saveTitle()}
             onKeyDown={(e) => {
@@ -323,6 +328,21 @@ function CriteriaEditor({ task }: { task: Task }) {
               <input
                 value={c.text}
                 onChange={(e) => setText(i, e.target.value)}
+                onPaste={(e) => {
+                  // A multi-line paste becomes multiple criteria rows.
+                  const text = e.clipboardData.getData('text');
+                  if (!text.includes('\n')) return;
+                  e.preventDefault();
+                  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                  const next = [
+                    ...draft.slice(0, i),
+                    { ...draft[i]!, text: lines[0] ?? '' },
+                    ...lines.slice(1).map((l) => ({ text: l, done: false })),
+                    ...draft.slice(i + 1),
+                  ];
+                  setDraft(next);
+                  void persist(next);
+                }}
                 onBlur={() => {
                   if (draft[i]?.text !== task.acceptanceCriteria[i]?.text) void persist(draft);
                 }}
@@ -554,6 +574,10 @@ function StageMoves({ task }: { task: Task }) {
   };
 
   const busy = transition.isLoading || deleteTask.isLoading;
+  // The dispatch gate, visible before the click: a draft without context or
+  // criteria cannot go ready (the server refuses too).
+  const dispatchBlocked =
+    task.status === 'draft' && (!task.context?.trim() || task.acceptanceCriteria.length === 0);
   const moves: Array<{ labelKey: string; to: 'ready' | 'draft' }> = [];
   if (task.status === 'draft') moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
   if (task.status === 'ready') moves.push({ labelKey: k.tasks.actions.backToDraft, to: 'draft' });
@@ -569,12 +593,16 @@ function StageMoves({ task }: { task: Task }) {
           key={m.labelKey}
           size="sm"
           variant="outline"
-          disabled={busy}
+          disabled={busy || (m.to === 'ready' && dispatchBlocked)}
+          title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
           onClick={() => void go(m.to)}
         >
           {t(m.labelKey)}
         </Button>
       ))}
+      {dispatchBlocked && (
+        <span className="text-xs text-muted-foreground">{t(k.tasks.errors.dispatchGate)}</span>
+      )}
       {task.status === 'draft' && (
         <Button
           size="sm"

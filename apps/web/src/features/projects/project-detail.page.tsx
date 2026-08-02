@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
 import { ProjectFormDialog } from './components/project-form-dialog';
-import { TaskFormDialog } from './components/task-form-dialog';
 import { PipelineStrip } from './components/v2/pipeline-strip';
 import { ApprovedCard, BlockedCard, PlainCard, ReviewCard } from './components/v2/stage-cards';
-import { useMergeTask, useProject, useProjectTasks } from './hooks/use-projects';
+import { useCreateTask, useMergeTask, useProject, useProjectTasks } from './hooks/use-projects';
 
 /**
  * The project view: a pipeline strip + one stage-filtered list. Opening the
@@ -41,18 +40,32 @@ export default function ProjectDetailV2Page() {
   const { data: project, isLoading } = useProject(projectId ?? null);
   const { data: tasksData, isLoading: tasksLoading } = useProjectTasks(projectId ?? null);
   const merge = useMergeTask();
+  const create = useCreateTask();
 
   const [editOpen, setEditOpen] = useState(false);
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [stage, setStageState] = useState<TaskStatus | null>(null);
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // The just-created draft: its row mounts with the title already in edit mode.
+  const [freshId, setFreshId] = useState<string | null>(null);
 
   const setStage = (next: TaskStatus) => {
     setStageState(next);
     setExpandedId(null);
   };
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
+
+  // Creation IS editing: make the draft immediately, land on it expanded with
+  // the title focused — no form, no dialog. Capture is frictionless by
+  // design; the dispatch gate keeps quality at the ready boundary.
+  const newTask = async () => {
+    if (!project) return;
+    const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
+    if (res.e || !res.d) return;
+    setStageState('draft');
+    setExpandedId(res.d.id);
+    setFreshId(res.d.id);
+  };
 
   const tasks = useMemo(() => tasksData?.data ?? [], [tasksData]);
   const counts = useMemo(() => {
@@ -119,7 +132,7 @@ export default function ProjectDetailV2Page() {
               <Pencil className="size-4 mr-1" />
               {t(k.common.actions.edit)}
             </Button>
-            <Button onClick={() => setNewTaskOpen(true)}>
+            <Button onClick={() => void newTask()} disabled={create.isLoading}>
               <Plus className="size-4 mr-1" />
               {t(k.tasks.newTask)}
             </Button>
@@ -163,6 +176,7 @@ export default function ProjectDetailV2Page() {
                   key={task.id}
                   task={task}
                   expanded={expandedId === task.id}
+                  freshlyCreated={freshId === task.id}
                   onToggle={toggleExpanded}
                 />
               ))}
@@ -172,7 +186,6 @@ export default function ProjectDetailV2Page() {
       )}
 
       <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
-      <TaskFormDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} projectId={project.id} />
     </div>
   );
 }
