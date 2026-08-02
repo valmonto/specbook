@@ -83,6 +83,11 @@ describe('ProjectService — repo provisioning', () => {
 
   const dto = { name: 'New Product', newRepoName: 'new-product', newRepoFromTemplate: true };
 
+  beforeEach(() => {
+    // Grant-propagation polling is real time in production; tests shrink it.
+    (service as unknown as { grantCheckDelayMs: number }).grantCheckDelayMs = 1;
+  });
+
   it('creates, verifies grant, PROTECTS, binds, and files the init draft — in that order', async () => {
     const order: string[] = [];
     github.createProjectRepo.mockImplementation(async () => (order.push('create'), NEW_REPO));
@@ -170,8 +175,41 @@ describe('ProjectService — repo provisioning', () => {
 
   it('a repo that did not land in the grant is an error state, never bound', async () => {
     github.listRepositories.mockResolvedValue([]); // grant check comes back empty
-    await expect(service.create(actor, dto)).rejects.toBeInstanceOf(BadRequestException);
+    const err = await service.create(actor, dto).catch((e: BadRequestException) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    // The repo name rides along as detail so the UI can guide the grant.
+    expect((err as BadRequestException).getResponse()).toMatchObject({
+      detail: 'valmonto/new-product',
+    });
     expect(repository.update).not.toHaveBeenCalled();
+    // The check polled, not one-shot.
+    expect(github.listRepositories.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('grant propagation is polled: a repo that appears on the third look still binds', async () => {
+    github.listRepositories
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([NEW_REPO]);
+    await service.create(actor, dto);
+    expect(repository.update).toHaveBeenCalled();
+  });
+
+  it('a refused template generation falls back to a blank repo with populate instructions', async () => {
+    github.createProjectRepo
+      .mockRejectedValueOnce(
+        Object.assign(new Error('403'), {
+          response: { status: 403, data: { message: 'Could not clone' } },
+        }),
+      )
+      .mockResolvedValue(NEW_REPO);
+    await service.create(actor, dto);
+    // Second call is the bare fallback.
+    expect(github.createProjectRepo.mock.calls[1]![1]).toMatchObject({ templateFullName: null });
+    expect(repository.update).toHaveBeenCalled();
+    const initTask = taskService.create.mock.calls[0]![1] as { context: string };
+    expect(initTask.context).toContain('created EMPTY');
+    expect(initTask.context).toContain('valmonto/valmatic');
   });
 
   it('protection is best-effort: a refused ruleset still binds, and the init task says so', async () => {
