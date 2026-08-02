@@ -27,7 +27,8 @@ import { projectsApi } from '../api';
  * shows (counts, board columns), so the whole domain revalidates together.
  */
 const prefix = (orgId: string | undefined) => (orgId ? `org:${orgId}/projects` : null);
-const projectListKey = (orgId: string | undefined) => prefix(orgId) && `${prefix(orgId)}?list`;
+const projectListKey = (orgId: string | undefined, archived: boolean) =>
+  prefix(orgId) && `${prefix(orgId)}?list${archived ? ':archived' : ''}`;
 const projectKey = (orgId: string | undefined, id: string | null) =>
   prefix(orgId) && id ? `${prefix(orgId)}/${id}` : null;
 const taskListKey = (orgId: string | undefined, params: ListTasksRequest) =>
@@ -46,15 +47,15 @@ export function useInvalidateProjects() {
   );
 }
 
-export function useProjects() {
+export function useProjects(archived = false) {
   const { user } = useAuth();
   const canList = useCan('project:list');
 
   return {
     canList,
     ...useCachedRequest<ListProjectsResponse>({
-      key: canList ? projectListKey(user?.orgId) : null,
-      fetcher: () => projectsApi.listProjects({ skip: 0, limit: 100 }),
+      key: canList ? projectListKey(user?.orgId, archived) : null,
+      fetcher: () => projectsApi.listProjects({ skip: 0, limit: 100, ...(archived ? { archived } : {}) }),
     }),
   };
 }
@@ -164,6 +165,8 @@ export const useUpdateProject = () =>
   useProjectsAction((dto: UpdateProjectRequest) => projectsApi.updateProject(dto));
 export const useDeleteProject = () =>
   useProjectsAction((dto: DeleteProjectRequest) => projectsApi.removeProject(dto));
+export const useArchiveProject = () => useProjectsAction(projectsApi.archiveProject);
+export const useUnarchiveProject = () => useProjectsAction(projectsApi.unarchiveProject);
 export const useCreateTask = () =>
   useProjectsAction((dto: CreateTaskRequest) => projectsApi.createTask(dto));
 export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);

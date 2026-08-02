@@ -14,6 +14,7 @@ import {
   asc,
   sql,
   inArray,
+  isNull,
   type NewTask,
   type NewTaskComment,
   type Task,
@@ -111,6 +112,9 @@ export class TaskRepository {
     if (filter.status) conditions.push(eq(task.status, filter.status));
     if (filter.available) {
       conditions.push(eq(task.status, 'ready'));
+      // Archived projects feed no agents; their tasks stay visible in plain
+      // lists (history) but leave the dispatch queue entirely.
+      conditions.push(isNull(project.archivedAt));
       conditions.push(this.noUnfinishedDependencies());
       conditions.push(this.underMergeDebtCap());
       conditions.push(this.underProjectThrottles());

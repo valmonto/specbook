@@ -230,9 +230,15 @@ export default function ProjectCreatePage() {
           </div>
         )}
 
-        {/* Provisioning errors land HERE, next to what caused them. */}
+        {/* Provisioning errors land HERE, next to what caused them —
+            including GitHub's own words when the server passed them along. */}
         {create.error && (
-          <p className="max-w-md text-xs text-destructive">{t(create.error.message)}</p>
+          <div className="max-w-md space-y-0.5 text-xs text-destructive">
+            <p>{t(create.error.message)}</p>
+            {(create.error as { detail?: string }).detail && (
+              <p className="text-destructive/80">{(create.error as { detail?: string }).detail}</p>
+            )}
+          </div>
         )}
       </section>
 

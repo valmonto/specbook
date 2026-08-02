@@ -88,6 +88,17 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     expect(data.map((t) => t.title)).toEqual(['a-ready']);
   });
 
+  it('an archived project feeds no agents — its ready tasks leave the queue', async () => {
+    await makeTask(gatedProject, ownerA, 'ready', 'kept');
+    await makeTask(freeProject, ownerA, 'ready', 'archived-away');
+    await client.db
+      .update(project)
+      .set({ archivedAt: new Date() })
+      .where(eq(project.id, freeProject));
+    const { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['kept']);
+  });
+
   it('gates a project at MERGE_DEBT_CAP approved tasks — per project, and releases as the queue drains', async () => {
     await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
     await makeTask(freeProject, ownerA, 'ready', 'free-ready');

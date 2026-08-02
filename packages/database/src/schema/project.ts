@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   index,
+  uniqueIndex,
   bigint,
   integer,
   check,
@@ -44,6 +45,9 @@ export const project = pgTable(
     maxParallel: integer('max_parallel'),
     // Circuit breaker: set while the default branch is red; auto modes hold.
     autoPausedAt: timestamp('auto_paused_at', { withTimezone: true }),
+    // Archived projects keep their history but leave every active surface:
+    // lists, dispatch, auto-progression. Archiving also frees the name.
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => user.id, { onDelete: 'restrict' }),
@@ -55,6 +59,11 @@ export const project = pgTable(
   },
   (table) => [
     index('project_org_id_idx').on(table.orgId),
+    // Names are unique per org among LIVE projects only (case-insensitive) —
+    // archiving frees the name for reuse.
+    uniqueIndex('project_org_name_active_uq')
+      .on(table.orgId, sql`lower(name)`)
+      .where(sql`archived_at IS NULL`),
     check(
       'project_mode_check',
       sql.raw(`mode IN (${PROJECT_MODES.map((v) => `'${v}'`).join(', ')})`),

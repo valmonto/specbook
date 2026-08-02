@@ -29,6 +29,13 @@ export const tasks = {
   noProjectsDesc: 'tasks.noProjectsDesc',
   taskCount: 'tasks.taskCount',
 
+  // Project archive
+  archiveProject: 'tasks.archiveProject',
+  unarchiveProject: 'tasks.unarchiveProject',
+  archivedProjects: 'tasks.archivedProjects',
+  archiveConfirmTitle: 'tasks.archiveConfirmTitle',
+  archiveConfirmBody: 'tasks.archiveConfirmBody',
+
   // Task form
   newTask: 'tasks.newTask',
   taskTitle: 'tasks.taskTitle',
@@ -174,6 +181,7 @@ export const tasks = {
     repoProvisionFailed: 'tasks.errors.repoProvisionFailed',
     repoNameTaken: 'tasks.errors.repoNameTaken',
     repoNameInvalid: 'tasks.errors.repoNameInvalid',
+    projectNameTaken: 'tasks.errors.projectNameTaken',
     repoProvisionNotGranted: 'tasks.errors.repoProvisionNotGranted',
     repoProvisionUnprotected: 'tasks.errors.repoProvisionUnprotected',
     projectNotFound: 'tasks.errors.projectNotFound',

@@ -8,6 +8,8 @@ import {
   and,
   count,
   desc,
+  isNull,
+  isNotNull,
   type NewProject,
   type Project,
 } from '@pkg/database';
@@ -24,9 +26,12 @@ export class ProjectRepository {
 
   async findForOrg(
     orgId: string,
-    opts: { skip: number; limit: number },
+    opts: { skip: number; limit: number; archived?: boolean },
   ): Promise<{ data: Project[]; total: number }> {
-    const whereClause = eq(project.orgId, orgId);
+    const whereClause = and(
+      eq(project.orgId, orgId),
+      opts.archived ? isNotNull(project.archivedAt) : isNull(project.archivedAt),
+    );
 
     const [data, totalResult] = await Promise.all([
       this.dbClient.db

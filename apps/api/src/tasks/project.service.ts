@@ -34,21 +34,29 @@ export class ProjectService {
       ? await this.resolveGithubRepo(activeUser, dto.githubRepoId)
       : null;
 
-    const created = await this.projectRepository.create({
-      orgId: activeUser.orgId,
-      name: dto.name,
-      context: dto.context,
-      // A picked repo overrides any client-sent URL: the binding's URL comes
-      // from GitHub, so a project cannot claim repo A while binding to repo B.
-      repoUrl: binding ? binding.htmlUrl : dto.repoUrl,
-      githubRepoId: binding?.id,
-      githubRepoFullName: binding?.fullName,
-      defaultBranch: dto.defaultBranch ?? binding?.defaultBranch,
-      workdir: dto.workdir,
-      mode: dto.mode,
-      maxParallel: dto.maxParallel,
-      createdBy: activeUser.userId,
-    });
+    let created: Project;
+    try {
+      created = await this.projectRepository.create({
+        orgId: activeUser.orgId,
+        name: dto.name,
+        context: dto.context,
+        // A picked repo overrides any client-sent URL: the binding's URL comes
+        // from GitHub, so a project cannot claim repo A while binding to repo B.
+        repoUrl: binding ? binding.htmlUrl : dto.repoUrl,
+        githubRepoId: binding?.id,
+        githubRepoFullName: binding?.fullName,
+        defaultBranch: dto.defaultBranch ?? binding?.defaultBranch,
+        workdir: dto.workdir,
+        mode: dto.mode,
+        maxParallel: dto.maxParallel,
+        createdBy: activeUser.userId,
+      });
+    } catch (error) {
+      if (isNameCollision(error)) {
+        throw new BadRequestException(k.tasks.errors.projectNameTaken);
+      }
+      throw error;
+    }
 
     this.logger.info({ projectId: created.id, name: created.name }, 'Project created');
 
@@ -112,7 +120,22 @@ export class ProjectService {
       if (body?.status === 422 && JSON.stringify(body.data ?? '').includes('already exists')) {
         throw new BadRequestException(k.tasks.errors.repoNameTaken);
       }
-      throw new BadRequestException(k.tasks.errors.repoProvisionFailed);
+      // Everything else carries GitHub's own words as `detail` — an opaque
+      // "provisioning failed" hides exactly the part the human needs
+      // (missing App permission, org policy, bad template …).
+      const data = body?.data as
+        | { message?: string; errors?: Array<string | { message?: string }> }
+        | undefined;
+      const detail = [
+        data?.message,
+        ...(data?.errors ?? []).map((e) => (typeof e === 'string' ? e : e?.message)),
+      ]
+        .filter(Boolean)
+        .join(' — ');
+      throw new BadRequestException({
+        message: k.tasks.errors.repoProvisionFailed,
+        ...(detail ? { detail: `GitHub: ${detail}` } : {}),
+      });
     }
 
     // GitHub adds App-created repos to a selected-repos installation
@@ -171,7 +194,11 @@ export class ProjectService {
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {
     const [{ data, total }, counts] = await Promise.all([
-      this.projectRepository.findForOrg(activeUser.orgId, { skip: dto.skip, limit: dto.limit }),
+      this.projectRepository.findForOrg(activeUser.orgId, {
+        skip: dto.skip,
+        limit: dto.limit,
+        archived: dto.archived,
+      }),
       this.projectRepository.countTasksByStatus(activeUser.orgId),
     ]);
 
@@ -205,11 +232,56 @@ export class ProjectService {
       data.repoUrl = binding.htmlUrl;
     }
 
-    const updated = await this.projectRepository.update(id, activeUser.orgId, data);
+    let updated: Project | null;
+    try {
+      updated = await this.projectRepository.update(id, activeUser.orgId, data);
+    } catch (error) {
+      if (isNameCollision(error)) {
+        throw new BadRequestException(k.tasks.errors.projectNameTaken);
+      }
+      throw error;
+    }
     if (!updated) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
     return this.serialize(updated);
+  }
+
+  /**
+   * Archiving retires a project without destroying anything: it leaves the
+   * lists, its tasks leave the dispatch queue and auto-progression, and the
+   * name frees up for reuse. The GitHub repository is never touched — the
+   * app deliberately holds no repo-deletion capability.
+   */
+  async archive(activeUser: ActiveUser, id: string): Promise<ProjectDto> {
+    const archived = await this.projectRepository.update(id, activeUser.orgId, {
+      archivedAt: new Date(),
+    });
+    if (!archived) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    this.logger.info({ projectId: id, userId: activeUser.userId }, 'Project archived');
+    return this.serialize(archived);
+  }
+
+  /** Reverses archive; fails with nameTaken if a live project claimed the name meanwhile. */
+  async unarchive(activeUser: ActiveUser, id: string): Promise<ProjectDto> {
+    let restored: Project | null;
+    try {
+      restored = await this.projectRepository.update(id, activeUser.orgId, {
+        archivedAt: null,
+      });
+    } catch (error) {
+      if (isNameCollision(error)) {
+        throw new BadRequestException(k.tasks.errors.projectNameTaken);
+      }
+      throw error;
+    }
+    if (!restored) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    this.logger.info({ projectId: id, userId: activeUser.userId }, 'Project unarchived');
+    return this.serialize(restored);
   }
 
   /**
@@ -249,8 +321,32 @@ export class ProjectService {
       ...p,
       mode: p.mode as ProjectDto['mode'],
       autoPausedAt: p.autoPausedAt?.toISOString() ?? null,
+      archivedAt: p.archivedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
     };
   }
+}
+
+/** The partial unique index on (org_id, lower(name)) — live projects only. */
+const NAME_UNIQUE_INDEX = 'project_org_name_active_uq';
+
+/** Postgres 23505 on the name index, however deep the driver wraps it
+ *  (postgres.js says `constraint_name`, node-postgres says `constraint`). */
+function isNameCollision(error: unknown): boolean {
+  for (
+    let e = error as
+      | { code?: string; constraint?: string; constraint_name?: string; cause?: unknown }
+      | undefined;
+    e;
+    e = e.cause as typeof e
+  ) {
+    if (
+      e.code === '23505' &&
+      (e.constraint === NAME_UNIQUE_INDEX || e.constraint_name === NAME_UNIQUE_INDEX)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }

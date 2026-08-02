@@ -24,6 +24,8 @@ export const ProjectSchema = z.object({
   maxParallel: z.number().int().nullable(),
   /** Set while the circuit breaker holds auto progression (red default branch). */
   autoPausedAt: z.string().nullable(),
+  /** Archived projects keep history but leave lists, dispatch and automation. */
+  archivedAt: z.string().nullable(),
   createdBy: z.string().uuid(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -92,7 +94,10 @@ export type UpdateProjectRequest = z.infer<typeof UpdateProjectRequestSchema>;
 export type UpdateProjectResponse = z.infer<typeof UpdateProjectResponseSchema>;
 
 // --- List Projects ---
-export const ListProjectsRequestSchema = PaginatedRequestSchema.strict();
+export const ListProjectsRequestSchema = PaginatedRequestSchema.extend({
+  /** true → archived projects only; default (absent/false) → live only. */
+  archived: z.coerce.boolean().optional(),
+}).strict();
 export const ListProjectsResponseSchema = PaginatedResponseSchema(ProjectSchema);
 
 export type ListProjectsRequest = z.infer<typeof ListProjectsRequestSchema>;
@@ -111,3 +116,10 @@ export const DeleteProjectResponseSchema = z.object({});
 
 export type DeleteProjectRequest = z.infer<typeof DeleteProjectRequestSchema>;
 export type DeleteProjectResponse = z.infer<typeof DeleteProjectResponseSchema>;
+
+// --- Archive / Unarchive Project ---
+export const ArchiveProjectRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const ArchiveProjectResponseSchema = ProjectSchema;
+
+export type ArchiveProjectRequest = z.infer<typeof ArchiveProjectRequestSchema>;
+export type ArchiveProjectResponse = z.infer<typeof ArchiveProjectResponseSchema>;
