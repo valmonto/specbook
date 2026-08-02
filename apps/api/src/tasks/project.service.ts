@@ -106,8 +106,8 @@ export class ProjectService {
       throw new BadRequestException(k.tasks.errors.repoProvisionUnavailable);
     }
 
-    let created: GithubRepo;
-    let populateNote: string | null = null;
+    let created: GithubRepo | null = null;
+    let fallbackReason: string | null = null;
     const wantsTemplate = repo.fromTemplate && Boolean(connection.templateRepo);
     try {
       try {
@@ -130,23 +130,33 @@ export class ProjectService {
           status?.status === 422 && JSON.stringify(status.data ?? '').includes('already exists');
         if (!wantsTemplate || isNameTaken) throw templateError;
 
-        const reason =
+        fallbackReason =
           (status?.data as { message?: string } | undefined)?.message ?? 'unknown reason';
         this.logger.warn(
           { projectId, repoName: repo.name, err: templateError },
           'Template generation refused — falling back to a blank repository',
         );
-        created = await this.githubApp.createProjectRepo(connection.installationId, {
-          owner: installation.accountLogin,
-          name: repo.name,
-          templateFullName: null,
-        });
-        populateNote =
-          `\n\nNOTE: GitHub refused to generate from the template ("${reason}"), so the ` +
-          `repository was created EMPTY. FIRST STEP before anything else: populate it from ` +
-          `the template — \`git clone --depth 1 https://github.com/${connection.templateRepo}.git\`, ` +
-          `then push that tree to ${created.fullName} as the initial commit on the default ` +
-          'branch (mint the push credential via get_repo_token for this project).';
+        try {
+          created = await this.githubApp.createProjectRepo(connection.installationId, {
+            owner: installation.accountLogin,
+            name: repo.name,
+            templateFullName: null,
+          });
+        } catch (bareError) {
+          const bare = (bareError as { response?: { status?: number; data?: unknown } }).response;
+          const bareTaken =
+            bare?.status === 422 && JSON.stringify(bare.data ?? '').includes('already exists');
+          // A name that was free seconds ago and is taken now means the
+          // failed /generate left a half-made repo behind (GitHub creates
+          // the repo, then dies on its internal clone). That repo is OURS —
+          // adopt it via the grant poll below instead of reporting a bogus
+          // name conflict.
+          if (!bareTaken) throw bareError;
+          this.logger.warn(
+            { projectId, repoName: repo.name },
+            'Blank fallback collided with the half-generated repo — adopting it by name',
+          );
+        }
       }
     } catch (error) {
       this.logger.error(
@@ -183,27 +193,40 @@ export class ProjectService {
     // with backoff instead of failing on the first miss. A repo outside the
     // grant would be invisible to every later call, so this stays binding;
     // the create page turns the failure into a guided grant-and-recheck.
-    let granted = false;
+    // When adopting a half-generated repo we have no row yet, so the poll
+    // matches by name; otherwise by the id GitHub returned.
+    const wantedFullName = `${installation.accountLogin}/${repo.name}`.toLowerCase();
+    let grantedRepo: GithubRepo | null = null;
     for (let attempt = 0; attempt < this.grantCheckAttempts; attempt++) {
       const repos = await this.githubApp.listRepositories(connection.installationId);
-      if (repos.some((r) => r.id === created.id)) {
-        granted = true;
-        break;
-      }
+      grantedRepo =
+        repos.find((r) =>
+          created ? r.id === created.id : r.fullName.toLowerCase() === wantedFullName,
+        ) ?? null;
+      if (grantedRepo) break;
       if (attempt < this.grantCheckAttempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, this.grantCheckDelayMs));
       }
     }
-    if (!granted) {
+    if (!grantedRepo) {
       this.logger.error(
-        { projectId, repo: created.fullName },
+        { projectId, repo: created?.fullName ?? wantedFullName },
         'Provisioned repo did not land in the installation grant — add it on GitHub',
       );
       throw new BadRequestException({
         message: k.tasks.errors.repoProvisionNotGranted,
-        detail: created.fullName,
+        detail: created?.fullName ?? wantedFullName,
       });
     }
+    created = grantedRepo;
+
+    const populateNote = fallbackReason
+      ? `\n\nNOTE: GitHub refused to generate from the template ("${fallbackReason}"), so the ` +
+        `repository is EMPTY. FIRST STEP before anything else: populate it from the template — ` +
+        `\`git clone --depth 1 https://github.com/${connection.templateRepo}.git\`, then push ` +
+        `that tree to ${created.fullName} as the initial commit on the default branch (mint ` +
+        'the push credential via get_repo_token for this project).'
+      : null;
 
     // Protection is best-effort, not binding: GitHub's free plan refuses
     // rulesets on private repos, and blocking provisioning on that turns a
