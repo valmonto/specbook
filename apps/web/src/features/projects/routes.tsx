@@ -1,4 +1,11 @@
 import type { RouteObject } from 'react-router';
+import { Navigate, useParams } from 'react-router';
+
+/** The /v2 prefix is retired; old bookmarks land on the canonical URL. */
+function V2Redirect() {
+  const { projectId } = useParams<{ projectId: string }>();
+  return <Navigate to={`/projects/${projectId}`} replace />;
+}
 
 /**
  * Route subtree owned by the projects feature. The app router aggregates
@@ -13,9 +20,5 @@ export const projectsRoutes: RouteObject[] = [
     path: 'projects/:projectId',
     lazy: () => import('./project-detail.page').then((m) => ({ Component: m.default })),
   },
-  {
-    // The pipeline view — lives alongside the legacy board while it proves out.
-    path: 'v2/projects/:projectId',
-    lazy: () => import('./project-detail-v2.page').then((m) => ({ Component: m.default })),
-  },
+  { path: 'v2/projects/:projectId', Component: V2Redirect },
 ];

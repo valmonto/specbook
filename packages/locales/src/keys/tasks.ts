@@ -108,8 +108,6 @@ export const tasks = {
 
   // Pipeline project view (/v2/projects/:id)
   v2: {
-    legacyView: 'tasks.v2.legacyView',
-    newView: 'tasks.v2.newView',
     dispatchPaused: 'tasks.v2.dispatchPaused',
     agentSummary: 'tasks.v2.agentSummary',
     noSummary: 'tasks.v2.noSummary',
