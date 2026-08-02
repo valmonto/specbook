@@ -95,6 +95,9 @@ export class GithubWebhookProcessor extends WorkerHost {
       .where(
         and(
           eq(project.orgId, org.id),
+          // Archived projects are inert: no auto-progression, no circuit
+          // breaker writes — events on their repos fall through.
+          isNull(project.archivedAt),
           or(
             eq(project.githubRepoFullName, event.repoFullName),
             eq(project.repoUrl, repoUrl),

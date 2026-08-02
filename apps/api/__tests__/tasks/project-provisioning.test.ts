@@ -134,6 +134,40 @@ describe('ProjectService — repo provisioning', () => {
     expect(github.applyProtectionRuleset).not.toHaveBeenCalled();
   });
 
+  it('a duplicate repo name gets its own message — the one failure the user fixes themselves', async () => {
+    github.createProjectRepo.mockRejectedValue(
+      Object.assign(new Error('422'), {
+        response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+      }),
+    );
+    await expect(service.create(actor, dto)).rejects.toThrow('tasks.errors.repoNameTaken');
+  });
+
+  it("any other refusal carries GitHub's own words as detail", async () => {
+    github.createProjectRepo.mockRejectedValue(
+      Object.assign(new Error('403'), {
+        response: { status: 403, data: { message: 'Resource not accessible by integration' } },
+      }),
+    );
+    const err = await service.create(actor, dto).catch((e: BadRequestException) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect((err as BadRequestException).getResponse()).toMatchObject({
+      message: 'tasks.errors.repoProvisionFailed',
+      detail: 'GitHub: Resource not accessible by integration',
+    });
+  });
+
+  it('a project name collision maps the unique-index violation, not a 500', async () => {
+    repository.create!.mockRejectedValue(
+      Object.assign(new Error('duplicate key'), {
+        cause: { code: '23505', constraint: 'project_org_name_active_uq' },
+      }),
+    );
+    await expect(service.create(actor, { name: 'New Product' })).rejects.toThrow(
+      'tasks.errors.projectNameTaken',
+    );
+  });
+
   it('a repo that did not land in the grant is an error state, never bound', async () => {
     github.listRepositories.mockResolvedValue([]); // grant check comes back empty
     await expect(service.create(actor, dto)).rejects.toBeInstanceOf(BadRequestException);

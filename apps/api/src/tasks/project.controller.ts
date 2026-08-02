@@ -1,12 +1,15 @@
 import { Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { ActiveUser, Permissions, ZodRequest } from '@pkg/server';
 import {
+  ArchiveProjectRequestSchema,
   CreateProjectRequestSchema,
   DeleteProjectRequestSchema,
   GetProjectByIdRequestSchema,
   ListProjectsRequestSchema,
   UpdateProjectRequestSchema,
   type ActiveUser as ActiveUserType,
+  type ArchiveProjectRequest,
+  type ArchiveProjectResponse,
   type CreateProjectRequest,
   type CreateProjectResponse,
   type DeleteProjectRequest,
@@ -58,6 +61,26 @@ export class ProjectController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<UpdateProjectResponse> {
     return this.projectService.update(activeUser, dto);
+  }
+
+  // Archive sits behind project:delete — it is the destructive-adjacent
+  // action (retire from every active surface), even though nothing is lost.
+  @Post(':id/archive')
+  @Permissions('project:delete')
+  async archive(
+    @ZodRequest(ArchiveProjectRequestSchema) dto: ArchiveProjectRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ArchiveProjectResponse> {
+    return this.projectService.archive(activeUser, dto.id);
+  }
+
+  @Post(':id/unarchive')
+  @Permissions('project:delete')
+  async unarchive(
+    @ZodRequest(ArchiveProjectRequestSchema) dto: ArchiveProjectRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ArchiveProjectResponse> {
+    return this.projectService.unarchive(activeUser, dto.id);
   }
 
   @Delete(':id')

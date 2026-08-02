@@ -209,7 +209,9 @@ dropped — GitHub retries 5xx, and there is nothing to retry about a
 **Auto modes** — `project.mode` (`manual | auto_merge | auto`) moves the
 merge (and for `auto`, the approval) to the machine once CI is green, with
 a circuit breaker on a red default branch and a `max_parallel` claim cap
-enforced in the queue query. The GitHub seam lives in `@pkg/server`
+enforced in the queue query. Archived projects (`archived_at`) are inert
+throughout: their tasks leave the agent queue, webhook events on their
+repos fall through, and the default project listing hides them. The GitHub seam lives in `@pkg/server`
 (`GithubAppModule`) so the webhook worker can merge too — the WORKER
 deployment therefore needs the same `GITHUB_APP_*` env trio; without it,
 auto modes annotate state but never merge (logged loudly).
