@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Download, FileText, Loader2, Paperclip, Plus, Trash2 } from 'lucide-react';
 import type { AttachmentWithUrls } from '@pkg/contracts';
 import { k } from '@pkg/locales';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import {
   useDeleteAttachment,
   useTaskAttachments,
@@ -77,6 +77,10 @@ function AttachmentTile({
  * Proof-of-work lives here: screenshots and files on a task, uploaded
  * straight to object storage via presigned URLs (the API never touches the
  * bytes) and only visible once the server has verified the upload.
+ *
+ * The whole section is a drop target: empty, it renders as one dashed
+ * drop-zone; with files, a ghost "+" tile joins the grid. Both open the
+ * picker on click.
  */
 export function AttachmentsSection({ taskId }: { taskId: string }) {
   const { t } = useTranslation();
@@ -85,39 +89,82 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
   const deleteCtl = useDeleteAttachment(() => mutate());
   const fileInput = useRef<HTMLInputElement>(null);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const items = data?.data ?? [];
 
-  const onPick = async (files: FileList | null) => {
-    if (!files?.length) return;
+  const uploadFiles = async (files: FileList | File[] | null) => {
+    if (!files) return;
     for (const file of Array.from(files)) {
       await uploadCtl.upload(taskId, file);
     }
     if (fileInput.current) fileInput.current.value = '';
   };
 
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(true);
+    },
+    onDragLeave: () => setDragging(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      void uploadFiles(e.dataTransfer.files);
+    },
+  };
+
   return (
-    <section className="space-y-2">
+    <section className="space-y-2" {...dropProps}>
       <h4 className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <Paperclip className="size-3.5" />
         {t(k.attachments.title)}
+        {uploadCtl.isUploading && <Loader2 className="size-3.5 animate-spin" />}
       </h4>
 
-      {items.length === 0 && !uploadCtl.isUploading && (
-        <p className="text-sm text-muted-foreground">{t(k.attachments.empty)}</p>
+      {items.length === 0 ? (
+        <button
+          type="button"
+          disabled={uploadCtl.isUploading}
+          onClick={() => fileInput.current?.click()}
+          className={cn(
+            'flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
+            dragging && 'border-primary/60 bg-primary/5 text-foreground',
+          )}
+        >
+          <Plus className="size-4" />
+          {t(k.attachments.dropHint)}
+        </button>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+          {items.map((item, itemIndex) => (
+            <AttachmentTile
+              key={item.attachment.id}
+              item={item}
+              deleting={deleteCtl.isDeleting}
+              onOpen={() => setGalleryIndex(itemIndex)}
+              onDelete={() => void deleteCtl.remove(item.attachment.id)}
+            />
+          ))}
+          <button
+            type="button"
+            disabled={uploadCtl.isUploading}
+            onClick={() => fileInput.current?.click()}
+            aria-label={t(k.attachments.add)}
+            title={t(k.attachments.dropHint)}
+            className={cn(
+              'flex min-h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
+              dragging && 'border-primary/60 bg-primary/5',
+            )}
+          >
+            {uploadCtl.isUploading ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Plus className="size-5" />
+            )}
+          </button>
+        </div>
       )}
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {items.map((item, itemIndex) => (
-          <AttachmentTile
-            key={item.attachment.id}
-            item={item}
-            deleting={deleteCtl.isDeleting}
-            onOpen={() => setGalleryIndex(itemIndex)}
-            onDelete={() => void deleteCtl.remove(item.attachment.id)}
-          />
-        ))}
-      </div>
 
       <AttachmentGalleryDialog
         items={items}
@@ -135,21 +182,8 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
         type="file"
         multiple
         className="hidden"
-        onChange={(e) => void onPick(e.target.files)}
+        onChange={(e) => void uploadFiles(e.target.files)}
       />
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={uploadCtl.isUploading}
-        onClick={() => fileInput.current?.click()}
-      >
-        {uploadCtl.isUploading ? (
-          <Loader2 className="size-4 mr-1 animate-spin" />
-        ) : (
-          <Plus className="size-4 mr-1" />
-        )}
-        {t(uploadCtl.isUploading ? k.attachments.uploading : k.attachments.add)}
-      </Button>
     </section>
   );
 }

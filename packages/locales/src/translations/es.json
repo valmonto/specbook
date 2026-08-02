@@ -39,6 +39,7 @@
   "attachments.add": "Añadir archivo",
   "attachments.deleteConfirm": "¿Eliminar este adjunto?",
   "attachments.download": "Descargar",
+  "attachments.dropHint": "Arrastra y suelta archivos aquí, o haz clic para añadir",
   "attachments.empty": "Sin adjuntos",
   "attachments.errors.kindNotAllowed": "Este tipo de archivo no se acepta aquí",
   "attachments.errors.notFound": "Adjunto no encontrado",

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Bot,
+  Check,
   ChevronRight,
   ExternalLink,
   GitBranch,
@@ -11,8 +12,10 @@ import {
   ListChecks,
   MessageCircleQuestion,
   MessageSquare,
+  MoreHorizontal,
   Plus,
   RotateCcw,
+  SendHorizontal,
   Undo2,
   User,
   X,
@@ -21,11 +24,15 @@ import type { AcceptanceCriterion, Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
-  useCheckCriterion,
   useDeleteTask,
   useMergeTask,
   useTask,
@@ -128,6 +135,13 @@ function CardShell({
   // A fresh "Untitled" draft mounts straight into renaming.
   const [editingTitle, setEditingTitle] = useState(Boolean(freshlyCreated));
   const [titleDraft, setTitleDraft] = useState(freshlyCreated ? task.title : '');
+  // Optimistic: show the saved value immediately; server truth replaces it
+  // on revalidation (or an error reverts it) — no old-value flash.
+  const [optimisticTitle, setOptimisticTitle] = useState<string | null>(null);
+  useEffect(() => {
+    if (optimisticTitle !== null && task.title === optimisticTitle) setOptimisticTitle(null);
+  }, [task.title, optimisticTitle]);
+  const shownTitle = optimisticTitle ?? task.title;
   const editable = !isTerminal(task);
   const total = task.acceptanceCriteria.length;
   const ticked = task.acceptanceCriteria.filter((c) => c.done).length;
@@ -136,8 +150,12 @@ function CardShell({
     setEditingTitle(false);
     const next = titleDraft.trim();
     if (!next || next === task.title) return;
+    setOptimisticTitle(next);
     const res = await update.execute({ id: task.id, title: next });
-    if (res.e) toast.error(t(res.e.message));
+    if (res.e) {
+      setOptimisticTitle(null);
+      toast.error(t(res.e.message));
+    }
   };
 
   return (
@@ -147,7 +165,7 @@ function CardShell({
           type="button"
           onClick={() => onToggle(task.id)}
           aria-expanded={expanded}
-          aria-label={task.title}
+          aria-label={shownTitle}
           className="flex h-full shrink-0 items-center px-0.5"
         >
           <ChevronRight
@@ -175,7 +193,7 @@ function CardShell({
             type="button"
             onClick={() => {
               if (expanded && editable) {
-                setTitleDraft(task.title);
+                setTitleDraft(shownTitle);
                 setEditingTitle(true);
               } else {
                 onToggle(task.id);
@@ -186,7 +204,7 @@ function CardShell({
               expanded && editable && 'cursor-text',
             )}
           >
-            {task.title}
+            {shownTitle}
           </button>
         )}
         <PrChip task={task} />
@@ -232,7 +250,15 @@ function InlineArea({
   const update = useUpdateTask();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const value = task[field];
+  // Optimistic: after blur the NEW text stays on screen while the save and
+  // revalidation run; an error reverts and toasts. undefined = no save in
+  // flight (render the server value).
+  const [optimistic, setOptimistic] = useState<string | null | undefined>(undefined);
+  const serverValue = task[field];
+  useEffect(() => {
+    if (optimistic !== undefined && (serverValue ?? null) === optimistic) setOptimistic(undefined);
+  }, [serverValue, optimistic]);
+  const value = optimistic !== undefined ? optimistic : serverValue;
   const editable = !isTerminal(task);
   if (!value && !editable) return null;
 
@@ -240,8 +266,12 @@ function InlineArea({
     setEditing(false);
     const next = draft.trim() || null;
     if ((value ?? null) === next) return;
+    setOptimistic(next);
     const res = await update.execute({ id: task.id, [field]: next });
-    if (res.e) toast.error(t(res.e.message));
+    if (res.e) {
+      setOptimistic(undefined);
+      toast.error(t(res.e.message));
+    }
   };
 
   return (
@@ -291,11 +321,15 @@ function InlineArea({
 function CriteriaEditor({ task }: { task: Task }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
-  const checkCriterion = useCheckCriterion();
   const editable = !isTerminal(task);
   const [draft, setDraft] = useState<AcceptanceCriterion[]>(task.acceptanceCriteria);
-  // Server truth wins whenever the task refreshes (post-save revalidation).
-  useEffect(() => setDraft(task.acceptanceCriteria), [task.acceptanceCriteria]);
+  // While an input in the list has focus, the user is mid-edit — server
+  // refreshes must not clobber the local rows (e.g. a just-added empty one).
+  const focusedRef = useRef(false);
+  const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  useEffect(() => {
+    if (!focusedRef.current) setDraft(task.acceptanceCriteria);
+  }, [task.acceptanceCriteria]);
 
   if (task.acceptanceCriteria.length === 0 && !editable) return null;
 
@@ -312,6 +346,15 @@ function CriteriaEditor({ task }: { task: Task }) {
     setDraft(next);
     void persist(next);
   };
+  const addRow = (after: number) => {
+    setDraft((prev) => [
+      ...prev.slice(0, after + 1),
+      { text: '', done: false },
+      ...prev.slice(after + 1),
+    ]);
+    setFocusIndex(after + 1);
+  };
+  const hasEmptyRow = draft.some((c) => !c.text.trim());
 
   return (
     <div className="grid gap-1">
@@ -321,17 +364,39 @@ function CriteriaEditor({ task }: { task: Task }) {
       <ul className="grid gap-0.5">
         {draft.map((c, i) => (
           <li key={i} className="group/crit flex items-center gap-2">
-            <Checkbox
-              checked={c.done}
-              disabled={!editable || checkCriterion.isLoading}
-              onCheckedChange={(checked) =>
-                void checkCriterion.execute({ id: task.id, index: i, done: checked === true })
-              }
-            />
+            {/* Ticking is the AGENT's act (progress = criteria checked over
+                MCP); here the checkbox is a read-only indicator. */}
+            <span
+              aria-hidden
+              className={cn(
+                'flex size-4 shrink-0 items-center justify-center rounded-[4px] border',
+                c.done
+                  ? 'border-emerald-500 bg-emerald-500 text-white'
+                  : 'border-muted-foreground/40',
+              )}
+            >
+              {c.done && <Check className="size-3" />}
+            </span>
             {editable ? (
               <input
+                ref={(el) => {
+                  if (el && focusIndex === i) {
+                    el.focus();
+                    setFocusIndex(null);
+                  }
+                }}
                 value={c.text}
+                onFocus={() => {
+                  focusedRef.current = true;
+                }}
                 onChange={(e) => setText(i, e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter on a non-empty row inserts the next one below it.
+                  if (e.key === 'Enter' && c.text.trim()) {
+                    e.preventDefault();
+                    addRow(i);
+                  }
+                }}
                 onPaste={(e) => {
                   // A multi-line paste becomes multiple criteria rows.
                   const text = e.clipboardData.getData('text');
@@ -348,6 +413,7 @@ function CriteriaEditor({ task }: { task: Task }) {
                   void persist(next);
                 }}
                 onBlur={() => {
+                  focusedRef.current = false;
                   if (draft[i]?.text !== task.acceptanceCriteria[i]?.text) void persist(draft);
                 }}
                 className={cn(
@@ -376,8 +442,9 @@ function CriteriaEditor({ task }: { task: Task }) {
       {editable && (
         <button
           type="button"
-          onClick={() => setDraft((prev) => [...prev, { text: '', done: false }])}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          disabled={hasEmptyRow}
+          onClick={() => addRow(draft.length - 1)}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
         >
           <Plus className="size-3.5" />
           {t(k.tasks.addCriterion)}
@@ -503,48 +570,63 @@ function ActivityThread({ taskId }: { taskId: string }) {
       {!data || data.comments.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t(k.tasks.detail.noComments)}</p>
       ) : (
-        <ul className="grid gap-2">
+        <ul className="grid gap-3">
           {data.comments.map((c) => (
-            <li key={c.id} className="rounded-lg border bg-background/60 px-3 py-2">
-              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <li key={c.id} className="flex gap-2.5">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 {c.authorType === 'agent' ? (
                   <Bot className="size-3.5" />
                 ) : (
                   <User className="size-3.5" />
                 )}
-                <span>
-                  {t(c.authorType === 'agent' ? k.tasks.detail.agent : k.tasks.detail.you)}
-                </span>
-                <span
-                  className={cn(
-                    'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
-                    kindStyles[c.kind],
-                  )}
-                >
-                  {t(k.tasks.detail.kind[c.kind])}
-                </span>
-                <span className="ml-auto">{fmtDate(c.createdAt)}</span>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {t(c.authorType === 'agent' ? k.tasks.detail.agent : k.tasks.detail.you)}
+                  </span>
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                      kindStyles[c.kind],
+                    )}
+                  >
+                    {t(k.tasks.detail.kind[c.kind])}
+                  </span>
+                  <span className="ml-auto tabular-nums" title={fmtDate(c.createdAt)}>
+                    {ago(c.createdAt)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm whitespace-pre-wrap">{c.body}</p>
               </div>
-              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
             </li>
           ))}
         </ul>
       )}
-      <div className="flex items-start gap-2">
-        <Textarea
+      {/* Composer: quiet until it has text; Cmd/Ctrl+Enter sends. */}
+      <div className="flex items-end gap-1.5">
+        <textarea
           rows={1}
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && body.trim()) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
           placeholder={t(k.tasks.detail.commentPlaceholder)}
-          className="min-h-9 flex-1"
+          className="min-h-8 flex-1 resize-none rounded-md bg-muted/40 px-2.5 py-1.5 text-sm outline-none [field-sizing:content] placeholder:text-muted-foreground/60 focus:bg-muted/60"
         />
         <Button
-          size="sm"
-          variant="outline"
+          size="icon"
+          variant="ghost"
+          className="size-8 text-muted-foreground disabled:opacity-30"
           disabled={addComment.isLoading || !body.trim()}
+          aria-label={t(k.tasks.detail.addComment)}
           onClick={() => void submit()}
         >
-          {t(k.tasks.detail.addComment)}
+          <SendHorizontal className="size-4" />
         </Button>
       </div>
     </div>
@@ -591,12 +673,12 @@ function StageMoves({ task }: { task: Task }) {
     moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+    <div className="flex items-center gap-2 border-t pt-3">
       {moves.map((m) => (
         <Button
           key={m.labelKey}
           size="sm"
-          variant="outline"
+          variant={m.to === 'ready' ? 'default' : 'outline'}
           disabled={busy || (m.to === 'ready' && dispatchBlocked)}
           title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
           onClick={() => void go(m.to)}
@@ -605,30 +687,17 @@ function StageMoves({ task }: { task: Task }) {
         </Button>
       ))}
       {dispatchBlocked && (
-        <span className="text-xs text-muted-foreground">{t(k.tasks.errors.dispatchGate)}</span>
+        <span className="min-w-0 truncate text-xs text-muted-foreground" title={t(k.tasks.errors.dispatchGate)}>
+          {t(k.tasks.errors.dispatchGate)}
+        </span>
       )}
-      {task.status === 'draft' && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-destructive"
-          disabled={busy}
-          onClick={() => void deleteTask.execute({ id: task.id })}
-        >
-          {t(k.tasks.actions.deleteDraft)}
-        </Button>
-      )}
-      <Button
-        size="sm"
-        variant="ghost"
-        className="text-muted-foreground"
-        disabled={busy}
-        onClick={() => void go('cancelled')}
+      {/* Priority: a quiet chip, right-aligned; destructive moves live in
+          the overflow menu — rare actions should not shout. */}
+      <label
+        className="ml-auto flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
+        title={t(k.tasks.priority)}
       >
-        {t(k.tasks.actions.cancelTask)}
-      </Button>
-      <label className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
-        {t(k.tasks.priority)}
+        P
         <input
           type="number"
           min={0}
@@ -636,9 +705,30 @@ function StageMoves({ task }: { task: Task }) {
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           onBlur={() => void savePriority()}
-          className="w-14 rounded-md border bg-transparent px-1.5 py-0.5 text-right text-xs tabular-nums outline-none focus:border-primary/50"
+          className="w-10 rounded-md bg-transparent px-1 py-0.5 text-right text-xs tabular-nums outline-none [appearance:textfield] hover:bg-muted/50 focus:bg-muted/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon" variant="ghost" className="size-7 shrink-0 text-muted-foreground">
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {task.status === 'draft' && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              disabled={busy}
+              onClick={() => void deleteTask.execute({ id: task.id })}
+            >
+              {t(k.tasks.actions.deleteDraft)}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem disabled={busy} onClick={() => void go('cancelled')}>
+            {t(k.tasks.actions.cancelTask)}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

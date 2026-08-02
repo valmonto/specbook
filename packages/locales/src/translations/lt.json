@@ -39,6 +39,7 @@
   "attachments.add": "Pridėti failą",
   "attachments.deleteConfirm": "Ištrinti šį priedą?",
   "attachments.download": "Atsisiųsti",
+  "attachments.dropHint": "Vilk failus čia arba spustelėk, kad pridėtum",
   "attachments.empty": "Priedų nėra",
   "attachments.errors.kindNotAllowed": "Šio tipo failai čia nepriimami",
   "attachments.errors.notFound": "Priedas nerastas",

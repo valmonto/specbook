@@ -39,6 +39,7 @@
   "attachments.add": "Add file",
   "attachments.deleteConfirm": "Delete this attachment?",
   "attachments.download": "Download",
+  "attachments.dropHint": "Drag & drop files here, or click to add",
   "attachments.empty": "No attachments",
   "attachments.errors.kindNotAllowed": "This file type is not accepted here",
   "attachments.errors.notFound": "Attachment not found",
