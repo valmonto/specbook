@@ -398,7 +398,6 @@
   "tasks.v2.agentSummary": "Resumen del agente",
   "tasks.v2.approvedToast": "Aprobada — movida a la cola de fusión",
   "tasks.v2.ciGreenHint": "CI en verde — fusionar es un clic",
-  "tasks.v2.details": "Detalles completos",
   "tasks.v2.diffStats": "{{files}} archivos · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Despacho en pausa — límite de fusiones pendientes alcanzado ({{count}} aprobadas sin fusionar)",
   "tasks.v2.legacyView": "Tablero clásico",

@@ -110,7 +110,6 @@ export const tasks = {
   v2: {
     legacyView: 'tasks.v2.legacyView',
     newView: 'tasks.v2.newView',
-    details: 'tasks.v2.details',
     dispatchPaused: 'tasks.v2.dispatchPaused',
     agentSummary: 'tasks.v2.agentSummary',
     noSummary: 'tasks.v2.noSummary',
