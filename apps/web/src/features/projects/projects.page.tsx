@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { FolderKanban, GitBranch, Plus } from 'lucide-react';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
@@ -8,14 +7,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
-import { ProjectFormDialog } from './components/project-form-dialog';
 import { StatusStrip } from './components/status-strip';
 import { useProjects } from './hooks/use-projects';
 
 export default function ProjectsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data, isLoading } = useProjects();
-  const [createOpen, setCreateOpen] = useState(false);
 
   const projects = data?.data ?? [];
 
@@ -26,7 +24,7 @@ export default function ProjectsPage() {
         title={t(k.tasks.projects)}
         description={t(k.tasks.projectsDescription)}
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => navigate('/projects/create')}>
             <Plus className="size-4 mr-1" />
             {t(k.tasks.newProject)}
           </Button>
@@ -45,7 +43,7 @@ export default function ProjectsPage() {
             <EmptyTitle>{t(k.tasks.noProjects)}</EmptyTitle>
             <EmptyDescription>{t(k.tasks.noProjectsDesc)}</EmptyDescription>
           </EmptyHeader>
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button onClick={() => navigate('/projects/create')}>
             <Plus className="size-4 mr-1" />
             {t(k.tasks.newProject)}
           </Button>
@@ -76,7 +74,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      <ProjectFormDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

@@ -182,6 +182,7 @@ describe('GithubAppService', () => {
       'getPullRequest',
       'installUrl',
       'installationToken',
+      'listBranches',
       'listRepositories',
       'mergePullRequest',
       'mintRepoToken',

@@ -15,6 +15,8 @@ import type {
   CreateOrgRequest,
   CreateOrgResponse,
   GetGithubStatusResponse,
+  GetGithubBranchesRequest,
+  GetGithubBranchesResponse,
   UpdateGithubSettingsRequest,
   ListOrgsResponse,
   GetOrgByIdResponse,
@@ -234,6 +236,27 @@ export class OrgService {
   /** Internal cross-module read (project repo binding); null = not connected. */
   async githubConnection(orgId: string) {
     return this.orgRepository.findGithubConnection(orgId);
+  }
+
+  /**
+   * Branch names for a granted repo. repoId is re-verified against the
+   * installation's grant — an id outside it behaves like a missing repo.
+   */
+  async getGithubRepoBranches(
+    activeUser: ActiveUser,
+    dto: GetGithubBranchesRequest,
+  ): Promise<GetGithubBranchesResponse> {
+    const connection = await this.orgRepository.findGithubConnection(dto.orgId);
+    if (!connection) {
+      throw new BadRequestException(k.orgs.github.errors.notConnected);
+    }
+    const granted = await this.githubApp.listRepositories(connection.installationId);
+    const repo = granted.find((r) => r.id === dto.repoId);
+    if (!repo) {
+      throw new NotFoundException(k.tasks.errors.repoNotInGrant);
+    }
+    const branches = await this.githubApp.listBranches(connection.installationId, repo.fullName);
+    return { branches, defaultBranch: repo.defaultBranch };
   }
 
   async disconnectGithub(activeUser: ActiveUser, orgId: string): Promise<void> {

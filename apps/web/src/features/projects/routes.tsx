@@ -17,6 +17,10 @@ export const projectsRoutes: RouteObject[] = [
     lazy: () => import('./projects.page').then((m) => ({ Component: m.default })),
   },
   {
+    path: 'projects/create',
+    lazy: () => import('./project-create.page').then((m) => ({ Component: m.default })),
+  },
+  {
     path: 'projects/:projectId',
     lazy: () => import('./project-detail.page').then((m) => ({ Component: m.default })),
   },
