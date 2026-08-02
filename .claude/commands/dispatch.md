@@ -48,5 +48,8 @@ stop on your own just because sweeps keep coming back empty.
 - Spec unclear, contradictory, or infeasible → do NOT guess: transition to
   `blocked` with a precise question. That is rejection. Never abandon
   silently.
-- Never touch `draft` tasks. Never transition to `ready` or `done` — the
-  dispatch and acceptance gates are the human's, always.
+- Never touch `draft` tasks. Never transition to `ready`, `approved` or
+  `done` — the dispatch, review and merge gates are the human's, always.
+- An empty `available` queue can also mean the merge-debt gate: a project
+  holding 3 `approved` (merged-pending) tasks stops feeding the queue until
+  the human merges. Nothing for you to do there — just wait.

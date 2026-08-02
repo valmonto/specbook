@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, FolderKanban, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Pencil, Plus, Sparkles } from 'lucide-react';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +37,13 @@ export default function ProjectDetailPage() {
         <Link to="/projects" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="size-4" />
           {t(k.tasks.projects)}
+        </Link>
+        <Link
+          to={`/v2/projects/${project.id}`}
+          className="ml-auto inline-flex items-center gap-1 text-primary hover:underline"
+        >
+          <Sparkles className="size-3.5" />
+          {t(k.tasks.v2.newView)}
         </Link>
       </div>
 

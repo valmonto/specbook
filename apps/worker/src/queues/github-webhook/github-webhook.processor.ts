@@ -120,6 +120,32 @@ export class GithubWebhookProcessor extends WorkerHost {
         ),
       )
       .returning({ id: task.id });
+
+    // done = MERGED. A merge event completes matched tasks sitting in
+    // `approved` (the merge queue) — the only status the webhook may move,
+    // and only forward; review states are the human's alone. Idempotent:
+    // a redelivery finds status already `done` and updates zero rows.
+    if (event.prState === 'merged' && rows.length > 0) {
+      const completed = await this.dbClient.db
+        .update(task)
+        .set({ status: 'done', statusChangedAt: new Date() })
+        .where(
+          and(
+            inArray(
+              task.id,
+              rows.map((r) => r.id),
+            ),
+            eq(task.status, 'approved'),
+          ),
+        )
+        .returning({ id: task.id });
+      if (completed.length > 0) {
+        this.logger.info(
+          { taskIds: completed.map((t) => t.id), prNumber: event.prNumber },
+          'Merged PR completed approved task(s)',
+        );
+      }
+    }
     return rows.length;
   }
 

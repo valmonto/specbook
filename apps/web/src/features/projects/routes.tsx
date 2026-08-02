@@ -13,4 +13,9 @@ export const projectsRoutes: RouteObject[] = [
     path: 'projects/:projectId',
     lazy: () => import('./project-detail.page').then((m) => ({ Component: m.default })),
   },
+  {
+    // The pipeline view — lives alongside the legacy board while it proves out.
+    path: 'v2/projects/:projectId',
+    lazy: () => import('./project-detail-v2.page').then((m) => ({ Component: m.default })),
+  },
 ];

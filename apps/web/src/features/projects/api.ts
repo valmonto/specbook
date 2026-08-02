@@ -25,6 +25,10 @@ import type {
   GetProjectByIdResponse,
   GetTaskByIdRequest,
   GetTaskByIdResponse,
+  GetTaskPrRequest,
+  GetTaskPrResponse,
+  MergeTaskRequest,
+  MergeTaskResponse,
   ListProjectsRequest,
   ListProjectsResponse,
   ListTasksRequest,
@@ -70,6 +74,10 @@ export const projectsResource = (client: HttpClient) => ({
     client.delete(`/api/tasks/${dto.id}`),
   transitionTask: (dto: TransitionTaskRequest): Promise<TransitionTaskResponse> =>
     client.post(`/api/tasks/${dto.id}/transition`, dto),
+  mergeTask: (dto: MergeTaskRequest): Promise<MergeTaskResponse> =>
+    client.post(`/api/tasks/${dto.id}/merge`, dto),
+  getTaskPr: (dto: GetTaskPrRequest): Promise<GetTaskPrResponse> =>
+    client.get(`/api/tasks/${dto.id}/pr`),
   checkCriterion: (dto: CheckCriterionRequest): Promise<CheckCriterionResponse> =>
     client.patch(`/api/tasks/${dto.id}/criteria`, dto),
   addComment: (dto: AddTaskCommentRequest): Promise<AddTaskCommentResponse> =>

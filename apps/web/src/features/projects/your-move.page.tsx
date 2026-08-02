@@ -44,6 +44,7 @@ export default function YourMovePage() {
 
   const { data: projectsData } = useProjects();
   const { data: needsReview, isLoading: loadingReview } = useTasksByStatus('needs_review');
+  const { data: approved } = useTasksByStatus('approved');
   const { data: blocked, isLoading: loadingBlocked } = useTasksByStatus('blocked');
   const { data: inProgress } = useTasksByStatus('in_progress');
   const { count: readyCount } = useTaskCount('ready');
@@ -57,14 +58,19 @@ export default function YourMovePage() {
   }, [projectsData]);
 
   const yourMove = useMemo(() => {
-    const rows = [...(needsReview?.data ?? []), ...(blocked?.data ?? [])];
+    // Approved = the merge queue: still your move until it lands on main.
+    const rows = [
+      ...(needsReview?.data ?? []),
+      ...(approved?.data ?? []),
+      ...(blocked?.data ?? []),
+    ];
     // Oldest wait first: the task that has been in your court longest leads.
     return rows.sort(
       (a, b) =>
         new Date(a.statusChangedAt ?? a.updatedAt).getTime() -
         new Date(b.statusChangedAt ?? b.updatedAt).getTime(),
     );
-  }, [needsReview, blocked]);
+  }, [needsReview, approved, blocked]);
 
   const blockedIds = useMemo(
     () => (blocked?.data ?? []).map((task) => task.id).sort(),

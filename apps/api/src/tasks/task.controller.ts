@@ -7,7 +7,9 @@ import {
   CreateTaskRequestSchema,
   DeleteTaskRequestSchema,
   GetTaskByIdRequestSchema,
+  GetTaskPrRequestSchema,
   ListTasksRequestSchema,
+  MergeTaskRequestSchema,
   RemoveTaskDependencyRequestSchema,
   TransitionTaskRequestSchema,
   UpdateTaskRequestSchema,
@@ -24,8 +26,12 @@ import {
   type DeleteTaskResponse,
   type GetTaskByIdRequest,
   type GetTaskByIdResponse,
+  type GetTaskPrRequest,
+  type GetTaskPrResponse,
   type ListTasksRequest,
   type ListTasksResponse,
+  type MergeTaskRequest,
+  type MergeTaskResponse,
   type RemoveTaskDependencyRequest,
   type RemoveTaskDependencyResponse,
   type TransitionTaskRequest,
@@ -97,6 +103,26 @@ export class TaskController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<TransitionTaskResponse> {
     return this.taskService.transition(activeUser, 'user', dto);
+  }
+
+  // Human-only by design: no MCP tool wraps merge — an agent must never land
+  // its own work on main.
+  @Post(':id/merge')
+  @Permissions('task:merge')
+  async merge(
+    @ZodRequest(MergeTaskRequestSchema) dto: MergeTaskRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<MergeTaskResponse> {
+    return this.taskService.merge(activeUser, dto);
+  }
+
+  @Get(':id/pr')
+  @Permissions('task:read')
+  async getPr(
+    @ZodRequest(GetTaskPrRequestSchema) dto: GetTaskPrRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GetTaskPrResponse> {
+    return this.taskService.getPr(activeUser, dto);
   }
 
   @Patch(':id/criteria')

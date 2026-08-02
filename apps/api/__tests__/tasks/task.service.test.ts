@@ -12,6 +12,8 @@ import { TaskService } from '@/tasks/task.service';
 import type { TaskRepository } from '@/tasks/task.repository';
 import type { ProjectRepository } from '@/tasks/project.repository';
 import type { NotificationService } from '@/notifications/notification.service';
+import type { OrgService } from '@/org/org.service';
+import type { GithubAppService } from '@/github/github-app.service';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -49,6 +51,8 @@ describe('TaskService — the status protocol', () => {
   let repo: Record<string, ReturnType<typeof vi.fn>>;
   let projectRepo: Record<string, ReturnType<typeof vi.fn>>;
   let notifications: Record<string, ReturnType<typeof vi.fn>>;
+  let orgService: Record<string, ReturnType<typeof vi.fn>>;
+  let githubApp: Record<string, unknown>;
 
   // Wider than Partial<typeof baseTask>: the literal's fields infer as their
   // initial values' types (context: string, claimedBy: null), which rejects
@@ -80,10 +84,19 @@ describe('TaskService — the status protocol', () => {
       findById: vi.fn().mockResolvedValue({ id: PROJECT, orgId: ORG }),
     };
     notifications = { create: vi.fn().mockResolvedValue(undefined) };
+    orgService = { githubConnection: vi.fn().mockResolvedValue({ installationId: 777 }) };
+    githubApp = {
+      enabled: true,
+      getPullRequest: vi.fn().mockResolvedValue(null),
+      createPullRequest: vi.fn().mockResolvedValue(12),
+      mergePullRequest: vi.fn().mockResolvedValue(true),
+    };
     service = new TaskService(
       repo as unknown as TaskRepository,
       projectRepo as unknown as ProjectRepository,
       notifications as unknown as NotificationService,
+      orgService as unknown as OrgService,
+      githubApp as unknown as GithubAppService,
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -120,6 +133,114 @@ describe('TaskService — the status protocol', () => {
     repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review' }));
     const result = await service.transition(human, 'user', { id: TASK, to: 'done' });
     expect(result.status).toBe('done');
+  });
+
+  // --- The merge queue (approved) ---
+
+  it('lets the human approve needs_review → approved', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review' }));
+    const result = await service.transition(human, 'user', { id: TASK, to: 'approved' });
+    expect(result.status).toBe('approved');
+  });
+
+  it('refuses the agent needs_review → approved — approval is the human move', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review' }));
+    await expect(service.transition(agent, 'agent', { id: TASK, to: 'approved' })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('lets the human undo an approval (approved → needs_review)', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'approved' }));
+    const result = await service.transition(human, 'user', { id: TASK, to: 'needs_review' });
+    expect(result.status).toBe('needs_review');
+  });
+
+  describe('merge — approved lands on main, server-side', () => {
+    const boundProject = {
+      id: PROJECT,
+      orgId: ORG,
+      githubRepoFullName: 'valmonto/specbook',
+      repoUrl: null,
+      defaultBranch: 'main',
+    };
+
+    beforeEach(() => {
+      projectRepo.findById!.mockResolvedValue(boundProject);
+    });
+
+    it('refuses merge unless the task is approved', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review' }));
+      await expect(service.merge(human, { id: TASK })).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('refuses merge while CI is failing', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'approved', ciState: 'failing' }));
+      await expect(service.merge(human, { id: TASK })).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('merges the webhook-fed PR number and finalizes done + merged', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'approved', prNumber: 12, branch: 'feat/x' }),
+      );
+      const result = await service.merge(human, { id: TASK });
+      expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 12);
+      expect(result.status).toBe('done');
+      expect(result.prState).toBe('merged');
+    });
+
+    it('creates the PR from the branch when none exists yet', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'approved', prNumber: null, branch: 'feat/x' }),
+      );
+      const result = await service.merge(human, { id: TASK });
+      expect(githubApp.createPullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', {
+        head: 'feat/x',
+        base: 'main',
+        title: baseTask.title,
+      });
+      expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 12);
+      expect(result.status).toBe('done');
+    });
+
+    it('parses owner/repo from a free-text repoUrl when the project is unbound', async () => {
+      projectRepo.findById!.mockResolvedValue({
+        ...boundProject,
+        githubRepoFullName: null,
+        repoUrl: 'https://github.com/valmonto/specbook.git',
+      });
+      repo.findById!.mockResolvedValue(taskInState({ status: 'approved', prNumber: 7 }));
+      await service.merge(human, { id: TASK });
+      expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 7);
+    });
+
+    it('409s when GitHub refuses the merge (conflict / not mergeable)', async () => {
+      (githubApp.mergePullRequest as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+      repo.findById!.mockResolvedValue(taskInState({ status: 'approved', prNumber: 12 }));
+      await expect(service.merge(human, { id: TASK })).rejects.toThrow(ConflictException);
+    });
+
+    it('finalizes without calling GitHub when the webhook already stamped merged', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'approved', prNumber: 12, prState: 'merged' }),
+      );
+      const result = await service.merge(human, { id: TASK });
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+      expect(result.status).toBe('done');
+    });
+
+    it('422s when neither a PR number nor a branch exists', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'approved', prNumber: null, branch: null }),
+      );
+      await expect(service.merge(human, { id: TASK })).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
   });
 
   // --- Dispatch gate ---

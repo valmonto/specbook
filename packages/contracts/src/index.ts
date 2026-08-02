@@ -28,6 +28,7 @@ export {
   HUMAN_TASK_TRANSITIONS,
   HUMAN_COURT_STATUSES,
   TERMINAL_TASK_STATUSES,
+  MERGE_DEBT_CAP,
 } from './constants/task';
 export {
   ATTACHMENT_KINDS,
