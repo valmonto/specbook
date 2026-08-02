@@ -84,7 +84,9 @@ describeIntegration('GithubWebhookProcessor', () => {
     await client.close();
   });
 
-  const prEvent = (installationId: number): GithubWebhookJobPayload => ({
+  const prEvent = (
+    installationId: number,
+  ): Extract<GithubWebhookJobPayload, { kind: 'pull_request' }> => ({
     kind: 'pull_request',
     deliveryId: `d-${installationId}`,
     installationId,
@@ -134,6 +136,31 @@ describeIntegration('GithubWebhookProcessor', () => {
     const [b] = await client.db.select().from(task).where(eq(task.id, taskB));
     expect(b?.ciState).toBe('failing');
     expect(a?.ciState).toBeNull();
+  });
+
+  it('a merged PR completes an approved task, but never a task still in review', async () => {
+    // Matched while still needs_review: PR state annotated, status untouched —
+    // review states belong to the human, done = merged only from the queue.
+    await processor.process(jobOf(prEvent(777)));
+    let [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('needs_review');
+    expect(a?.prState).toBe('merged');
+
+    // Approved, then the merge event redelivered: now it completes.
+    await client.db.update(task).set({ status: 'approved' }).where(eq(task.id, taskA));
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-redelivery' }));
+    [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('done');
+  });
+
+  it('an open-PR event never completes an approved task', async () => {
+    await client.db.update(task).set({ status: 'approved' }).where(eq(task.id, taskA));
+
+    await processor.process(jobOf({ ...prEvent(777), prState: 'open', deliveryId: 'd-open' }));
+
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('approved');
+    expect(a?.prState).toBe('open');
   });
 
   it('a pre-existing prUrl is never overwritten by a PR event matched by branch', async () => {

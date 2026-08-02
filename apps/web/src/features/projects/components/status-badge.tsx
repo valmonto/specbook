@@ -14,6 +14,7 @@ const styles: Record<TaskStatus, string> = {
   in_progress: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 ring-indigo-500/20',
   blocked: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/25',
   needs_review: 'bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-violet-500/25',
+  approved: 'bg-teal-500/15 text-teal-700 dark:text-teal-300 ring-teal-500/25',
   changes_requested: 'bg-rose-500/10 text-rose-600 dark:text-rose-300 ring-rose-500/20',
   done: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 ring-emerald-500/20',
   cancelled: 'bg-muted text-muted-foreground/60 ring-transparent line-through',

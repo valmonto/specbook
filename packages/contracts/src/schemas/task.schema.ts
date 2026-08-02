@@ -174,6 +174,35 @@ export const ClaimTaskResponseSchema = TaskSchema;
 export type ClaimTaskRequest = z.infer<typeof ClaimTaskRequestSchema>;
 export type ClaimTaskResponse = z.infer<typeof ClaimTaskResponseSchema>;
 
+// --- Merge (approved → main, server-side) ---
+// The server mints the downscoped installation token, finds or creates the
+// PR for the task's branch, and merges it — the browser never holds a GitHub
+// credential. Legal only from `approved`; the response is the updated task
+// (status `done`, prState `merged` on success).
+export const MergeTaskRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const MergeTaskResponseSchema = TaskSchema;
+
+export type MergeTaskRequest = z.infer<typeof MergeTaskRequestSchema>;
+export type MergeTaskResponse = z.infer<typeof MergeTaskResponseSchema>;
+
+// --- PR stats (scope-at-a-glance for the review card) ---
+// Live from GitHub at read time, so the numbers can't go stale. `areas` are
+// the top-level workspace paths the diff touches (e.g. "apps/web") — a big
+// diff on a small ticket is itself a review signal.
+export const GetTaskPrRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const GetTaskPrResponseSchema = z.object({
+  number: z.number().int(),
+  url: z.string(),
+  state: z.enum(['open', 'merged', 'closed']),
+  additions: z.number().int(),
+  deletions: z.number().int(),
+  changedFiles: z.number().int(),
+  areas: z.array(z.string()),
+});
+
+export type GetTaskPrRequest = z.infer<typeof GetTaskPrRequestSchema>;
+export type GetTaskPrResponse = z.infer<typeof GetTaskPrResponseSchema>;
+
 // --- Check / uncheck an acceptance criterion ---
 export const CheckCriterionRequestSchema = z
   .object({

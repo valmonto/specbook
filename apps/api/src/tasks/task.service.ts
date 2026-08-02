@@ -18,6 +18,10 @@ import {
   type CreateTaskRequest,
   type CreateTaskResponse,
   type GetTaskByIdResponse,
+  type GetTaskPrRequest,
+  type GetTaskPrResponse,
+  type MergeTaskRequest,
+  type MergeTaskResponse,
   type ListTasksRequest,
   type ListTasksResponse,
   type RemoveTaskDependencyRequest,
@@ -32,7 +36,9 @@ import {
 } from '@pkg/contracts';
 import type { NewTask, Task, TaskComment } from '@pkg/database';
 import { k } from '@pkg/locales';
+import { GithubAppService } from '../github/github-app.service';
 import { NotificationService } from '../notifications/notification.service';
+import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
 import { TaskRepository } from './task.repository';
 
@@ -51,6 +57,8 @@ export class TaskService {
     private readonly taskRepository: TaskRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly notificationService: NotificationService,
+    private readonly orgService: OrgService,
+    private readonly githubApp: GithubAppService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -152,7 +160,9 @@ export class TaskService {
 
     // Review gate: no silent "done" claims. The summary comment plus the
     // branch/PR link is what makes review "open task → click PR → check".
-    if (dto.to === 'needs_review') {
+    // Agent-only: the human's approved → needs_review is an undo, not a
+    // submission — the task already carries its review payload.
+    if (dto.to === 'needs_review' && actor === 'agent') {
       if (!comment || !current.branch?.trim() || !current.prUrl?.trim()) {
         throw new UnprocessableEntityException(k.tasks.errors.reviewGate);
       }
@@ -235,6 +245,149 @@ export class TaskService {
     }
 
     return this.serialize(updated);
+  }
+
+  /**
+   * The merge gate: approved → main, executed server-side with a
+   * per-call-minted installation token — the browser never holds a GitHub
+   * credential. GitHub's merge response is authoritative, so the task goes
+   * `done` here immediately; the webhook's own merged event later is an
+   * idempotent overwrite of the same values.
+   */
+  async merge(activeUser: ActiveUser, dto: MergeTaskRequest): Promise<MergeTaskResponse> {
+    const current = await this.requireTask(dto.id, activeUser.orgId);
+    if (current.status !== 'approved') {
+      throw new UnprocessableEntityException(k.tasks.errors.mergeNotApproved);
+    }
+    if (current.ciState === 'failing') {
+      throw new UnprocessableEntityException(k.tasks.errors.mergeCiFailing);
+    }
+
+    // Merged outside specbook (or webhook already stamped it): finalize only.
+    if (current.prState === 'merged') {
+      return this.finalizeMerged(activeUser, dto.id, current.prNumber);
+    }
+
+    const { connection, repoFullName, defaultBranch } = await this.githubRepoContext(
+      activeUser.orgId,
+      current.projectId,
+    );
+
+    // Resolve the PR: webhook-fed number first, then branch lookup, then
+    // create one — the agent protocol guarantees a branch by review time.
+    let prNumber = current.prNumber;
+    if (!prNumber && current.branch) {
+      const existing = await this.githubApp.getPullRequest(
+        connection.installationId,
+        repoFullName,
+        { headBranch: current.branch },
+      );
+      if (existing?.state === 'merged') {
+        return this.finalizeMerged(activeUser, dto.id, existing.number);
+      }
+      prNumber =
+        existing?.state === 'open'
+          ? existing.number
+          : await this.githubApp.createPullRequest(connection.installationId, repoFullName, {
+              head: current.branch,
+              base: defaultBranch,
+              title: current.title,
+            });
+    }
+    if (!prNumber) {
+      throw new UnprocessableEntityException(k.tasks.errors.mergeNoPr);
+    }
+
+    const merged = await this.githubApp.mergePullRequest(
+      connection.installationId,
+      repoFullName,
+      prNumber,
+    );
+    if (!merged) {
+      throw new ConflictException(k.tasks.errors.mergeConflict);
+    }
+
+    this.logger.info(
+      { taskId: dto.id, repo: repoFullName, prNumber, userId: activeUser.userId },
+      'Task PR merged',
+    );
+    return this.finalizeMerged(activeUser, dto.id, prNumber);
+  }
+
+  /** Scope-at-a-glance for the review card, live from GitHub at read time. */
+  async getPr(activeUser: ActiveUser, dto: GetTaskPrRequest): Promise<GetTaskPrResponse> {
+    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const { connection, repoFullName } = await this.githubRepoContext(
+      activeUser.orgId,
+      current.projectId,
+    );
+
+    const pr = current.prNumber
+      ? await this.githubApp.getPullRequest(connection.installationId, repoFullName, {
+          number: current.prNumber,
+        })
+      : current.branch
+        ? await this.githubApp.getPullRequest(connection.installationId, repoFullName, {
+            headBranch: current.branch,
+          })
+        : null;
+    if (!pr) {
+      throw new NotFoundException(k.tasks.errors.mergeNoPr);
+    }
+    return pr;
+  }
+
+  private async finalizeMerged(
+    activeUser: ActiveUser,
+    taskId: string,
+    prNumber: number | null,
+  ): Promise<TaskDto> {
+    const updated = await this.taskRepository.update(taskId, activeUser.orgId, {
+      status: 'done',
+      prState: 'merged',
+      prNumber,
+      prSyncedAt: new Date(),
+      statusChangedBy: activeUser.userId,
+      statusChangedAt: new Date(),
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    return this.serialize(updated);
+  }
+
+  /**
+   * The GitHub coordinates a task's merge/stats need. Bound projects carry
+   * the repo directly; unbound ones fall back to parsing their free-text
+   * repoUrl — the dogfood project predates binding.
+   */
+  private async githubRepoContext(
+    orgId: string,
+    projectId: string,
+  ): Promise<{
+    connection: { installationId: number };
+    repoFullName: string;
+    defaultBranch: string;
+  }> {
+    if (!this.githubApp.enabled) {
+      throw new UnprocessableEntityException(k.tasks.errors.githubNotConnected);
+    }
+    const proj = await this.projectRepository.findById(projectId, orgId);
+    if (!proj) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    const repoFullName =
+      proj.githubRepoFullName ??
+      /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/.exec(proj.repoUrl ?? '')?.[1] ??
+      null;
+    if (!repoFullName) {
+      throw new UnprocessableEntityException(k.tasks.errors.projectNotBound);
+    }
+    const connection = await this.orgService.githubConnection(orgId);
+    if (!connection) {
+      throw new UnprocessableEntityException(k.tasks.errors.githubNotConnected);
+    }
+    return { connection, repoFullName, defaultBranch: proj.defaultBranch || 'main' };
   }
 
   async checkCriterion(activeUser: ActiveUser, dto: CheckCriterionRequest): Promise<TaskDto> {

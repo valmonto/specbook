@@ -52,6 +52,7 @@ export const PERMISSIONS = [
   'task:update',
   'task:delete',
   'task:transition',
+  'task:merge', // Server-side PR merge of an approved task — writes to GitHub
   'task:comment',
 
   // Attachment permissions

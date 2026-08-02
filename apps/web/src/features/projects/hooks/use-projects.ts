@@ -8,6 +8,7 @@ import type {
   DeleteTaskRequest,
   GetProjectByIdResponse,
   GetTaskByIdResponse,
+  GetTaskPrResponse,
   ListProjectsResponse,
   ListTasksRequest,
   ListTasksResponse,
@@ -169,6 +170,17 @@ export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);
 export const useDeleteTask = () =>
   useProjectsAction((dto: DeleteTaskRequest) => projectsApi.removeTask(dto));
 export const useTransitionTask = () => useProjectsAction(projectsApi.transitionTask);
+export const useMergeTask = () => useProjectsAction(projectsApi.mergeTask);
+
+/** Live PR scope (files, +/−, areas) for one task — fetched when a card expands. */
+export function useTaskPr(id: string | null) {
+  const { user } = useAuth();
+  const canRead = useCan('task:read');
+  return useCachedRequest<GetTaskPrResponse>({
+    key: canRead && id && prefix(user?.orgId) ? `${prefix(user?.orgId)}/tasks/${id}/pr` : null,
+    fetcher: () => projectsApi.getTaskPr({ id: id! }),
+  });
+}
 export const useCheckCriterion = () => useProjectsAction(projectsApi.checkCriterion);
 export const useAddComment = () => useProjectsAction(projectsApi.addComment);
 export const useAddDependency = () => useProjectsAction(projectsApi.addDependency);

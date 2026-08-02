@@ -55,7 +55,20 @@ const ACTIONS: Partial<Record<TaskStatus, HumanAction[]>> = {
     },
   ],
   needs_review: [
-    { labelKey: k.tasks.actions.approve, to: 'done' },
+    { labelKey: k.tasks.actions.approve, to: 'approved' },
+    {
+      labelKey: k.tasks.actions.requestChanges,
+      to: 'changes_requested',
+      needsComment: true,
+      commentPlaceholderKey: k.tasks.actions.feedbackPlaceholder,
+      destructive: true,
+    },
+  ],
+  // The merge queue. Merging itself lives in the v2 project view; here the
+  // legal pointer moves: manual done (repo-less tasks), undo, send back.
+  approved: [
+    { labelKey: k.tasks.actions.markMerged, to: 'done' },
+    { labelKey: k.tasks.actions.undoApprove, to: 'needs_review' },
     {
       labelKey: k.tasks.actions.requestChanges,
       to: 'changes_requested',
@@ -73,6 +86,7 @@ const CANCELLABLE: TaskStatus[] = [
   'in_progress',
   'blocked',
   'needs_review',
+  'approved',
   'changes_requested',
 ];
 

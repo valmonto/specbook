@@ -105,8 +105,8 @@ on the same VPS); until then, PR links carry proof-of-work.
 ## The status protocol
 
 ```
-draft → ready → in_progress → needs_review → done
-                   ↕︎              ↓
+draft → ready → in_progress → needs_review → approved → done
+                   ↕︎              ↓              (merge)
                 blocked    changes_requested → in_progress (again)
 ```
 
@@ -119,6 +119,12 @@ Grouped by whose move it is:
 - `blocked` — the agent hit ambiguity, posted a `question` comment, and
   stopped. Human answers and flips back to `ready` (or `in_progress`).
 - `needs_review` — the agent claims done. Human accepts or pushes back.
+- `approved` — the merge queue: review passed, code not yet on main.
+  Merging happens server-side (the merge endpoint mints the downscoped
+  installation token); the PR-merge webhook then completes the task. At
+  `MERGE_DEBT_CAP` (3) approved tasks, a project stops feeding the agent
+  queue — approving is cheap, letting unmerged branches pile up is how
+  they go stale.
 
 **Agent's court**
 
@@ -134,7 +140,9 @@ Grouped by whose move it is:
 
 **Terminal**
 
-- `done` — only the human can set it. The agent may claim completion,
+- `done` — MERGED: normally stamped by the machine (the merge endpoint or
+  the PR-merge webhook completing an `approved` task). The human's manual
+  `→ done` remains for repo-less tasks. The agent may claim completion,
   never accept its own work.
 - `cancelled`.
 
@@ -147,7 +155,8 @@ criteria and `progress` comments.
 | Actor | Allowed transitions |
 | --- | --- |
 | Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer) |
-| Human | `draft→ready`, `blocked→ready`, `needs_review→done`, `needs_review→changes_requested`, any→`cancelled` |
+| Human | `draft→ready`, `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, any→`cancelled` |
+| Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
 
 Two gates make the protocol honest:
 

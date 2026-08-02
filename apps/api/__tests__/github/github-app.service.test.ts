@@ -177,10 +177,13 @@ describe('GithubAppService', () => {
       'appJwt',
       'applyProtectionRuleset',
       'createProjectRepo',
+      'createPullRequest',
       'getInstallation',
+      'getPullRequest',
       'installUrl',
       'installationToken',
       'listRepositories',
+      'mergePullRequest',
       'mintRepoToken',
     ]);
   });

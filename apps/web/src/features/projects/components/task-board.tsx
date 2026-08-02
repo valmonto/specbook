@@ -16,6 +16,7 @@ const COLUMNS: TaskStatus[] = [
   'in_progress',
   'blocked',
   'needs_review',
+  'approved',
   'changes_requested',
   'done',
   'cancelled',

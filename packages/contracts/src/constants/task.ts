@@ -13,6 +13,7 @@ export const TASK_STATUSES = [
   'in_progress',
   'blocked',
   'needs_review',
+  'approved',
   'changes_requested',
   'done',
   'cancelled',
@@ -51,20 +52,35 @@ export const AGENT_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
 /**
  * Human transitions. `in_progress → ready` is the stale-claim reset (a dead
  * session must not clog the queue forever); only the human accepts work
- * (`needs_review → done`) or sends it back (`→ changes_requested`).
- * Cancellation is allowed from any non-terminal state.
+ * (`needs_review → approved`) or sends it back (`→ changes_requested`).
+ *
+ * `approved` is the merge queue: review passed, code not yet on main. The
+ * PR-merge webhook performs approved → done (done = MERGED, a machine fact);
+ * the human paths out of `approved` are the fallbacks — manual done for
+ * repo-less tasks, back to needs_review to undo an approval, or
+ * changes_requested when CI turns red after approval. `needs_review → done`
+ * stays legal for tasks that have no PR to merge.
  */
 export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
   draft: ['ready', 'cancelled'],
   ready: ['draft', 'cancelled'],
   in_progress: ['ready', 'cancelled'],
   blocked: ['ready', 'in_progress', 'cancelled'],
-  needs_review: ['done', 'changes_requested', 'cancelled'],
+  needs_review: ['approved', 'done', 'changes_requested', 'cancelled'],
+  approved: ['done', 'needs_review', 'changes_requested', 'cancelled'],
   changes_requested: ['ready', 'cancelled'],
 };
 
 /** Statuses that count as "the human's move" — the daily dashboard filter. */
-export const HUMAN_COURT_STATUSES = ['blocked', 'needs_review'] as const;
+export const HUMAN_COURT_STATUSES = ['blocked', 'needs_review', 'approved'] as const;
 
 /** Terminal statuses: no transitions out, excluded from dependency blocking. */
 export const TERMINAL_TASK_STATUSES = ['done', 'cancelled'] as const;
+
+/**
+ * Merge debt cap: when a project holds this many `approved` (merged-pending)
+ * tasks, the agent queue (`list_tasks available`) stops returning its ready
+ * tasks — enforced in the repository query, so no runner can bypass it.
+ * Approving is cheap; letting unmerged branches pile up is how they go stale.
+ */
+export const MERGE_DEBT_CAP = 3;

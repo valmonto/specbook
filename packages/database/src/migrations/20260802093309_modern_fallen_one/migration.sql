@@ -1,0 +1,1 @@
+ALTER TABLE "task" DROP CONSTRAINT "task_status_check", ADD CONSTRAINT "task_status_check" CHECK (status IN ('draft', 'ready', 'in_progress', 'blocked', 'needs_review', 'approved', 'changes_requested', 'done', 'cancelled'));

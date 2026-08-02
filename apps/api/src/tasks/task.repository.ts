@@ -19,7 +19,7 @@ import {
   type Task,
   type TaskComment,
 } from '@pkg/database';
-import type { TaskStatus } from '@pkg/contracts';
+import { MERGE_DEBT_CAP, type TaskStatus } from '@pkg/contracts';
 
 export interface ListTasksFilter {
   skip: number;
@@ -62,6 +62,19 @@ export class TaskRepository {
     )`;
   }
 
+  /**
+   * The merge-debt gate: a project sitting on MERGE_DEBT_CAP approved
+   * (merged-pending) tasks stops feeding the agent queue until the queue
+   * drains. Enforced here, in the one query every runner uses, so no client
+   * can bypass it.
+   */
+  private underMergeDebtCap() {
+    return sql`${task.projectId} NOT IN (
+      SELECT project_id FROM task WHERE status = 'approved'
+      GROUP BY project_id HAVING COUNT(*) >= ${MERGE_DEBT_CAP}
+    )`;
+  }
+
   async create(data: NewTask): Promise<Task> {
     const [result] = await this.dbClient.db.insert(task).values(data).returning();
     return result!;
@@ -77,6 +90,7 @@ export class TaskRepository {
     if (filter.available) {
       conditions.push(eq(task.status, 'ready'));
       conditions.push(this.noUnfinishedDependencies());
+      conditions.push(this.underMergeDebtCap());
     }
     const whereClause = and(...conditions);
 

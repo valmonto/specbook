@@ -199,9 +199,25 @@ bootstrap) against `GITHUB_WEBHOOK_SECRET`; unset secret → the route
 404s. Verified deliveries are normalized (`github-webhook.mapper.ts`)
 and enqueued; the worker's `GithubWebhookProcessor` resolves
 installation → org → projects → tasks and writes the live
-`pr_state`/`pr_number`/`ci_state` the review UI renders. Events nobody
-consumes are acked and dropped — GitHub retries 5xx, and there is
-nothing to retry about a `star` event.
+`pr_state`/`pr_number`/`ci_state` the review UI renders. A `merged`
+event additionally completes matched tasks sitting in `approved`
+(`approved → done` — done means MERGED; the only status the machine
+moves, and only forward). Events nobody consumes are acked and
+dropped — GitHub retries 5xx, and there is nothing to retry about a
+`star` event.
+
+**Server-side merge** — `POST /tasks/:id/merge` (permission
+`task:merge`, OWNER/ADMIN; deliberately no MCP tool — an agent must
+never land its own work on main) merges an `approved` task's PR with a
+per-call-minted `{ contents, pull_requests }` token: finds the PR by
+webhook-fed number or head branch, creates it if the agent recorded
+only a branch, refuses while CI is failing, and maps GitHub's
+405/409 to a precise conflict error. `GET /tasks/:id/pr` returns live
+diff stats (files, +/−, touched workspace areas) for the v2 review
+card. The agent queue (`list_tasks available`) is additionally gated
+by merge debt: a project holding `MERGE_DEBT_CAP` (3) approved tasks
+stops feeding runners until the queue drains — enforced in the
+repository query, so no client can bypass it.
 
 ## Seeding
 

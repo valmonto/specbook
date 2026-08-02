@@ -17,8 +17,28 @@ export interface GithubRepoToken {
   expiresAt: string;
 }
 
+export interface GithubPullRequest {
+  number: number;
+  url: string;
+  state: 'open' | 'merged' | 'closed';
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  /** Top-level workspace paths the diff touches, e.g. "apps/web". */
+  areas: string[];
+}
+
 const b64url = (input: string | Buffer): string =>
   Buffer.from(input).toString('base64url');
+
+/** "apps/web/src/x.ts" → "apps/web"; "README.md" → "README.md". */
+const topLevelArea = (filename: string): string => {
+  const parts = filename.split('/');
+  if (parts.length === 1) return parts[0]!;
+  return parts[0] === 'apps' || parts[0] === 'packages'
+    ? parts.slice(0, 2).join('/')
+    : parts[0]!;
+};
 
 /**
  * The ONLY code path that talks to GitHub. Everything is keyed off the three
@@ -240,6 +260,119 @@ export class GithubAppService {
       },
       { headers: { Authorization: `Bearer ${token}` } },
     );
+  }
+
+  /**
+   * The task's pull request, by number or by head branch — one shape for the
+   * review card's stats line and the merge path. Null when none exists yet.
+   * `areas` are the top-level workspace paths the diff touches, from the PR
+   * files listing (first page is plenty for a review signal).
+   */
+  async getPullRequest(
+    installationId: number,
+    repoFullName: string,
+    ref: { number: number } | { headBranch: string },
+  ): Promise<GithubPullRequest | null> {
+    const token = await this.installationToken(installationId, { pull_requests: 'read' });
+    const auth = { headers: { Authorization: `Bearer ${token}` } };
+
+    let number: number;
+    if ('number' in ref) {
+      number = ref.number;
+    } else {
+      const owner = repoFullName.split('/')[0];
+      const { data } = await this.http.get<Array<{ number: number }>>(
+        `/repos/${repoFullName}/pulls`,
+        { params: { head: `${owner}:${ref.headBranch}`, state: 'all', per_page: 1 }, ...auth },
+      );
+      if (data.length === 0) return null;
+      number = data[0]!.number;
+    }
+
+    try {
+      const [{ data: pr }, { data: files }] = await Promise.all([
+        this.http.get<{
+          number: number;
+          html_url: string;
+          state: 'open' | 'closed';
+          merged: boolean;
+          additions: number;
+          deletions: number;
+          changed_files: number;
+        }>(`/repos/${repoFullName}/pulls/${number}`, auth),
+        this.http.get<Array<{ filename: string }>>(
+          `/repos/${repoFullName}/pulls/${number}/files`,
+          { params: { per_page: 100 }, ...auth },
+        ),
+      ]);
+      const areas = [...new Set(files.map((f) => topLevelArea(f.filename)))].slice(0, 8);
+      return {
+        number: pr.number,
+        url: pr.html_url,
+        state: pr.merged ? 'merged' : pr.state,
+        additions: pr.additions,
+        deletions: pr.deletions,
+        changedFiles: pr.changed_files,
+        areas,
+      };
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 404) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Open the PR the merge needs when the agent recorded only a branch —
+   * same { contents, pull_requests } write scope as the agent's own token.
+   */
+  async createPullRequest(
+    installationId: number,
+    repoFullName: string,
+    opts: { head: string; base: string; title: string },
+  ): Promise<number> {
+    const token = await this.installationToken(installationId, {
+      contents: 'write',
+      pull_requests: 'write',
+    });
+    const { data } = await this.http.post<{ number: number }>(
+      `/repos/${repoFullName}/pulls`,
+      { title: opts.title, head: opts.head, base: opts.base },
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data.number;
+  }
+
+  /**
+   * Merge a PR into the default branch — the ruleset's allowed path. False
+   * (not an exception) when GitHub refuses because the branch is not
+   * mergeable (405/409: conflicts, stale, or a rule unmet) so the caller can
+   * answer with a precise error instead of a 500.
+   */
+  async mergePullRequest(
+    installationId: number,
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<boolean> {
+    const token = await this.installationToken(installationId, {
+      contents: 'write',
+      pull_requests: 'write',
+    });
+    try {
+      const { data } = await this.http.put<{ merged: boolean }>(
+        `/repos/${repoFullName}/pulls/${prNumber}/merge`,
+        { merge_method: 'merge' },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      return data.merged;
+    } catch (error) {
+      if (
+        error instanceof AxiosError &&
+        (error.response?.status === 405 || error.response?.status === 409)
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   /**
