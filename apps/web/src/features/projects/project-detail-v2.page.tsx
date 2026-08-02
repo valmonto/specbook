@@ -64,7 +64,14 @@ export default function ProjectDetailV2Page() {
   }, [tasks]);
 
   const selected = stage ?? smartDefault(counts);
-  const stageTasks = tasks.filter((task) => task.status === selected);
+  // Newest first: most recent stage entry on top (done = latest merged first).
+  const stageTasks = tasks
+    .filter((task) => task.status === selected)
+    .sort(
+      (a, b) =>
+        new Date(b.statusChangedAt ?? b.createdAt).getTime() -
+        new Date(a.statusChangedAt ?? a.createdAt).getTime(),
+    );
   const approvedCount = counts.approved ?? 0;
   const mergeCandidates = tasks.filter(
     (task) => task.status === 'approved' && task.ciState !== 'failing',
