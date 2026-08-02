@@ -55,11 +55,16 @@ strategy: [docs/operations.md](docs/operations.md#durability).
 
 ### Web and mobile feature tests
 
-`apps/web`: 145 source files, 3 test files — no feature tested. `apps/mobile`:
-133 files, none at all. The api-side rules are now covered; the client-side
-rendering of them (permission gates, org switching, auth flows) is not.
+`apps/web`: the pipeline project view (the daily surface) is now covered —
+strip counts/gating, accordion single-expansion, the row overflow menu with
+the dispatch gate, the criteria editor protocol (read-only ticks,
+Enter-adds-row, paste-split), optimistic inline saves incl. the error
+revert, review approve→merge chaining, and inline creation
+(`__tests__/features/projects/`, 20 tests, hooks mocked at the module
+seam). Still untested: auth flows, org switching, permission gates,
+settings/GitHub card. `apps/mobile`: 133 files, none at all.
 
-**Cost:** ~1–2d for the critical paths.
+**Cost:** ~1d for the remaining web paths.
 
 ### The golden harness is unused
 
