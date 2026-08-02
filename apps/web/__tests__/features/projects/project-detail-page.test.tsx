@@ -13,6 +13,7 @@ import { installRadixDomShims, makeAction, makeTask } from './helpers';
 
 const hooks = vi.hoisted(() => ({
   useProject: vi.fn(),
+  useUpdateProject: vi.fn(),
   useProjectTasks: vi.fn(),
   useCreateTask: vi.fn(),
   useMergeTask: vi.fn(),
@@ -31,9 +32,12 @@ vi.mock('@/features/projects/hooks/use-attachments', () => ({
   useUploadAttachment: () => ({ upload: vi.fn(), isUploading: false, error: null }),
   useDeleteAttachment: () => ({ remove: vi.fn(), isDeleting: false }),
 }));
-// The edit-project dialog drags in the GitHub/org surface — out of scope here.
-vi.mock('@/features/projects/components/project-form-dialog', () => ({
-  ProjectFormDialog: () => null,
+// The inline header pulls the GitHub surface + auth — mock at the seams.
+vi.mock('@/shared/github/use-github', () => ({
+  useGithubStatus: () => ({ data: undefined, isLoading: false }),
+}));
+vi.mock('@/shared/auth/auth-context', () => ({
+  useAuth: () => ({ user: { orgId: 'o' } }),
 }));
 
 const project = {
@@ -46,6 +50,9 @@ const project = {
   githubRepoFullName: null,
   defaultBranch: 'main',
   workdir: null,
+  mode: 'manual' as const,
+  maxParallel: null,
+  autoPausedAt: null,
   createdBy: 'u',
   createdAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
@@ -64,6 +71,7 @@ beforeAll(() => installRadixDomShims());
 
 beforeEach(() => {
   hooks.useProject.mockReturnValue({ data: project, isLoading: false });
+  hooks.useUpdateProject.mockReturnValue(makeAction());
   hooks.useCreateTask.mockReturnValue(makeAction());
   hooks.useMergeTask.mockReturnValue(makeAction());
   hooks.useTransitionTask.mockReturnValue(makeAction());

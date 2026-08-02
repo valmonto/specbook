@@ -2,13 +2,12 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, FolderKanban, GitMerge, Pause, Pencil, Plus, Zap } from 'lucide-react';
+import { ArrowLeft, GitMerge, Pause, Plus } from 'lucide-react';
 import { MERGE_DEBT_CAP, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PageHeader } from '@/shared/components/page-header';
-import { ProjectFormDialog } from './components/project-form-dialog';
+import { ProjectContextSection, ProjectHeader } from './components/v2/project-header';
 import { PipelineStrip } from './components/v2/pipeline-strip';
 import { ApprovedCard, BlockedCard, PlainCard, ReviewCard } from './components/v2/stage-cards';
 import { useCreateTask, useMergeTask, useProject, useProjectTasks } from './hooks/use-projects';
@@ -42,7 +41,6 @@ export default function ProjectDetailV2Page() {
   const merge = useMergeTask();
   const create = useCreateTask();
 
-  const [editOpen, setEditOpen] = useState(false);
   const [stage, setStageState] = useState<TaskStatus | null>(null);
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -122,39 +120,17 @@ export default function ProjectDetailV2Page() {
         </Link>
       </div>
 
-      <PageHeader
-        icon={FolderKanban}
-        title={
-          <span className="inline-flex items-center gap-2.5">
-              {project.name}
-              {project.mode !== 'manual' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-500/25 ring-inset dark:text-violet-300">
-                  <Zap className="size-3" />
-                  {t(k.tasks.mode[project.mode])}
-                </span>
-              )}
-              {project.mode !== 'manual' && project.autoPausedAt && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-600 ring-1 ring-rose-500/20 ring-inset dark:text-rose-300">
-                  <Pause className="size-3" />
-                  {t(k.tasks.mode.paused)}
-                </span>
-              )}
-          </span>
-        }
-        description={project.repoUrl ?? undefined}
+      <ProjectHeader
+        project={project}
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setEditOpen(true)}>
-              <Pencil className="size-4 mr-1" />
-              {t(k.common.actions.edit)}
-            </Button>
-            <Button onClick={() => void newTask()} disabled={create.isLoading}>
-              <Plus className="size-4 mr-1" />
-              {t(k.tasks.newTask)}
-            </Button>
-          </div>
+          <Button onClick={() => void newTask()} disabled={create.isLoading}>
+            <Plus className="size-4 mr-1" />
+            {t(k.tasks.newTask)}
+          </Button>
         }
       />
+
+      <ProjectContextSection project={project} />
 
       {tasksLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -201,7 +177,6 @@ export default function ProjectDetailV2Page() {
         </>
       )}
 
-      <ProjectFormDialog open={editOpen} onOpenChange={setEditOpen} project={project} />
     </div>
   );
 }
