@@ -195,6 +195,57 @@ describe('ProjectService — repo provisioning', () => {
     expect(repository.update).toHaveBeenCalled();
   });
 
+  it('adopts the half-generated repo when /generate creates it and then dies on its clone step', async () => {
+    // GitHub's generate: repo gets created, THEN the internal clone fails —
+    // so the blank fallback collides on the name. That collision must adopt
+    // the leftover repo (matched by name in the grant), never report a
+    // bogus repoNameTaken.
+    github.createProjectRepo
+      .mockRejectedValueOnce(
+        Object.assign(new Error('403'), {
+          response: {
+            status: 403,
+            data: { message: 'Could not clone: Cloning user does not have permission' },
+          },
+        }),
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error('422'), {
+          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+        }),
+      );
+    github.listRepositories.mockResolvedValue([NEW_REPO]); // grant knows it by name
+    await service.create(actor, dto);
+    expect(repository.update).toHaveBeenCalledWith(
+      'p1',
+      ORG_A,
+      expect.objectContaining({ githubRepoId: NEW_REPO.id }),
+    );
+    const initTask = taskService.create.mock.calls[0]![1] as { context: string };
+    expect(initTask.context).toContain('EMPTY');
+  });
+
+  it('an adopted repo that never reaches the grant surfaces the guided not-granted error', async () => {
+    github.createProjectRepo
+      .mockRejectedValueOnce(
+        Object.assign(new Error('403'), {
+          response: { status: 403, data: { message: 'Could not clone' } },
+        }),
+      )
+      .mockRejectedValueOnce(
+        Object.assign(new Error('422'), {
+          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+        }),
+      );
+    github.listRepositories.mockResolvedValue([]);
+    const err = await service.create(actor, dto).catch((e: BadRequestException) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect((err as BadRequestException).getResponse()).toMatchObject({
+      message: 'tasks.errors.repoProvisionNotGranted',
+      detail: 'valmonto/new-product',
+    });
+  });
+
   it('a refused template generation falls back to a blank repo with populate instructions', async () => {
     github.createProjectRepo
       .mockRejectedValueOnce(
@@ -208,7 +259,7 @@ describe('ProjectService — repo provisioning', () => {
     expect(github.createProjectRepo.mock.calls[1]![1]).toMatchObject({ templateFullName: null });
     expect(repository.update).toHaveBeenCalled();
     const initTask = taskService.create.mock.calls[0]![1] as { context: string };
-    expect(initTask.context).toContain('created EMPTY');
+    expect(initTask.context).toContain('is EMPTY');
     expect(initTask.context).toContain('valmonto/valmatic');
   });
 
