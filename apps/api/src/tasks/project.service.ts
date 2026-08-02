@@ -77,10 +77,11 @@ export class ProjectService {
 
   /**
    * Create the repository, verify it landed in the installation's grant,
-   * apply the protection ruleset, bind it, and file the init task — in that
-   * order, because a repo must never be bound (and thus workable by agents)
-   * before it is protected. Any failure surfaces as an error; the project
-   * stays unbound and the human sees exactly what happened.
+   * attempt the protection ruleset, bind it, and file the init task.
+   * Creation and grant failures surface as errors and leave the project
+   * unbound; a refused ruleset does NOT block the bind (GitHub's free plan
+   * refuses rulesets on private repos) — it downgrades to a visible note
+   * on the init task instead.
    */
   private async provisionRepo(
     activeUser: ActiveUser,
@@ -150,16 +151,27 @@ export class ProjectService {
       throw new BadRequestException(k.tasks.errors.repoProvisionNotGranted);
     }
 
+    // Protection is best-effort, not binding: GitHub's free plan refuses
+    // rulesets on private repos, and blocking provisioning on that turns a
+    // plan limitation into a dead end. When it fails, the repo binds anyway
+    // and the init task carries a visible note — enforcement degrades to
+    // convention (agents still branch + PR), never to silence.
+    let protectionNote: string | null = null;
     try {
       await this.githubApp.applyProtectionRuleset(connection.installationId, created.fullName);
     } catch (error) {
-      // Born-protected is part of the contract: an unprotected repo is an
-      // error state, not a silently-open success.
-      this.logger.error(
+      const body = (error as { response?: { data?: { message?: string } } }).response;
+      const reason = body?.data?.message ?? 'unknown reason';
+      this.logger.warn(
         { projectId, repo: created.fullName, err: error },
-        'Protection ruleset failed on provisioned repo — project left unbound',
+        'Protection ruleset refused — binding anyway, default branch is unprotected',
       );
-      throw new BadRequestException(k.tasks.errors.repoProvisionUnprotected);
+      protectionNote =
+        `\n\nNOTE: GitHub refused the protection ruleset on ${created.fullName} ` +
+        `("${reason}" — typically a private repository on the free plan). The default ` +
+        'branch is currently UNPROTECTED: nothing physically prevents direct pushes. ' +
+        'Keep to the branch-and-PR protocol, and protect the branch in the repository ' +
+        'settings when the repo goes public or the plan allows it.';
     }
 
     await this.projectRepository.update(projectId, activeUser.orgId, {
@@ -178,7 +190,8 @@ export class ProjectService {
         `The repository ${created.fullName} was just generated from the template. ` +
         'Boot it end to end: install dependencies, run the verify pipeline, rename template ' +
         'placeholders to this product, and confirm the dev stack starts. Record anything ' +
-        'missing from the template as follow-up drafts.',
+        'missing from the template as follow-up drafts.' +
+        (protectionNote ?? ''),
       acceptanceCriteria: [
         'pnpm install and pnpm verify exit 0 on a fresh clone',
         'Template placeholder names/branding replaced with this project',
@@ -187,8 +200,8 @@ export class ProjectService {
     });
 
     this.logger.info(
-      { projectId, repo: created.fullName, template: repo.fromTemplate },
-      'Repository provisioned, protected and bound',
+      { projectId, repo: created.fullName, template: repo.fromTemplate, protected: !protectionNote },
+      'Repository provisioned and bound',
     );
   }
 

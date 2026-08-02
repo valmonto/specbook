@@ -359,7 +359,6 @@
   "tasks.errors.repoProvisionFailed": "GitHub atsisakė sukurti repozitoriją — projektas sukurtas be repo; pabandykite susieti rankiniu būdu",
   "tasks.errors.repoProvisionNotGranted": "Repozitorija sukurta, bet neatsirado diegimo suteiktyje — pridėkite ją prie diegimo GitHub pusėje ir susiekite per parinkiklį",
   "tasks.errors.repoProvisionUnavailable": "Repozitorijų kūrimas nepasiekiamas — trūksta GitHub ryšio arba programėlė neturi Administravimo leidimo",
-  "tasks.errors.repoProvisionUnprotected": "Repozitorija sukurta, bet apsaugos taisyklė nepavyko — apsaugokite ją GitHub pusėje ir susiekite per parinkiklį",
   "tasks.errors.reviewGate": "Peržiūrai reikia santraukos komentaro bei šakos ir PR nuorodos užduotyje",
   "tasks.errors.statusConflict": "Užduoties būsena pasikeitė lygiagrečiai — perkraukite ir bandykite dar kartą",
   "tasks.errors.terminalTask": "Užduotis baigta arba atšaukta ir nebegali būti redaguojama",

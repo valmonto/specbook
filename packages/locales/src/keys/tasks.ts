@@ -183,7 +183,6 @@ export const tasks = {
     repoNameInvalid: 'tasks.errors.repoNameInvalid',
     projectNameTaken: 'tasks.errors.projectNameTaken',
     repoProvisionNotGranted: 'tasks.errors.repoProvisionNotGranted',
-    repoProvisionUnprotected: 'tasks.errors.repoProvisionUnprotected',
     projectNotFound: 'tasks.errors.projectNotFound',
     notFound: 'tasks.errors.notFound',
     invalidTransition: 'tasks.errors.invalidTransition',

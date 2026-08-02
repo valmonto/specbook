@@ -174,11 +174,19 @@ describe('ProjectService — repo provisioning', () => {
     expect(repository.update).not.toHaveBeenCalled();
   });
 
-  it('born-protected is binding: ruleset failure blocks the bind', async () => {
-    github.applyProtectionRuleset.mockRejectedValue(new Error('rulesets unavailable'));
-    await expect(service.create(actor, dto)).rejects.toBeInstanceOf(BadRequestException);
-    expect(repository.update).not.toHaveBeenCalled();
-    expect(taskService.create).not.toHaveBeenCalled();
+  it('protection is best-effort: a refused ruleset still binds, and the init task says so', async () => {
+    // GitHub's free plan refuses rulesets on private repos — a plan
+    // limitation must not dead-end provisioning.
+    github.applyProtectionRuleset.mockRejectedValue(
+      Object.assign(new Error('403'), {
+        response: { status: 403, data: { message: 'Upgrade to GitHub Team' } },
+      }),
+    );
+    await service.create(actor, dto);
+    expect(repository.update).toHaveBeenCalled(); // bound despite the refusal
+    const initTask = taskService.create.mock.calls[0]![1] as { context: string };
+    expect(initTask.context).toContain('UNPROTECTED');
+    expect(initTask.context).toContain('Upgrade to GitHub Team');
   });
 
   it('no template chosen → still provisions, bare', async () => {

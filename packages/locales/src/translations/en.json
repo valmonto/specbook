@@ -359,7 +359,6 @@
   "tasks.errors.repoProvisionFailed": "GitHub refused to create the repository — the project was created without a repo; try binding one manually",
   "tasks.errors.repoProvisionNotGranted": "The repository was created but did not appear in the installation's grant — add it to the installation on GitHub, then bind it via the picker",
   "tasks.errors.repoProvisionUnavailable": "Repository creation is not available — the GitHub connection is missing or the app lacks the Administration permission",
-  "tasks.errors.repoProvisionUnprotected": "The repository was created but its protection ruleset failed — protect it on GitHub, then bind it via the picker",
   "tasks.errors.reviewGate": "Review requires a summary comment and the branch and PR link on the task",
   "tasks.errors.statusConflict": "Task status changed concurrently — reload and retry",
   "tasks.errors.terminalTask": "Task is done or cancelled and can no longer be edited",
