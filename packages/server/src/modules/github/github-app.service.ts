@@ -228,10 +228,11 @@ export class GithubAppService {
   }
 
   /**
-   * Every provisioned repo is born protected: the same ruleset the human
-   * applies by hand to existing repos — no force pushes, no deletions, PRs
-   * only into the default branch. Applied before the repo is bound to a
-   * project, so no window exists where agents work in an unprotected repo.
+   * The provisioning ruleset: no force pushes, no deletions, PRs only into
+   * the default branch — the same rules the human applies by hand to
+   * existing repos. Callers treat it as best-effort: GitHub's free plan
+   * refuses rulesets on private repositories, and that refusal must degrade
+   * provisioning to a visible warning, not a dead end.
    */
   async applyProtectionRuleset(installationId: number, repoFullName: string): Promise<void> {
     const token = await this.installationToken(installationId, { administration: 'write' });

@@ -184,9 +184,12 @@ separate consent step), project create can provision a new private
 repository: generated from the org's chosen template (an ORG setting —
 `organization.github_template_repo`, edited in the settings GitHub
 card, validated to be a granted repo GitHub flags as a template),
-verified into the installation's grant, protected by a ruleset (no
-force pushes, no deletions, PRs only) BEFORE it is bound, then bound
-like a picked repo with an init task filed as a draft. The
+verified into the installation's grant, then bound like a picked repo
+with an init task filed as a draft. A protection ruleset (no force
+pushes, no deletions, PRs only) is applied best-effort before the
+bind — GitHub's free plan refuses rulesets on private repos, so a
+refusal binds anyway and stamps an UNPROTECTED warning into the init
+task instead of dead-ending the provisioning. The
 admin-capable token is minted per call, downscoped to the operation,
 and never returned or logged; a unit test enumerates the GitHub seam's
 surface and fails if a destructive method ever appears.
