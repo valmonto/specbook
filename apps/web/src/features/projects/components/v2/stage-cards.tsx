@@ -248,7 +248,11 @@ function InlineArea({
     <div className="grid gap-1">
       <h4 className={SECTION_HEADING}>{t(labelKey)}</h4>
       {editing ? (
-        <Textarea
+        /* Seamless, Notion-style: same typography, padding and position as
+           the rendered text — the only edit signal is a faint tint. Height
+           follows content natively (field-sizing) with a rows fallback for
+           engines without it. */
+        <textarea
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -256,8 +260,8 @@ function InlineArea({
           onKeyDown={(e) => {
             if (e.key === 'Escape') setEditing(false);
           }}
-          rows={Math.min(16, Math.max(4, draft.split('\n').length + 1))}
-          className="font-mono text-xs"
+          rows={Math.min(24, Math.max(3, draft.split('\n').length))}
+          className="-mx-1.5 w-[calc(100%+0.75rem)] resize-none rounded-md bg-muted/40 px-1.5 py-0.5 text-sm leading-relaxed whitespace-pre-wrap outline-none [field-sizing:content]"
         />
       ) : (
         <button
@@ -268,7 +272,7 @@ function InlineArea({
             setEditing(true);
           }}
           className={cn(
-            '-mx-1.5 rounded-md px-1.5 py-0.5 text-left text-sm whitespace-pre-wrap',
+            '-mx-1.5 rounded-md px-1.5 py-0.5 text-left text-sm leading-relaxed whitespace-pre-wrap',
             editable && 'cursor-text hover:bg-muted/50',
           )}
         >
