@@ -83,6 +83,11 @@ export class ProjectService {
    * refuses rulesets on private repos) — it downgrades to a visible note
    * on the init task instead.
    */
+  /** Grant-propagation poll: attempts × delay ≈ 8s worst case. Instance
+   *  fields (not consts) so tests can shrink the delay to milliseconds. */
+  private readonly grantCheckAttempts = 5;
+  private readonly grantCheckDelayMs = 2000;
+
   private async provisionRepo(
     activeUser: ActiveUser,
     projectId: string,
@@ -102,13 +107,47 @@ export class ProjectService {
     }
 
     let created: GithubRepo;
+    let populateNote: string | null = null;
+    const wantsTemplate = repo.fromTemplate && Boolean(connection.templateRepo);
     try {
-      created = await this.githubApp.createProjectRepo(connection.installationId, {
-        owner: installation.accountLogin,
-        name: repo.name,
-        // The template is the ORG's setting, resolved from its connection row.
-        templateFullName: repo.fromTemplate ? connection.templateRepo : null,
-      });
+      try {
+        created = await this.githubApp.createProjectRepo(connection.installationId, {
+          owner: installation.accountLogin,
+          name: repo.name,
+          // The template is the ORG's setting, resolved from its connection row.
+          templateFullName: wantsTemplate ? connection.templateRepo : null,
+        });
+      } catch (templateError) {
+        // GitHub's template-generate endpoint is unreliable with App
+        // installation tokens (its internal clone step doesn't inherit the
+        // App's identity, and generated repos skip the selected-repos
+        // auto-grant). A duplicate name is the user's to fix; every other
+        // template refusal falls back to a BLANK repo — which auto-joins
+        // the grant — plus explicit populate instructions on the init task.
+        const status = (templateError as { response?: { status?: number; data?: unknown } })
+          .response;
+        const isNameTaken =
+          status?.status === 422 && JSON.stringify(status.data ?? '').includes('already exists');
+        if (!wantsTemplate || isNameTaken) throw templateError;
+
+        const reason =
+          (status?.data as { message?: string } | undefined)?.message ?? 'unknown reason';
+        this.logger.warn(
+          { projectId, repoName: repo.name, err: templateError },
+          'Template generation refused — falling back to a blank repository',
+        );
+        created = await this.githubApp.createProjectRepo(connection.installationId, {
+          owner: installation.accountLogin,
+          name: repo.name,
+          templateFullName: null,
+        });
+        populateNote =
+          `\n\nNOTE: GitHub refused to generate from the template ("${reason}"), so the ` +
+          `repository was created EMPTY. FIRST STEP before anything else: populate it from ` +
+          `the template — \`git clone --depth 1 https://github.com/${connection.templateRepo}.git\`, ` +
+          `then push that tree to ${created.fullName} as the initial commit on the default ` +
+          'branch (mint the push credential via get_repo_token for this project).';
+      }
     } catch (error) {
       this.logger.error(
         { orgId: activeUser.orgId, projectId, repoName: repo.name, err: error },
@@ -140,15 +179,30 @@ export class ProjectService {
     }
 
     // GitHub adds App-created repos to a selected-repos installation
-    // automatically — verified rather than assumed, because a repo outside
-    // the grant would be invisible to every later call.
-    const granted = await this.githubApp.listRepositories(connection.installationId);
-    if (!granted.some((r) => r.id === created.id)) {
+    // automatically — but propagation is asynchronous, so the check polls
+    // with backoff instead of failing on the first miss. A repo outside the
+    // grant would be invisible to every later call, so this stays binding;
+    // the create page turns the failure into a guided grant-and-recheck.
+    let granted = false;
+    for (let attempt = 0; attempt < this.grantCheckAttempts; attempt++) {
+      const repos = await this.githubApp.listRepositories(connection.installationId);
+      if (repos.some((r) => r.id === created.id)) {
+        granted = true;
+        break;
+      }
+      if (attempt < this.grantCheckAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, this.grantCheckDelayMs));
+      }
+    }
+    if (!granted) {
       this.logger.error(
         { projectId, repo: created.fullName },
         'Provisioned repo did not land in the installation grant — add it on GitHub',
       );
-      throw new BadRequestException(k.tasks.errors.repoProvisionNotGranted);
+      throw new BadRequestException({
+        message: k.tasks.errors.repoProvisionNotGranted,
+        detail: created.fullName,
+      });
     }
 
     // Protection is best-effort, not binding: GitHub's free plan refuses
@@ -187,10 +241,12 @@ export class ProjectService {
       projectId,
       title: `Initialize ${projectName} from the template`,
       context:
-        `The repository ${created.fullName} was just generated from the template. ` +
+        `The repository ${created.fullName} was just ` +
+        (wantsTemplate && !populateNote ? 'generated from the template. ' : 'created. ') +
         'Boot it end to end: install dependencies, run the verify pipeline, rename template ' +
         'placeholders to this product, and confirm the dev stack starts. Record anything ' +
         'missing from the template as follow-up drafts.' +
+        (populateNote ?? '') +
         (protectionNote ?? ''),
       acceptanceCriteria: [
         'pnpm install and pnpm verify exit 0 on a fresh clone',

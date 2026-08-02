@@ -25,8 +25,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/shared/auth/auth-context';
-import { useGithubRepoBranches, useGithubStatus } from '@/shared/github/use-github';
+import { githubApi, useGithubRepoBranches, useGithubStatus } from '@/shared/github/use-github';
 import { useCreateProject } from './hooks/use-projects';
+import { projectsApi } from './api';
 
 const MANUAL = 'manual-url';
 const CREATE_NEW = 'create-new';
@@ -115,6 +116,41 @@ export default function ProjectCreatePage() {
     ? newRepoName.trim().length > 0 && !repoNameInvalid(newRepoName.trim())
     : true;
   const canSubmit = name.trim().length > 0 && repoReady && !create.isLoading;
+
+  // Guided recovery for "created but not granted": the human ticks the repo
+  // on GitHub's installation page, then this re-checks the grant, binds the
+  // repo to the already-created project, and moves on.
+  const notGranted = create.error?.message === 'tasks.errors.repoProvisionNotGranted';
+  const [rechecking, setRechecking] = useState(false);
+  const [recheckMiss, setRecheckMiss] = useState(false);
+  const recheckAndBind = async () => {
+    if (!user?.orgId) return;
+    setRechecking(true);
+    setRecheckMiss(false);
+    try {
+      const fresh = await githubApi.status({ orgId: user.orgId });
+      const wanted = newRepoName.trim().toLowerCase();
+      const repo = fresh.repositories.find(
+        (r) => r.fullName.split('/')[1]?.toLowerCase() === wanted,
+      );
+      if (!repo) {
+        setRecheckMiss(true);
+        return;
+      }
+      const list = await projectsApi.listProjects({ skip: 0, limit: 100 });
+      const project = list.data.find((p) => p.name === name.trim());
+      if (!project) {
+        setRecheckMiss(true);
+        return;
+      }
+      await projectsApi.updateProject({ id: project.id, githubRepoId: repo.id });
+      navigate(`/projects/${project.id}`);
+    } catch {
+      setRecheckMiss(true);
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   const submit = async () => {
     const res = await create.execute({
@@ -237,6 +273,29 @@ export default function ProjectCreatePage() {
             <p>{t(create.error.message)}</p>
             {(create.error as { detail?: string }).detail && (
               <p className="text-destructive/80">{(create.error as { detail?: string }).detail}</p>
+            )}
+          </div>
+        )}
+        {/* "Created but not granted" is recoverable in place: grant on
+            GitHub (deep link), then re-check binds the repo to the project
+            that already exists. */}
+        {notGranted && (
+          <div className="flex max-w-md flex-wrap items-center gap-2">
+            {github.data?.installUrl && (
+              <Button size="sm" variant="outline" asChild>
+                <a href={github.data.installUrl} target="_blank" rel="noreferrer">
+                  {t(k.tasks.repoGrantAccess)}
+                </a>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" disabled={rechecking} onClick={() => void recheckAndBind()}>
+              {rechecking && <Loader2 className="size-3.5 animate-spin" />}
+              {t(k.tasks.repoGrantRecheck)}
+            </Button>
+            {recheckMiss && (
+              <p className="w-full text-xs text-muted-foreground">
+                {t(k.tasks.repoGrantStillMissing)}
+              </p>
             )}
           </div>
         )}
