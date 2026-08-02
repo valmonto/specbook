@@ -118,6 +118,81 @@ const SECTION_HEADING =
   'flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase';
 
 /**
+ * The row's overflow menu — the stage's legal moves reachable WITHOUT
+ * expanding: dispatch, requeue, claim reset, cancel, draft delete. Hidden
+ * for terminal tasks (no moves) and revealed on row hover/focus, at the far
+ * right — same icon whether the row is collapsed or expanded.
+ */
+function RowMenu({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const transition = useTransitionTask();
+  const deleteTask = useDeleteTask();
+  if (isTerminal(task)) return null;
+
+  const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+    const res = await transition.execute({ id: task.id, to });
+    if (res.e) toast.error(t(res.e.message));
+  };
+  const busy = transition.isLoading || deleteTask.isLoading;
+  const dispatchBlocked =
+    task.status === 'draft' && (!task.context?.trim() || task.acceptanceCriteria.length === 0);
+
+  const moves: Array<{ labelKey: string; to: 'ready' | 'draft'; disabled?: boolean; hint?: string }> = [];
+  if (task.status === 'draft')
+    moves.push({
+      labelKey: k.tasks.actions.markReady,
+      to: 'ready',
+      disabled: dispatchBlocked,
+      hint: dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined,
+    });
+  if (task.status === 'ready') moves.push({ labelKey: k.tasks.actions.backToDraft, to: 'draft' });
+  if (task.status === 'in_progress')
+    moves.push({ labelKey: k.tasks.actions.resetClaim, to: 'ready' });
+  if (task.status === 'changes_requested')
+    moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          aria-label={t(k.tasks.actions.cancelTask)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {moves.map((m) => (
+          <DropdownMenuItem
+            key={m.labelKey}
+            disabled={busy || m.disabled}
+            title={m.hint}
+            onClick={() => void go(m.to)}
+          >
+            {t(m.labelKey)}
+          </DropdownMenuItem>
+        ))}
+        {task.status === 'draft' && (
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            disabled={busy}
+            onClick={() => void deleteTask.execute({ id: task.id })}
+          >
+            {t(k.tasks.actions.deleteDraft)}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem disabled={busy} onClick={() => void go('cancelled')}>
+          {t(k.tasks.actions.cancelTask)}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
  * A list row, not a card: the page wraps rows in ONE bordered container with
  * hairline dividers. Collapsed, clicking the title toggles; expanded, the
  * title becomes click-to-rename (the chevron keeps toggling).
@@ -224,6 +299,7 @@ function CardShell({
           {ago(task.statusChangedAt ?? task.updatedAt)}
         </span>
         {actions}
+        <RowMenu task={task} />
       </div>
       {expanded && children}
     </div>
@@ -641,13 +717,12 @@ function ActivityThread({ taskId }: { taskId: string }) {
 function StageMoves({ task }: { task: Task }) {
   const { t } = useTranslation();
   const transition = useTransitionTask();
-  const deleteTask = useDeleteTask();
   const update = useUpdateTask();
   const [priority, setPriority] = useState(String(task.priority));
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
   if (isTerminal(task)) return null;
 
-  const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+  const go = async (to: 'ready' | 'draft') => {
     const res = await transition.execute({ id: task.id, to });
     if (res.e) toast.error(t(res.e.message));
   };
@@ -659,7 +734,6 @@ function StageMoves({ task }: { task: Task }) {
     if (res.e) toast.error(t(res.e.message));
   };
 
-  const busy = transition.isLoading || deleteTask.isLoading;
   // The dispatch gate, visible before the click: a draft without context or
   // criteria cannot go ready (the server refuses too).
   const dispatchBlocked =
@@ -672,6 +746,9 @@ function StageMoves({ task }: { task: Task }) {
   if (task.status === 'changes_requested')
     moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
 
+  // Destructive moves (cancel, draft delete) live in the row's overflow
+  // menu, which is present collapsed or expanded — this footer keeps only
+  // the forward move and the priority chip.
   return (
     <div className="flex items-center gap-2 border-t pt-3">
       {moves.map((m) => (
@@ -679,7 +756,7 @@ function StageMoves({ task }: { task: Task }) {
           key={m.labelKey}
           size="sm"
           variant={m.to === 'ready' ? 'default' : 'outline'}
-          disabled={busy || (m.to === 'ready' && dispatchBlocked)}
+          disabled={transition.isLoading || (m.to === 'ready' && dispatchBlocked)}
           title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
           onClick={() => void go(m.to)}
         >
@@ -687,12 +764,13 @@ function StageMoves({ task }: { task: Task }) {
         </Button>
       ))}
       {dispatchBlocked && (
-        <span className="min-w-0 truncate text-xs text-muted-foreground" title={t(k.tasks.errors.dispatchGate)}>
+        <span
+          className="min-w-0 truncate text-xs text-muted-foreground"
+          title={t(k.tasks.errors.dispatchGate)}
+        >
           {t(k.tasks.errors.dispatchGate)}
         </span>
       )}
-      {/* Priority: a quiet chip, right-aligned; destructive moves live in
-          the overflow menu — rare actions should not shout. */}
       <label
         className="ml-auto flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
         title={t(k.tasks.priority)}
@@ -708,27 +786,6 @@ function StageMoves({ task }: { task: Task }) {
           className="w-10 rounded-md bg-transparent px-1 py-0.5 text-right text-xs tabular-nums outline-none [appearance:textfield] hover:bg-muted/50 focus:bg-muted/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </label>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="ghost" className="size-7 shrink-0 text-muted-foreground">
-            <MoreHorizontal className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {task.status === 'draft' && (
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              disabled={busy}
-              onClick={() => void deleteTask.execute({ id: task.id })}
-            >
-              {t(k.tasks.actions.deleteDraft)}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem disabled={busy} onClick={() => void go('cancelled')}>
-            {t(k.tasks.actions.cancelTask)}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
