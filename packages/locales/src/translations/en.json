@@ -398,6 +398,7 @@
   "tasks.v2.agentSummary": "Agent summary",
   "tasks.v2.approvedToast": "Approved — moved to the merge queue",
   "tasks.v2.ciGreenHint": "CI green — merge is one click",
+  "tasks.v2.details": "Full details",
   "tasks.v2.diffStats": "{{files}} files · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Dispatch paused — merge debt at cap ({{count}} approved awaiting merge)",
   "tasks.v2.legacyView": "Classic board",

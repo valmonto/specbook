@@ -147,7 +147,12 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
 
   return (
     <Sheet open={taskId !== null} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      {/* Scrolling lives on an INNER div, never on SheetContent itself: the
+          content element carries the slide-in transform, and scrolling a
+          transformed element leaves stale composited layers behind (ghost
+          double-painted text when reversing scroll direction). */}
+      <SheetContent className="w-full sm:max-w-xl">
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading || !task ? (
           <div className="space-y-4 p-6">
             <Skeleton className="h-6 w-2/3" />
@@ -440,6 +445,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
             )}
           </>
         )}
+        </div>
       </SheetContent>
     </Sheet>
   );

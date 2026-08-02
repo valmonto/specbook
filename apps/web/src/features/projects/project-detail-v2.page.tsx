@@ -46,7 +46,15 @@ export default function ProjectDetailV2Page() {
   const [editOpen, setEditOpen] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [stage, setStage] = useState<TaskStatus | null>(null);
+  const [stage, setStageState] = useState<TaskStatus | null>(null);
+  // One card expanded at a time — the accordion state the cards share.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const setStage = (next: TaskStatus) => {
+    setStageState(next);
+    setExpandedId(null);
+  };
+  const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
 
   const tasks = useMemo(() => tasksData?.data ?? [], [tasksData]);
   const counts = useMemo(() => {
@@ -149,7 +157,13 @@ export default function ProjectDetailV2Page() {
           ) : (
             <div className="grid gap-3">
               {stageTasks.map((task: Task) => (
-                <Card key={task.id} task={task} onOpen={setSelectedTaskId} />
+                <Card
+                  key={task.id}
+                  task={task}
+                  expanded={expandedId === task.id}
+                  onToggle={toggleExpanded}
+                  onDetails={setSelectedTaskId}
+                />
               ))}
             </div>
           )}
