@@ -155,7 +155,7 @@ export default function ProjectDetailV2Page() {
               {t(EMPTY_KEYS[selected] ?? k.tasks.v2.stageEmpty.generic)}
             </p>
           ) : (
-            <div className="grid gap-3">
+            <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
               {stageTasks.map((task: Task) => (
                 <Card
                   key={task.id}

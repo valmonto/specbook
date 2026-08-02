@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMergeTask, useTask, useTaskPr, useTransitionTask } from '../../hooks/use-projects';
 import { AttachmentsSection } from '../attachments-section';
-import { CiStateDot, PrStateBadge } from '../github-state-badges';
 
 /**
  * Stage-shaped cards for the v2 pipeline view, as an accordion: every card
@@ -41,6 +40,63 @@ export interface CardProps {
   onDetails: (id: string) => void;
 }
 
+/** "2h" / "3d" — magnitude, not clocks (same idiom as the dashboard). */
+const ago = (iso: string | null): string => {
+  if (!iso) return '';
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
+};
+
+const prChipStyles: Record<NonNullable<Task['prState']>, string> = {
+  open: 'text-emerald-600 dark:text-emerald-400',
+  merged: 'text-violet-600 dark:text-violet-400',
+  closed: 'text-rose-600 dark:text-rose-400',
+};
+
+/** Linear-style compact PR marker: colored icon + number, words in the tooltip. */
+function PrChip({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  if (!task.prState) return null;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 font-mono text-xs tabular-nums',
+        prChipStyles[task.prState],
+      )}
+      title={t(k.tasks.prState[task.prState])}
+    >
+      <GitMerge className="size-3.5" />
+      {task.prNumber ? `#${task.prNumber}` : ''}
+    </span>
+  );
+}
+
+const ciDotStyles: Record<NonNullable<Task['ciState']>, string> = {
+  pending: 'bg-amber-400 animate-pulse',
+  passing: 'bg-emerald-500',
+  failing: 'bg-rose-500',
+};
+
+/** CI as a bare dot — the words live in the tooltip. */
+function CiDot({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  if (!task.ciState) return null;
+  return (
+    <span
+      className={cn('size-2 shrink-0 rounded-full', ciDotStyles[task.ciState])}
+      title={t(k.tasks.ciState[task.ciState])}
+    />
+  );
+}
+
+/**
+ * A list row, not a card: the page wraps rows in ONE bordered container with
+ * hairline dividers. Meta is compact and right-aligned (icons + numbers,
+ * words in tooltips); the details affordance appears on hover/focus only.
+ */
 function CardShell({
   task,
   expanded,
@@ -50,33 +106,46 @@ function CardShell({
   actions,
 }: CardProps & { children?: React.ReactNode; actions?: React.ReactNode }) {
   const { t } = useTranslation();
+  const total = task.acceptanceCriteria.length;
+  const ticked = task.acceptanceCriteria.filter((c) => c.done).length;
   return (
-    <div className="rounded-xl border bg-card shadow-xs">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-3">
+    <div className={cn(expanded && 'bg-muted/20')}>
+      <div className="group flex h-11 items-center gap-2.5 px-3 transition-colors hover:bg-muted/40">
         <button
           type="button"
           onClick={() => onToggle(task.id)}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm font-semibold"
+          className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
         >
           <ChevronRight
             className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform',
+              'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
               expanded && 'rotate-90',
             )}
           />
-          <span className="truncate">{task.title}</span>
+          <span className="truncate text-sm font-medium">{task.title}</span>
         </button>
-        <PrStateBadge task={task} />
-        <CiStateDot task={task} />
-        {task.priority > 0 && (
-          <span className="text-xs font-medium text-muted-foreground">P{task.priority}</span>
+        <PrChip task={task} />
+        <CiDot task={task} />
+        {total > 0 && (
+          <span className="hidden items-center gap-1 text-xs text-muted-foreground tabular-nums sm:inline-flex">
+            <ListChecks className="size-3.5" />
+            {ticked}/{total}
+          </span>
         )}
+        {task.priority > 0 && (
+          <span className="hidden w-7 text-right text-xs text-muted-foreground tabular-nums sm:inline">
+            P{task.priority}
+          </span>
+        )}
+        <span className="hidden w-7 text-right text-xs text-muted-foreground/70 tabular-nums md:inline">
+          {ago(task.statusChangedAt ?? task.updatedAt)}
+        </span>
         {actions}
         <Button
           size="icon"
           variant="ghost"
-          className="size-7 text-muted-foreground"
+          className="size-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
           title={t(k.tasks.v2.details)}
           aria-label={t(k.tasks.v2.details)}
           onClick={() => onDetails(task.id)}
@@ -262,7 +331,7 @@ export function ReviewCard(props: CardProps) {
 
   return (
     <CardShell {...props}>
-      <div className="grid gap-3 border-t px-4 py-3">
+      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
         <AgentSummary taskId={task.id} />
         <CriteriaList task={task} />
         <WorkLinks task={task} />
@@ -366,7 +435,7 @@ export function ApprovedCard(props: CardProps) {
         </div>
       }
     >
-      <div className="grid gap-3 border-t px-4 py-3">
+      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
         {ciFailing && <p className="text-xs text-destructive">{t(k.tasks.v2.mergeBlockedCi)}</p>}
         <AgentSummary taskId={task.id} />
         <WorkLinks task={task} />
@@ -397,7 +466,7 @@ export function BlockedCard(props: CardProps) {
 
   return (
     <CardShell {...props}>
-      <div className="grid gap-2 border-t px-4 py-3">
+      <div className="grid gap-2 border-t py-3 pr-4 pl-9">
         {question && (
           <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
             <MessageCircleQuestion className="mt-0.5 size-4 shrink-0" />
@@ -431,21 +500,9 @@ export function BlockedCard(props: CardProps) {
  */
 export function PlainCard(props: CardProps) {
   const { task } = props;
-  const total = task.acceptanceCriteria.length;
-  const done = task.acceptanceCriteria.filter((c) => c.done).length;
   return (
-    <CardShell
-      {...props}
-      actions={
-        total > 0 ? (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
-            <ListChecks className="size-3.5" />
-            {done}/{total}
-          </span>
-        ) : undefined
-      }
-    >
-      <div className="grid gap-3 border-t px-4 py-3">
+    <CardShell {...props}>
+      <div className="grid gap-3 border-t py-3 pr-4 pl-9">
         {task.context && (
           <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
             {task.context}
