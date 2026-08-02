@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
 import type {
   ConnectGithubRequest,
+  GetGithubBranchesRequest,
+  GetGithubBranchesResponse,
   ConnectGithubResponse,
   DisconnectGithubRequest,
   DisconnectGithubResponse,
@@ -34,6 +36,9 @@ export const githubApi = {
 
   updateSettings: (dto: UpdateGithubSettingsRequest): Promise<UpdateGithubSettingsResponse> =>
     http.patch(`/api/orgs/${dto.orgId}/github`, dto),
+
+  branches: (dto: GetGithubBranchesRequest): Promise<GetGithubBranchesResponse> =>
+    http.get(`/api/orgs/${dto.orgId}/github/repos/${dto.repoId}/branches`),
 };
 
 /** Org-scoped on purpose: an org switch resets all caches, re-keying this. */
@@ -71,6 +76,14 @@ export function useUpdateGithubSettings(orgId: string | undefined) {
     return res;
   };
   return { ...req, execute };
+}
+
+/** Branches of a granted repo — fetched when the create page picks one. */
+export function useGithubRepoBranches(orgId: string | undefined, repoId: number | null) {
+  return useCachedRequest({
+    key: orgId && repoId ? `github:${orgId}/repos/${repoId}/branches` : null,
+    fetcher: () => githubApi.branches({ orgId: orgId!, repoId: repoId! }),
+  });
 }
 
 export function useDisconnectGithub(orgId: string | undefined) {

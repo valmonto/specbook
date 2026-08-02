@@ -105,6 +105,13 @@ export class ProjectService {
         { orgId: activeUser.orgId, projectId, repoName: repo.name, err: error },
         'GitHub repo creation failed — project left unbound',
       );
+      // GitHub answers a duplicate name with a 422 naming the field — the
+      // one provisioning failure the user can fix themselves, so it gets
+      // its own message instead of the generic one.
+      const body = (error as { response?: { status?: number; data?: unknown } }).response;
+      if (body?.status === 422 && JSON.stringify(body.data ?? '').includes('already exists')) {
+        throw new BadRequestException(k.tasks.errors.repoNameTaken);
+      }
       throw new BadRequestException(k.tasks.errors.repoProvisionFailed);
     }
 

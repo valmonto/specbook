@@ -262,6 +262,16 @@ export class GithubAppService {
     );
   }
 
+  /** Branch names of a granted repo — the create page's branch picker. */
+  async listBranches(installationId: number, repoFullName: string): Promise<string[]> {
+    const token = await this.installationToken(installationId, { contents: 'read' });
+    const { data } = await this.http.get<Array<{ name: string }>>(
+      `/repos/${repoFullName}/branches`,
+      { params: { per_page: 100 }, headers: { Authorization: `Bearer ${token}` } },
+    );
+    return data.map((b) => b.name);
+  }
+
   /**
    * The task's pull request, by number or by head branch — one shape for the
    * review card's stats line and the merge path. Null when none exists yet.

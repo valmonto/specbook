@@ -136,6 +136,19 @@ export const UpdateGithubSettingsResponseSchema = GetGithubStatusResponseSchema;
 export type UpdateGithubSettingsRequest = z.infer<typeof UpdateGithubSettingsRequestSchema>;
 export type UpdateGithubSettingsResponse = z.infer<typeof UpdateGithubSettingsResponseSchema>;
 
+// Branch names for a granted repo — feeds the create page's branch picker.
+// repoId (not name) so the server re-verifies the repo against the grant.
+export const GetGithubBranchesRequestSchema = z
+  .object({ orgId: z.string().uuid(), repoId: z.coerce.number().int().positive() })
+  .strict();
+export const GetGithubBranchesResponseSchema = z.object({
+  branches: z.array(z.string()),
+  defaultBranch: z.string(),
+});
+
+export type GetGithubBranchesRequest = z.infer<typeof GetGithubBranchesRequestSchema>;
+export type GetGithubBranchesResponse = z.infer<typeof GetGithubBranchesResponseSchema>;
+
 export const DisconnectGithubRequestSchema = z.object({ orgId: z.string().uuid() }).strict();
 export const DisconnectGithubResponseSchema = z.object({});
 

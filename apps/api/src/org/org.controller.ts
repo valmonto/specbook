@@ -10,6 +10,9 @@ import {
   CreateOrgResponse,
   DisconnectGithubRequest,
   DisconnectGithubRequestSchema,
+  GetGithubBranchesRequestSchema,
+  GetGithubBranchesRequest,
+  GetGithubBranchesResponse,
   DisconnectGithubResponse,
   GetGithubStatusRequest,
   GetGithubStatusRequestSchema,
@@ -113,6 +116,15 @@ export class OrgController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<UpdateGithubSettingsResponse> {
     return this.orgService.updateGithubSettings(activeUser, dto);
+  }
+
+  @Get(':orgId/github/repos/:repoId/branches')
+  @Permissions('settings:read')
+  async getGithubBranches(
+    @ZodRequest(GetGithubBranchesRequestSchema) dto: GetGithubBranchesRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GetGithubBranchesResponse> {
+    return this.orgService.getGithubRepoBranches(activeUser, dto);
   }
 
   @Delete(':orgId/github')
