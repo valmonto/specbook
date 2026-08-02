@@ -11,16 +11,24 @@ import {
   ListChecks,
   Loader2,
   MessageCircleQuestion,
+  MessageSquare,
   PanelRight,
   RotateCcw,
   Undo2,
+  User,
 } from 'lucide-react';
 import type { Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useMergeTask, useTask, useTaskPr, useTransitionTask } from '../../hooks/use-projects';
+import {
+  useAddComment,
+  useMergeTask,
+  useTask,
+  useTaskPr,
+  useTransitionTask,
+} from '../../hooks/use-projects';
 import { AttachmentsSection } from '../attachments-section';
 
 /**
@@ -174,6 +182,86 @@ function CriteriaList({ task }: { task: Task }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const kindStyles: Record<string, string> = {
+  comment: 'bg-muted text-muted-foreground',
+  progress: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-300',
+  question: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  answer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+};
+
+/**
+ * The task's conversation, compact, with a reply box — the sheet's activity
+ * log brought into the expanded row so review never requires leaving the
+ * list. Chronological like the sheet; the newest entry is the one to read.
+ */
+function ActivityThread({ taskId }: { taskId: string }) {
+  const { t, i18n } = useTranslation();
+  const { data } = useTask(taskId);
+  const addComment = useAddComment();
+  const [body, setBody] = useState('');
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
+
+  const submit = async () => {
+    if (!body.trim()) return;
+    const res = await addComment.execute({ id: taskId, kind: 'comment', body: body.trim() });
+    if (res.e) toast.error(t(res.e.message));
+    else setBody('');
+  };
+
+  return (
+    <div className="grid gap-2">
+      <h4 className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <MessageSquare className="size-3.5" />
+        {t(k.tasks.detail.comments)}
+      </h4>
+      {!data || data.comments.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t(k.tasks.detail.noComments)}</p>
+      ) : (
+        <ul className="grid gap-2">
+          {data.comments.map((c) => (
+            <li key={c.id} className="rounded-lg border bg-background/60 px-3 py-2">
+              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                {c.authorType === 'agent' ? <Bot className="size-3.5" /> : <User className="size-3.5" />}
+                <span>
+                  {t(c.authorType === 'agent' ? k.tasks.detail.agent : k.tasks.detail.you)}
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                    kindStyles[c.kind],
+                  )}
+                >
+                  {t(k.tasks.detail.kind[c.kind])}
+                </span>
+                <span className="ml-auto">{fmtDate(c.createdAt)}</span>
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-start gap-2">
+        <Textarea
+          rows={1}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={t(k.tasks.detail.commentPlaceholder)}
+          className="min-h-9 flex-1"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={addComment.isLoading || !body.trim()}
+          onClick={() => void submit()}
+        >
+          {t(k.tasks.detail.addComment)}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -333,6 +421,11 @@ export function ReviewCard(props: CardProps) {
     <CardShell {...props}>
       <div className="grid gap-3 border-t py-3 pr-4 pl-9">
         <AgentSummary taskId={task.id} />
+        {task.context && (
+          <p className="line-clamp-6 text-sm whitespace-pre-wrap text-muted-foreground">
+            {task.context}
+          </p>
+        )}
         <CriteriaList task={task} />
         <WorkLinks task={task} />
         <PrScopeLine task={task} />
@@ -370,6 +463,7 @@ export function ReviewCard(props: CardProps) {
             </span>
           </div>
         )}
+        <ActivityThread taskId={task.id} />
       </div>
     </CardShell>
   );
@@ -443,6 +537,7 @@ export function ApprovedCard(props: CardProps) {
         {givingFeedback && (
           <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />
         )}
+        <ActivityThread taskId={task.id} />
       </div>
     </CardShell>
   );
@@ -489,6 +584,7 @@ export function BlockedCard(props: CardProps) {
             {t(k.tasks.actions.requeue)}
           </Button>
         </div>
+        <ActivityThread taskId={task.id} />
       </div>
     </CardShell>
   );
@@ -511,6 +607,7 @@ export function PlainCard(props: CardProps) {
         <CriteriaList task={task} />
         <WorkLinks task={task} />
         <PrScopeLine task={task} />
+        <ActivityThread taskId={task.id} />
       </div>
     </CardShell>
   );
