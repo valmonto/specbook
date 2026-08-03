@@ -24,6 +24,7 @@ import { PASSWORD_REGEX, type ChangePasswordRequest } from '@pkg/contracts';
 import { PageHeader } from '@/shared/components/page-header';
 import { useSearchParams } from 'react-router';
 import { GithubCard } from '@/features/org';
+import { ServersCard } from '@/features/servers';
 
 // --- Password validation helper ---
 const validatePassword = (password: string) => {
@@ -317,6 +318,7 @@ export default function SettingsPage() {
 
         <TabsContent value="organization" className="mt-6 space-y-6">
           <GithubCard />
+          <ServersCard />
         </TabsContent>
       </Tabs>
     </div>

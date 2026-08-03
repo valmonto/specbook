@@ -8,3 +8,5 @@ export * from './telemetry';
 export * from './throttling';
 export * from './storage';
 export * from './github';
+export * from './secrets';
+export * from './ssh';

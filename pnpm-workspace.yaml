@@ -22,6 +22,8 @@ overrides:
 # ---------------------------------------------------------------------------
 catalog:
   '@aws-sdk/client-s3': 3.1063.0
+  ssh2: 1.17.0
+  '@types/ssh2': 1.15.5
   '@aws-sdk/s3-request-presigner': 3.1063.0
   # ═══════════════════════════════════════════════════════════════════════
   #  REPO TOOLING  (root devDependencies)
@@ -279,6 +281,8 @@ catalogs:
 # Packages allowed to run install/postinstall build scripts.
 onlyBuiltDependencies:
   - '@nestjs/core'
+  - cpu-features
+  - ssh2
   - '@swc/core'
   - esbuild
   - msgpackr-extract
@@ -288,9 +292,11 @@ allowBuilds:
   '@nestjs/core': true
   '@swc/core': true
   core-js: false # postinstall only prints a funding banner — nothing to build
+  cpu-features: true # ssh2's optional native crypto accelerators
   esbuild: true
   msgpackr-extract: true
   msw: true
+  ssh2: true # builds its optional native bindings; JS fallback exists
   unrs-resolver: true
 
 # Supply-chain cooldown: wait 2 days (2880 min) before a newly published

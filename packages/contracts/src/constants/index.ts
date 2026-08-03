@@ -10,4 +10,5 @@ export * from './analytics';
 export * from './notification';
 export * from './mcp';
 export * from './task';
+export * from './server';
 export * from './attachment';

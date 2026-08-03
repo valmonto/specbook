@@ -18,6 +18,11 @@ export const envSchema = z.object({
 
   // IAM / Auth
   IAM_AUTH_PROVIDER: z.enum(['local']).default('local'),
+  // Seals values the database holds but no API may return (server SSH keys,
+  // environment secrets). 32 bytes, base64: `openssl rand -base64 32`.
+  APP_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, 'base64').length === 32, 'APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
   IAM_JWT_SECRET: z.string().min(32, 'IAM_JWT_SECRET must be at least 32 characters'),
   IAM_COOKIE_SECRET: z.string().min(32, 'IAM_COOKIE_SECRET must be at least 32 characters'),
   IAM_ACCESS_TOKEN_TTL: z.coerce.number().int().min(60).default(900), // 15 minutes in seconds

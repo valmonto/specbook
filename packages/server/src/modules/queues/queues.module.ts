@@ -5,6 +5,7 @@ import { DEFAULT_JOB_OPTIONS } from './queues.config';
 import { EXAMPLE_QUEUE, ExampleProducer } from './example';
 import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
 import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
+import { SERVER_CHECK_QUEUE, ServerCheckProducer } from './server-check';
 
 /**
  * Shared queues module.
@@ -42,8 +43,9 @@ import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
     BullModule.registerQueue({ name: EXAMPLE_QUEUE.name }),
     BullModule.registerQueue({ name: ATTACHMENTS_SWEEP_QUEUE.name }),
     BullModule.registerQueue({ name: GITHUB_WEBHOOK_QUEUE.name }),
+    BullModule.registerQueue({ name: SERVER_CHECK_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer],
-  exports: [BullModule, ExampleProducer, GithubWebhookProducer],
+  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer],
+  exports: [BullModule, ExampleProducer, GithubWebhookProducer, ServerCheckProducer],
 })
 export class QueuesModule {}

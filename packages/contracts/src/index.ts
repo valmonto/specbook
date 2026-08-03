@@ -4,6 +4,12 @@ export * from './permissions';
 // already re-exported through schema files, and colliding star exports drop
 // names silently.
 export {
+  SERVER_ROLES,
+  SERVER_STATUSES,
+  type ServerRole,
+  type ServerStatus,
+} from './constants/server';
+export {
   ANALYTICS_EVENTS,
   FEATURE_FLAGS,
   type AnalyticsEvent,
