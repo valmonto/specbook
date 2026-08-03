@@ -18,6 +18,7 @@ import {
   useUnarchiveProject,
 } from './hooks/use-projects';
 import { ProjectReadOnlyContext } from './components/v2/read-only-context';
+import { EnvironmentsSection } from './components/environments-section';
 import { useCan } from '@/shared/hooks/use-permissions';
 
 /**
@@ -175,6 +176,8 @@ export default function ProjectDetailV2Page() {
       />
 
       <ProjectContextSection project={project} readOnly={readOnly} />
+
+      <EnvironmentsSection projectId={project.id} />
 
       {tasksLoading ? (
         <Skeleton className="h-64 w-full" />
