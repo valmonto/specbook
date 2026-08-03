@@ -11,6 +11,11 @@ export const envSchema = z.object({
   // Database
   // `.url()` alone accepts anything with a scheme — "A:" passes — so a typo'd
   // connection string survives startup and only fails on the first query.
+  // Seals values the database holds but no API may return (server SSH keys,
+  // environment secrets). 32 bytes, base64: `openssl rand -base64 32`.
+  APP_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, 'base64').length === 32, 'APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
   DATABASE_URL: z
     .string()
     .regex(/^postgres(ql)?:\/\/.+/, 'DATABASE_URL must be a valid postgres:// connection URL'),

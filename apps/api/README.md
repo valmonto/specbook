@@ -12,6 +12,7 @@ src/
 ├── org/            organizations, switching
 ├── notifications/  the user's notification feed
 ├── jobs/           enqueues work for apps/worker
+├── servers/        org machine inventory for the deploy platform (SSH keys generated + sealed)
 ├── i18n/           request-scoped translation
 ├── seed/           first-run data
 ├── config/         Zod-validated env

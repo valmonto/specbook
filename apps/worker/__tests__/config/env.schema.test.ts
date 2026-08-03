@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { validateEnv } from '@/config/env.schema';
 
-const required = { DATABASE_URL: 'postgresql://user:pass@localhost:5432/db' };
+const required = {
+  DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+  APP_ENCRYPTION_KEY: Buffer.alloc(32).toString('base64'),
+};
 
 describe('validateEnv', () => {
   it('applies defaults for everything optional', () => {

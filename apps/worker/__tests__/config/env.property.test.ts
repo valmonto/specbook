@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { validateEnv } from '@/config/env.schema';
 
 const url = 'postgresql://user:pass@localhost:5432/db';
+// 32 zero bytes, base64 — the schema only checks length, not entropy.
+const encKey = Buffer.alloc(32).toString('base64');
 
 /**
  * Property-based tests state a rule that must hold for *every* input, then let
@@ -17,7 +19,7 @@ describe('validateEnv — properties', () => {
   it('accepts every port in range and returns it as a number', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 65535 }), (port) => {
-        const env = validateEnv({ DATABASE_URL: url, REDIS_PORT: String(port) });
+        const env = validateEnv({ DATABASE_URL: url, APP_ENCRYPTION_KEY: encKey, REDIS_PORT: String(port) });
 
         expect(env.REDIS_PORT).toBe(port);
       }),
@@ -29,7 +31,7 @@ describe('validateEnv — properties', () => {
       fc.property(
         fc.oneof(fc.integer({ min: -100_000, max: 0 }), fc.integer({ min: 65_536, max: 200_000 })),
         (port) => {
-          expect(() => validateEnv({ DATABASE_URL: url, REDIS_PORT: String(port) })).toThrow();
+          expect(() => validateEnv({ DATABASE_URL: url, APP_ENCRYPTION_KEY: encKey, REDIS_PORT: String(port) })).toThrow();
         },
       ),
     );
@@ -39,7 +41,7 @@ describe('validateEnv — properties', () => {
     fc.assert(
       fc.property(fc.string(), (raw) => {
         try {
-          const env = validateEnv({ DATABASE_URL: url, REDIS_PORT: raw });
+          const env = validateEnv({ DATABASE_URL: url, APP_ENCRYPTION_KEY: encKey, REDIS_PORT: raw });
           expect(Number.isNaN(env.REDIS_PORT)).toBe(false);
         } catch {
           // Rejecting the input is a valid outcome; silently yielding NaN is not.
@@ -51,7 +53,7 @@ describe('validateEnv — properties', () => {
   it('treats only the exact string "true" as enabling LOG_FRAMEWORK', () => {
     fc.assert(
       fc.property(fc.constantFrom('true', 'false'), (flag) => {
-        expect(validateEnv({ DATABASE_URL: url, LOG_FRAMEWORK: flag }).LOG_FRAMEWORK).toBe(
+        expect(validateEnv({ DATABASE_URL: url, APP_ENCRYPTION_KEY: encKey, LOG_FRAMEWORK: flag }).LOG_FRAMEWORK).toBe(
           flag === 'true',
         );
       }),
@@ -63,7 +65,7 @@ describe('validateEnv — properties', () => {
       fc.property(
         fc.string().filter((s) => !/^postgres(ql)?:\/\/.+/.test(s)),
         (notAPostgresUrl) => {
-          expect(() => validateEnv({ DATABASE_URL: notAPostgresUrl })).toThrow(/DATABASE_URL/);
+          expect(() => validateEnv({ DATABASE_URL: notAPostgresUrl, APP_ENCRYPTION_KEY: encKey })).toThrow(/DATABASE_URL/);
         },
       ),
     );
@@ -75,7 +77,7 @@ describe('validateEnv — properties', () => {
         fc.constantFrom('postgres', 'postgresql'),
         fc.stringMatching(/^[a-z]{1,8}$/),
         (scheme, host) => {
-          expect(() => validateEnv({ DATABASE_URL: `${scheme}://u:p@${host}:5432/db` })).not.toThrow();
+          expect(() => validateEnv({ DATABASE_URL: `${scheme}://u:p@${host}:5432/db`, APP_ENCRYPTION_KEY: encKey })).not.toThrow();
         },
       ),
     );

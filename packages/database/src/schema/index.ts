@@ -8,6 +8,7 @@ export * from './organization-user';
 export * from './notification';
 export * from './api-key';
 export * from './project';
+export * from './server';
 export * from './task';
 export * from './task-comment';
 export * from './attachment';
