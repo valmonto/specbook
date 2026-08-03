@@ -180,7 +180,7 @@ export default function ProjectCreatePage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-7">
+    <div className="space-y-7">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link to="/projects" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="size-4" />
