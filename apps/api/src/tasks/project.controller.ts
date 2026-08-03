@@ -2,6 +2,7 @@ import { Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { ActiveUser, Permissions, ZodRequest } from '@pkg/server';
 import {
   ArchiveProjectRequestSchema,
+  CompleteProvisionRequestSchema,
   CreateProjectRequestSchema,
   DeleteProjectRequestSchema,
   GetProjectByIdRequestSchema,
@@ -10,6 +11,8 @@ import {
   type ActiveUser as ActiveUserType,
   type ArchiveProjectRequest,
   type ArchiveProjectResponse,
+  type CompleteProvisionRequest,
+  type CompleteProvisionResponse,
   type CreateProjectRequest,
   type CreateProjectResponse,
   type DeleteProjectRequest,
@@ -61,6 +64,18 @@ export class ProjectController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<UpdateProjectResponse> {
     return this.projectService.update(activeUser, dto);
+  }
+
+  // Finishes a provisioning that stalled on the installation grant: after
+  // the human ticks the repo on GitHub, this populates (template), protects,
+  // binds and files the init task the aborted run never created.
+  @Post(':id/provision/complete')
+  @Permissions('project:update')
+  async completeProvision(
+    @ZodRequest(CompleteProvisionRequestSchema) dto: CompleteProvisionRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<CompleteProvisionResponse> {
+    return this.projectService.completeProvisioning(activeUser, dto);
   }
 
   // Archive sits behind project:delete — it is the destructive-adjacent

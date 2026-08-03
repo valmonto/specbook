@@ -117,6 +117,21 @@ export const DeleteProjectResponseSchema = z.object({});
 export type DeleteProjectRequest = z.infer<typeof DeleteProjectRequestSchema>;
 export type DeleteProjectResponse = z.infer<typeof DeleteProjectResponseSchema>;
 
+// --- Complete a stalled provisioning (grant-and-recheck flow) ---
+export const CompleteProvisionRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    /** Verified against the installation grant server-side. */
+    githubRepoId: z.number().int().positive(),
+    /** Populate the (empty) repo from the org's template before binding. */
+    fromTemplate: z.boolean().optional(),
+  })
+  .strict();
+export const CompleteProvisionResponseSchema = ProjectSchema;
+
+export type CompleteProvisionRequest = z.infer<typeof CompleteProvisionRequestSchema>;
+export type CompleteProvisionResponse = z.infer<typeof CompleteProvisionResponseSchema>;
+
 // --- Archive / Unarchive Project ---
 export const ArchiveProjectRequestSchema = z.object({ id: z.string().uuid() }).strict();
 export const ArchiveProjectResponseSchema = ProjectSchema;

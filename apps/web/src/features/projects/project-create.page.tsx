@@ -143,7 +143,13 @@ export default function ProjectCreatePage() {
         setRecheckMiss(true);
         return;
       }
-      await projectsApi.updateProject({ id: project.id, githubRepoId: repo.id });
+      // Full completion, not a bare bind: template populate (empty repos
+      // only), protection attempt, bind, and the init task.
+      await projectsApi.completeProvision({
+        id: project.id,
+        githubRepoId: repo.id,
+        fromTemplate: Boolean(templateRepo) && fromTemplate,
+      });
       navigate(`/projects/${project.id}`);
     } catch {
       setRecheckMiss(true);

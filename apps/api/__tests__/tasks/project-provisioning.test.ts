@@ -46,6 +46,7 @@ describe('ProjectService — repo provisioning', () => {
     listRepositories: ReturnType<typeof vi.fn>;
     createProjectRepo: ReturnType<typeof vi.fn>;
     applyProtectionRuleset: ReturnType<typeof vi.fn>;
+    populateFromTemplate: ReturnType<typeof vi.fn>;
   };
   let taskService: { create: ReturnType<typeof vi.fn> };
   let service: ProjectService;
@@ -70,6 +71,7 @@ describe('ProjectService — repo provisioning', () => {
       listRepositories: vi.fn().mockResolvedValue([NEW_REPO]),
       createProjectRepo: vi.fn().mockResolvedValue(NEW_REPO),
       applyProtectionRuleset: vi.fn().mockResolvedValue(undefined),
+      populateFromTemplate: vi.fn().mockResolvedValue(undefined),
     };
     taskService = { create: vi.fn().mockResolvedValue({ id: 't1' }) };
     service = new ProjectService(
@@ -221,8 +223,15 @@ describe('ProjectService — repo provisioning', () => {
       ORG_A,
       expect.objectContaining({ githubRepoId: NEW_REPO.id }),
     );
+    // The adopted (empty) repo gets the server-side template push.
+    expect(github.populateFromTemplate).toHaveBeenCalledWith(
+      777,
+      'valmonto/valmatic',
+      NEW_REPO.fullName,
+      'main',
+    );
     const initTask = taskService.create.mock.calls[0]![1] as { context: string };
-    expect(initTask.context).toContain('EMPTY');
+    expect(initTask.context).toContain('generated from the template');
   });
 
   it('an adopted repo that never reaches the grant surfaces the guided not-granted error', async () => {
@@ -246,7 +255,7 @@ describe('ProjectService — repo provisioning', () => {
     });
   });
 
-  it('a refused template generation falls back to a blank repo with populate instructions', async () => {
+  it('a refused template generation falls back to a blank repo that the server then populates', async () => {
     github.createProjectRepo
       .mockRejectedValueOnce(
         Object.assign(new Error('403'), {
@@ -255,12 +264,66 @@ describe('ProjectService — repo provisioning', () => {
       )
       .mockResolvedValue(NEW_REPO);
     await service.create(actor, dto);
-    // Second call is the bare fallback.
+    // Second call is the bare fallback; populate covers the content.
     expect(github.createProjectRepo.mock.calls[1]![1]).toMatchObject({ templateFullName: null });
+    expect(github.populateFromTemplate).toHaveBeenCalled();
     expect(repository.update).toHaveBeenCalled();
+  });
+
+  it('a failed populate degrades to instructions on the init task, never a dead end', async () => {
+    github.createProjectRepo
+      .mockRejectedValueOnce(
+        Object.assign(new Error('403'), {
+          response: { status: 403, data: { message: 'Could not clone' } },
+        }),
+      )
+      .mockResolvedValue(NEW_REPO);
+    github.populateFromTemplate.mockRejectedValue(new Error('git push failed'));
+    await service.create(actor, dto);
+    expect(repository.update).toHaveBeenCalled(); // still bound
     const initTask = taskService.create.mock.calls[0]![1] as { context: string };
-    expect(initTask.context).toContain('is EMPTY');
+    expect(initTask.context).toContain('EMPTY');
     expect(initTask.context).toContain('valmonto/valmatic');
+  });
+
+  it('populate runs BEFORE the protection ruleset — PRs-only would block the initial push', async () => {
+    await service.create(actor, dto);
+    const populateOrder = github.populateFromTemplate.mock.invocationCallOrder[0]!;
+    const protectOrder = github.applyProtectionRuleset.mock.invocationCallOrder[0]!;
+    expect(populateOrder).toBeLessThan(protectOrder);
+  });
+
+  it('completeProvisioning finishes a stalled run: populate, protect, bind, init task', async () => {
+    repository.findById = vi.fn().mockResolvedValue(row({ id: 'p1', githubRepoId: null }));
+    const taskList = vi.fn().mockResolvedValue({ data: [], meta: { total: 0, skip: 0, limit: 1 } });
+    (taskService as unknown as { list: typeof taskList }).list = taskList;
+    const result = await service.completeProvisioning(actor, {
+      id: 'p1',
+      githubRepoId: NEW_REPO.id,
+      fromTemplate: true,
+    });
+    expect(github.populateFromTemplate).toHaveBeenCalled();
+    expect(github.applyProtectionRuleset).toHaveBeenCalled();
+    expect(repository.update).toHaveBeenCalledWith(
+      'p1',
+      ORG_A,
+      expect.objectContaining({ githubRepoId: NEW_REPO.id }),
+    );
+    expect(taskService.create).toHaveBeenCalled(); // init task filed
+    expect(result.id).toBeDefined();
+  });
+
+  it('completeProvisioning on an already-bound project only re-attempts the populate', async () => {
+    repository.findById = vi.fn().mockResolvedValue(row({ id: 'p1', githubRepoId: NEW_REPO.id }));
+    await service.completeProvisioning(actor, {
+      id: 'p1',
+      githubRepoId: NEW_REPO.id,
+      fromTemplate: true,
+    });
+    expect(github.populateFromTemplate).toHaveBeenCalled();
+    expect(github.applyProtectionRuleset).not.toHaveBeenCalled();
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(taskService.create).not.toHaveBeenCalled();
   });
 
   it('protection is best-effort: a refused ruleset still binds, and the init task says so', async () => {

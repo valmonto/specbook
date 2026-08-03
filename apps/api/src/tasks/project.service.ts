@@ -107,7 +107,6 @@ export class ProjectService {
     }
 
     let created: GithubRepo | null = null;
-    let fallbackReason: string | null = null;
     const wantsTemplate = repo.fromTemplate && Boolean(connection.templateRepo);
     try {
       try {
@@ -130,8 +129,6 @@ export class ProjectService {
           status?.status === 422 && JSON.stringify(status.data ?? '').includes('already exists');
         if (!wantsTemplate || isNameTaken) throw templateError;
 
-        fallbackReason =
-          (status?.data as { message?: string } | undefined)?.message ?? 'unknown reason';
         this.logger.warn(
           { projectId, repoName: repo.name, err: templateError },
           'Template generation refused — falling back to a blank repository',
@@ -220,36 +217,14 @@ export class ProjectService {
     }
     created = grantedRepo;
 
-    const populateNote = fallbackReason
-      ? `\n\nNOTE: GitHub refused to generate from the template ("${fallbackReason}"), so the ` +
-        `repository is EMPTY. FIRST STEP before anything else: populate it from the template — ` +
-        `\`git clone --depth 1 https://github.com/${connection.templateRepo}.git\`, then push ` +
-        `that tree to ${created.fullName} as the initial commit on the default branch (mint ` +
-        'the push credential via get_repo_token for this project).'
+    // Populate BEFORE protection — the PRs-only ruleset would block the
+    // direct initial push. The populate refuses non-empty repos itself, so
+    // a successful /generate result passes through untouched.
+    const populateNote = wantsTemplate
+      ? await this.populateOrNote(connection.installationId, connection.templateRepo!, created, projectId)
       : null;
 
-    // Protection is best-effort, not binding: GitHub's free plan refuses
-    // rulesets on private repos, and blocking provisioning on that turns a
-    // plan limitation into a dead end. When it fails, the repo binds anyway
-    // and the init task carries a visible note — enforcement degrades to
-    // convention (agents still branch + PR), never to silence.
-    let protectionNote: string | null = null;
-    try {
-      await this.githubApp.applyProtectionRuleset(connection.installationId, created.fullName);
-    } catch (error) {
-      const body = (error as { response?: { data?: { message?: string } } }).response;
-      const reason = body?.data?.message ?? 'unknown reason';
-      this.logger.warn(
-        { projectId, repo: created.fullName, err: error },
-        'Protection ruleset refused — binding anyway, default branch is unprotected',
-      );
-      protectionNote =
-        `\n\nNOTE: GitHub refused the protection ruleset on ${created.fullName} ` +
-        `("${reason}" — typically a private repository on the free plan). The default ` +
-        'branch is currently UNPROTECTED: nothing physically prevents direct pushes. ' +
-        'Keep to the branch-and-PR protocol, and protect the branch in the repository ' +
-        'settings when the repo goes public or the plan allows it.';
-    }
+    const protectionNote = await this.protectOrNote(connection.installationId, created, projectId);
 
     await this.projectRepository.update(projectId, activeUser.orgId, {
       repoUrl: created.htmlUrl,
@@ -282,6 +257,145 @@ export class ProjectService {
       { projectId, repo: created.fullName, template: repo.fromTemplate, protected: !protectionNote },
       'Repository provisioned and bound',
     );
+  }
+
+  /**
+   * Server-side template push (the /generate replacement); a failure
+   * degrades to instructions on the init task, never to a dead end.
+   */
+  private async populateOrNote(
+    installationId: number,
+    templateRepo: string,
+    created: GithubRepo,
+    projectId: string,
+  ): Promise<string | null> {
+    try {
+      await this.githubApp.populateFromTemplate(
+        installationId,
+        templateRepo,
+        created.fullName,
+        created.defaultBranch,
+      );
+      return null;
+    } catch (error) {
+      this.logger.warn(
+        { projectId, repo: created.fullName, err: error },
+        'Template populate failed — init task carries manual instructions',
+      );
+      return (
+        `\n\nNOTE: the automatic template push failed, so the repository may be EMPTY. ` +
+        `FIRST STEP before anything else: populate it from the template — ` +
+        `\`git clone --depth 1 https://github.com/${templateRepo}.git\`, then push that ` +
+        `tree to ${created.fullName} as the initial commit on the default branch (mint ` +
+        'the push credential via get_repo_token for this project).'
+      );
+    }
+  }
+
+  /**
+   * Best-effort protection: GitHub's free plan refuses rulesets on private
+   * repos; a refusal binds anyway with a visible note — enforcement
+   * degrades to convention (agents still branch + PR), never to silence.
+   */
+  private async protectOrNote(
+    installationId: number,
+    created: GithubRepo,
+    projectId: string,
+  ): Promise<string | null> {
+    try {
+      await this.githubApp.applyProtectionRuleset(installationId, created.fullName);
+      return null;
+    } catch (error) {
+      const body = (error as { response?: { data?: { message?: string } } }).response;
+      const reason = body?.data?.message ?? 'unknown reason';
+      this.logger.warn(
+        { projectId, repo: created.fullName, err: error },
+        'Protection ruleset refused — binding anyway, default branch is unprotected',
+      );
+      return (
+        `\n\nNOTE: GitHub refused the protection ruleset on ${created.fullName} ` +
+        `("${reason}" — typically a private repository on the free plan). The default ` +
+        'branch is currently UNPROTECTED: nothing physically prevents direct pushes. ' +
+        'Keep to the branch-and-PR protocol, and protect the branch in the repository ' +
+        'settings when the repo goes public or the plan allows it.'
+      );
+    }
+  }
+
+  /**
+   * Finishes a provisioning that stalled on the grant: after the human adds
+   * the repo to the installation, this verifies it, populates from the
+   * template (empty repos only), applies protection, binds, and files the
+   * init task the aborted run never created. Idempotent enough for a
+   * double-click: an already-bound project only re-attempts the populate
+   * (which itself refuses non-empty repos) and skips protection + init.
+   */
+  async completeProvisioning(
+    activeUser: ActiveUser,
+    dto: { id: string; githubRepoId: number; fromTemplate?: boolean },
+  ): Promise<ProjectDto> {
+    const project = await this.projectRepository.findById(dto.id, activeUser.orgId);
+    if (!project) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    const alreadyBound = project.githubRepoId === dto.githubRepoId;
+
+    const binding = await this.resolveGithubRepo(activeUser, dto.githubRepoId);
+    const connection = await this.orgService.githubConnection(activeUser.orgId);
+    if (!connection) {
+      throw new BadRequestException(k.tasks.errors.repoProvisionUnavailable);
+    }
+
+    const populateNote =
+      dto.fromTemplate && connection.templateRepo
+        ? await this.populateOrNote(connection.installationId, connection.templateRepo, binding, dto.id)
+        : null;
+
+    if (alreadyBound) {
+      return this.serialize(project);
+    }
+
+    const protectionNote = await this.protectOrNote(connection.installationId, binding, dto.id);
+
+    const bound = await this.projectRepository.update(dto.id, activeUser.orgId, {
+      repoUrl: binding.htmlUrl,
+      githubRepoId: binding.id,
+      githubRepoFullName: binding.fullName,
+      defaultBranch: binding.defaultBranch,
+    });
+
+    // The aborted provisioning never filed the init task — do it now, but
+    // only if the project has no tasks yet (a re-run must not duplicate it).
+    const existing = await this.taskService.list(activeUser, {
+      projectId: dto.id,
+      skip: 0,
+      limit: 1,
+      available: false,
+    });
+    if (existing.meta.total === 0) {
+      await this.taskService.create(activeUser, {
+        projectId: dto.id,
+        title: `Initialize ${project.name} from the template`,
+        context:
+          `The repository ${binding.fullName} was just created. ` +
+          'Boot it end to end: install dependencies, run the verify pipeline, rename template ' +
+          'placeholders to this product, and confirm the dev stack starts. Record anything ' +
+          'missing from the template as follow-up drafts.' +
+          (populateNote ?? '') +
+          (protectionNote ?? ''),
+        acceptanceCriteria: [
+          'pnpm install and pnpm verify exit 0 on a fresh clone',
+          'Template placeholder names/branding replaced with this project',
+          'Dev stack boots (api + web) and the seed login works',
+        ],
+      });
+    }
+
+    this.logger.info(
+      { projectId: dto.id, repo: binding.fullName, populated: !populateNote },
+      'Stalled provisioning completed after manual grant',
+    );
+    return this.serialize(bound ?? project);
   }
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {

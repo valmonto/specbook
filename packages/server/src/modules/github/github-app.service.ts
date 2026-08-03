@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createSign } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import axios, { AxiosError, type AxiosInstance } from 'axios';
 import type { GithubRepo } from '@pkg/contracts';
 
@@ -225,6 +230,69 @@ export class GithubAppService {
 
     const { data } = await this.http.post(`/orgs/${opts.owner}/repos`, { name: opts.name, private: true }, auth);
     return map(data);
+  }
+
+  /**
+   * Pushes the template's tree as a single "initial commit from template"
+   * into an EMPTY repository — specbook's own replacement for GitHub's
+   * /generate endpoint, which is unreliable with App installation tokens.
+   * Strictly additive: a repo that already has commits is left untouched,
+   * so this can only ever create history, never rewrite it. Callers must
+   * run it BEFORE applyProtectionRuleset — the PRs-only rule would block
+   * the direct initial push.
+   */
+  async populateFromTemplate(
+    installationId: number,
+    templateFullName: string,
+    repoFullName: string,
+    defaultBranch = 'main',
+  ): Promise<void> {
+    const token = await this.installationToken(installationId, { contents: 'write' });
+
+    // Emptiness guard: GitHub answers 409 for a repo with no commits.
+    try {
+      await this.http.get(`/repos/${repoFullName}/commits`, {
+        params: { per_page: 1 },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return; // already has history — nothing to do
+    } catch (error) {
+      if (!(error instanceof AxiosError) || error.response?.status !== 409) throw error;
+    }
+
+    const dir = await mkdtemp(join(tmpdir(), 'specbook-tpl-'));
+    try {
+      await this.git(['clone', '--depth', '1', `${this.gitHost()}/${templateFullName}.git`, dir]);
+      // A fresh orphan commit, not the template's history — the same
+      // semantics as GitHub's own template generation.
+      await this.git(['-C', dir, 'checkout', '--orphan', 'specbook-init']);
+      await this.git(['-C', dir, 'add', '-A']);
+      await this.git([
+        '-C', dir,
+        '-c', 'user.name=specbook',
+        '-c', 'user.email=specbook@valmonto.com',
+        'commit', '-m', `Initial commit from ${templateFullName} template`,
+      ]);
+      await this.git([
+        '-C', dir,
+        'push',
+        `https://x-access-token:${token}@${this.gitHost().replace(/^https?:\/\//, '')}/${repoFullName}.git`,
+        `HEAD:refs/heads/${defaultBranch}`,
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  /** Git host derived from the API base so the stubbed dev seam never
+   *  touches real GitHub (and fails fast against the stub instead). */
+  private gitHost(): string {
+    const base = this.http.defaults.baseURL ?? 'https://api.github.com';
+    return base === 'https://api.github.com' ? 'https://github.com' : base.replace(/\/$/, '');
+  }
+
+  private async git(args: string[]): Promise<void> {
+    await promisify(execFile)('git', args, { timeout: 120_000 });
   }
 
   /**
