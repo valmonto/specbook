@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { Archive, ArchiveRestore, ArrowLeft, GitMerge, Pause, Plus } from 'lucide-react';
-import { MERGE_DEBT_CAP, type Task, type TaskStatus } from '@pkg/contracts';
+import { MERGE_DEBT_CAP, TASK_STATUSES, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,14 +51,22 @@ export default function ProjectDetailV2Page() {
   const unarchive = useUnarchiveProject();
   const canManage = useCan('project:delete');
 
-  const [stage, setStageState] = useState<TaskStatus | null>(null);
+  // The selected stage lives in the URL (?stage=needs_review): reloads and
+  // shared links restore the same pipeline column. Absent/invalid → smart
+  // default below.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stageParam = searchParams.get('stage');
+  const stage: TaskStatus | null =
+    stageParam && (TASK_STATUSES as readonly string[]).includes(stageParam)
+      ? (stageParam as TaskStatus)
+      : null;
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // The just-created draft: its row mounts with the title already in edit mode.
   const [freshId, setFreshId] = useState<string | null>(null);
 
   const setStage = (next: TaskStatus) => {
-    setStageState(next);
+    setSearchParams({ stage: next }, { replace: true });
     setExpandedId(null);
   };
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
@@ -70,7 +78,7 @@ export default function ProjectDetailV2Page() {
     if (!project) return;
     const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
     if (res.e || !res.d) return;
-    setStageState('draft');
+    setSearchParams({ stage: 'draft' }, { replace: true });
     setExpandedId(res.d.id);
     setFreshId(res.d.id);
   };

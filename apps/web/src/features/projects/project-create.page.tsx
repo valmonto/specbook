@@ -436,11 +436,11 @@ export default function ProjectCreatePage() {
           onChange={(e) => setContext(e.target.value)}
           placeholder={t(k.tasks.contextDocHint)}
           rows={Math.min(30, Math.max(10, context.split('\n').length))}
-          className="-mx-1.5 w-[calc(100%+0.75rem)] resize-none rounded-md px-1.5 py-1 font-mono text-xs leading-relaxed outline-none [field-sizing:content] placeholder:text-muted-foreground/50 hover:bg-muted/30 focus:bg-muted/40"
+          className="-mx-1.5 min-h-40 w-[calc(100%+0.75rem)] resize-none rounded-md px-1.5 py-1 font-mono text-xs leading-relaxed outline-none [field-sizing:content] placeholder:text-muted-foreground/50 hover:bg-muted/30 focus:bg-muted/40"
         />
       </section>
 
-      <div className="flex items-center gap-3 border-t pt-4">
+      <div className="flex items-center gap-3 pt-2">
         <Button disabled={!canSubmit} onClick={() => void submit()}>
           {create.isLoading && <Loader2 className="size-4 mr-1 animate-spin" />}
           {t(k.common.actions.create)}

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Archive, ArchiveRestore, FolderKanban, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
 import type { Project } from '@pkg/contracts';
 import { k } from '@pkg/locales';
@@ -132,8 +132,17 @@ export default function ProjectsPage() {
   const archive = useArchiveProject();
   const unarchive = useUnarchiveProject();
   const remove = useDeleteProject();
-  const [tab, setTab] = useState<'live' | 'archived'>('live');
+  // The active tab lives in the URL (?tab=archived) so reloads and shared
+  // links land on the same view.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'live' | 'archived' = searchParams.get('tab') === 'archived' ? 'archived' : 'live';
+  const setTab = (next: 'live' | 'archived') =>
+    setSearchParams(next === 'archived' ? { tab: next } : {}, { replace: true });
   const [pending, setPending] = useState<PendingAction>(null);
+  // The dialog keeps its last labels while fading out — without this the
+  // CTA visibly morphs to the default action mid-close.
+  const lastPending = useRef<NonNullable<PendingAction>['kind']>('archive');
+  if (pending) lastPending.current = pending.kind;
 
   const projects = (tab === 'archived' ? archived.data?.data : live.data?.data) ?? [];
   const archivedCount = archived.data?.data.length ?? 0;
@@ -153,7 +162,7 @@ export default function ProjectsPage() {
     archive: { title: k.tasks.archiveConfirmTitle, body: k.tasks.archiveConfirmBody, cta: k.tasks.archiveProject },
     unarchive: { title: k.tasks.unarchiveConfirmTitle, body: k.tasks.unarchiveConfirmBody, cta: k.tasks.unarchiveProject },
     delete: { title: k.tasks.deleteConfirmTitle, body: k.tasks.deleteConfirmBody, cta: k.tasks.deleteProject },
-  }[pending?.kind ?? 'archive'];
+  }[pending?.kind ?? lastPending.current];
 
   return (
     <div className="space-y-6">
