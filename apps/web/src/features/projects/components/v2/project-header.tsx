@@ -45,9 +45,12 @@ const CHIP =
 export function ProjectHeader({
   project,
   actions,
+  readOnly = false,
 }: {
   project: Project;
   actions?: React.ReactNode;
+  /** Archived project: every inline edit surface renders as plain text. */
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -148,6 +151,10 @@ export function ProjectHeader({
               }}
               className="w-full border-b border-primary/40 bg-transparent text-xl font-semibold tracking-tight outline-none"
             />
+          ) : readOnly ? (
+            <span className="truncate text-left text-xl font-semibold tracking-tight">
+              {shownTitle}
+            </span>
           ) : (
             <button
               type="button"
@@ -163,7 +170,7 @@ export function ProjectHeader({
 
           {/* Config chips: read at a glance, change where they are read. */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <Popover open={repoOpen} onOpenChange={setRepoOpen}>
+            <Popover open={repoOpen} onOpenChange={readOnly ? undefined : setRepoOpen}>
               <PopoverTrigger asChild>
                 <button type="button" className={cn(CHIP, 'font-mono')}>
                   <GitBranch className="size-3" />
@@ -229,6 +236,7 @@ export function ProjectHeader({
                 title={t(k.tasks.defaultBranch)}
                 onClick={() => {
                   setBranchDraft(shownBranch);
+                  if (readOnly) return;
                   setEditingBranch(true);
                 }}
                 className={cn(CHIP, 'font-mono')}
@@ -237,7 +245,7 @@ export function ProjectHeader({
               </button>
             )}
 
-            <Popover open={modeOpen} onOpenChange={setModeOpen}>
+            <Popover open={modeOpen} onOpenChange={readOnly ? undefined : setModeOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
@@ -320,6 +328,7 @@ export function ProjectHeader({
                 title={t(k.tasks.workdirHint)}
                 onClick={() => {
                   setWorkdirDraft(shownWorkdir ?? '');
+                  if (readOnly) return;
                   setEditingWorkdir(true);
                 }}
                 className={cn(CHIP, 'font-mono', !shownWorkdir && 'italic')}
@@ -342,7 +351,13 @@ export function ProjectHeader({
  * inline editor tasks use. Agents read this every session — keeping it
  * visible is what keeps it maintained.
  */
-export function ProjectContextSection({ project }: { project: Project }) {
+export function ProjectContextSection({
+  project,
+  readOnly = false,
+}: {
+  project: Project;
+  readOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const update = useUpdateProject();
   const [open, setOpen] = useState(false);
@@ -401,10 +416,14 @@ export function ProjectContextSection({ project }: { project: Project }) {
             <button
               type="button"
               onClick={() => {
+                if (readOnly) return;
                 setDraft(shown ?? '');
                 setEditing(true);
               }}
-              className="-mx-1.5 w-[calc(100%+0.75rem)] cursor-text rounded-md px-1.5 py-0.5 text-left font-mono text-xs leading-relaxed whitespace-pre-wrap hover:bg-muted/50"
+              className={cn(
+                '-mx-1.5 w-[calc(100%+0.75rem)] rounded-md px-1.5 py-0.5 text-left font-mono text-xs leading-relaxed whitespace-pre-wrap',
+                !readOnly && 'cursor-text hover:bg-muted/50',
+              )}
             >
               {shown ?? <span className="text-muted-foreground/60 italic">{t(k.tasks.contextDocHint)}</span>}
             </button>

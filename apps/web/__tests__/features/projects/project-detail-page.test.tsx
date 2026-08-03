@@ -24,6 +24,7 @@ const hooks = vi.hoisted(() => ({
   useCheckCriterion: vi.fn(),
   useTask: vi.fn(),
   useTaskPr: vi.fn(),
+  useUnarchiveProject: vi.fn(),
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
@@ -38,6 +39,9 @@ vi.mock('@/shared/github/use-github', () => ({
 }));
 vi.mock('@/shared/auth/auth-context', () => ({
   useAuth: () => ({ user: { orgId: 'o' } }),
+}));
+vi.mock('@/shared/hooks/use-permissions', () => ({
+  useCan: () => true,
 }));
 
 const project = {
@@ -81,6 +85,7 @@ beforeEach(() => {
   hooks.useCheckCriterion.mockReturnValue(makeAction());
   hooks.useTask.mockReturnValue({ data: undefined });
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
+  hooks.useUnarchiveProject.mockReturnValue(makeAction());
 });
 
 describe('ProjectDetailPage', () => {
@@ -145,6 +150,22 @@ describe('ProjectDetailPage', () => {
     const expanded = screen.getAllByRole('button', { expanded: true });
     expect(expanded).toHaveLength(1);
     expect(expanded[0]).toHaveAccessibleName('Row B');
+  });
+
+  it('an archived project renders the read-only banner and hides "+ New task"', () => {
+    hooks.useProject.mockReturnValue({
+      data: { ...project, archivedAt: '2026-08-02T00:00:00.000Z' },
+      isLoading: false,
+    });
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: { data: [makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'done', title: 'Row A' })] },
+    });
+    renderPage();
+
+    expect(screen.getByText('tasks.archivedBanner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tasks\.unarchiveProject/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /tasks\.newTask/ })).not.toBeInTheDocument();
   });
 
   it('"+ New task" creates an Untitled draft and lands on it in title-edit mode', async () => {

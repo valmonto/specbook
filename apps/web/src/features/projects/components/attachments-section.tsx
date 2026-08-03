@@ -25,7 +25,8 @@ function AttachmentTile({
 }: {
   item: AttachmentWithUrls;
   onOpen: () => void;
-  onDelete: () => void;
+  /** Absent in read-only views — the delete affordance is not rendered. */
+  onDelete?: () => void;
   deleting: boolean;
 }) {
   const { t } = useTranslation();
@@ -59,15 +60,17 @@ function AttachmentTile({
         <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
           {attachment.fileName ?? attachment.mimeType} · {prettySize(attachment.sizeBytes)}
         </span>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          className="text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-          aria-label={t(k.common.actions.delete)}
-        >
-          <Trash2 className="size-3.5" />
-        </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+            aria-label={t(k.common.actions.delete)}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -82,7 +85,7 @@ function AttachmentTile({
  * drop-zone; with files, a ghost "+" tile joins the grid. Both open the
  * picker on click.
  */
-export function AttachmentsSection({ taskId }: { taskId: string }) {
+export function AttachmentsSection({ taskId, readOnly = false }: { taskId: string; readOnly?: boolean }) {
   const { t } = useTranslation();
   const { data, mutate } = useTaskAttachments(taskId);
   const uploadCtl = useUploadAttachment(() => mutate());
@@ -123,6 +126,7 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
       </h4>
 
       {items.length === 0 ? (
+        readOnly ? null : (
         <button
           type="button"
           disabled={uploadCtl.isUploading}
@@ -135,6 +139,7 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
           <Plus className="size-4" />
           {t(k.attachments.dropHint)}
         </button>
+        )
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           {items.map((item, itemIndex) => (
@@ -143,9 +148,10 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
               item={item}
               deleting={deleteCtl.isDeleting}
               onOpen={() => setGalleryIndex(itemIndex)}
-              onDelete={() => void deleteCtl.remove(item.attachment.id)}
+              onDelete={readOnly ? undefined : () => void deleteCtl.remove(item.attachment.id)}
             />
           ))}
+          {readOnly ? null : (
           <button
             type="button"
             disabled={uploadCtl.isUploading}
@@ -163,6 +169,7 @@ export function AttachmentsSection({ taskId }: { taskId: string }) {
               <Plus className="size-5" />
             )}
           </button>
+          )}
         </div>
       )}
 

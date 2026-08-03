@@ -423,6 +423,15 @@ export class ProjectService {
   }
 
   async update(activeUser: ActiveUser, dto: UpdateProjectRequest): Promise<UpdateProjectResponse> {
+    const existing = await this.projectRepository.findById(dto.id, activeUser.orgId);
+    if (!existing) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    // Archived projects are readonly until unarchived — the archive/unarchive
+    // endpoints are the only doors.
+    if (existing.archivedAt) {
+      throw new BadRequestException(k.tasks.errors.projectArchivedReadonly);
+    }
     const { id, githubRepoId, ...patch } = dto;
     const data: Parameters<ProjectRepository['update']>[2] = patch;
 

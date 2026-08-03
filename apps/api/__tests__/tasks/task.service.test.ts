@@ -108,6 +108,30 @@ describe('TaskService — the status protocol', () => {
     expect(result.status).toBe('ready');
   });
 
+  // --- The archive boundary: an archived project is readonly ---
+
+  it('bounces every task write on an archived project', async () => {
+    projectRepo.findById!.mockResolvedValue({ id: PROJECT, orgId: ORG, archivedAt: new Date() });
+    await expect(service.create(human, { projectId: PROJECT, title: 'x' })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
+    await expect(service.transition(human, 'user', { id: TASK, to: 'ready' })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
+    await expect(service.update(human, { id: TASK, title: 'y' })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
+    await expect(
+      service.addComment(human, 'user', { id: TASK, kind: 'comment', body: 'hi' }),
+    ).rejects.toThrow('tasks.errors.projectArchivedReadonly');
+  });
+
+  it('still serves reads on an archived project', async () => {
+    projectRepo.findById!.mockResolvedValue({ id: PROJECT, orgId: ORG, archivedAt: new Date() });
+    const found = await service.getById(human, TASK);
+    expect(found.id).toBeDefined();
+  });
+
   it('refuses the agent draft → ready — dispatching is the human move', async () => {
     await expect(service.transition(agent, 'agent', { id: TASK, to: 'ready' })).rejects.toThrow(
       BadRequestException,

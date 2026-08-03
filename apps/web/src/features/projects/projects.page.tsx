@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import { ArchiveRestore, FolderKanban, GitBranch, Plus, Settings2 } from 'lucide-react';
+import { Archive, ArchiveRestore, FolderKanban, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
 import type { Project } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import {
@@ -24,35 +24,53 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/shared/components/page-header';
 import { useCan } from '@/shared/hooks/use-permissions';
 import { StatusStrip } from './components/status-strip';
-import { useArchiveProject, useProjects, useUnarchiveProject } from './hooks/use-projects';
+import {
+  useArchiveProject,
+  useDeleteProject,
+  useProjects,
+  useUnarchiveProject,
+} from './hooks/use-projects';
+
+type PendingAction = { kind: 'archive' | 'unarchive' | 'delete'; project: Project } | null;
 
 function ProjectCard({
   project,
-  canArchive,
-  onArchive,
+  archived,
+  canManage,
+  onAction,
 }: {
   project: Project;
-  canArchive: boolean;
-  onArchive: (project: Project) => void;
+  archived: boolean;
+  canManage: boolean;
+  onAction: (action: NonNullable<PendingAction>) => void;
 }) {
   const { t } = useTranslation();
 
   return (
     <Link to={`/projects/${project.id}`}>
-      <Card className="group h-full py-0 transition-colors hover:bg-muted/40">
+      <Card
+        className={
+          'group h-full py-0 transition-colors hover:bg-muted/40' +
+          (archived ? ' opacity-70 saturate-50' : '')
+        }
+      >
         <CardContent className="flex h-full flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-medium">{project.name}</p>
-            {canArchive && (
+            <p className="inline-flex items-center gap-1.5 font-medium">
+              {archived && <Archive className="size-3.5 text-muted-foreground" />}
+              {project.name}
+            </p>
+            {canManage && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label={t(k.tasks.archiveProject)}
+                    aria-label={t(archived ? k.tasks.unarchiveProject : k.tasks.archiveProject)}
                     className="size-6 -my-0.5 -mr-1 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
                     onClick={(e) => e.preventDefault()}
                   >
@@ -60,9 +78,29 @@ function ProjectCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.preventDefault()}>
-                  <DropdownMenuItem variant="destructive" onSelect={() => onArchive(project)}>
-                    {t(k.tasks.archiveProject)}
-                  </DropdownMenuItem>
+                  {archived ? (
+                    <>
+                      <DropdownMenuItem onSelect={() => onAction({ kind: 'unarchive', project })}>
+                        <ArchiveRestore className="size-3.5" />
+                        {t(k.tasks.unarchiveProject)}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => onAction({ kind: 'delete', project })}
+                      >
+                        <Trash2 className="size-3.5" />
+                        {t(k.tasks.deleteProject)}
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => onAction({ kind: 'archive', project })}
+                    >
+                      <Archive className="size-3.5" />
+                      {t(k.tasks.archiveProject)}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -88,15 +126,34 @@ function ProjectCard({
 export default function ProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data, isLoading } = useProjects();
+  const live = useProjects();
   const archived = useProjects(true);
-  const canArchive = useCan('project:delete');
+  const canManage = useCan('project:delete');
   const archive = useArchiveProject();
   const unarchive = useUnarchiveProject();
-  const [confirming, setConfirming] = useState<Project | null>(null);
+  const remove = useDeleteProject();
+  const [tab, setTab] = useState<'live' | 'archived'>('live');
+  const [pending, setPending] = useState<PendingAction>(null);
 
-  const projects = data?.data ?? [];
-  const archivedProjects = archived.data?.data ?? [];
+  const projects = (tab === 'archived' ? archived.data?.data : live.data?.data) ?? [];
+  const archivedCount = archived.data?.data.length ?? 0;
+  const isLoading = tab === 'archived' ? archived.isLoading : live.isLoading;
+  const viewingArchived = tab === 'archived';
+
+  // Every action goes through the confirm dialog — including unarchive
+  // (it re-opens the agent queue, which is worth a deliberate click).
+  const confirmAction = async () => {
+    if (!pending) return;
+    const action =
+      pending.kind === 'delete' ? remove : pending.kind === 'unarchive' ? unarchive : archive;
+    const res = await action.execute({ id: pending.project.id });
+    if (!res.e) setPending(null);
+  };
+  const confirmKeys = {
+    archive: { title: k.tasks.archiveConfirmTitle, body: k.tasks.archiveConfirmBody, cta: k.tasks.archiveProject },
+    unarchive: { title: k.tasks.unarchiveConfirmTitle, body: k.tasks.unarchiveConfirmBody, cta: k.tasks.unarchiveProject },
+    delete: { title: k.tasks.deleteConfirmTitle, body: k.tasks.deleteConfirmBody, cta: k.tasks.deleteProject },
+  }[pending?.kind ?? 'archive'];
 
   return (
     <div className="space-y-6">
@@ -105,10 +162,23 @@ export default function ProjectsPage() {
         title={t(k.tasks.projects)}
         description={t(k.tasks.projectsDescription)}
         actions={
-          <Button onClick={() => navigate('/projects/create')}>
-            <Plus className="size-4 mr-1" />
-            {t(k.tasks.newProject)}
-          </Button>
+          <div className="flex items-center gap-3">
+            {(archivedCount > 0 || viewingArchived) && (
+              <Tabs value={tab} onValueChange={(v) => setTab(v as 'live' | 'archived')}>
+                <TabsList>
+                  <TabsTrigger value="live">{t(k.tasks.projects)}</TabsTrigger>
+                  <TabsTrigger value="archived">
+                    {t(k.tasks.archivedProjects)}
+                    <span className="ml-1 text-xs text-muted-foreground">{archivedCount}</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            <Button onClick={() => navigate('/projects/create')}>
+              <Plus className="size-4 mr-1" />
+              {t(k.tasks.newProject)}
+            </Button>
+          </div>
         }
       />
 
@@ -124,10 +194,12 @@ export default function ProjectsPage() {
             <EmptyTitle>{t(k.tasks.noProjects)}</EmptyTitle>
             <EmptyDescription>{t(k.tasks.noProjectsDesc)}</EmptyDescription>
           </EmptyHeader>
-          <Button onClick={() => navigate('/projects/create')}>
-            <Plus className="size-4 mr-1" />
-            {t(k.tasks.newProject)}
-          </Button>
+          {!viewingArchived && (
+            <Button onClick={() => navigate('/projects/create')}>
+              <Plus className="size-4 mr-1" />
+              {t(k.tasks.newProject)}
+            </Button>
+          )}
         </Empty>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,63 +207,38 @@ export default function ProjectsPage() {
             <ProjectCard
               key={project.id}
               project={project}
-              canArchive={canArchive}
-              onArchive={setConfirming}
+              archived={viewingArchived}
+              canManage={canManage}
+              onAction={(action) => {
+                // Deferred past the dropdown's close: opening a dialog from a
+                // closing menu otherwise loses the focus race and the dialog
+                // dismisses itself immediately.
+                setTimeout(() => setPending(action), 0);
+              }}
             />
           ))}
         </div>
       )}
+      {unarchive.error && <p className="text-xs text-destructive">{t(unarchive.error.message)}</p>}
 
-      {archivedProjects.length > 0 && (
-        <section className="space-y-3 border-t pt-5">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {t(k.tasks.archivedProjects)}
-          </h3>
-          <ul className="space-y-1.5">
-            {archivedProjects.map((project) => (
-              <li
-                key={project.id}
-                className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted/40"
-              >
-                <span className="truncate">{project.name}</span>
-                {canArchive && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 gap-1.5 text-xs"
-                    disabled={unarchive.isLoading}
-                    onClick={() => void unarchive.execute({ id: project.id })}
-                  >
-                    <ArchiveRestore className="size-3.5" />
-                    {t(k.tasks.unarchiveProject)}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {unarchive.error && (
-            <p className="text-xs text-destructive">{t(unarchive.error.message)}</p>
-          )}
-        </section>
-      )}
-
-      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t(k.tasks.archiveConfirmTitle)}</AlertDialogTitle>
-            <AlertDialogDescription>{t(k.tasks.archiveConfirmBody)}</AlertDialogDescription>
+            <AlertDialogTitle>{t(confirmKeys.title)}</AlertDialogTitle>
+            <AlertDialogDescription>{t(confirmKeys.body)}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t(k.common.actions.cancel)}</AlertDialogCancel>
             <AlertDialogAction
-              disabled={archive.isLoading}
-              onClick={async () => {
-                if (!confirming) return;
-                const res = await archive.execute({ id: confirming.id });
-                if (!res.e) setConfirming(null);
-              }}
+              disabled={archive.isLoading || remove.isLoading || unarchive.isLoading}
+              className={
+                pending?.kind === 'delete'
+                  ? 'bg-destructive text-white hover:bg-destructive/90'
+                  : undefined
+              }
+              onClick={() => void confirmAction()}
             >
-              {t(k.tasks.archiveProject)}
+              {t(confirmKeys.cta)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
