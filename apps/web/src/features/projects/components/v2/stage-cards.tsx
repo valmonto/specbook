@@ -41,6 +41,7 @@ import {
   useUpdateTask,
 } from '../../hooks/use-projects';
 import { AttachmentsSection } from '../attachments-section';
+import { useProjectReadOnly } from './read-only-context';
 import { StatusBadge } from '../status-badge';
 
 /**
@@ -124,10 +125,11 @@ const SECTION_HEADING =
  * right — same icon whether the row is collapsed or expanded.
  */
 function RowMenu({ task }: { task: Task }) {
+  const readOnly = useProjectReadOnly();
   const { t } = useTranslation();
   const transition = useTransitionTask();
   const deleteTask = useDeleteTask();
-  if (isTerminal(task)) return null;
+  if (readOnly || isTerminal(task)) return null;
 
   const go = async (to: 'ready' | 'draft' | 'cancelled') => {
     const res = await transition.execute({ id: task.id, to });
@@ -208,7 +210,8 @@ function CardShell({
   const { t } = useTranslation();
   const update = useUpdateTask();
   // A fresh "Untitled" draft mounts straight into renaming.
-  const [editingTitle, setEditingTitle] = useState(Boolean(freshlyCreated));
+  const readOnly = useProjectReadOnly();
+  const [editingTitle, setEditingTitle] = useState(Boolean(freshlyCreated) && !readOnly);
   const [titleDraft, setTitleDraft] = useState(freshlyCreated ? task.title : '');
   // Optimistic: show the saved value immediately; server truth replaces it
   // on revalidation (or an error reverts it) — no old-value flash.
@@ -217,7 +220,7 @@ function CardShell({
     if (optimisticTitle !== null && task.title === optimisticTitle) setOptimisticTitle(null);
   }, [task.title, optimisticTitle]);
   const shownTitle = optimisticTitle ?? task.title;
-  const editable = !isTerminal(task);
+  const editable = !isTerminal(task) && !readOnly;
   const total = task.acceptanceCriteria.length;
   const ticked = task.acceptanceCriteria.filter((c) => c.done).length;
 
@@ -335,7 +338,8 @@ function InlineArea({
     if (optimistic !== undefined && (serverValue ?? null) === optimistic) setOptimistic(undefined);
   }, [serverValue, optimistic]);
   const value = optimistic !== undefined ? optimistic : serverValue;
-  const editable = !isTerminal(task);
+  const readOnly = useProjectReadOnly();
+  const editable = !isTerminal(task) && !readOnly;
   if (!value && !editable) return null;
 
   const save = async () => {
@@ -397,7 +401,8 @@ function InlineArea({
 function CriteriaEditor({ task }: { task: Task }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
-  const editable = !isTerminal(task);
+  const readOnly = useProjectReadOnly();
+  const editable = !isTerminal(task) && !readOnly;
   const [draft, setDraft] = useState<AcceptanceCriterion[]>(task.acceptanceCriteria);
   // While an input in the list has focus, the user is mid-edit — server
   // refreshes must not clobber the local rows (e.g. a just-added empty one).
@@ -624,6 +629,7 @@ const kindStyles: Record<string, string> = {
 /** The task's conversation with a reply box — the last section of every row. */
 function ActivityThread({ taskId }: { taskId: string }) {
   const { t, i18n } = useTranslation();
+  const readOnly = useProjectReadOnly();
   const { data } = useTask(taskId);
   const addComment = useAddComment();
   const [body, setBody] = useState('');
@@ -680,6 +686,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
         </ul>
       )}
       {/* Composer: quiet until it has text; Cmd/Ctrl+Enter sends. */}
+      {readOnly ? null : (
       <div className="flex items-end gap-1.5">
         <textarea
           rows={1}
@@ -705,6 +712,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
           <SendHorizontal className="size-4" />
         </Button>
       </div>
+      )}
     </div>
   );
 }
@@ -716,11 +724,12 @@ function ActivityThread({ taskId }: { taskId: string }) {
  */
 function StageMoves({ task }: { task: Task }) {
   const { t } = useTranslation();
+  const readOnly = useProjectReadOnly();
   const transition = useTransitionTask();
   const update = useUpdateTask();
   const [priority, setPriority] = useState(String(task.priority));
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
-  if (isTerminal(task)) return null;
+  if (readOnly || isTerminal(task)) return null;
 
   const go = async (to: 'ready' | 'draft') => {
     const res = await transition.execute({ id: task.id, to });
@@ -804,6 +813,7 @@ function ExpandedBody({
   headline?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  const readOnly = useProjectReadOnly();
   return (
     <div className="grid gap-4 border-t py-3 pr-4 pl-9">
       {headline}
@@ -821,8 +831,8 @@ function ExpandedBody({
       />
       <CriteriaEditor task={task} />
       <WorkLinks task={task} />
-      {actions}
-      <AttachmentsSection taskId={task.id} />
+      {readOnly ? null : actions}
+      <AttachmentsSection taskId={task.id} readOnly={readOnly} />
       <DependenciesNote taskId={task.id} />
       <ActivityThread taskId={task.id} />
       <StageMoves task={task} />

@@ -38,6 +38,12 @@ export const tasks = {
   archivedProjects: 'tasks.archivedProjects',
   archiveConfirmTitle: 'tasks.archiveConfirmTitle',
   archiveConfirmBody: 'tasks.archiveConfirmBody',
+  archivedBanner: 'tasks.archivedBanner',
+  unarchiveConfirmTitle: 'tasks.unarchiveConfirmTitle',
+  unarchiveConfirmBody: 'tasks.unarchiveConfirmBody',
+  deleteProject: 'tasks.deleteProject',
+  deleteConfirmTitle: 'tasks.deleteConfirmTitle',
+  deleteConfirmBody: 'tasks.deleteConfirmBody',
 
   // Task form
   newTask: 'tasks.newTask',
@@ -185,6 +191,7 @@ export const tasks = {
     repoNameTaken: 'tasks.errors.repoNameTaken',
     repoNameInvalid: 'tasks.errors.repoNameInvalid',
     projectNameTaken: 'tasks.errors.projectNameTaken',
+    projectArchivedReadonly: 'tasks.errors.projectArchivedReadonly',
     repoProvisionNotGranted: 'tasks.errors.repoProvisionNotGranted',
     projectNotFound: 'tasks.errors.projectNotFound',
     notFound: 'tasks.errors.notFound',

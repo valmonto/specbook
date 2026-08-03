@@ -15,6 +15,7 @@ const hooks = vi.hoisted(() => ({
   useProjects: vi.fn(),
   useArchiveProject: vi.fn(),
   useUnarchiveProject: vi.fn(),
+  useDeleteProject: vi.fn(),
 }));
 const permissions = vi.hoisted(() => ({ can: true }));
 
@@ -68,44 +69,67 @@ beforeEach(() => {
   }));
   hooks.useArchiveProject.mockReturnValue(makeAction());
   hooks.useUnarchiveProject.mockReturnValue(makeAction());
+  hooks.useDeleteProject.mockReturnValue(makeAction());
 });
 
-describe('ProjectsPage — archive', () => {
+describe('ProjectsPage — tabs, archive, delete', () => {
   it('archives through the cog only after the confirm dialog', async () => {
     const archive = makeAction();
     hooks.useArchiveProject.mockReturnValue(archive);
     renderPage();
 
     await userEvent.click(screen.getByRole('button', { name: 'tasks.archiveProject' }));
-    await userEvent.click(screen.getByRole('menuitem', { name: 'tasks.archiveProject' }));
-    // Dialog shown, nothing executed yet.
+    await userEvent.click(screen.getByRole('menuitem', { name: /tasks\.archiveProject/ }));
     expect(screen.getByText('tasks.archiveConfirmTitle')).toBeInTheDocument();
     expect(archive.execute).not.toHaveBeenCalled();
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'tasks.archiveProject', hidden: false }),
+      screen.getAllByRole('button', { name: /tasks\.archiveProject/ }).at(-1)!,
     );
     await waitFor(() =>
       expect(archive.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000001' }),
     );
   });
 
-  it('lists archived projects with an unarchive action', async () => {
+  it('the Archived tab lists archived projects; unarchive and delete both need the confirm', async () => {
     const unarchive = makeAction();
+    const remove = makeAction();
     hooks.useUnarchiveProject.mockReturnValue(unarchive);
+    hooks.useDeleteProject.mockReturnValue(remove);
     renderPage();
 
-    expect(screen.getByText('tasks.archivedProjects')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: /tasks\.archivedProjects/ }));
     expect(screen.getByText('Old thing')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /tasks\.unarchiveProject/ }));
-    expect(unarchive.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000002' });
+
+    // Unarchive: gated by its confirm dialog too.
+    await userEvent.click(screen.getByRole('button', { name: 'tasks.unarchiveProject' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /tasks\.unarchiveProject/ }));
+    await screen.findByText('tasks.unarchiveConfirmTitle');
+    expect(unarchive.execute).not.toHaveBeenCalled();
+    await userEvent.click(screen.getAllByRole('button', { name: /tasks\.unarchiveProject/ }).at(-1)!);
+    await waitFor(() =>
+      expect(unarchive.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000002' }),
+    );
+
+    // Delete: destructive, gated by the confirm dialog.
+    await userEvent.click(screen.getByRole('button', { name: 'tasks.unarchiveProject' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /tasks\.deleteProject/ }));
+    expect(screen.getByText('tasks.deleteConfirmTitle')).toBeInTheDocument();
+    expect(remove.execute).not.toHaveBeenCalled();
+    await userEvent.click(screen.getAllByRole('button', { name: /tasks\.deleteProject/ }).at(-1)!);
+    await waitFor(() =>
+      expect(remove.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000002' }),
+    );
   });
 
-  it('without project:delete there is no cog and no unarchive', () => {
+  it('without project:delete there is no cog anywhere', async () => {
     permissions.can = false;
     renderPage();
 
     expect(screen.queryByRole('button', { name: 'tasks.archiveProject' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /tasks\.unarchiveProject/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: /tasks\.archivedProjects/ }));
+    expect(
+      screen.queryByRole('button', { name: 'tasks.unarchiveProject' }),
+    ).not.toBeInTheDocument();
   });
 });

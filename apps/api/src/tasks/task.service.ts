@@ -67,6 +67,9 @@ export class TaskService {
     if (!owner) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
+    if (owner.archivedAt) {
+      throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
+    }
 
     const created = await this.taskRepository.create({
       projectId: dto.projectId,
@@ -116,7 +119,7 @@ export class TaskService {
   }
 
   async update(activeUser: ActiveUser, dto: UpdateTaskRequest): Promise<UpdateTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
@@ -139,7 +142,7 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: TransitionTaskRequest,
   ): Promise<TransitionTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     const from = current.status as TaskStatus;
 
     const map = actor === 'agent' ? AGENT_TASK_TRANSITIONS : HUMAN_TASK_TRANSITIONS;
@@ -299,7 +302,7 @@ export class TaskService {
    * idempotent overwrite of the same values.
    */
   async merge(activeUser: ActiveUser, dto: MergeTaskRequest): Promise<MergeTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     if (current.status !== 'approved') {
       throw new UnprocessableEntityException(k.tasks.errors.mergeNotApproved);
     }
@@ -435,7 +438,7 @@ export class TaskService {
   }
 
   async checkCriterion(activeUser: ActiveUser, dto: CheckCriterionRequest): Promise<TaskDto> {
-    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
@@ -460,7 +463,7 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: AddTaskCommentRequest,
   ): Promise<AddTaskCommentResponse> {
-    await this.requireTask(dto.id, activeUser.orgId);
+    await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
 
     const created = await this.taskRepository.createComment({
       taskId: dto.id,
@@ -475,7 +478,7 @@ export class TaskService {
 
   async addDependency(activeUser: ActiveUser, dto: AddTaskDependencyRequest): Promise<void> {
     const [dependent, dependency] = await Promise.all([
-      this.requireTask(dto.id, activeUser.orgId),
+      this.requireTask(dto.id, activeUser.orgId, { mutating: true }),
       this.taskRepository.findById(dto.dependsOnTaskId, activeUser.orgId),
     ]);
     if (!dependency) {
@@ -500,7 +503,7 @@ export class TaskService {
   }
 
   async removeDependency(activeUser: ActiveUser, dto: RemoveTaskDependencyRequest): Promise<void> {
-    await this.requireTask(dto.id, activeUser.orgId);
+    await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     const removed = await this.taskRepository.removeDependency(dto.id, dto.dependsOnTaskId);
     if (!removed) {
       throw new NotFoundException(k.tasks.errors.dependencyNotFound);
@@ -508,7 +511,7 @@ export class TaskService {
   }
 
   async delete(activeUser: ActiveUser, id: string): Promise<void> {
-    const current = await this.requireTask(id, activeUser.orgId);
+    const current = await this.requireTask(id, activeUser.orgId, { mutating: true });
     // Anything past draft has history worth keeping — cancel, don't erase.
     if (current.status !== 'draft') {
       throw new UnprocessableEntityException(k.tasks.errors.onlyDraftDeletable);
@@ -517,10 +520,22 @@ export class TaskService {
     this.logger.info({ taskId: id }, 'Task deleted');
   }
 
-  private async requireTask(id: string, orgId: string): Promise<Task> {
+  /** `mutating` enforces the archive boundary: an archived project is
+   *  readonly — every task write bounces until it is unarchived. */
+  private async requireTask(
+    id: string,
+    orgId: string,
+    opts: { mutating?: boolean } = {},
+  ): Promise<Task> {
     const found = await this.taskRepository.findById(id, orgId);
     if (!found) {
       throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    if (opts.mutating) {
+      const owner = await this.projectRepository.findById(found.projectId, orgId);
+      if (owner?.archivedAt) {
+        throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
+      }
     }
     return found;
   }

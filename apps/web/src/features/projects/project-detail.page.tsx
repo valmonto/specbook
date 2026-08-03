@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { ArrowLeft, GitMerge, Pause, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, GitMerge, Pause, Plus } from 'lucide-react';
 import { MERGE_DEBT_CAP, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectContextSection, ProjectHeader } from './components/v2/project-header';
 import { PipelineStrip } from './components/v2/pipeline-strip';
 import { ApprovedCard, BlockedCard, PlainCard, ReviewCard } from './components/v2/stage-cards';
-import { useCreateTask, useMergeTask, useProject, useProjectTasks } from './hooks/use-projects';
+import {
+  useCreateTask,
+  useMergeTask,
+  useProject,
+  useProjectTasks,
+  useUnarchiveProject,
+} from './hooks/use-projects';
+import { ProjectReadOnlyContext } from './components/v2/read-only-context';
+import { useCan } from '@/shared/hooks/use-permissions';
 
 /**
  * The project view: a pipeline strip + one stage-filtered list. Opening the
@@ -40,6 +48,8 @@ export default function ProjectDetailV2Page() {
   const { data: tasksData, isLoading: tasksLoading } = useProjectTasks(projectId ?? null);
   const merge = useMergeTask();
   const create = useCreateTask();
+  const unarchive = useUnarchiveProject();
+  const canManage = useCan('project:delete');
 
   const [stage, setStageState] = useState<TaskStatus | null>(null);
   // One card expanded at a time — the accordion state the cards share.
@@ -111,7 +121,10 @@ export default function ProjectDetailV2Page() {
   const Card =
     selected === 'needs_review' ? ReviewCard : selected === 'approved' ? ApprovedCard : selected === 'blocked' ? BlockedCard : PlainCard;
 
+  const readOnly = Boolean(project.archivedAt);
+
   return (
+    <ProjectReadOnlyContext.Provider value={readOnly}>
     <div className="space-y-6">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <Link to="/projects" className="inline-flex items-center gap-1 hover:text-foreground">
@@ -120,17 +133,40 @@ export default function ProjectDetailV2Page() {
         </Link>
       </div>
 
+      {/* Archived: the whole page is a reading surface until unarchived. */}
+      {readOnly && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+          <Archive className="size-4 shrink-0" />
+          <span>{t(k.tasks.archivedBanner)}</span>
+          {canManage && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              disabled={unarchive.isLoading}
+              onClick={() => void unarchive.execute({ id: project.id })}
+            >
+              <ArchiveRestore className="size-4 mr-1" />
+              {t(k.tasks.unarchiveProject)}
+            </Button>
+          )}
+        </div>
+      )}
+
       <ProjectHeader
         project={project}
+        readOnly={readOnly}
         actions={
-          <Button onClick={() => void newTask()} disabled={create.isLoading}>
-            <Plus className="size-4 mr-1" />
-            {t(k.tasks.newTask)}
-          </Button>
+          readOnly ? null : (
+            <Button onClick={() => void newTask()} disabled={create.isLoading}>
+              <Plus className="size-4 mr-1" />
+              {t(k.tasks.newTask)}
+            </Button>
+          )
         }
       />
 
-      <ProjectContextSection project={project} />
+      <ProjectContextSection project={project} readOnly={readOnly} />
 
       {tasksLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -139,7 +175,7 @@ export default function ProjectDetailV2Page() {
           <PipelineStrip counts={counts} selected={selected} onSelect={setStage} />
 
           {/* The merge-debt gate, visible where it jams. */}
-          {approvedCount >= MERGE_DEBT_CAP && (
+          {!readOnly && approvedCount >= MERGE_DEBT_CAP && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-200">
               <Pause className="size-4 shrink-0" />
               <span>{t(k.tasks.v2.dispatchPaused, { count: approvedCount })}</span>
@@ -178,5 +214,6 @@ export default function ProjectDetailV2Page() {
       )}
 
     </div>
+    </ProjectReadOnlyContext.Provider>
   );
 }
