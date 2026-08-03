@@ -13,6 +13,7 @@ src/
 ├── notifications/  the user's notification feed
 ├── jobs/           enqueues work for apps/worker
 ├── servers/        org machine inventory for the deploy platform (SSH keys generated + sealed)
+├── environments/   where a project runs: server binding + layered env vars (user secrets write-only)
 ├── i18n/           request-scoped translation
 ├── seed/           first-run data
 ├── config/         Zod-validated env

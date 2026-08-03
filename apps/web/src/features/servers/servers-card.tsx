@@ -29,7 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useCan } from '@/shared/hooks/use-permissions';
-import { useCreateServer, useRemoveServer, useServers, useTestServer } from './hooks';
+import { useCreateServer, useRemoveServer, useServers, useTestServer } from '@/shared/servers/hooks';
 
 const statusStyles: Record<Server['status'], string> = {
   unverified: 'bg-muted text-muted-foreground',

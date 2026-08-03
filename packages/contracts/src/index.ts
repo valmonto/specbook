@@ -4,6 +4,11 @@ export * from './permissions';
 // already re-exported through schema files, and colliding star exports drop
 // names silently.
 export {
+  ENVIRONMENT_NAMES,
+  ENV_VAR_NAME_PATTERN,
+  type EnvironmentName,
+} from './constants/environment';
+export {
   SERVER_ROLES,
   SERVER_STATUSES,
   type ServerRole,
