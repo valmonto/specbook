@@ -47,6 +47,8 @@ describe('ProjectService — GitHub repo binding', () => {
     repository = {
       create: vi.fn().mockImplementation((data: Record<string, unknown>) => row(data)),
       update: vi.fn().mockImplementation((_id: string, _org: string, data: Record<string, unknown>) => row(data)),
+      // update() reads the project first — the archive boundary guard.
+      findById: vi.fn().mockResolvedValue(row({ archivedAt: null })),
     };
     orgService = { githubConnection: vi.fn().mockResolvedValue({ installationId: 777 }) };
     github = { enabled: true, listRepositories: vi.fn().mockResolvedValue([REPO]) };
