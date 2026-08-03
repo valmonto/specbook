@@ -185,13 +185,15 @@ repository: generated from the org's chosen template (an ORG setting —
 `organization.github_template_repo`, edited in the settings GitHub
 card, validated to be a granted repo GitHub flags as a template),
 verified into the installation's grant (polled with backoff — GitHub's
-auto-add propagates asynchronously), then bound like a picked repo with
-an init task filed as a draft. Template generation is attempted first
-but GitHub's generate endpoint is unreliable with App installation
-tokens, so a refusal falls back to a BLANK repo (which does auto-join
-the grant) with populate-from-template instructions stamped into the
-init task; a repo that never appears in the grant surfaces as a guided
-grant-and-recheck on the create page rather than a dead end. A protection ruleset (no force
+auto-add propagates asynchronously), POPULATED from the template by the
+server itself (a git clone-and-push producing one clean initial commit;
+GitHub's generate endpoint is unreliable with App tokens, so a refusal
+falls back to a blank repo and the populate covers the content — always
+before the PRs-only ruleset, which would block the push), then bound
+like a picked repo with an init task filed as a draft. A repo that
+never appears in the grant surfaces as a guided grant-and-recheck on
+the create page, whose completion endpoint replays the full sequence
+(populate, protect, bind, init task) — never a bare bind. A protection ruleset (no force
 pushes, no deletions, PRs only) is applied best-effort before the
 bind — GitHub's free plan refuses rulesets on private repos, so a
 refusal binds anyway and stamps an UNPROTECTED warning into the init

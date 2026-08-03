@@ -180,12 +180,16 @@ describe('GithubAppService', () => {
       'createPullRequest',
       'getInstallation',
       'getPullRequest',
+      'git',
+      'gitHost',
       'installUrl',
       'installationToken',
       'listBranches',
       'listRepositories',
       'mergePullRequest',
       'mintRepoToken',
+      // Additive only: refuses repos that already have commits.
+      'populateFromTemplate',
     ]);
   });
 

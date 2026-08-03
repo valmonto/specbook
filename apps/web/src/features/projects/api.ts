@@ -2,6 +2,8 @@ import type {
   AddTaskCommentRequest,
   ArchiveProjectRequest,
   ArchiveProjectResponse,
+  CompleteProvisionRequest,
+  CompleteProvisionResponse,
   ConfirmAttachmentRequest,
   ConfirmAttachmentResponse,
   CreateAttachmentUploadRequest,
@@ -62,6 +64,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.patch(`/api/projects/${dto.id}`, dto),
   removeProject: (dto: DeleteProjectRequest): Promise<DeleteProjectResponse> =>
     client.delete(`/api/projects/${dto.id}`),
+  completeProvision: (dto: CompleteProvisionRequest): Promise<CompleteProvisionResponse> =>
+    client.post(`/api/projects/${dto.id}/provision/complete`, dto),
   archiveProject: (dto: ArchiveProjectRequest): Promise<ArchiveProjectResponse> =>
     client.post(`/api/projects/${dto.id}/archive`, {}),
   unarchiveProject: (dto: ArchiveProjectRequest): Promise<ArchiveProjectResponse> =>
