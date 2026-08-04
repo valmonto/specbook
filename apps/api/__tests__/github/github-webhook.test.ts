@@ -126,6 +126,18 @@ describe('normalizeGithubEvent', () => {
     expect(normalizeGithubEvent('pull_request', base, 'd')).toMatchObject({ prState: 'merged' });
   });
 
+  it('carries the base branch so auto-deploy can gate on the default branch', () => {
+    const withBase = structuredClone(prPayload) as { pull_request: Record<string, unknown> };
+    withBase.pull_request.base = { ref: 'main' };
+    expect(normalizeGithubEvent('pull_request', withBase, 'd')).toMatchObject({
+      baseBranch: 'main',
+    });
+    const noBase = structuredClone(prPayload) as { pull_request: Record<string, unknown> };
+    delete noBase.pull_request.base;
+    // Defensive default: an absent base can never equal a default branch.
+    expect(normalizeGithubEvent('pull_request', noBase, 'd')).toMatchObject({ baseBranch: '' });
+  });
+
   it('maps workflow_run status/conclusion to ci state', () => {
     const run = (status: string, conclusion: string | null) => ({
       installation: { id: 777 },

@@ -11,3 +11,4 @@ export * from './github';
 export * from './secrets';
 export * from './ssh';
 export * from './deploy/render';
+export * from './deploy/auto-deploy';

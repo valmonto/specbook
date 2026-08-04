@@ -1,6 +1,6 @@
 import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { DEPLOYMENT_STATUSES } from '@pkg/contracts';
+import { DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '@pkg/contracts';
 import { pk } from './helpers';
 import { projectEnvironment } from './environment';
 import { user } from './user';
@@ -19,6 +19,8 @@ export const deployment = pgTable(
     sha: varchar('sha', { length: 64 }).notNull(),
     /** Values from @pkg/contracts DEPLOYMENT_STATUSES. */
     status: varchar('status', { length: 16 }).notNull().default('queued'),
+    /** 'manual' (a human clicked Deploy) or 'auto' (the merge webhook). */
+    trigger: varchar('trigger', { length: 8 }).notNull().default('manual'),
     /** Failure detail — a k.* key or a scrubbed logs excerpt. */
     error: text('error'),
     startedAt: timestamp('started_at', { withTimezone: true }),
@@ -33,6 +35,10 @@ export const deployment = pgTable(
     check(
       'deployment_status_check',
       sql.raw(`status IN (${DEPLOYMENT_STATUSES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'deployment_trigger_check',
+      sql.raw(`trigger IN (${DEPLOYMENT_TRIGGERS.map((v) => `'${v}'`).join(', ')})`),
     ),
   ],
 );

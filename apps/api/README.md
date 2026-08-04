@@ -273,6 +273,15 @@ published port. Only the proxy publishes a port —
 `http://<server>:<derived-port>` is the staging address until the
 domains/TLS slice; a failed deploy leaves the previous version serving.
 
+**Auto-deploy**: a merge into the project's default branch triggers the same
+chain for every provisioned environment with `auto_deploy` on — the webhook
+worker creates the deployment (trigger `auto`, attributed to the project
+creator: webhook events carry no session). Two guards: an in-flight
+deployment absorbs the trigger (HEAD is resolved at build time, so merges
+collapse), and two consecutive failed auto-deploys pause the environment
+until any deployment succeeds — the breaker surfaces on the environment row,
+and the manual Deploy button always remains.
+
 One deliberate tradeoff: the per-environment database password lands inside
 `platform_env.DATABASE_URL`, and platform_env is VISIBLE (read-only) to
 anyone with `project:read` — staging wiring favors debuggability, and the

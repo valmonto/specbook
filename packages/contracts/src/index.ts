@@ -5,7 +5,9 @@ export * from './permissions';
 // names silently.
 export {
   DEPLOYMENT_STATUSES,
+  DEPLOYMENT_TRIGGERS,
   type DeploymentStatus,
+  type DeploymentTrigger,
 } from './constants/deployment';
 export {
   ENVIRONMENT_NAMES,

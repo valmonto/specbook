@@ -111,14 +111,14 @@ export class EnvironmentRepository {
     return result!;
   }
 
-  async latestDeployment(environmentId: string): Promise<Deployment | null> {
-    const [result] = await this.dbClient.db
+  /** Newest first; feeds both the latest-deployment display and the breaker. */
+  async recentDeployments(environmentId: string, limit = 10): Promise<Deployment[]> {
+    return this.dbClient.db
       .select()
       .from(deployment)
       .where(eq(deployment.environmentId, environmentId))
       .orderBy(desc(deployment.createdAt))
-      .limit(1);
-    return result ?? null;
+      .limit(limit);
   }
 
   /** Does the org own any build-capable server? (jsonb roles contain 'build') */

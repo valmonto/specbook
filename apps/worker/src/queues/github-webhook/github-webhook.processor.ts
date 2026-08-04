@@ -4,10 +4,13 @@ import { type Job } from 'bullmq';
 import {
   DATABASE_CLIENT,
   type DatabaseClient,
+  deployment,
   organization,
   project,
+  projectEnvironment,
   task,
   and,
+  desc,
   eq,
   inArray,
   isNull,
@@ -15,6 +18,8 @@ import {
   sql,
 } from '@pkg/database';
 import {
+  computeAutoDeployPaused,
+  DeploymentProducer,
   GITHUB_WEBHOOK_QUEUE,
   GithubAppService,
   InjectLogger,
@@ -27,6 +32,7 @@ interface ProjectRow {
   mode: string;
   defaultBranch: string;
   autoPausedAt: Date | null;
+  createdBy: string;
 }
 
 /**
@@ -58,6 +64,7 @@ export class GithubWebhookProcessor extends WorkerHost {
   constructor(
     @Inject(DATABASE_CLIENT) private readonly dbClient: DatabaseClient,
     private readonly githubApp: GithubAppService,
+    private readonly deployments: DeploymentProducer,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {
     super();
@@ -90,6 +97,7 @@ export class GithubWebhookProcessor extends WorkerHost {
         mode: project.mode,
         defaultBranch: project.defaultBranch,
         autoPausedAt: project.autoPausedAt,
+        createdBy: project.createdBy,
       })
       .from(project)
       .where(
@@ -175,6 +183,13 @@ export class GithubWebhookProcessor extends WorkerHost {
       }
     }
 
+    // The merge webhook is ALSO the deploy trigger: a merge into a project's
+    // default branch redeploys its opted-in staging environments — matched
+    // task or not (humans merge things without tickets too).
+    if (event.prState === 'merged') {
+      await this.autoDeploy(projects, event.baseBranch);
+    }
+
     // A PR opened AFTER its branch already went green: the auto modes may
     // now progress the matched tasks.
     if (event.prState === 'open' && rows.length > 0) {
@@ -186,6 +201,71 @@ export class GithubWebhookProcessor extends WorkerHost {
       );
     }
     return rows.length;
+  }
+
+  /**
+   * Merge-to-default-branch → redeploy every provisioned environment with
+   * auto_deploy on. Two guards keep it boring:
+   * - DEDUPE: an in-flight deployment absorbs the trigger — the running job
+   *   resolves HEAD at build time, so intermediate merges collapse into the
+   *   next run naturally.
+   * - BREAKER: two consecutive failed auto-deploys pause the environment
+   *   (computeAutoDeployPaused) until any deployment succeeds — the machine
+   *   never loops on a red staging. Manual Deploy stays available throughout.
+   * Attribution: the project creator — webhook events carry no specbook
+   * session, and the creator is the accountable owner of the wiring.
+   */
+  private async autoDeploy(projects: ProjectRow[], baseBranch: string): Promise<void> {
+    for (const p of projects) {
+      if (baseBranch !== p.defaultBranch) continue;
+      const environments = await this.dbClient.db
+        .select()
+        .from(projectEnvironment)
+        .where(
+          and(
+            eq(projectEnvironment.projectId, p.id),
+            eq(projectEnvironment.autoDeploy, true),
+            eq(projectEnvironment.provisionStatus, 'provisioned'),
+          ),
+        );
+      for (const env of environments) {
+        const recent = await this.dbClient.db
+          .select({ status: deployment.status, trigger: deployment.trigger })
+          .from(deployment)
+          .where(eq(deployment.environmentId, env.id))
+          .orderBy(desc(deployment.createdAt))
+          .limit(10);
+        if (recent.some((d) => ['queued', 'building', 'deploying'].includes(d.status))) {
+          this.logger.info(
+            { environmentId: env.id },
+            'Auto-deploy superseded: a deployment is already in flight',
+          );
+          continue;
+        }
+        if (computeAutoDeployPaused(recent)) {
+          this.logger.warn(
+            { environmentId: env.id },
+            'Auto-deploy paused: two consecutive auto-deploys failed — deploy manually to reset',
+          );
+          continue;
+        }
+        const [created] = await this.dbClient.db
+          .insert(deployment)
+          .values({
+            environmentId: env.id,
+            sha: '',
+            status: 'queued',
+            trigger: 'auto',
+            createdBy: p.createdBy,
+          })
+          .returning({ id: deployment.id });
+        await this.deployments.enqueueDeploy(created!.id);
+        this.logger.info(
+          { environmentId: env.id, deploymentId: created!.id, projectId: p.id },
+          'Auto-deploy enqueued for merged default branch',
+        );
+      }
+    }
   }
 
   private async applyWorkflowRun(
