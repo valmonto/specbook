@@ -34,7 +34,37 @@ when a second app server or slow links appear), multi-server data plane
 (data role on a separate box), and production deploys (production stays
 outside specbook — a human decision, not a gap).
 
-## 2. Fleet operations
+## 2. Legibility — the operator always knows whose move it is
+
+The first real operator session of the deploy platform (2026-08-04, VXI's
+birth) proved the mechanics and indicted the experience. Merge-to-live
+worked in three minutes; the human operating it spent an hour lost. Every
+pain point was one defect wearing five costumes: **the UI shows state, but
+never says what the machine is doing or whose move it is.** Recorded here
+so it outranks new features:
+
+- A deployment read "Building…" for 25 minutes with no phase, no elapsed
+  time, no logs — diagnosing it required SSHing into the box. (Filed:
+  deployment observability.)
+- A deploy failure buried its actual cause (missing seed env vars) under
+  image-pull noise in the error excerpt. (Same draft; env-var completeness
+  filed separately.)
+- The deploy-path field accepted a value that could never work and said
+  nothing until the deploy died on it. (Filed.)
+- The Domain field silently does nothing until the domains slice lands —
+  it needs a "not active yet" label instead of quiet acceptance.
+- Nothing ever says "waiting for a human": a demo PR sat unmerged for an
+  hour while the operator believed the system was stuck; a task whose PR
+  was deliberately closed showed a Merge button that could only error; the
+  dispatch gate happily dispatched a task no agent could perform. State
+  without the pending ACTOR is half a status.
+
+The rule going forward, cheap to apply to every surface: **each row that
+represents ongoing work must answer "what is happening right now" and
+"who acts next — machine or human — and how."** New platform features do
+not ship without it.
+
+## 3. Fleet operations
 
 Running many agents surfaced four needs, filed as drafts:
 
@@ -53,7 +83,7 @@ Running many agents surfaced four needs, filed as drafts:
   pausing whole projects over a single timeout; humans get a named pointer
   instead of "red".
 
-## 3. Widen what counts as work
+## 4. Widen what counts as work
 
 Specbook's loop is currently hard-wired to code: the review gate demands a
 branch and PR, and `done` means merged. But half the valuable agent work in
@@ -72,7 +102,7 @@ copy, specs. That work currently happens outside the tracker and evaporates.
   autonomous backlog generation that files work without a human gate — the
   Ready boundary is the product's discipline, not a friction to remove.
 
-## 4. Going public
+## 5. Going public
 
 The product's best argument is a demo that is structurally hard to fake:
 *write a ticket on camera, walk away, come back to the feature running on
