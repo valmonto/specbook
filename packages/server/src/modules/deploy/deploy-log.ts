@@ -13,14 +13,19 @@ export const LOG_TRUNCATION_MARKER = '…truncated…';
 /**
  * Remove anything token-shaped: known literal secrets (the clone URL) and the
  * x-access-token credential pattern wherever it appears. Mirrors — and now
- * centralizes — the scrubbing the error column always had.
+ * centralizes — the scrubbing the error column always had. ANSI escape
+ * sequences go too: docker/compose color their output, and the log renders
+ * as plain text where they'd show as literal glyphs.
  */
 export function scrubDeployText(text: string, literals: string[] = []): string {
   let scrubbed = text;
   for (const literal of literals) {
     if (literal) scrubbed = scrubbed.replaceAll(literal, '<repo-url>');
   }
-  return scrubbed.replace(/x-access-token:[^@\s]+@/g, 'x-access-token:***@');
+  return scrubbed
+    .replace(/x-access-token:[^@\s]+@/g, 'x-access-token:***@')
+    // eslint-disable-next-line no-control-regex
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
 }
 
 /**

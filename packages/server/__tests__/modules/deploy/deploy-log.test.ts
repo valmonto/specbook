@@ -18,6 +18,12 @@ describe('scrubDeployText', () => {
   it('empty literal list still scrubs the pattern; empty literals are ignored', () => {
     expect(scrubDeployText('x-access-token:abc@h', [''])).toBe('x-access-token:***@h');
   });
+
+  it('strips ANSI escape sequences — colored docker output reads as plain text', () => {
+    expect(scrubDeployText('\x1b[90mmuted\x1b[39m plain \x1b[1;32mbold-green\x1b[0m')).toBe(
+      'muted plain bold-green',
+    );
+  });
 });
 
 describe('appendDeployLog', () => {
