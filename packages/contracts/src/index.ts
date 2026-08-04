@@ -10,6 +10,7 @@ export {
   type DeploymentTrigger,
 } from './constants/deployment';
 export {
+  ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
   ENV_VAR_NAME_PATTERN,
   PROVISION_STATUSES,

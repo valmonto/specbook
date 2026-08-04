@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   ENV_VAR_NAME_PATTERN,
+  ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
   PROVISION_STATUSES,
 } from '../constants/environment';
@@ -53,6 +54,12 @@ export const EnvironmentSchema = z.object({
   latestDeployment: DeploymentSchema.nullable(),
   /** True when the redeploy breaker tripped: two consecutive auto-deploys failed. */
   autoDeployPaused: z.boolean(),
+  /**
+   * True while the domain field differs from what the running stack serves —
+   * a set/changed/removed domain only takes effect on the next deploy, and
+   * the UI must say so instead of showing the edit as if it were live.
+   */
+  domainPending: z.boolean(),
   /** Where the running staging answers (set while the latest deploy is healthy). */
   publicUrl: z.string().nullable(),
   createdAt: z.string(),
@@ -72,7 +79,7 @@ export const CreateEnvironmentRequestSchema = z
     projectId: z.string().uuid(),
     name: EnvironmentNameSchema,
     serverId: z.string().uuid(),
-    domain: z.string().min(1).max(255).optional(),
+    domain: z.string().min(1).max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).optional(),
     deployPath: z.string().min(1).max(500).optional(),
     autoDeploy: z.boolean().optional(),
   })
@@ -88,7 +95,7 @@ export const UpdateEnvironmentRequestSchema = z
     id: z.string().uuid(),
     name: EnvironmentNameSchema.optional(),
     serverId: z.string().uuid().optional(),
-    domain: z.string().max(255).nullable().optional(),
+    domain: z.string().max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).nullable().optional(),
     deployPath: z.string().max(500).nullable().optional(),
     autoDeploy: z.boolean().optional(),
   })

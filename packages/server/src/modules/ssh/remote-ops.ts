@@ -102,6 +102,54 @@ unit="\${1:?usage: data-plane-provision-unit <unit>}"
 `,
 
   /**
+   * v1: ensure the ingress plane exists on this box — the shared network
+   * environment proxies join, the vhost directory, and one Caddy container
+   * owning ports 80/443 (the box's ONLY public listener for domained
+   * environments). Certificates live on the specbook-caddy-data volume and
+   * Caddy issues/renews them itself; nothing here touches Let's Encrypt.
+   */
+  'ensure-caddy': `#!/usr/bin/env bash
+set -euo pipefail
+docker network inspect specbook-ingress >/dev/null 2>&1 || docker network create specbook-ingress >/dev/null
+mkdir -p "$HOME/specbook-caddy/sites"
+if [ ! -f "$HOME/specbook-caddy/Caddyfile" ]; then
+  printf 'import /etc/caddy/sites/*.caddy\\n' > "$HOME/specbook-caddy/Caddyfile"
+fi
+if ! docker inspect specbook-caddy >/dev/null 2>&1; then
+  docker run -d --name specbook-caddy --restart unless-stopped \\
+    --network specbook-ingress \\
+    -p 80:80 -p 443:443 \\
+    -v "$HOME/specbook-caddy/Caddyfile":/etc/caddy/Caddyfile:ro \\
+    -v "$HOME/specbook-caddy/sites":/etc/caddy/sites:ro \\
+    -v specbook-caddy-data:/data \\
+    caddy:2-alpine >/dev/null
+fi
+docker start specbook-caddy >/dev/null 2>&1 || true
+echo "ensure-caddy: ok"
+`,
+
+  /**
+   * v1: prove $1 resolves to the same address(es) as $2 (this server), so a
+   * deploy fails fast with a named cause instead of succeeding into a dead
+   * URL while ACME retries in the background. Read-only. A Cloudflare
+   * orange-cloud domain fails here BY DESIGN — grey-cloud only.
+   */
+  'dns-points-at': `#!/usr/bin/env bash
+set -euo pipefail
+domain="\${1:?usage: dns-points-at <domain> <expected-host>}"
+expected="\${2:?usage: dns-points-at <domain> <expected-host>}"
+[[ "$domain" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
+got=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u)
+[ -n "$got" ] || { echo "dns-points-at: $domain does not resolve" >&2; exit 1; }
+want=$(getent ahostsv4 "$expected" 2>/dev/null | awk '{print $1}' | sort -u)
+if [ -z "$(comm -12 <(echo "$got") <(echo "$want"))" ]; then
+  echo "dns-points-at: $domain does not resolve to this server (got: $(echo $got), expected: $(echo $want))" >&2
+  exit 1
+fi
+echo "dns-points-at: ok"
+`,
+
+  /**
    * v1: print the HEAD sha of a branch. The repo URL arrives on stdin (it
    * may embed a short-lived token — never in argv, never in ps).
    */
@@ -160,18 +208,24 @@ sha="\${2:?usage: build-images <unit> <sha>}"
   /**
    * v1: bring the rendered stack up and gate on health. Compose files were
    * SFTP'd beforehand; --wait rides the api healthcheck, and a final probe
-   * through the published proxy port proves the whole chain. On failure the
-   * previous containers keep serving (compose semantics) and the last log
-   * lines land on stderr for the deployment record.
+   * proves the whole chain: through the published proxy port, or — when a
+   * domain is given — through Caddy over verified HTTPS, which also proves
+   * the certificate. The op owns the vhost lifecycle end-state: with a
+   * domain it reloads Caddy on the (pre-written) site file; without one it
+   * removes any stale vhost, so clearing a domain converges on redeploy.
+   * On failure the previous containers keep serving (compose semantics) and
+   * the last log lines land on stderr for the deployment record.
    */
   'deploy-stack': `#!/usr/bin/env bash
 set -euo pipefail
-unit="\${1:?usage: deploy-stack <unit> <dir> <port>}"
-dir="\${2:?usage: deploy-stack <unit> <dir> <port>}"
-port="\${3:?usage: deploy-stack <unit> <dir> <port>}"
+unit="\${1:?usage: deploy-stack <unit> <dir> <port> [domain]}"
+dir="\${2:?usage: deploy-stack <unit> <dir> <port> [domain]}"
+port="\${3:?usage: deploy-stack <unit> <dir> <port> [domain]}"
+domain="\${4:-}"
 {
   [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
   [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "invalid port" >&2; exit 1; }
+  [ -z "$domain" ] || [[ "$domain" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
   cd "$dir"
   if ! docker compose -p "$unit" up -d --wait --wait-timeout 300; then
     echo "deploy-stack: unhealthy — diagnostics follow" >&2
@@ -182,6 +236,29 @@ port="\${3:?usage: deploy-stack <unit> <dir> <port>}"
   # The proxy's service definition rarely changes, so compose keeps the old
   # container — but its mounted nginx.conf may have; force a fresh read.
   docker compose -p "$unit" restart proxy >/dev/null 2>&1 || true
+  if [ -n "$domain" ]; then
+    if ! docker exec specbook-caddy caddy reload --config /etc/caddy/Caddyfile >&2; then
+      echo "deploy-stack: caddy reload failed" >&2
+      exit 1
+    fi
+    # Verified TLS on purpose: a pass proves routing AND a valid certificate.
+    # Generous attempts — the first deploy of a hostname waits on issuance.
+    for _ in $(seq 1 40); do
+      if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('https://$domain/health', timeout=10).status==200 else 1)" 2>/dev/null; then
+        echo "deploy-stack: healthy on https://$domain"
+        exit 0
+      fi
+      sleep 3
+    done
+    echo "deploy-stack: https://$domain never answered /health (certificate or routing)" >&2
+    docker logs --tail 40 specbook-caddy >&2 || true
+    exit 1
+  fi
+  # No domain: drop any vhost a previous configuration left behind.
+  if [ -f "$HOME/specbook-caddy/sites/$unit.caddy" ]; then
+    rm -f "$HOME/specbook-caddy/sites/$unit.caddy"
+    docker exec specbook-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+  fi
   for _ in $(seq 1 10); do
     if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:$port/health', timeout=5).status==200 else 1)" 2>/dev/null; then
       echo "deploy-stack: healthy on :$port"
@@ -221,6 +298,11 @@ unit="\${1:?usage: data-plane-deprovision-unit <unit>}"
   # A deployed stack goes first (containers found by compose project label).
   docker ps -aq --filter "label=com.docker.compose.project=$unit" | xargs -r docker rm -f >/dev/null 2>&1 || true
   docker rm -f "specbook-redis-$unit" >/dev/null 2>&1 || true
+  # The environment's vhost goes with it; other environments keep serving.
+  if [ -f "$HOME/specbook-caddy/sites/$unit.caddy" ]; then
+    rm -f "$HOME/specbook-caddy/sites/$unit.caddy"
+    docker exec specbook-caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+  fi
   if docker exec specbook-postgres true >/dev/null 2>&1; then
     docker exec specbook-postgres psql -U specbook -tA -c \\
       "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$unit'" >/dev/null 2>&1 || true

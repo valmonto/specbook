@@ -10,6 +10,13 @@ export type EnvironmentName = (typeof ENVIRONMENT_NAMES)[number];
 export const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 /**
+ * Environment domains become Caddy vhosts and shell arguments on the target
+ * box, so the shape is strict: lowercase dns labels, at least two of them.
+ */
+export const ENVIRONMENT_DOMAIN_PATTERN =
+  /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/**
  * Data-plane provisioning lifecycle of an environment. 'provisioned' means
  * platform_env holds working wiring; 'failed' carries provision_error.
  */

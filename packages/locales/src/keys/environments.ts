@@ -12,6 +12,7 @@ export const environments = {
   server: 'environments.server',
   serverHint: 'environments.serverHint',
   domain: 'environments.domain',
+  domainPending: 'environments.domainPending',
   deployPath: 'environments.deployPath',
   autoDeploy: 'environments.autoDeploy',
   autoDeployHint: 'environments.autoDeployHint',
@@ -66,5 +67,6 @@ export const environments = {
     notProvisioned: 'environments.errors.notProvisioned',
     noBuildServer: 'environments.errors.noBuildServer',
     varNotFound: 'environments.errors.varNotFound',
+    domainTaken: 'environments.errors.domainTaken',
   },
 } as const;

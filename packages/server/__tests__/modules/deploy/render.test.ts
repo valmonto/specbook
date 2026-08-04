@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   derivePublicPort,
+  renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
@@ -71,6 +72,52 @@ describe('renderComposeFile', () => {
       apps: ['api', 'web'],
     });
     expect(slim).not.toContain('worker');
+  });
+
+  describe('with a domain', () => {
+    const domained = renderComposeFile({
+      unit: 'acme_staging',
+      sha: 'abc1234',
+      publicPort: 21234,
+      apps: ['api', 'worker', 'web'],
+      domain: 'acme.stg.example.com',
+    });
+
+    it('publishes NO host port — Caddy is the only public listener', () => {
+      expect(domained).not.toContain('ports:');
+      expect(domained).not.toContain('21234');
+    });
+
+    it('the proxy joins the external ingress network under its deterministic name', () => {
+      expect(domained).toContain('container_name: specbook-ingress-acme_staging');
+      expect(domained).toContain('networks: [default, specbook-ingress]');
+      expect(domained).toContain('specbook-ingress:\n    external: true');
+    });
+
+    it('a null domain renders identically to no domain — existing envs unchanged', () => {
+      const plain = renderComposeFile({
+        unit: 'acme_staging',
+        sha: 'abc1234',
+        publicPort: 21234,
+        apps: ['api', 'worker', 'web'],
+      });
+      const nulled = renderComposeFile({
+        unit: 'acme_staging',
+        sha: 'abc1234',
+        publicPort: 21234,
+        apps: ['api', 'worker', 'web'],
+        domain: null,
+      });
+      expect(nulled).toBe(plain);
+    });
+  });
+});
+
+describe('renderCaddySite', () => {
+  it('routes the hostname to the unit proxy on the ingress network', () => {
+    expect(renderCaddySite('acme_staging', 'acme.stg.example.com')).toBe(
+      'acme.stg.example.com {\n  reverse_proxy specbook-ingress-acme_staging:3000\n}\n',
+    );
   });
 });
 

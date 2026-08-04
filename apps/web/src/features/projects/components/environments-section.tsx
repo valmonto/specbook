@@ -197,11 +197,20 @@ function EnvironmentRow({
   return (
     <div>
       <div className="flex items-center gap-2 px-3 py-2">
-        <button
-          type="button"
+        {/* role=button instead of <button>: the domain chip nests a real <a>,
+            which HTML forbids inside a native button. */}
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setExpanded((e) => !e)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setExpanded((x) => !x);
+            }
+          }}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
         >
           <ChevronRight
             className={cn(
@@ -214,12 +223,29 @@ function EnvironmentRow({
             <HardDrive className="size-3" />
             {env.serverName}
           </span>
-          {env.domain && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-              <Globe className="size-3" />
-              <span className="truncate font-mono">{env.domain}</span>
-            </span>
-          )}
+          {env.domain &&
+            (env.publicUrl === `https://${env.domain}` ? (
+              <a
+                href={env.publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 hover:underline dark:text-emerald-400"
+              >
+                <Globe className="size-3" />
+                <span className="truncate font-mono">{env.domain}</span>
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
+                <Globe className="size-3" />
+                <span className="truncate font-mono">{env.domain}</span>
+                {env.domainPending && (
+                  <span className="text-amber-700 dark:text-amber-400">
+                    · {t(k.environments.domainPending)}
+                  </span>
+                )}
+              </span>
+            ))}
           <AutoDeployChip env={env} projectId={projectId} canManage={canManage} />
           <span
             className={cn(
@@ -247,7 +273,7 @@ function EnvironmentRow({
               })}
             </span>
           )}
-        </button>
+        </div>
         {env.publicUrl && (
           <a
             href={env.publicUrl}

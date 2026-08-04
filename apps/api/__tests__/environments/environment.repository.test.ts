@@ -140,6 +140,20 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     expect((await repo.recentDeployments(mine.id))[0]?.id).toBe(run.id);
   });
 
+  it('findDomainClaim sees claims only through the owning org, and only on that server', async () => {
+    const mine = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      domain: 'stg.example.com',
+    });
+    expect((await repo.findDomainClaim('stg.example.com', serverA, orgA))?.id).toBe(mine.id);
+    // A foreign org gets nothing — the claim resolves through the project join.
+    expect(await repo.findDomainClaim('stg.example.com', serverA, orgB)).toBeNull();
+    // A different server is a different namespace: no claim there.
+    expect(await repo.findDomainClaim('stg.example.com', serverB, orgA)).toBeNull();
+  });
+
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
