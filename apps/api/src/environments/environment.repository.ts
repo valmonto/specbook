@@ -121,6 +121,27 @@ export class EnvironmentRepository {
       .limit(limit);
   }
 
+  /**
+   * Who on this server already claims the domain? One hostname routes to one
+   * environment — without this, the most recent deploy would silently steal
+   * it. Org-scoped through the project join like every other read.
+   */
+  async findDomainClaim(
+    domain: string,
+    serverId: string,
+    orgId: string,
+  ): Promise<ProjectEnvironment | null> {
+    const [row] = await this.dbClient.db
+      .select({ env: projectEnvironment })
+      .from(projectEnvironment)
+      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .where(
+        and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)),
+      )
+      .limit(1);
+    return row?.env ?? null;
+  }
+
   /** Does the org own any build-capable server? (jsonb roles contain 'build') */
   async findBuildServer(orgId: string): Promise<Server | null> {
     const rows = await this.dbClient.db.select().from(server).where(eq(server.orgId, orgId));

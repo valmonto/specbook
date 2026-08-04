@@ -268,10 +268,26 @@ by decision; the transport is one seam) → render `.env` (platform wiring +
 decrypted user secrets — the vault's only consumer — plus per-environment
 IAM secrets generated on first deploy, which also seeds), a compose file
 (one-shot migrate gating api/worker/web) and an nginx entrypoint routing
-`/api` to the api → `compose up -d --wait` plus a probe through the
-published port. Only the proxy publishes a port —
-`http://<server>:<derived-port>` is the staging address until the
-domains/TLS slice; a failed deploy leaves the previous version serving.
+`/api` to the api → `compose up -d --wait` plus a health probe. Without a
+domain, the proxy publishes the derived port and
+`http://<server>:<derived-port>` is the staging address; a failed deploy
+leaves the previous version serving.
+
+**Domains & TLS**: an environment with a `domain` is served by Caddy instead
+of a published port. The first domained deploy installs the ingress plane on
+the box (`ensure-caddy`: the shared `specbook-ingress` network plus one Caddy
+container owning 80/443 — the box's only public listener; certificates live
+on a volume and Caddy issues/renews them from Let's Encrypt itself). Each
+deploy then checks DNS actually points at the app server (fail-fast, before
+the build — orange-cloud proxying fails this on purpose), renders a one-file
+vhost routing the hostname to the environment's nginx over container DNS,
+reloads Caddy, and probes `https://<domain>/health` with verified TLS. The
+proxy stops publishing its port entirely; clearing the domain converges back
+to port mode on the next deploy, and deleting the environment removes the
+vhost. One hostname per server: the API refuses a domain another environment
+on the same box already claims. The deployment row snapshots the domain it
+served, so the API can mark an edited-but-not-yet-deployed domain as
+`domainPending` — the UI says "activates on next deploy" instead of lying.
 
 **Auto-deploy**: a merge into the project's default branch triggers the same
 chain for every provisioned environment with `auto_deploy` on — the webhook

@@ -18,6 +18,7 @@ import {
 import {
   dataPlaneUnitName,
   derivePublicPort,
+  renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
@@ -108,6 +109,14 @@ export class DeploymentProcessor extends WorkerHost {
     const buildTarget = this.targetFor(buildServer);
     const appTarget = this.targetFor(appServer);
 
+    // A domained environment needs the ingress plane, and the domain must
+    // actually point at the app server — checked BEFORE the build so a DNS
+    // mistake fails in seconds with a named cause, not after minutes.
+    if (env.domain) {
+      await this.ssh.exec(appTarget, 'ensure-caddy');
+      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host]);
+    }
+
     await this.update(row.id, { status: 'building', startedAt: new Date() });
     const sha = (
       await this.ssh.exec(buildTarget, 'resolve-head-sha', [proj.defaultBranch], cloneUrl + '\n')
@@ -134,7 +143,9 @@ export class DeploymentProcessor extends WorkerHost {
       }
     }
 
-    await this.update(row.id, { status: 'deploying' });
+    // Snapshot the domain onto the run: it records what this deploy serves,
+    // which is how the UI tells a live domain from a pending edit.
+    await this.update(row.id, { status: 'deploying', domain: env.domain ?? null });
     const publicPort = derivePublicPort(unit);
     const dir = env.deployPath?.replace(/\/+$/, '') || `apps/${unit}`;
     const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env);
@@ -158,10 +169,22 @@ export class DeploymentProcessor extends WorkerHost {
     await this.ssh.writeFile(
       appTarget,
       `${dir}/compose.yml`,
-      renderComposeFile({ unit, sha, publicPort, apps }),
+      renderComposeFile({ unit, sha, publicPort, apps, domain: env.domain }),
     );
     await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf());
-    await this.ssh.exec(appTarget, 'deploy-stack', [unit, dir, String(publicPort)]);
+    if (env.domain) {
+      await this.ssh.writeFile(
+        appTarget,
+        `specbook-caddy/sites/${unit}.caddy`,
+        renderCaddySite(unit, env.domain),
+      );
+    }
+    await this.ssh.exec(appTarget, 'deploy-stack', [
+      unit,
+      dir,
+      String(publicPort),
+      ...(env.domain ? [env.domain] : []),
+    ]);
 
     await this.finish(row.id, 'healthy', null);
     this.logger.info(

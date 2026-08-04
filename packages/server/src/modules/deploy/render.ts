@@ -65,10 +65,26 @@ export function renderProxyConf(): string {
 }
 
 /**
+ * One Caddy vhost: hostname in, the environment's internal nginx out. Caddy
+ * resolves the upstream per request (container DNS), so the file is valid
+ * even before the stack is up, and obtains/renews the certificate itself.
+ */
+export function renderCaddySite(unit: string, domain: string): string {
+  return `${domain} {
+  reverse_proxy specbook-ingress-${unit}:3000
+}
+`;
+}
+
+/**
  * The environment's compose file. Mirrors the valmatic staging topology
  * (migrate one-shot → api/worker/web) with two differences: images are
  * prebuilt (never built on the app server) and the data plane lives outside
  * on the external specbook-data network, so no postgres/redis here.
+ *
+ * With a domain, the proxy publishes NO host port: it joins the external
+ * specbook-ingress network under a deterministic container_name instead, and
+ * Caddy (the box's only public listener) routes the hostname to it.
  */
 export function renderComposeFile(opts: {
   unit: string;
@@ -76,8 +92,10 @@ export function renderComposeFile(opts: {
   publicPort: number;
   /** Which of the valmatic apps exist in this repo (api required). */
   apps: readonly string[];
+  /** When set, the vhost replaces the published port. */
+  domain?: string | null;
 }): string {
-  const { unit, sha, publicPort, apps } = opts;
+  const { unit, sha, publicPort, apps, domain } = opts;
   const image = (app: string) => `${unit}-${app}:${sha}`;
   const hasWorker = apps.includes('worker');
   const hasWeb = apps.includes('web');
@@ -127,15 +145,26 @@ export function renderComposeFile(opts: {
     image: nginx:alpine
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
+${
+  domain
+    ? `    container_name: specbook-ingress-${unit}
+    networks: [default, specbook-ingress]`
+    : `    ports:
       - '${publicPort}:3000'
-    networks: [default]
+    networks: [default]`
+}
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped`);
   lines.push(`networks:
   specbook-data:
-    external: true`);
+    external: true${
+    domain
+      ? `
+  specbook-ingress:
+    external: true`
+      : ''
+  }`);
   return lines.join('\n') + '\n';
 }

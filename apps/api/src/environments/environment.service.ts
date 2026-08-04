@@ -66,6 +66,9 @@ export class EnvironmentService {
   async create(activeUser: ActiveUser, dto: CreateEnvironmentRequest): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     const srv = await this.assertAppServer(dto.serverId, activeUser.orgId);
+    if (dto.domain) {
+      await this.assertDomainFree(dto.domain, dto.serverId, activeUser.orgId);
+    }
 
     // Creation stays fast; provisioning is async. Auto-enqueue only when the
     // server can actually host the data plane.
@@ -116,6 +119,15 @@ export class EnvironmentService {
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
     if (dto.serverId !== undefined && dto.serverId !== existing.serverId) {
       await this.assertAppServer(dto.serverId, activeUser.orgId);
+    }
+    const nextDomain = dto.domain === undefined ? existing.domain : dto.domain;
+    if (nextDomain) {
+      await this.assertDomainFree(
+        nextDomain,
+        dto.serverId ?? existing.serverId,
+        activeUser.orgId,
+        existing.id,
+      );
     }
 
     const { projectId, id, ...patch } = dto;
@@ -244,6 +256,19 @@ export class EnvironmentService {
     return found;
   }
 
+  /** One hostname per server: reject a domain another environment already claims. */
+  private async assertDomainFree(
+    domain: string,
+    serverId: string,
+    orgId: string,
+    excludeId?: string,
+  ): Promise<void> {
+    const claim = await this.environmentRepository.findDomainClaim(domain, serverId, orgId);
+    if (claim && claim.id !== excludeId) {
+      throw new BadRequestException(k.environments.errors.domainTaken);
+    }
+  }
+
   /** An environment's server must be the org's own and hold the 'app' role. */
   private async assertAppServer(serverId: string, orgId: string): Promise<Server> {
     const found = await this.environmentRepository.findServer(serverId, orgId);
@@ -282,9 +307,14 @@ export class EnvironmentService {
   private async serialize(e: EnvironmentWithServer, projectName: string): Promise<EnvironmentDto> {
     const recent = await this.environmentRepository.recentDeployments(e.id);
     const latest = recent[0] ?? null;
+    // What the RUNNING stack serves is the latest healthy run's snapshot —
+    // the row's domain field may be an edit still waiting for its deploy.
+    const liveDomain = recent.find((d) => d.status === 'healthy')?.domain ?? null;
     const publicUrl =
       latest?.status === 'healthy'
-        ? `http://${e.serverHost}:${derivePublicPort(dataPlaneUnitName(projectName, e.name))}`
+        ? liveDomain
+          ? `https://${liveDomain}`
+          : `http://${e.serverHost}:${derivePublicPort(dataPlaneUnitName(projectName, e.name))}`
         : null;
     return {
       id: e.id,
@@ -302,6 +332,7 @@ export class EnvironmentService {
       provisionedAt: e.provisionedAt?.toISOString() ?? null,
       latestDeployment: latest ? this.serializeDeployment(latest) : null,
       autoDeployPaused: computeAutoDeployPaused(recent),
+      domainPending: (e.domain ?? null) !== liveDomain,
       publicUrl,
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),

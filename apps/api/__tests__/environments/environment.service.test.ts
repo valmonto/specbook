@@ -86,6 +86,7 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         ...data,
       })),
       findBuildServer: vi.fn().mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['build', 'app', 'data'] }),
+      findDomainClaim: vi.fn().mockResolvedValue(null),
     };
     provisioner = {
       enqueueProvision: vi.fn().mockResolvedValue(undefined),
@@ -314,6 +315,48 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     stored = {};
     await service.create(actor, { ...createDto, autoDeploy: true });
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ autoDeploy: true }));
+  });
+
+  it('a domain another environment claims on the same server is refused; your own claim is not', async () => {
+    repository.findDomainClaim!.mockResolvedValue({ id: 'other-env' });
+    await expect(
+      service.create(actor, { ...createDto, domain: 'stg.example.com' }),
+    ).rejects.toThrow('environments.errors.domainTaken');
+    await expect(
+      service.update(actor, { projectId: PROJECT, id: ENV, domain: 'stg.example.com' }),
+    ).rejects.toThrow('environments.errors.domainTaken');
+
+    // The environment re-saving its own domain must not collide with itself.
+    repository.findDomainClaim!.mockResolvedValue({ id: ENV });
+    await expect(
+      service.update(actor, { projectId: PROJECT, id: ENV, domain: 'stg.example.com' }),
+    ).resolves.toBeDefined();
+  });
+
+  it('a healthy deploy with a domain snapshot serves https and clears domainPending', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    const healthy = {
+      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', trigger: 'manual', error: null,
+      domain: 'staging.example.com',
+      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+    };
+    repository.recentDeployments!.mockResolvedValue([healthy]);
+    const [live] = (await service.list(actor, PROJECT)).data;
+    expect(live!.publicUrl).toBe('https://staging.example.com');
+    expect(live!.domainPending).toBe(false);
+
+    // The row's domain changed after that deploy: the OLD domain stays live,
+    // the edit reads as pending until the next deploy.
+    stored = { provisionStatus: 'provisioned', domain: 'renamed.example.com' };
+    const [pending] = (await service.list(actor, PROJECT)).data;
+    expect(pending!.publicUrl).toBe('https://staging.example.com');
+    expect(pending!.domainPending).toBe(true);
+
+    // No healthy run at all: a set domain is pending by definition.
+    repository.recentDeployments!.mockResolvedValue([]);
+    const [never] = (await service.list(actor, PROJECT)).data;
+    expect(never!.publicUrl).toBeNull();
+    expect(never!.domainPending).toBe(true);
   });
 
   it('the provision response leaks no credentials beyond platform_env wiring', async () => {

@@ -21,6 +21,12 @@ export const deployment = pgTable(
     status: varchar('status', { length: 16 }).notNull().default('queued'),
     /** 'manual' (a human clicked Deploy) or 'auto' (the merge webhook). */
     trigger: varchar('trigger', { length: 8 }).notNull().default('manual'),
+    /**
+     * Snapshot of the environment's domain at deploy time — what the running
+     * stack actually serves, so the UI can tell a live domain from a pending
+     * edit that only takes effect on the next deploy.
+     */
+    domain: varchar('domain', { length: 255 }),
     /** Failure detail — a k.* key or a scrubbed logs excerpt. */
     error: text('error'),
     startedAt: timestamp('started_at', { withTimezone: true }),
