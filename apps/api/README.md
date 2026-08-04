@@ -258,6 +258,21 @@ the contract the deploy slice consumes. Deleting an environment enqueues a
 best-effort teardown from a pre-delete snapshot; a dead server never blocks
 deletion.
 
+**Deploying** builds on the same plane: `POST …/environments/:id/deploy`
+(human-only — no MCP tool) records a `deployment` row and the worker runs the
+chain: resolve the default branch's HEAD → build the valmatic-convention
+images (`apps/{api,worker,web}/Dockerfile`, api+web required) on a
+build-role server, serialized at concurrency 1 and pruned to the last 3
+shas → stream them over SSH to the app server when it differs (registry-less
+by decision; the transport is one seam) → render `.env` (platform wiring +
+decrypted user secrets — the vault's only consumer — plus per-environment
+IAM secrets generated on first deploy, which also seeds), a compose file
+(one-shot migrate gating api/worker/web) and an nginx entrypoint routing
+`/api` to the api → `compose up -d --wait` plus a probe through the
+published port. Only the proxy publishes a port —
+`http://<server>:<derived-port>` is the staging address until the
+domains/TLS slice; a failed deploy leaves the previous version serving.
+
 One deliberate tradeoff: the per-environment database password lands inside
 `platform_env.DATABASE_URL`, and platform_env is VISIBLE (read-only) to
 anyone with `project:read` — staging wiring favors debuggability, and the

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   ChevronRight,
+  ExternalLink,
   Globe,
   HardDrive,
   KeyRound,
@@ -43,6 +44,7 @@ import { useProjectReadOnly } from './v2/read-only-context';
 import {
   useCreateEnvironment,
   useDeleteEnvVar,
+  useDeployEnvironment,
   useEnvironments,
   useProvisionEnvironment,
   useRemoveEnvironment,
@@ -61,6 +63,30 @@ const provisionLabels: Record<Environment['provisionStatus'], string> = {
   provisioning: k.environments.provisionStatus.provisioning,
   provisioned: k.environments.provisionStatus.provisioned,
   failed: k.environments.provisionStatus.failed,
+};
+
+const deploymentStyles: Record<NonNullable<Environment['latestDeployment']>['status'], string> = {
+  queued: 'bg-muted text-muted-foreground',
+  building: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  deploying: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  healthy: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  failed: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+};
+
+const deploymentLabels: Record<NonNullable<Environment['latestDeployment']>['status'], string> = {
+  queued: k.environments.deploymentStatus.queued,
+  building: k.environments.deploymentStatus.building,
+  deploying: k.environments.deploymentStatus.deploying,
+  healthy: k.environments.deploymentStatus.healthy,
+  failed: k.environments.deploymentStatus.failed,
+};
+
+/** "2m ago"-class recency, coarse on purpose. */
+const ago = (iso: string): string => {
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 };
 
 /**
@@ -152,10 +178,17 @@ function EnvironmentRow({
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const remove = useRemoveEnvironment(projectId);
   const provision = useProvisionEnvironment(projectId);
+  const deploy = useDeployEnvironment(projectId);
 
   const platformNames = Object.keys(env.platformEnv).sort();
+  const latest = env.latestDeployment;
+  const deployInFlight = latest?.status === 'queued' || latest?.status === 'building' || latest?.status === 'deploying';
   const runProvision = () =>
     void provision.execute({ projectId, id: env.id }).then((res) => {
+      if (res.e) toast.error(t(res.e.message));
+    });
+  const runDeploy = () =>
+    void deploy.execute({ projectId, id: env.id }).then((res) => {
       if (res.e) toast.error(t(res.e.message));
     });
 
@@ -199,7 +232,48 @@ function EnvironmentRow({
           >
             {t(provisionLabels[env.provisionStatus])}
           </span>
+          {latest && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-md px-2 py-0.5 text-xs',
+                deploymentStyles[latest.status],
+              )}
+            >
+              {t(deploymentLabels[latest.status])}
+            </span>
+          )}
+          {latest?.sha && latest.status === 'healthy' && (
+            <span className="text-xs text-muted-foreground">
+              {t(k.environments.deployedLine, {
+                sha: latest.sha.slice(0, 7),
+                ago: ago(latest.finishedAt ?? latest.createdAt),
+              })}
+            </span>
+          )}
         </button>
+        {env.publicUrl && (
+          <a
+            href={env.publicUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="size-3" />
+            {t(k.environments.openStaging)}
+          </a>
+        )}
+        {canManage && env.provisionStatus === 'provisioned' && !deployInFlight && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            disabled={deploy.isLoading}
+            onClick={runDeploy}
+          >
+            <Rocket className="size-3" />
+            {t(k.environments.deployAction)}
+          </Button>
+        )}
         {canManage && env.provisionStatus !== 'provisioning' && (
           <Button
             size="sm"
@@ -229,6 +303,11 @@ function EnvironmentRow({
         )}
       </div>
 
+      {latest?.status === 'failed' && latest.error && (
+        <p className="border-t bg-rose-500/5 px-3 py-1.5 font-mono text-xs whitespace-pre-wrap text-rose-700 dark:text-rose-400">
+          {latest.error.slice(0, 400)}
+        </p>
+      )}
       {env.provisionStatus === 'failed' && env.provisionError && (
         <p className="border-t bg-rose-500/5 px-3 py-1.5 text-xs text-rose-700 dark:text-rose-400">
           {env.provisionError.includes('.') && !env.provisionError.includes(' ')

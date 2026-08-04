@@ -40,6 +40,8 @@ export const useUpdateEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.update);
 export const useProvisionEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.provision);
+export const useDeployEnvironment = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.deploy);
 export const useRemoveEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.remove);
 export const useSetEnvVar = (projectId: string) =>

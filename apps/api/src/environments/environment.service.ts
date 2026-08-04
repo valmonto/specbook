@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   dataPlaneUnitName,
+  derivePublicPort,
+  DeploymentProducer,
   EnvironmentProvisionProducer,
   InjectLogger,
   PinoLogger,
@@ -12,13 +14,15 @@ import type {
   CreateEnvironmentRequest,
   DeleteEnvironmentRequest,
   DeleteEnvVarRequest,
+  DeployEnvironmentRequest,
+  Deployment as DeploymentDto,
   Environment as EnvironmentDto,
   ListEnvironmentsResponse,
   ProvisionEnvironmentRequest,
   SetEnvVarRequest,
   UpdateEnvironmentRequest,
 } from '@pkg/contracts';
-import type { Project, Server } from '@pkg/database';
+import type { Deployment, Project, Server } from '@pkg/database';
 import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository';
 
 const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
@@ -48,13 +52,14 @@ export class EnvironmentService {
     private readonly environmentRepository: EnvironmentRepository,
     private readonly secrets: SecretsService,
     private readonly provisioner: EnvironmentProvisionProducer,
+    private readonly deployments: DeploymentProducer,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
   async list(activeUser: ActiveUser, projectId: string): Promise<ListEnvironmentsResponse> {
-    await this.getProjectOrThrow(projectId, activeUser.orgId);
+    const proj = await this.getProjectOrThrow(projectId, activeUser.orgId);
     const rows = await this.environmentRepository.findForProject(projectId, activeUser.orgId);
-    return { data: rows.map((r) => this.serialize(r)) };
+    return { data: await Promise.all(rows.map((r) => this.serialize(r, proj.name))) };
   }
 
   async create(activeUser: ActiveUser, dto: CreateEnvironmentRequest): Promise<EnvironmentDto> {
@@ -125,6 +130,32 @@ export class EnvironmentService {
     return this.getById(activeUser, projectId, id);
   }
 
+  /**
+   * Deploy the default branch's HEAD: creates the deployment record and
+   * hands off to the worker. Requires a provisioned environment and a
+   * build-capable server in the org. No agent surface exposes this.
+   */
+  async deploy(activeUser: ActiveUser, dto: DeployEnvironmentRequest): Promise<EnvironmentDto> {
+    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    if (existing.provisionStatus !== 'provisioned') {
+      throw new BadRequestException(k.environments.errors.notProvisioned);
+    }
+    const buildServer = await this.environmentRepository.findBuildServer(activeUser.orgId);
+    if (!buildServer) {
+      throw new BadRequestException(k.environments.errors.noBuildServer);
+    }
+    const created = await this.environmentRepository.createDeployment({
+      environmentId: existing.id,
+      sha: '',
+      status: 'queued',
+      createdBy: activeUser.userId,
+    });
+    await this.deployments.enqueueDeploy(created.id);
+    this.logger.info({ environmentId: existing.id, deploymentId: created.id }, 'Deploy enqueued');
+    return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
   async delete(activeUser: ActiveUser, dto: DeleteEnvironmentRequest): Promise<void> {
     const proj = await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
@@ -178,8 +209,11 @@ export class EnvironmentService {
     projectId: string,
     id: string,
   ): Promise<EnvironmentDto> {
-    const found = await this.findOrThrow(id, projectId, activeUser.orgId);
-    return this.serialize(found);
+    const [proj, found] = await Promise.all([
+      this.getProjectOrThrow(projectId, activeUser.orgId),
+      this.findOrThrow(id, projectId, activeUser.orgId),
+    ]);
+    return this.serialize(found, proj.name);
   }
 
   private async findOrThrow(
@@ -222,12 +256,31 @@ export class EnvironmentService {
     return JSON.parse(this.secrets.open(sealed)) as Record<string, string>;
   }
 
+  private serializeDeployment(d: Deployment): DeploymentDto {
+    return {
+      id: d.id,
+      environmentId: d.environmentId,
+      sha: d.sha,
+      status: d.status as DeploymentDto['status'],
+      error: d.error,
+      startedAt: d.startedAt?.toISOString() ?? null,
+      finishedAt: d.finishedAt?.toISOString() ?? null,
+      createdBy: d.createdBy,
+      createdAt: d.createdAt.toISOString(),
+    };
+  }
+
   /**
    * The ONLY outward shape. userEnvEnc never leaves; user vars appear as a
    * sorted name list — a test walks every endpoint response proving no value
    * survives serialization.
    */
-  private serialize(e: EnvironmentWithServer): EnvironmentDto {
+  private async serialize(e: EnvironmentWithServer, projectName: string): Promise<EnvironmentDto> {
+    const latest = await this.environmentRepository.latestDeployment(e.id);
+    const publicUrl =
+      latest?.status === 'healthy'
+        ? `http://${e.serverHost}:${derivePublicPort(dataPlaneUnitName(projectName, e.name))}`
+        : null;
     return {
       id: e.id,
       projectId: e.projectId,
@@ -242,6 +295,8 @@ export class EnvironmentService {
       provisionStatus: e.provisionStatus as EnvironmentDto['provisionStatus'],
       provisionError: e.provisionError,
       provisionedAt: e.provisionedAt?.toISOString() ?? null,
+      latestDeployment: latest ? this.serializeDeployment(latest) : null,
+      publicUrl,
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),
     };

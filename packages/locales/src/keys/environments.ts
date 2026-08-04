@@ -18,6 +18,18 @@ export const environments = {
   removeConfirmTitle: 'environments.removeConfirmTitle',
   removeConfirmBody: 'environments.removeConfirmBody',
 
+  // Deployments
+  deployAction: 'environments.deployAction',
+  deployedLine: 'environments.deployedLine',
+  openStaging: 'environments.openStaging',
+  deploymentStatus: {
+    queued: 'environments.deploymentStatus.queued',
+    building: 'environments.deploymentStatus.building',
+    deploying: 'environments.deploymentStatus.deploying',
+    healthy: 'environments.deploymentStatus.healthy',
+    failed: 'environments.deploymentStatus.failed',
+  },
+
   // Data-plane provisioning
   provisionAction: 'environments.provisionAction',
   reprovisionAction: 'environments.reprovisionAction',
@@ -48,6 +60,8 @@ export const environments = {
     nameTaken: 'environments.errors.nameTaken',
     serverNotApp: 'environments.errors.serverNotApp',
     serverNotData: 'environments.errors.serverNotData',
+    notProvisioned: 'environments.errors.notProvisioned',
+    noBuildServer: 'environments.errors.noBuildServer',
     varNotFound: 'environments.errors.varNotFound',
   },
 } as const;

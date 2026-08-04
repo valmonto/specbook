@@ -10,3 +10,4 @@ export * from './storage';
 export * from './github';
 export * from './secrets';
 export * from './ssh';
+export * from './deploy/render';

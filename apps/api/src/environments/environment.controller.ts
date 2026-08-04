@@ -4,6 +4,7 @@ import {
   CreateEnvironmentRequestSchema,
   DeleteEnvironmentRequestSchema,
   DeleteEnvVarRequestSchema,
+  DeployEnvironmentRequestSchema,
   ListEnvironmentsRequestSchema,
   ProvisionEnvironmentRequestSchema,
   SetEnvVarRequestSchema,
@@ -15,6 +16,8 @@ import {
   type DeleteEnvironmentResponse,
   type DeleteEnvVarRequest,
   type DeleteEnvVarResponse,
+  type DeployEnvironmentRequest,
+  type DeployEnvironmentResponse,
   type ListEnvironmentsRequest,
   type ListEnvironmentsResponse,
   type ProvisionEnvironmentRequest,
@@ -75,6 +78,16 @@ export class EnvironmentController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<ProvisionEnvironmentResponse> {
     return this.environmentService.provision(activeUser, dto);
+  }
+
+  /** Build+deploy the default branch's HEAD; the worker writes progress to the row. */
+  @Post(':id/deploy')
+  @Permissions('project:update')
+  async deploy(
+    @ZodRequest(DeployEnvironmentRequestSchema) dto: DeployEnvironmentRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<DeployEnvironmentResponse> {
+    return this.environmentService.deploy(activeUser, dto);
   }
 
   /** Set-or-replace is a PUT: the var's value is written, never readable back. */
