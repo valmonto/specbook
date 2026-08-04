@@ -16,12 +16,9 @@ as "work" inside it.
 The servers → environments → provisioning → build & deploy chain shipped
 (PRs #34–#37). Three slices remain:
 
-- **Auto-deploy on merge** — the missing verb. The merge webhook already
-  moves tasks to done; it should also enqueue a deployment for environments
-  with `auto_deploy` on (the flag exists, inert). Tiny slice: webhook →
-  existing deployment machinery, plus a breaker so a failing staging doesn't
-  redeploy in a loop. This is the "merge at lunch, click the feature on
-  staging in the afternoon" moment — do it first.
+- **Auto-deploy on merge** — SHIPPED: merges to the default branch redeploy
+  opted-in provisioned environments, with an in-flight dedupe and a
+  two-failures breaker.
 - **Reverse proxy, domains, TLS** — replace `http://<ip>:<port>` with
   `staging.<project>.<domain>`: one Caddy (or nginx + certbot) on the app
   server as the single public listener, per-environment vhosts rendered at

@@ -1,8 +1,11 @@
 import {
   createDatabaseClient,
+  deployment,
   organization,
   organizationUser,
   project,
+  projectEnvironment,
+  server,
   task,
   user,
   eq,
@@ -12,7 +15,7 @@ import { describeIntegration, truncate, FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import type { Job } from 'bullmq';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import type { GithubAppService, GithubWebhookJobPayload } from '@pkg/server';
+import type { DeploymentProducer, GithubAppService, GithubWebhookJobPayload } from '@pkg/server';
 import { vi } from 'vitest';
 import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor';
 
@@ -33,9 +36,11 @@ describeIntegration('GithubWebhookProcessor', () => {
     createPullRequest: vi.fn().mockResolvedValue(12),
     mergePullRequest: vi.fn().mockResolvedValue(true),
   };
+  const deployProducer = { enqueueDeploy: vi.fn().mockResolvedValue(undefined) };
   const processor = new GithubWebhookProcessor(
     client,
     githubApp as unknown as GithubAppService,
+    deployProducer as unknown as DeploymentProducer,
     new FakeLogger().as<PinoLogger>(),
   );
 
@@ -85,7 +90,7 @@ describeIntegration('GithubWebhookProcessor', () => {
   }
 
   beforeEach(async () => {
-    await truncate(client.db, [task, project, organizationUser, organization, user]);
+    await truncate(client.db, [deployment, projectEnvironment, server, task, project, organizationUser, organization, user]);
     taskA = await makeOrg('org-a', 777);
     taskB = await makeOrg('org-b', 888);
     githubApp.getPullRequest.mockReset().mockResolvedValue(null);
@@ -94,7 +99,7 @@ describeIntegration('GithubWebhookProcessor', () => {
   });
 
   afterAll(async () => {
-    await truncate(client.db, [task, project, organizationUser, organization, user]);
+    await truncate(client.db, [deployment, projectEnvironment, server, task, project, organizationUser, organization, user]);
     await client.close();
   });
 
@@ -108,6 +113,7 @@ describeIntegration('GithubWebhookProcessor', () => {
     prNumber: 12,
     prUrl: 'https://github.com/valmonto/specbook/pull/12',
     headBranch: 'feat/shared-branch-name',
+    baseBranch: 'main',
     prState: 'merged',
   });
 
@@ -279,5 +285,110 @@ describeIntegration('GithubWebhookProcessor', () => {
       'https://github.com/valmonto/specbook/compare/main...feat/shared-branch-name',
     );
     expect(a?.prState).toBe('merged');
+  });
+
+  // --- auto-deploy on merge -------------------------------------------------
+
+  async function makeEnvironment(opts: {
+    autoDeploy?: boolean;
+    provisionStatus?: string;
+  } = {}): Promise<{ environmentId: string; projectId: string; creator: string }> {
+    const [proj] = await client.db.select().from(project).limit(1);
+    const [srv] = await client.db
+      .insert(server)
+      .values({
+        orgId: proj!.orgId,
+        name: 'deploy-box',
+        host: 'example.com',
+        roles: ['build', 'app', 'data'],
+        publicKey: 'ssh-ed25519 AAAA test',
+        privateKeyEnc: 'v1:sealed',
+        createdBy: proj!.createdBy,
+      })
+      .returning();
+    const [env] = await client.db
+      .insert(projectEnvironment)
+      .values({
+        projectId: proj!.id,
+        name: 'staging',
+        serverId: srv!.id,
+        autoDeploy: opts.autoDeploy ?? true,
+        provisionStatus: opts.provisionStatus ?? 'provisioned',
+      })
+      .returning();
+    return { environmentId: env!.id, projectId: proj!.id, creator: proj!.createdBy };
+  }
+
+  it('a default-branch merge auto-deploys the provisioned opted-in environment, attributed to the project creator', async () => {
+    const { environmentId, creator } = await makeEnvironment();
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-auto1' }));
+
+    const rows = await client.db
+      .select()
+      .from(deployment)
+      .where(eq(deployment.environmentId, environmentId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ trigger: 'auto', status: 'queued', createdBy: creator });
+    expect(deployProducer.enqueueDeploy).toHaveBeenCalledWith(rows[0]!.id);
+  });
+
+  it('feature-branch merges never trigger a deploy', async () => {
+    const { environmentId } = await makeEnvironment();
+    await processor.process(
+      jobOf({ ...prEvent(777), deliveryId: 'd-feb', baseBranch: 'feat/other' }),
+    );
+    const rows = await client.db
+      .select()
+      .from(deployment)
+      .where(eq(deployment.environmentId, environmentId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it('toggle-off and unprovisioned environments are never deployed', async () => {
+    const { environmentId } = await makeEnvironment({ autoDeploy: false });
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-off' }));
+    expect(
+      await client.db.select().from(deployment).where(eq(deployment.environmentId, environmentId)),
+    ).toHaveLength(0);
+  });
+
+  it('an in-flight deployment absorbs the trigger (dedupe)', async () => {
+    const { environmentId, creator } = await makeEnvironment();
+    await client.db.insert(deployment).values({
+      environmentId,
+      sha: 'abc',
+      status: 'building',
+      trigger: 'auto',
+      createdBy: creator,
+    });
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-dupe' }));
+    expect(
+      await client.db.select().from(deployment).where(eq(deployment.environmentId, environmentId)),
+    ).toHaveLength(1); // still just the in-flight one
+  });
+
+  it('two consecutive failed auto-deploys trip the breaker; a success resets it', async () => {
+    const { environmentId, creator } = await makeEnvironment();
+    const failed = { environmentId, sha: 'x', status: 'failed', trigger: 'auto', createdBy: creator };
+    await client.db.insert(deployment).values(failed);
+    await client.db.insert(deployment).values(failed);
+
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-brk1' }));
+    expect(
+      await client.db.select().from(deployment).where(eq(deployment.environmentId, environmentId)),
+    ).toHaveLength(2); // breaker held
+
+    // any healthy deployment (e.g. a manual one) resets the breaker
+    await client.db.insert(deployment).values({
+      environmentId,
+      sha: 'y',
+      status: 'healthy',
+      trigger: 'manual',
+      createdBy: creator,
+    });
+    await processor.process(jobOf({ ...prEvent(777), deliveryId: 'd-brk2' }));
+    expect(
+      await client.db.select().from(deployment).where(eq(deployment.environmentId, environmentId)),
+    ).toHaveLength(4); // reset → new auto deployment created
   });
 });

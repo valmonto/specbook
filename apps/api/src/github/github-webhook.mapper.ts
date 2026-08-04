@@ -36,6 +36,7 @@ export function normalizeGithubEvent(
       prNumber: pr.number,
       prUrl: typeof pr.html_url === 'string' ? pr.html_url : '',
       headBranch: pr.head.ref,
+      baseBranch: typeof pr.base?.ref === 'string' ? pr.base.ref : '',
       prState,
     };
   }

@@ -17,6 +17,8 @@ export type GithubWebhookJobPayload =
       prNumber: number;
       prUrl: string;
       headBranch: string;
+      /** The PR's target branch — auto-deploy fires only for the default branch. */
+      baseBranch: string;
       prState: 'open' | 'merged' | 'closed';
     }
   | {

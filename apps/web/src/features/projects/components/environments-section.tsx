@@ -41,6 +41,7 @@ import {
 import { useCan } from '@/shared/hooks/use-permissions';
 import { useServers } from '@/shared/servers/hooks';
 import { useProjectReadOnly } from './v2/read-only-context';
+import { Switch } from '@/components/ui/switch';
 import {
   useCreateEnvironment,
   useDeleteEnvVar,
@@ -49,6 +50,7 @@ import {
   useProvisionEnvironment,
   useRemoveEnvironment,
   useSetEnvVar,
+  useUpdateEnvironment,
 } from '../hooks/use-environments';
 
 const provisionStyles: Record<Environment['provisionStatus'], string> = {
@@ -218,12 +220,7 @@ function EnvironmentRow({
               <span className="truncate font-mono">{env.domain}</span>
             </span>
           )}
-          {env.autoDeploy && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-              <Rocket className="size-3" />
-              {t(k.environments.autoDeploy)}
-            </span>
-          )}
+          <AutoDeployChip env={env} projectId={projectId} canManage={canManage} />
           <span
             className={cn(
               'inline-flex items-center rounded-md px-2 py-0.5 text-xs',
@@ -308,6 +305,11 @@ function EnvironmentRow({
           {latest.error.slice(0, 400)}
         </p>
       )}
+      {env.autoDeployPaused && (
+        <p className="border-t bg-amber-500/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300">
+          {t(k.environments.autoDeployPausedWarning)}
+        </p>
+      )}
       {env.provisionStatus === 'failed' && env.provisionError && (
         <p className="border-t bg-rose-500/5 px-3 py-1.5 text-xs text-rose-700 dark:text-rose-400">
           {env.provisionError.includes('.') && !env.provisionError.includes(' ')
@@ -380,6 +382,51 @@ function EnvironmentRow({
  * Secrets: names are listed, values are write-only. The single form both
  * creates a new var and replaces an existing one (same NAME = replace).
  */
+/**
+ * The auto-deploy toggle lives ON the chip: on = colored, off = muted, and
+ * clicking flips the flag (managers only; disabled until provisioned).
+ */
+function AutoDeployChip({
+  env,
+  projectId,
+  canManage,
+}: {
+  env: Environment;
+  projectId: string;
+  canManage: boolean;
+}) {
+  const { t } = useTranslation();
+  const update = useUpdateEnvironment(projectId);
+  const provisioned = env.provisionStatus === 'provisioned';
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canManage || !provisioned || update.isLoading) return;
+    void update
+      .execute({ projectId, id: env.id, autoDeploy: !env.autoDeploy })
+      .then((res) => {
+        if (res.e) toast.error(t(res.e.message));
+      });
+  };
+  return (
+    <span
+      role={canManage ? 'button' : undefined}
+      title={!provisioned ? t(k.environments.autoDeployNeedsProvision) : t(k.environments.autoDeployHint)}
+      onClick={toggle}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs',
+        env.autoDeploy
+          ? 'bg-violet-500/15 text-violet-700 dark:text-violet-400'
+          : 'bg-muted/60 text-muted-foreground/70',
+        canManage && provisioned && 'cursor-pointer hover:opacity-80',
+        !provisioned && 'opacity-50',
+      )}
+    >
+      <Rocket className="size-3" />
+      {t(env.autoDeploy ? k.environments.autoDeploy : k.environments.autoDeployOff)}
+    </span>
+  );
+}
+
 function UserEnvEditor({
   env,
   projectId,
@@ -526,6 +573,7 @@ function AddEnvironmentDialog({
   const [serverId, setServerId] = useState('');
   const [domain, setDomain] = useState('');
   const [deployPath, setDeployPath] = useState('');
+  const [autoDeploy, setAutoDeploy] = useState(false);
 
   const submit = async () => {
     const pickedName = name || freeNames[0];
@@ -537,6 +585,7 @@ function AddEnvironmentDialog({
       serverId: pickedServer,
       domain: domain.trim() || undefined,
       deployPath: deployPath.trim() || undefined,
+      autoDeploy,
     });
     if (res.e) {
       toast.error(t(res.e.message));
@@ -612,6 +661,13 @@ function AddEnvironmentDialog({
               placeholder="/srv/myapp"
               className="font-mono"
             />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <Label htmlFor="env-autodeploy">{t(k.environments.autoDeploy)}</Label>
+              <p className="text-xs text-muted-foreground">{t(k.environments.autoDeployHint)}</p>
+            </div>
+            <Switch id="env-autodeploy" checked={autoDeploy} onCheckedChange={setAutoDeploy} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

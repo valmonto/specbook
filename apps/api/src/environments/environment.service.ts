@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  computeAutoDeployPaused,
   dataPlaneUnitName,
   derivePublicPort,
   DeploymentProducer,
@@ -77,6 +78,7 @@ export class EnvironmentService {
         serverId: dto.serverId,
         domain: dto.domain,
         deployPath: dto.deployPath,
+        autoDeploy: dto.autoDeploy ?? false,
         ...(autoProvision ? { provisionStatus: 'provisioning' } : {}),
       });
       createdId = created.id;
@@ -149,6 +151,7 @@ export class EnvironmentService {
       environmentId: existing.id,
       sha: '',
       status: 'queued',
+      trigger: 'manual',
       createdBy: activeUser.userId,
     });
     await this.deployments.enqueueDeploy(created.id);
@@ -262,6 +265,7 @@ export class EnvironmentService {
       environmentId: d.environmentId,
       sha: d.sha,
       status: d.status as DeploymentDto['status'],
+      trigger: d.trigger as DeploymentDto['trigger'],
       error: d.error,
       startedAt: d.startedAt?.toISOString() ?? null,
       finishedAt: d.finishedAt?.toISOString() ?? null,
@@ -276,7 +280,8 @@ export class EnvironmentService {
    * survives serialization.
    */
   private async serialize(e: EnvironmentWithServer, projectName: string): Promise<EnvironmentDto> {
-    const latest = await this.environmentRepository.latestDeployment(e.id);
+    const recent = await this.environmentRepository.recentDeployments(e.id);
+    const latest = recent[0] ?? null;
     const publicUrl =
       latest?.status === 'healthy'
         ? `http://${e.serverHost}:${derivePublicPort(dataPlaneUnitName(projectName, e.name))}`
@@ -296,6 +301,7 @@ export class EnvironmentService {
       provisionError: e.provisionError,
       provisionedAt: e.provisionedAt?.toISOString() ?? null,
       latestDeployment: latest ? this.serializeDeployment(latest) : null,
+      autoDeployPaused: computeAutoDeployPaused(recent),
       publicUrl,
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),

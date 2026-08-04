@@ -137,7 +137,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     // door — and a foreign org gets nothing; the deployment rows hang off
     // the environment and are unreachable without it.
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
-    expect((await repo.latestDeployment(mine.id))?.id).toBe(run.id);
+    expect((await repo.recentDeployments(mine.id))[0]?.id).toBe(run.id);
   });
 
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {

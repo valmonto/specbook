@@ -4,7 +4,7 @@ import {
   ENVIRONMENT_NAMES,
   PROVISION_STATUSES,
 } from '../constants/environment';
-import { DEPLOYMENT_STATUSES } from '../constants/deployment';
+import { DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '../constants/deployment';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
@@ -16,6 +16,7 @@ export const DeploymentSchema = z.object({
   environmentId: z.string().uuid(),
   sha: z.string(),
   status: DeploymentStatusSchema,
+  trigger: z.enum(DEPLOYMENT_TRIGGERS),
   error: z.string().nullable(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),
@@ -50,6 +51,8 @@ export const EnvironmentSchema = z.object({
   provisionedAt: z.string().nullable(),
   /** The most recent deployment run, if any. */
   latestDeployment: DeploymentSchema.nullable(),
+  /** True when the redeploy breaker tripped: two consecutive auto-deploys failed. */
+  autoDeployPaused: z.boolean(),
   /** Where the running staging answers (set while the latest deploy is healthy). */
   publicUrl: z.string().nullable(),
   createdAt: z.string(),
@@ -71,6 +74,7 @@ export const CreateEnvironmentRequestSchema = z
     serverId: z.string().uuid(),
     domain: z.string().min(1).max(255).optional(),
     deployPath: z.string().min(1).max(500).optional(),
+    autoDeploy: z.boolean().optional(),
   })
   .strict();
 export const CreateEnvironmentResponseSchema = EnvironmentSchema;

@@ -72,7 +72,7 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         return envRow();
       }),
       delete: vi.fn().mockResolvedValue(true),
-      latestDeployment: vi.fn().mockResolvedValue(null),
+      recentDeployments: vi.fn().mockResolvedValue([]),
       createDeployment: vi.fn().mockImplementation((data: Record<string, unknown>) => ({
         id: DEPLOYMENT,
         environmentId: ENV,
@@ -274,17 +274,46 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   it('a healthy latest deployment yields the public staging URL; otherwise null', async () => {
     stored = { provisionStatus: 'provisioned' };
     const healthy = {
-      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', error: null,
+      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', trigger: 'manual', error: null,
       startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
     };
-    repository.latestDeployment!.mockResolvedValue(healthy);
+    repository.recentDeployments!.mockResolvedValue([healthy]);
     const [env] = (await service.list(actor, PROJECT)).data;
     expect(env!.publicUrl).toMatch(/^http:\/\/h\.example\.com:2\d{4}$/);
     expect(env!.latestDeployment?.sha).toBe('abc1234');
 
-    repository.latestDeployment!.mockResolvedValue({ ...healthy, status: 'failed' });
+    repository.recentDeployments!.mockResolvedValue([{ ...healthy, status: 'failed' }]);
     const [failed] = (await service.list(actor, PROJECT)).data;
     expect(failed!.publicUrl).toBeNull();
+  });
+
+  it('two failed auto-deploys surface autoDeployPaused; a success clears it', async () => {
+    const failedAuto = {
+      id: DEPLOYMENT, environmentId: ENV, sha: 'x', status: 'failed', trigger: 'auto', error: 'boom',
+      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+    };
+    repository.recentDeployments!.mockResolvedValue([failedAuto, failedAuto]);
+    let [env] = (await service.list(actor, PROJECT)).data;
+    expect(env!.autoDeployPaused).toBe(true);
+
+    repository.recentDeployments!.mockResolvedValue([
+      { ...failedAuto, status: 'healthy' },
+      failedAuto,
+      failedAuto,
+    ]);
+    [env] = (await service.list(actor, PROJECT)).data;
+    expect(env!.autoDeployPaused).toBe(false);
+  });
+
+  it('manual deploys record trigger=manual; create passes the autoDeploy flag through', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    await service.deploy(actor, { projectId: PROJECT, id: ENV });
+    expect(repository.createDeployment).toHaveBeenCalledWith(
+      expect.objectContaining({ trigger: 'manual' }),
+    );
+    stored = {};
+    await service.create(actor, { ...createDto, autoDeploy: true });
+    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ autoDeploy: true }));
   });
 
   it('the provision response leaks no credentials beyond platform_env wiring', async () => {

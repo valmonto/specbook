@@ -1,0 +1,2 @@
+ALTER TABLE "deployment" ADD COLUMN "trigger" varchar(8) DEFAULT 'manual' NOT NULL;--> statement-breakpoint
+ALTER TABLE "deployment" ADD CONSTRAINT "deployment_trigger_check" CHECK (trigger IN ('manual', 'auto'));

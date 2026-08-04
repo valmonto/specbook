@@ -15,6 +15,9 @@ export const environments = {
   deployPath: 'environments.deployPath',
   autoDeploy: 'environments.autoDeploy',
   autoDeployHint: 'environments.autoDeployHint',
+  autoDeployOff: 'environments.autoDeployOff',
+  autoDeployNeedsProvision: 'environments.autoDeployNeedsProvision',
+  autoDeployPausedWarning: 'environments.autoDeployPausedWarning',
   removeConfirmTitle: 'environments.removeConfirmTitle',
   removeConfirmBody: 'environments.removeConfirmBody',
 
