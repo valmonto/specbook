@@ -6,6 +6,7 @@ import { NotificationRepository } from './example/notification.repository';
 import { AttachmentsSweepProcessor } from './attachments-sweep/attachments-sweep.processor';
 import { GithubWebhookProcessor } from './github-webhook/github-webhook.processor';
 import { ServerCheckProcessor } from './server-check/server-check.processor';
+import { EnvironmentProvisionProcessor } from './environment-provision/environment-provision.processor';
 
 /**
  * Worker queues module.
@@ -28,6 +29,8 @@ import { ServerCheckProcessor } from './server-check/server-check.processor';
     GithubWebhookProcessor,
     // Server reachability + host-key pinning
     ServerCheckProcessor,
+    // Data-plane provisioning (per-environment Postgres/Redis)
+    EnvironmentProvisionProcessor,
   ],
 })
 export class WorkerQueuesModule {}

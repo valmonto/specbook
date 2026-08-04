@@ -1,7 +1,12 @@
 import { z } from 'zod';
-import { ENV_VAR_NAME_PATTERN, ENVIRONMENT_NAMES } from '../constants/environment';
+import {
+  ENV_VAR_NAME_PATTERN,
+  ENVIRONMENT_NAMES,
+  PROVISION_STATUSES,
+} from '../constants/environment';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
+export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
 
 const EnvVarNameSchema = z.string().min(1).max(128).regex(ENV_VAR_NAME_PATTERN);
 
@@ -23,6 +28,10 @@ export const EnvironmentSchema = z.object({
   platformEnv: z.record(z.string(), z.string()),
   /** Names of user secrets. Values never appear in any response. */
   userEnvNames: z.array(z.string()),
+  /** Data-plane lifecycle; error carries a k.* key or short detail. */
+  provisionStatus: ProvisionStatusSchema,
+  provisionError: z.string().nullable(),
+  provisionedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -84,6 +93,14 @@ export const SetEnvVarRequestSchema = z
 export const SetEnvVarResponseSchema = EnvironmentSchema;
 export type SetEnvVarRequest = z.infer<typeof SetEnvVarRequestSchema>;
 export type SetEnvVarResponse = z.infer<typeof SetEnvVarResponseSchema>;
+
+// --- Provision (enqueues the data-plane job; result lands on the row) ---
+export const ProvisionEnvironmentRequestSchema = z
+  .object({ projectId: z.string().uuid(), id: z.string().uuid() })
+  .strict();
+export const ProvisionEnvironmentResponseSchema = EnvironmentSchema;
+export type ProvisionEnvironmentRequest = z.infer<typeof ProvisionEnvironmentRequestSchema>;
+export type ProvisionEnvironmentResponse = z.infer<typeof ProvisionEnvironmentResponseSchema>;
 
 // --- Delete a user env var ---
 export const DeleteEnvVarRequestSchema = z

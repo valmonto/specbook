@@ -14,6 +14,7 @@ src/
 ├── jobs/           enqueues work for apps/worker
 ├── servers/        org machine inventory for the deploy platform (SSH keys generated + sealed)
 ├── environments/   where a project runs: server binding + layered env vars (user secrets write-only)
+│                   provisioning fills platform_env — see "The data plane" below
 ├── i18n/           request-scoped translation
 ├── seed/           first-run data
 ├── config/         Zod-validated env
@@ -241,6 +242,29 @@ card. The agent queue (`list_tasks available`) is additionally gated
 by merge debt: a project holding `MERGE_DEBT_CAP` (3) approved tasks
 stops feeding runners until the queue drains — enforced in the
 repository query, so no client can bypass it.
+
+## The data plane — provisioning environments
+
+Creating an environment on a server that holds the `data` role auto-enqueues
+a provisioning job (`POST …/environments/:id/provision` re-runs it). The
+WORKER SSHes to the box and idempotently ensures: a `specbook-data` docker
+network, one shared Postgres (`specbook-postgres`, persistent volume, root
+password generated once and sealed onto the server row — write-only like all
+sealed columns), a per-environment Postgres role+database named
+`<project>_<env>` (strictly `[a-z][a-z0-9_]*`, derived server-side), and a
+dedicated `specbook-redis-<unit>` container. Nothing is published on host
+ports — apps reach the plane by container DNS on the shared network, which is
+the contract the deploy slice consumes. Deleting an environment enqueues a
+best-effort teardown from a pre-delete snapshot; a dead server never blocks
+deletion.
+
+One deliberate tradeoff: the per-environment database password lands inside
+`platform_env.DATABASE_URL`, and platform_env is VISIBLE (read-only) to
+anyone with `project:read` — staging wiring favors debuggability, and the
+credential only opens that one staging database on a box the org already
+owns. User secrets remain write-only; this exception is for machine wiring
+only. Single-box assumption: the environment's server is both `app` and
+`data` — splitting the roles across machines is a later slice.
 
 ## Seeding
 

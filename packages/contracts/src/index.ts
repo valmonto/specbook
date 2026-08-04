@@ -6,7 +6,9 @@ export * from './permissions';
 export {
   ENVIRONMENT_NAMES,
   ENV_VAR_NAME_PATTERN,
+  PROVISION_STATUSES,
   type EnvironmentName,
+  type ProvisionStatus,
 } from './constants/environment';
 export {
   SERVER_ROLES,

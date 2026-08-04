@@ -5,6 +5,7 @@ import { SecretsService } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EnvironmentProvisionProducer } from '@pkg/server';
 import { EnvironmentService } from '@/environments/environment.service';
 import type { EnvironmentRepository } from '@/environments/environment.repository';
 
@@ -17,6 +18,7 @@ const actor: ActiveUser = { userId: 'u', orgId: ORG, orgRole: 'ADMIN', systemRol
 describe('EnvironmentService — layered env vars, secrets write-only by construction', () => {
   let secrets: SecretsService;
   let repository: Record<string, ReturnType<typeof vi.fn>>;
+  let provisioner: Record<string, ReturnType<typeof vi.fn>>;
   let service: EnvironmentService;
   /** The mutable "database row" the fake repository serves and updates. */
   let stored: Record<string, unknown>;
@@ -24,6 +26,7 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   const projectRow = (overrides: Record<string, unknown> = {}) => ({
     id: PROJECT,
     orgId: ORG,
+    name: 'The Project',
     archivedAt: null,
     ...overrides,
   });
@@ -39,6 +42,9 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     autoDeploy: false,
     platformEnv: { DATABASE_URL: 'postgres://visible' },
     userEnvEnc: null,
+    provisionStatus: 'unprovisioned',
+    provisionError: null,
+    provisionedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...stored,
@@ -64,9 +70,14 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
       }),
       delete: vi.fn().mockResolvedValue(true),
     };
+    provisioner = {
+      enqueueProvision: vi.fn().mockResolvedValue(undefined),
+      enqueueDeprovision: vi.fn().mockResolvedValue(undefined),
+    };
     service = new EnvironmentService(
       repository as unknown as EnvironmentRepository,
       secrets,
+      provisioner as unknown as EnvironmentProvisionProducer,
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -156,5 +167,67 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
       }),
     );
     await expect(service.create(actor, createDto)).rejects.toThrow('environments.errors.nameTaken');
+  });
+
+  it('create on a data-role server auto-enqueues provisioning; without it, none', async () => {
+    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app', 'data'] });
+    await service.create(actor, createDto);
+    expect(provisioner.enqueueProvision).toHaveBeenCalledWith(ENV);
+    const created = repository.create!.mock.calls[0]![0] as Record<string, unknown>;
+    expect(created.provisionStatus).toBe('provisioning');
+
+    provisioner.enqueueProvision!.mockClear();
+    stored = {};
+    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app'] });
+    await service.create(actor, createDto);
+    expect(provisioner.enqueueProvision).not.toHaveBeenCalled();
+  });
+
+  it('provision refuses a server without the data role — distinct error', async () => {
+    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app'] });
+    await expect(service.provision(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'environments.errors.serverNotData',
+    );
+    expect(provisioner.enqueueProvision).not.toHaveBeenCalled();
+  });
+
+  it('provision marks the row provisioning, clears the last error, and enqueues', async () => {
+    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app', 'data'] });
+    stored = { provisionStatus: 'failed', provisionError: 'boom' };
+    await service.provision(actor, { projectId: PROJECT, id: ENV });
+    expect(repository.update).toHaveBeenCalledWith(ENV, PROJECT, {
+      provisionStatus: 'provisioning',
+      provisionError: null,
+    });
+    expect(provisioner.enqueueProvision).toHaveBeenCalledWith(ENV);
+  });
+
+  it('provision respects the archived-readonly guard', async () => {
+    repository.findProject!.mockResolvedValue(projectRow({ archivedAt: new Date() }));
+    await expect(service.provision(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
+  });
+
+  it('delete of a provisioned environment enqueues teardown from a pre-delete snapshot', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    await service.delete(actor, { projectId: PROJECT, id: ENV });
+    expect(provisioner.enqueueDeprovision).toHaveBeenCalledWith(SERVER, 'the_project_staging');
+    expect(repository.delete).toHaveBeenCalled();
+  });
+
+  it('delete of a never-provisioned environment skips teardown entirely', async () => {
+    await service.delete(actor, { projectId: PROJECT, id: ENV });
+    expect(provisioner.enqueueDeprovision).not.toHaveBeenCalled();
+  });
+
+  it('the provision response leaks no credentials beyond platform_env wiring', async () => {
+    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app', 'data'] });
+    const res = await service.provision(actor, { projectId: PROJECT, id: ENV });
+    const flat = JSON.stringify(res);
+    expect(flat).not.toContain('userEnvEnc');
+    expect(flat).not.toContain('dataRootEnvEnc');
+    expect(flat).not.toContain('v1:');
+    expect(res.provisionStatus).toBe('provisioning');
   });
 });

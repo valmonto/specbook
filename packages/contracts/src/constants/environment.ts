@@ -8,3 +8,15 @@ export type EnvironmentName = (typeof ENVIRONMENT_NAMES)[number];
 
 /** Env var names follow the POSIX convention the deploy renderer relies on. */
 export const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+
+/**
+ * Data-plane provisioning lifecycle of an environment. 'provisioned' means
+ * platform_env holds working wiring; 'failed' carries provision_error.
+ */
+export const PROVISION_STATUSES = [
+  'unprovisioned',
+  'provisioning',
+  'provisioned',
+  'failed',
+] as const;
+export type ProvisionStatus = (typeof PROVISION_STATUSES)[number];

@@ -5,6 +5,7 @@ import {
   DeleteEnvironmentRequestSchema,
   DeleteEnvVarRequestSchema,
   ListEnvironmentsRequestSchema,
+  ProvisionEnvironmentRequestSchema,
   SetEnvVarRequestSchema,
   UpdateEnvironmentRequestSchema,
   type ActiveUser as ActiveUserType,
@@ -16,6 +17,8 @@ import {
   type DeleteEnvVarResponse,
   type ListEnvironmentsRequest,
   type ListEnvironmentsResponse,
+  type ProvisionEnvironmentRequest,
+  type ProvisionEnvironmentResponse,
   type SetEnvVarRequest,
   type SetEnvVarResponse,
   type UpdateEnvironmentRequest,
@@ -62,6 +65,16 @@ export class EnvironmentController {
   ): Promise<DeleteEnvironmentResponse> {
     await this.environmentService.delete(activeUser, dto);
     return {};
+  }
+
+  /** Enqueues the data-plane job; the worker writes the result to the row. */
+  @Post(':id/provision')
+  @Permissions('project:update')
+  async provision(
+    @ZodRequest(ProvisionEnvironmentRequestSchema) dto: ProvisionEnvironmentRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ProvisionEnvironmentResponse> {
+    return this.environmentService.provision(activeUser, dto);
   }
 
   /** Set-or-replace is a PUT: the var's value is written, never readable back. */

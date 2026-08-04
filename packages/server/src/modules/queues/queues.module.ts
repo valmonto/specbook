@@ -6,6 +6,10 @@ import { EXAMPLE_QUEUE, ExampleProducer } from './example';
 import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
 import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
 import { SERVER_CHECK_QUEUE, ServerCheckProducer } from './server-check';
+import {
+  ENVIRONMENT_PROVISION_QUEUE,
+  EnvironmentProvisionProducer,
+} from './environment-provision';
 
 /**
  * Shared queues module.
@@ -44,8 +48,15 @@ import { SERVER_CHECK_QUEUE, ServerCheckProducer } from './server-check';
     BullModule.registerQueue({ name: ATTACHMENTS_SWEEP_QUEUE.name }),
     BullModule.registerQueue({ name: GITHUB_WEBHOOK_QUEUE.name }),
     BullModule.registerQueue({ name: SERVER_CHECK_QUEUE.name }),
+    BullModule.registerQueue({ name: ENVIRONMENT_PROVISION_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer],
-  exports: [BullModule, ExampleProducer, GithubWebhookProducer, ServerCheckProducer],
+  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer],
+  exports: [
+    BullModule,
+    ExampleProducer,
+    GithubWebhookProducer,
+    ServerCheckProducer,
+    EnvironmentProvisionProducer,
+  ],
 })
 export class QueuesModule {}

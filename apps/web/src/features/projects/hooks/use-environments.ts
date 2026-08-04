@@ -13,6 +13,8 @@ export function useEnvironments(projectId: string | null) {
   return useCachedRequest<ListEnvironmentsResponse>({
     key: listKey(projectId),
     fetcher: () => environmentsApi.list({ projectId: projectId! }),
+    // Provisioning lands asynchronously in the worker — keep chips honest.
+    config: { refreshInterval: 10_000 },
   });
 }
 
@@ -36,6 +38,8 @@ export const useCreateEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.create);
 export const useUpdateEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.update);
+export const useProvisionEnvironment = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.provision);
 export const useRemoveEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.remove);
 export const useSetEnvVar = (projectId: string) =>

@@ -7,6 +7,8 @@ import type {
   DeleteEnvVarResponse,
   ListEnvironmentsRequest,
   ListEnvironmentsResponse,
+  ProvisionEnvironmentRequest,
+  ProvisionEnvironmentResponse,
   SetEnvVarRequest,
   SetEnvVarResponse,
   UpdateEnvironmentRequest,
@@ -23,6 +25,8 @@ export const environmentsApi = {
     http.patch(`/api/projects/${dto.projectId}/environments/${dto.id}`, dto),
   remove: (dto: DeleteEnvironmentRequest): Promise<DeleteEnvironmentResponse> =>
     http.delete(`/api/projects/${dto.projectId}/environments/${dto.id}`),
+  provision: (dto: ProvisionEnvironmentRequest): Promise<ProvisionEnvironmentResponse> =>
+    http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/provision`, {}),
   // The value rides the body; it is write-only — no endpoint returns it back.
   setVar: (dto: SetEnvVarRequest): Promise<SetEnvVarResponse> =>
     http.put(`/api/projects/${dto.projectId}/environments/${dto.id}/env/${dto.name}`, {
