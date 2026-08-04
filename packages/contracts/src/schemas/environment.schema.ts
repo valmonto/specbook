@@ -5,7 +5,11 @@ import {
   ENVIRONMENT_NAMES,
   PROVISION_STATUSES,
 } from '../constants/environment';
-import { DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '../constants/deployment';
+import {
+  DEPLOYMENT_PHASES,
+  DEPLOYMENT_STATUSES,
+  DEPLOYMENT_TRIGGERS,
+} from '../constants/deployment';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
@@ -18,6 +22,10 @@ export const DeploymentSchema = z.object({
   sha: z.string(),
   status: DeploymentStatusSchema,
   trigger: z.enum(DEPLOYMENT_TRIGGERS),
+  /** What the machine is doing right now (null before the run starts). */
+  phase: z.enum(DEPLOYMENT_PHASES).nullable(),
+  /** Scrubbed, tail-capped remote output — the run's own story. */
+  log: z.string().nullable(),
   error: z.string().nullable(),
   startedAt: z.string().nullable(),
   finishedAt: z.string().nullable(),

@@ -33,6 +33,17 @@ export const environments = {
     healthy: 'environments.deploymentStatus.healthy',
     failed: 'environments.deploymentStatus.failed',
   },
+  deploymentPhase: {
+    resolve: 'environments.deploymentPhase.resolve',
+    build: 'environments.deploymentPhase.build',
+    transfer: 'environments.deploymentPhase.transfer',
+    render: 'environments.deploymentPhase.render',
+    up: 'environments.deploymentPhase.up',
+  },
+  showLog: 'environments.showLog',
+  hideLog: 'environments.hideLog',
+  logEmpty: 'environments.logEmpty',
+  deployPathHint: 'environments.deployPathHint',
 
   // Data-plane provisioning
   provisionAction: 'environments.provisionAction',
@@ -68,5 +79,6 @@ export const environments = {
     noBuildServer: 'environments.errors.noBuildServer',
     varNotFound: 'environments.errors.varNotFound',
     domainTaken: 'environments.errors.domainTaken',
+    deployPathNotWritable: 'environments.errors.deployPathNotWritable',
   },
 } as const;

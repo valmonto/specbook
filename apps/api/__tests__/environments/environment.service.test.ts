@@ -164,6 +164,16 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
 
   it('no response from any surface carries a secret value or sealed blob', async () => {
     await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'hunter2' });
+    // Deployment logs ride along serialized — stored pre-scrubbed by the
+    // worker, so what leaves here must carry the scrubbed forms only.
+    repository.recentDeployments!.mockResolvedValue([
+      {
+        id: DEPLOYMENT, environmentId: ENV, sha: 'abc', status: 'failed', trigger: 'manual',
+        phase: 'build', log: 'cloning <repo-url>\nauth x-access-token:***@github.com',
+        error: 'remote-op build-images exited 1', domain: null,
+        startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+      },
+    ]);
     const responses = [
       await service.list(actor, PROJECT),
       await service.create(actor, createDto),
@@ -176,6 +186,8 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     expect(flat).not.toContain('v1:');
     expect(flat).not.toContain('hunter2');
     expect(flat).not.toContain('swordfish');
+    expect(flat).not.toMatch(/x-access-token:(?!\*\*\*@)/);
+    expect(flat).not.toContain('ghs_');
     // platform_env stays fully visible — it is wiring, not a secret.
     expect(flat).toContain('postgres://visible');
   });
@@ -331,6 +343,20 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     await expect(
       service.update(actor, { projectId: PROJECT, id: ENV, domain: 'stg.example.com' }),
     ).resolves.toBeDefined();
+  });
+
+  it('deployment phase and log surface on the serialized row', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    repository.recentDeployments!.mockResolvedValue([
+      {
+        id: DEPLOYMENT, environmentId: ENV, sha: '', status: 'building', trigger: 'manual', error: null,
+        phase: 'build', log: '== build: images at abc1234 ==\nstep 5/12',
+        startedAt: new Date(), finishedAt: null, createdBy: 'u', createdAt: new Date(),
+      },
+    ]);
+    const [env] = (await service.list(actor, PROJECT)).data;
+    expect(env!.latestDeployment?.phase).toBe('build');
+    expect(env!.latestDeployment?.log).toContain('step 5/12');
   });
 
   it('a healthy deploy with a domain snapshot serves https and clears domainPending', async () => {

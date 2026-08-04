@@ -4,8 +4,11 @@ export * from './permissions';
 // already re-exported through schema files, and colliding star exports drop
 // names silently.
 export {
+  DEPLOYMENT_LOG_CAP_BYTES,
+  DEPLOYMENT_PHASES,
   DEPLOYMENT_STATUSES,
   DEPLOYMENT_TRIGGERS,
+  type DeploymentPhase,
   type DeploymentStatus,
   type DeploymentTrigger,
 } from './constants/deployment';

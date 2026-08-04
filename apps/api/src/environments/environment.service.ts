@@ -291,6 +291,8 @@ export class EnvironmentService {
       sha: d.sha,
       status: d.status as DeploymentDto['status'],
       trigger: d.trigger as DeploymentDto['trigger'],
+      phase: d.phase as DeploymentDto['phase'],
+      log: d.log,
       error: d.error,
       startedAt: d.startedAt?.toISOString() ?? null,
       finishedAt: d.finishedAt?.toISOString() ?? null,

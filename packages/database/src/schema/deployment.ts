@@ -1,6 +1,6 @@
 import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '@pkg/contracts';
+import { DEPLOYMENT_PHASES, DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '@pkg/contracts';
 import { pk } from './helpers';
 import { projectEnvironment } from './environment';
 import { user } from './user';
@@ -27,6 +27,10 @@ export const deployment = pgTable(
      * edit that only takes effect on the next deploy.
      */
     domain: varchar('domain', { length: 255 }),
+    /** What the run is doing right now; status stays the coarse state. */
+    phase: varchar('phase', { length: 16 }),
+    /** Scrubbed remote output, tail-capped — see appendDeployLog. */
+    log: text('log'),
     /** Failure detail — a k.* key or a scrubbed logs excerpt. */
     error: text('error'),
     startedAt: timestamp('started_at', { withTimezone: true }),
@@ -45,6 +49,10 @@ export const deployment = pgTable(
     check(
       'deployment_trigger_check',
       sql.raw(`trigger IN (${DEPLOYMENT_TRIGGERS.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'deployment_phase_check',
+      sql.raw(`phase IS NULL OR phase IN (${DEPLOYMENT_PHASES.map((v) => `'${v}'`).join(', ')})`),
     ),
   ],
 );

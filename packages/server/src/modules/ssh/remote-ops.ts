@@ -192,7 +192,9 @@ sha="\${2:?usage: build-images <unit> <sha>}"
   built=""
   for app in api worker web; do
     if [ -f "apps/$app/Dockerfile" ]; then
-      docker build -q -f "apps/$app/Dockerfile" -t "$unit-$app:$sha" . >/dev/null
+      # Not quiet ON PURPOSE: this output IS the deployment log's build phase.
+      echo "== building $unit-$app:$sha =="
+      docker build -f "apps/$app/Dockerfile" -t "$unit-$app:$sha" .
       built="$built$app,"
     fi
   done
