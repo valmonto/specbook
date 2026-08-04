@@ -10,6 +10,7 @@ import {
   ENVIRONMENT_PROVISION_QUEUE,
   EnvironmentProvisionProducer,
 } from './environment-provision';
+import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment';
 
 /**
  * Shared queues module.
@@ -49,14 +50,16 @@ import {
     BullModule.registerQueue({ name: GITHUB_WEBHOOK_QUEUE.name }),
     BullModule.registerQueue({ name: SERVER_CHECK_QUEUE.name }),
     BullModule.registerQueue({ name: ENVIRONMENT_PROVISION_QUEUE.name }),
+    BullModule.registerQueue({ name: DEPLOYMENT_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer],
+  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer, DeploymentProducer],
   exports: [
     BullModule,
     ExampleProducer,
     GithubWebhookProducer,
     ServerCheckProducer,
     EnvironmentProvisionProducer,
+    DeploymentProducer,
   ],
 })
 export class QueuesModule {}

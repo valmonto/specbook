@@ -102,6 +102,113 @@ unit="\${1:?usage: data-plane-provision-unit <unit>}"
 `,
 
   /**
+   * v1: print the HEAD sha of a branch. The repo URL arrives on stdin (it
+   * may embed a short-lived token — never in argv, never in ps).
+   */
+  'resolve-head-sha': `#!/usr/bin/env bash
+set -euo pipefail
+branch="\${1:?usage: resolve-head-sha <branch>}"
+{
+  IFS= read -r repo_url
+  [ -n "$repo_url" ] || { echo "resolve-head-sha: missing url on stdin" >&2; exit 1; }
+  sha=$(git ls-remote "$repo_url" "refs/heads/$branch" | awk '{print $1}' | head -n1)
+  [ -n "$sha" ] || { echo "resolve-head-sha: branch not found: $branch" >&2; exit 1; }
+  echo "$sha"
+  exit 0
+}
+`,
+
+  /**
+   * v1: build the valmatic-convention images for one unit at one sha —
+   * shallow-fetch the commit, docker build every apps/{api,worker,web}
+   * Dockerfile present (api+web required), tag <unit>-<app>:<sha>, keep the
+   * last 3 shas per image, clean the checkout. Serial on purpose: small
+   * boxes. Clone URL (may embed a token) arrives on stdin.
+   */
+  'build-images': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: build-images <unit> <sha>}"
+sha="\${2:?usage: build-images <unit> <sha>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  [[ "$sha" =~ ^[0-9a-f]{7,64}$ ]] || { echo "invalid sha" >&2; exit 1; }
+  IFS= read -r repo_url
+  [ -n "$repo_url" ] || { echo "build-images: missing url on stdin" >&2; exit 1; }
+  work="$HOME/specbook-build/$unit"
+  rm -rf "$work" && mkdir -p "$work" && cd "$work"
+  git init -q . && git fetch -q --depth 1 "$repo_url" "$sha" && git checkout -q FETCH_HEAD
+  if [ ! -f apps/api/Dockerfile ] || [ ! -f apps/web/Dockerfile ]; then
+    echo "SHAPE_INVALID: repo is not valmatic-shaped (apps/{api,web}/Dockerfile required)" >&2
+    exit 3
+  fi
+  built=""
+  for app in api worker web; do
+    if [ -f "apps/$app/Dockerfile" ]; then
+      docker build -q -f "apps/$app/Dockerfile" -t "$unit-$app:$sha" . >/dev/null
+      built="$built$app,"
+    fi
+  done
+  for app in api worker web; do
+    docker image ls --format '{{.Repository}}:{{.Tag}}' "$unit-$app" | tail -n +4 | xargs -r docker rmi >/dev/null 2>&1 || true
+  done
+  cd / && rm -rf "$work"
+  echo "build-images: ok apps=\${built%,}"
+  exit 0
+}
+`,
+
+  /**
+   * v1: bring the rendered stack up and gate on health. Compose files were
+   * SFTP'd beforehand; --wait rides the api healthcheck, and a final probe
+   * through the published proxy port proves the whole chain. On failure the
+   * previous containers keep serving (compose semantics) and the last log
+   * lines land on stderr for the deployment record.
+   */
+  'deploy-stack': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: deploy-stack <unit> <dir> <port>}"
+dir="\${2:?usage: deploy-stack <unit> <dir> <port>}"
+port="\${3:?usage: deploy-stack <unit> <dir> <port>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "invalid port" >&2; exit 1; }
+  cd "$dir"
+  if ! docker compose -p "$unit" up -d --wait --wait-timeout 300; then
+    echo "deploy-stack: unhealthy — diagnostics follow" >&2
+    docker compose -p "$unit" ps >&2 || true
+    docker compose -p "$unit" logs --tail 40 api >&2 || true
+    exit 1
+  fi
+  # The proxy's service definition rarely changes, so compose keeps the old
+  # container — but its mounted nginx.conf may have; force a fresh read.
+  docker compose -p "$unit" restart proxy >/dev/null 2>&1 || true
+  for _ in $(seq 1 10); do
+    if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:$port/health', timeout=5).status==200 else 1)" 2>/dev/null; then
+      echo "deploy-stack: healthy on :$port"
+      exit 0
+    fi
+    sleep 3
+  done
+  echo "deploy-stack: proxy on :$port never answered /health" >&2
+  docker compose -p "$unit" logs --tail 40 proxy >&2 || true
+  exit 1
+}
+`,
+
+  /** v1: stream one image as a tarball to stdout (binary; used by pipeOp). */
+  'image-export': `#!/usr/bin/env bash
+set -euo pipefail
+image="\${1:?usage: image-export <image>}"
+docker save "$image"
+`,
+
+  /** v1: load an image tarball from stdin (binary; used by pipeOp). */
+  'image-import': `#!/usr/bin/env bash
+set -euo pipefail
+docker load
+`,
+
+  /**
    * v1: tear down one environment's unit — redis container, database, role.
    * Best-effort by design: a half-dead box must not block deletion, so every
    * step tolerates absence.
@@ -111,6 +218,8 @@ set -uo pipefail
 unit="\${1:?usage: data-plane-deprovision-unit <unit>}"
 {
   [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  # A deployed stack goes first (containers found by compose project label).
+  docker ps -aq --filter "label=com.docker.compose.project=$unit" | xargs -r docker rm -f >/dev/null 2>&1 || true
   docker rm -f "specbook-redis-$unit" >/dev/null 2>&1 || true
   if docker exec specbook-postgres true >/dev/null 2>&1; then
     docker exec specbook-postgres psql -U specbook -tA -c \\

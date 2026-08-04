@@ -1,5 +1,6 @@
 import {
   createDatabaseClient,
+  deployment,
   eq,
   organization,
   organizationUser,
@@ -60,7 +61,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     return { orgId: org!.id, projectId: proj!.id, serverId: srv!.id };
   }
 
-  const tables = [projectEnvironment, server, project, organizationUser, organization, user];
+  const tables = [deployment, projectEnvironment, server, project, organizationUser, organization, user];
 
   beforeEach(async () => {
     await truncate(client.db, tables);
@@ -116,6 +117,27 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     ).toBeNull();
     const still = await repo.findById(mine.id, projectA, orgA);
     expect(still?.provisionStatus).toBe('unprovisioned');
+  });
+
+  it('the deploy path is org-bound the same way: the environment lookup refuses foreign orgs', async () => {
+    const mine = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      provisionStatus: 'provisioned',
+    });
+    const [ownerA] = await client.db.select().from(user).where(eq(user.email, 'org-a@example.com'));
+    const run = await repo.createDeployment({
+      environmentId: mine.id,
+      sha: 'abc1234',
+      status: 'queued',
+      createdBy: ownerA!.id,
+    });
+    // deploy() resolves the environment through findById(org) — the only
+    // door — and a foreign org gets nothing; the deployment rows hang off
+    // the environment and are unreachable without it.
+    expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
+    expect((await repo.latestDeployment(mine.id))?.id).toBe(run.id);
   });
 
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {

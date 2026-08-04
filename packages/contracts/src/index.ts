@@ -4,6 +4,10 @@ export * from './permissions';
 // already re-exported through schema files, and colliding star exports drop
 // names silently.
 export {
+  DEPLOYMENT_STATUSES,
+  type DeploymentStatus,
+} from './constants/deployment';
+export {
   ENVIRONMENT_NAMES,
   ENV_VAR_NAME_PATTERN,
   PROVISION_STATUSES,

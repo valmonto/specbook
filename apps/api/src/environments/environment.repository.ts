@@ -2,20 +2,27 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   DATABASE_CLIENT,
   type DatabaseClient,
+  deployment,
   project,
   projectEnvironment,
   server,
   eq,
   and,
   asc,
+  desc,
+  type Deployment,
+  type NewDeployment,
   type NewProjectEnvironment,
   type Project,
   type ProjectEnvironment,
   type Server,
 } from '@pkg/database';
 
-/** An environment row joined with the display name of its server. */
-export type EnvironmentWithServer = ProjectEnvironment & { serverName: string };
+/** An environment row joined with the display identity of its server. */
+export type EnvironmentWithServer = ProjectEnvironment & {
+  serverName: string;
+  serverHost: string;
+};
 
 /**
  * Every read and write is org-scoped THROUGH the project join — an
@@ -47,24 +54,24 @@ export class EnvironmentRepository {
 
   async findForProject(projectId: string, orgId: string): Promise<EnvironmentWithServer[]> {
     const rows = await this.dbClient.db
-      .select({ env: projectEnvironment, serverName: server.name })
+      .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
       .from(projectEnvironment)
       .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(asc(projectEnvironment.name));
-    return rows.map((r) => ({ ...r.env, serverName: r.serverName }));
+    return rows.map((r) => ({ ...r.env, serverName: r.serverName, serverHost: r.serverHost }));
   }
 
   async findById(id: string, projectId: string, orgId: string): Promise<EnvironmentWithServer | null> {
     const [row] = await this.dbClient.db
-      .select({ env: projectEnvironment, serverName: server.name })
+      .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
       .from(projectEnvironment)
       .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(and(eq(projectEnvironment.id, id), eq(projectEnvironment.projectId, projectId)))
       .limit(1);
-    return row ? { ...row.env, serverName: row.serverName } : null;
+    return row ? { ...row.env, serverName: row.serverName, serverHost: row.serverHost } : null;
   }
 
   async create(data: NewProjectEnvironment): Promise<ProjectEnvironment> {
@@ -95,5 +102,30 @@ export class EnvironmentRepository {
       .where(and(eq(projectEnvironment.id, id), eq(projectEnvironment.projectId, projectId)))
       .returning({ id: projectEnvironment.id });
     return result.length > 0;
+  }
+
+  // --- Deployments (reached only through org-scoped environment lookups) ---
+
+  async createDeployment(data: NewDeployment): Promise<Deployment> {
+    const [result] = await this.dbClient.db.insert(deployment).values(data).returning();
+    return result!;
+  }
+
+  async latestDeployment(environmentId: string): Promise<Deployment | null> {
+    const [result] = await this.dbClient.db
+      .select()
+      .from(deployment)
+      .where(eq(deployment.environmentId, environmentId))
+      .orderBy(desc(deployment.createdAt))
+      .limit(1);
+    return result ?? null;
+  }
+
+  /** Does the org own any build-capable server? (jsonb roles contain 'build') */
+  async findBuildServer(orgId: string): Promise<Server | null> {
+    const rows = await this.dbClient.db.select().from(server).where(eq(server.orgId, orgId));
+    return (
+      rows.find((s) => Array.isArray(s.roles) && (s.roles as string[]).includes('build')) ?? null
+    );
   }
 }

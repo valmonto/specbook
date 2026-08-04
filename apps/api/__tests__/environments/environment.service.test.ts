@@ -5,7 +5,7 @@ import { SecretsService } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EnvironmentProvisionProducer } from '@pkg/server';
+import type { DeploymentProducer, EnvironmentProvisionProducer } from '@pkg/server';
 import { EnvironmentService } from '@/environments/environment.service';
 import type { EnvironmentRepository } from '@/environments/environment.repository';
 
@@ -13,12 +13,14 @@ const ORG = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 const ENV = '33333333-3333-4333-8333-333333333333';
 const SERVER = '44444444-4444-4444-8444-444444444444';
+const DEPLOYMENT = '55555555-5555-4555-8555-555555555555';
 const actor: ActiveUser = { userId: 'u', orgId: ORG, orgRole: 'ADMIN', systemRole: 'USER' };
 
 describe('EnvironmentService — layered env vars, secrets write-only by construction', () => {
   let secrets: SecretsService;
   let repository: Record<string, ReturnType<typeof vi.fn>>;
   let provisioner: Record<string, ReturnType<typeof vi.fn>>;
+  let deployer: Record<string, ReturnType<typeof vi.fn>>;
   let service: EnvironmentService;
   /** The mutable "database row" the fake repository serves and updates. */
   let stored: Record<string, unknown>;
@@ -37,6 +39,7 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     name: 'staging',
     serverId: SERVER,
     serverName: 'hetzner-1',
+    serverHost: 'h.example.com',
     domain: 'staging.example.com',
     deployPath: '/srv/app',
     autoDeploy: false,
@@ -69,15 +72,31 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         return envRow();
       }),
       delete: vi.fn().mockResolvedValue(true),
+      latestDeployment: vi.fn().mockResolvedValue(null),
+      createDeployment: vi.fn().mockImplementation((data: Record<string, unknown>) => ({
+        id: DEPLOYMENT,
+        environmentId: ENV,
+        sha: '',
+        status: 'queued',
+        error: null,
+        startedAt: null,
+        finishedAt: null,
+        createdBy: 'u',
+        createdAt: new Date(),
+        ...data,
+      })),
+      findBuildServer: vi.fn().mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['build', 'app', 'data'] }),
     };
     provisioner = {
       enqueueProvision: vi.fn().mockResolvedValue(undefined),
       enqueueDeprovision: vi.fn().mockResolvedValue(undefined),
     };
+    deployer = { enqueueDeploy: vi.fn().mockResolvedValue(undefined) };
     service = new EnvironmentService(
       repository as unknown as EnvironmentRepository,
       secrets,
       provisioner as unknown as EnvironmentProvisionProducer,
+      deployer as unknown as DeploymentProducer,
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -219,6 +238,53 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   it('delete of a never-provisioned environment skips teardown entirely', async () => {
     await service.delete(actor, { projectId: PROJECT, id: ENV });
     expect(provisioner.enqueueDeprovision).not.toHaveBeenCalled();
+  });
+
+  it('deploy refuses an unprovisioned environment', async () => {
+    await expect(service.deploy(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'environments.errors.notProvisioned',
+    );
+    expect(deployer.enqueueDeploy).not.toHaveBeenCalled();
+  });
+
+  it('deploy refuses when the org has no build-capable server', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    repository.findBuildServer!.mockResolvedValue(null);
+    await expect(service.deploy(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'environments.errors.noBuildServer',
+    );
+  });
+
+  it('deploy respects the archived-readonly guard', async () => {
+    repository.findProject!.mockResolvedValue(projectRow({ archivedAt: new Date() }));
+    await expect(service.deploy(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
+  });
+
+  it('deploy records the run attributed to the session and enqueues the worker job', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    await service.deploy(actor, { projectId: PROJECT, id: ENV });
+    expect(repository.createDeployment).toHaveBeenCalledWith(
+      expect.objectContaining({ environmentId: ENV, status: 'queued', createdBy: 'u' }),
+    );
+    expect(deployer.enqueueDeploy).toHaveBeenCalledWith(DEPLOYMENT);
+  });
+
+  it('a healthy latest deployment yields the public staging URL; otherwise null', async () => {
+    stored = { provisionStatus: 'provisioned' };
+    const healthy = {
+      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', error: null,
+      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+    };
+    repository.latestDeployment!.mockResolvedValue(healthy);
+    const [env] = (await service.list(actor, PROJECT)).data;
+    expect(env!.publicUrl).toMatch(/^http:\/\/h\.example\.com:2\d{4}$/);
+    expect(env!.latestDeployment?.sha).toBe('abc1234');
+
+    repository.latestDeployment!.mockResolvedValue({ ...healthy, status: 'failed' });
+    const [failed] = (await service.list(actor, PROJECT)).data;
+    expect(failed!.publicUrl).toBeNull();
   });
 
   it('the provision response leaks no credentials beyond platform_env wiring', async () => {

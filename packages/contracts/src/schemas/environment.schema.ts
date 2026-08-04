@@ -4,9 +4,25 @@ import {
   ENVIRONMENT_NAMES,
   PROVISION_STATUSES,
 } from '../constants/environment';
+import { DEPLOYMENT_STATUSES } from '../constants/deployment';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
+export const DeploymentStatusSchema = z.enum(DEPLOYMENT_STATUSES);
+
+/** One deployment run; environments expose their latest. */
+export const DeploymentSchema = z.object({
+  id: z.string().uuid(),
+  environmentId: z.string().uuid(),
+  sha: z.string(),
+  status: DeploymentStatusSchema,
+  error: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+  createdBy: z.string().uuid(),
+  createdAt: z.string(),
+});
+export type Deployment = z.infer<typeof DeploymentSchema>;
 
 const EnvVarNameSchema = z.string().min(1).max(128).regex(ENV_VAR_NAME_PATTERN);
 
@@ -32,6 +48,10 @@ export const EnvironmentSchema = z.object({
   provisionStatus: ProvisionStatusSchema,
   provisionError: z.string().nullable(),
   provisionedAt: z.string().nullable(),
+  /** The most recent deployment run, if any. */
+  latestDeployment: DeploymentSchema.nullable(),
+  /** Where the running staging answers (set while the latest deploy is healthy). */
+  publicUrl: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -101,6 +121,14 @@ export const ProvisionEnvironmentRequestSchema = z
 export const ProvisionEnvironmentResponseSchema = EnvironmentSchema;
 export type ProvisionEnvironmentRequest = z.infer<typeof ProvisionEnvironmentRequestSchema>;
 export type ProvisionEnvironmentResponse = z.infer<typeof ProvisionEnvironmentResponseSchema>;
+
+// --- Deploy (enqueues build+deploy of the default branch's HEAD) ---
+export const DeployEnvironmentRequestSchema = z
+  .object({ projectId: z.string().uuid(), id: z.string().uuid() })
+  .strict();
+export const DeployEnvironmentResponseSchema = EnvironmentSchema;
+export type DeployEnvironmentRequest = z.infer<typeof DeployEnvironmentRequestSchema>;
+export type DeployEnvironmentResponse = z.infer<typeof DeployEnvironmentResponseSchema>;
 
 // --- Delete a user env var ---
 export const DeleteEnvVarRequestSchema = z

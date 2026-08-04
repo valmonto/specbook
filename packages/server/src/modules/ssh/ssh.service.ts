@@ -107,6 +107,60 @@ export class SshService {
     }
   }
 
+  /**
+   * Stream a named op's stdout on `source` into a named op's stdin on
+   * `dest` — the registry-less image transport (docker save | ssh | load).
+   * Binary-safe: the bytes never land on the worker's disk or in a string.
+   */
+  async pipeOp(
+    source: SshTarget,
+    sourceOp: RemoteOp,
+    sourceArgs: string[],
+    dest: SshTarget,
+    destOp: RemoteOp,
+  ): Promise<void> {
+    const quoted = (args: string[]) =>
+      args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
+    const { client: src } = await this.connect(source);
+    try {
+      const { client: dst } = await this.connect(dest);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          dst.exec(`bash -s`, (destErr, destStream) => {
+            if (destErr) return reject(destErr);
+            let destErrOut = '';
+            destStream.stderr.on('data', (d: Buffer) => (destErrOut += d.toString()));
+            destStream.on('close', (code: number) =>
+              code === 0
+                ? resolve()
+                : reject(new Error(`remote-op ${destOp} exited ${code}: ${destErrOut}`)),
+            );
+            // Scripts are newline-terminated; adding one would prepend a stray
+            // byte to the binary payload docker load reads.
+            destStream.write(REMOTE_OPS[destOp]);
+            src.exec(`bash -s -- ${quoted(sourceArgs)}`, (srcErr, srcStream) => {
+              if (srcErr) return reject(srcErr);
+              let srcErrOut = '';
+              srcStream.stderr.on('data', (d: Buffer) => (srcErrOut += d.toString()));
+              srcStream.on('close', (code: number) => {
+                if (code !== 0) {
+                  reject(new Error(`remote-op ${sourceOp} exited ${code}: ${srcErrOut}`));
+                }
+                destStream.end();
+              });
+              srcStream.write(REMOTE_OPS[sourceOp]);
+              srcStream.pipe(destStream, { end: false });
+            });
+          });
+        });
+      } finally {
+        dst.end();
+      }
+    } finally {
+      src.end();
+    }
+  }
+
   /** SFTP a file with owner-only permissions (env files, rendered configs). */
   async writeFile(target: SshTarget, remotePath: string, content: string): Promise<void> {
     const { client } = await this.connect(target);

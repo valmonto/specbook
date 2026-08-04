@@ -1,0 +1,41 @@
+import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { DEPLOYMENT_STATUSES } from '@pkg/contracts';
+import { pk } from './helpers';
+import { projectEnvironment } from './environment';
+import { user } from './user';
+
+/**
+ * One build-and-deploy run of an environment. Rollback is just deploying an
+ * older sha — images are retained on the servers, not here.
+ */
+export const deployment = pgTable(
+  'deployment',
+  {
+    id: pk(),
+    environmentId: uuid('environment_id')
+      .notNull()
+      .references(() => projectEnvironment.id, { onDelete: 'cascade' }),
+    sha: varchar('sha', { length: 64 }).notNull(),
+    /** Values from @pkg/contracts DEPLOYMENT_STATUSES. */
+    status: varchar('status', { length: 16 }).notNull().default('queued'),
+    /** Failure detail — a k.* key or a scrubbed logs excerpt. */
+    error: text('error'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('deployment_environment_id_idx').on(table.environmentId, table.createdAt),
+    check(
+      'deployment_status_check',
+      sql.raw(`status IN (${DEPLOYMENT_STATUSES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+  ],
+);
+
+export type Deployment = typeof deployment.$inferSelect;
+export type NewDeployment = typeof deployment.$inferInsert;

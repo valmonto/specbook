@@ -7,6 +7,7 @@ import { AttachmentsSweepProcessor } from './attachments-sweep/attachments-sweep
 import { GithubWebhookProcessor } from './github-webhook/github-webhook.processor';
 import { ServerCheckProcessor } from './server-check/server-check.processor';
 import { EnvironmentProvisionProcessor } from './environment-provision/environment-provision.processor';
+import { DeploymentProcessor } from './deployment/deployment.processor';
 
 /**
  * Worker queues module.
@@ -31,6 +32,8 @@ import { EnvironmentProvisionProcessor } from './environment-provision/environme
     ServerCheckProcessor,
     // Data-plane provisioning (per-environment Postgres/Redis)
     EnvironmentProvisionProcessor,
+    // Build + deploy runs (images over SSH, health-gated compose up)
+    DeploymentProcessor,
   ],
 })
 export class WorkerQueuesModule {}
