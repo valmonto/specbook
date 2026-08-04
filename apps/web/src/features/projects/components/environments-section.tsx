@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -91,6 +91,21 @@ const ago = (iso: string): string => {
   return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 };
 
+/** Running-time display: "40s", then "3m 40s" — the anti-"still building?" line. */
+const elapsed = (iso: string): string => {
+  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return `${secs}s`;
+  return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+};
+
+const phaseLabels: Record<NonNullable<NonNullable<Environment['latestDeployment']>['phase']>, string> = {
+  resolve: k.environments.deploymentPhase.resolve,
+  build: k.environments.deploymentPhase.build,
+  transfer: k.environments.deploymentPhase.transfer,
+  render: k.environments.deploymentPhase.render,
+  up: k.environments.deploymentPhase.up,
+};
+
 /**
  * The Environments section of the project page: where this project RUNS.
  * Platform vars render read-only (machine-owned wiring); user secrets render
@@ -178,6 +193,8 @@ function EnvironmentRow({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [showLog, setShowLog] = useState(false);
+  const logRef = useRef<HTMLPreElement>(null);
   const remove = useRemoveEnvironment(projectId);
   const provision = useProvisionEnvironment(projectId);
   const deploy = useDeployEnvironment(projectId);
@@ -185,6 +202,10 @@ function EnvironmentRow({
   const platformNames = Object.keys(env.platformEnv).sort();
   const latest = env.latestDeployment;
   const deployInFlight = latest?.status === 'queued' || latest?.status === 'building' || latest?.status === 'deploying';
+  // The newest output is the interesting end — keep the tail in view.
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [latest?.log, showLog]);
   const runProvision = () =>
     void provision.execute({ projectId, id: env.id }).then((res) => {
       if (res.e) toast.error(t(res.e.message));
@@ -257,16 +278,39 @@ function EnvironmentRow({
           </span>
           {latest && (
             <span
+              role={latest.log || deployInFlight ? 'button' : undefined}
+              title={
+                latest.log || deployInFlight
+                  ? t(showLog ? k.environments.hideLog : k.environments.showLog)
+                  : undefined
+              }
+              onClick={(e) => {
+                if (!latest.log && !deployInFlight) return;
+                e.stopPropagation();
+                setShowLog((s) => !s);
+              }}
               className={cn(
                 'inline-flex items-center rounded-md px-2 py-0.5 text-xs',
                 deploymentStyles[latest.status],
+                (latest.log || deployInFlight) && 'cursor-pointer hover:opacity-80',
               )}
             >
-              {t(deploymentLabels[latest.status])}
+              {deployInFlight
+                ? `${t(latest.phase ? phaseLabels[latest.phase] : deploymentLabels[latest.status])} · ${elapsed(latest.startedAt ?? latest.createdAt)}`
+                : t(deploymentLabels[latest.status])}
             </span>
           )}
           {latest?.sha && latest.status === 'healthy' && (
-            <span className="text-xs text-muted-foreground">
+            <span
+              role={latest.log ? 'button' : undefined}
+              title={latest.log ? t(showLog ? k.environments.hideLog : k.environments.showLog) : undefined}
+              onClick={(e) => {
+                if (!latest.log) return;
+                e.stopPropagation();
+                setShowLog((s) => !s);
+              }}
+              className={cn('text-xs text-muted-foreground', latest.log && 'cursor-pointer hover:text-foreground')}
+            >
               {t(k.environments.deployedLine, {
                 sha: latest.sha.slice(0, 7),
                 ago: ago(latest.finishedAt ?? latest.createdAt),
@@ -328,8 +372,18 @@ function EnvironmentRow({
 
       {latest?.status === 'failed' && latest.error && (
         <p className="border-t bg-rose-500/5 px-3 py-1.5 font-mono text-xs whitespace-pre-wrap text-rose-700 dark:text-rose-400">
-          {latest.error.slice(0, 400)}
+          {latest.error.includes('.') && !latest.error.includes(' ')
+            ? t(latest.error)
+            : latest.error.slice(0, 400)}
         </p>
+      )}
+      {showLog && latest && (
+        <pre
+          ref={logRef}
+          className="max-h-64 overflow-auto border-t bg-zinc-950 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-300"
+        >
+          {latest.log || t(k.environments.logEmpty)}
+        </pre>
       )}
       {env.autoDeployPaused && (
         <p className="border-t bg-amber-500/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-300">
@@ -687,6 +741,7 @@ function AddEnvironmentDialog({
               placeholder="/srv/myapp"
               className="font-mono"
             />
+            <p className="text-xs text-muted-foreground">{t(k.environments.deployPathHint)}</p>
           </div>
           <div className="flex items-center justify-between gap-3">
             <div>

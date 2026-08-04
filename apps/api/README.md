@@ -271,7 +271,11 @@ IAM secrets generated on first deploy, which also seeds), a compose file
 `/api` to the api → `compose up -d --wait` plus a health probe. Without a
 domain, the proxy publishes the derived port and
 `http://<server>:<derived-port>` is the staging address; a failed deploy
-leaves the previous version serving.
+leaves the previous version serving. Each run carries its own story: a
+`phase` (resolve → build → transfer → render → up) and a `log` — every byte
+the remote ops emit, scrubbed of token patterns at the write boundary and
+tail-capped — flushed to the row every couple of seconds so the UI can show
+"Building · 3m 40s" with live output instead of a bare chip.
 
 **Domains & TLS**: an environment with a `domain` is served by Caddy instead
 of a published port. The first domained deploy installs the ingress plane on

@@ -16,12 +16,14 @@ import {
   type Server,
 } from '@pkg/database';
 import {
+  appendDeployLog,
   dataPlaneUnitName,
   derivePublicPort,
   renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
+  scrubDeployText,
   DEPLOYMENT_QUEUE,
   GithubAppService,
   InjectLogger,
@@ -34,6 +36,15 @@ import {
 import { k } from '@pkg/locales';
 
 const generateSecret = (): string => randomBytes(24).toString('base64url').replace(/[-_]/g, 'x');
+
+/** The deployment log's write side — see createLogSink. */
+interface DeployLogSink {
+  chunk: (text: string) => void;
+  line: (text: string) => void;
+  addLiteral: (value: string) => void;
+  scrub: (text: string) => string;
+  flush: () => Promise<void>;
+}
 
 /**
  * The whole build-and-deploy chain, in one serialized job:
@@ -63,20 +74,56 @@ export class DeploymentProcessor extends WorkerHost {
       .limit(1);
     if (!row || row.status === 'healthy') return; // gone or already done
 
-    let cloneUrl = '';
+    const sink = this.createLogSink(row.id);
     try {
-      await this.run(row, (url) => (cloneUrl = url));
+      await this.run(row, sink);
     } catch (error) {
       // Tokens may ride inside the clone URL — scrub before recording.
-      let detail = (error as Error).message ?? 'deploy failed';
-      if (cloneUrl) detail = detail.replaceAll(cloneUrl, '<repo-url>');
-      detail = detail.replace(/x-access-token:[^@]+@/g, 'x-access-token:***@');
+      const detail = sink.scrub((error as Error).message ?? 'deploy failed');
+      sink.line(`\nERROR: ${detail}`);
+      await sink.flush();
       await this.finish(row.id, 'failed', detail.slice(0, 2000));
       this.logger.error({ deploymentId: row.id, err: detail.slice(0, 300) }, 'Deployment failed');
     }
   }
 
-  private async run(row: Deployment, onCloneUrl: (url: string) => void): Promise<void> {
+  /**
+   * The deployment log's write side: every chunk is scrubbed on entry and
+   * tail-capped, flushed to the row at most every couple of seconds so a
+   * watcher sees a 20-minute build move while it runs. Known secret literals
+   * (the clone URL) are registered as they come into existence.
+   */
+  private createLogSink(deploymentId: string): DeployLogSink {
+    const literals: string[] = [];
+    let buf = '';
+    let timer: NodeJS.Timeout | null = null;
+    const write = (): Promise<void> =>
+      this.update(deploymentId, { log: buf }).catch(() => undefined);
+    const chunk = (text: string): void => {
+      buf = appendDeployLog(buf, scrubDeployText(text, literals));
+      timer ??= setTimeout(() => {
+        timer = null;
+        void write();
+      }, 2000);
+    };
+    return {
+      chunk,
+      line: (text: string): void => chunk(text.endsWith('\n') ? text : `${text}\n`),
+      addLiteral: (value: string): void => {
+        literals.push(value);
+      },
+      scrub: (text: string): string => scrubDeployText(text, literals),
+      flush: async (): Promise<void> => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        await write();
+      },
+    };
+  }
+
+  private async run(row: Deployment, sink: DeployLogSink): Promise<void> {
     const [env] = await this.dbClient.db
       .select()
       .from(projectEnvironment)
@@ -104,7 +151,7 @@ export class DeploymentProcessor extends WorkerHost {
     if (!buildServer) throw new Error(k.environments.errors.noBuildServer);
 
     const cloneUrl = await this.cloneUrlFor(proj);
-    onCloneUrl(cloneUrl);
+    sink.addLiteral(cloneUrl);
     const unit = dataPlaneUnitName(proj.name, env.name);
     const buildTarget = this.targetFor(buildServer);
     const appTarget = this.targetFor(appServer);
@@ -113,26 +160,38 @@ export class DeploymentProcessor extends WorkerHost {
     // actually point at the app server — checked BEFORE the build so a DNS
     // mistake fails in seconds with a named cause, not after minutes.
     if (env.domain) {
-      await this.ssh.exec(appTarget, 'ensure-caddy');
-      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host]);
+      sink.line(`== preflight: ingress plane + dns for ${env.domain} ==`);
+      await this.ssh.exec(appTarget, 'ensure-caddy', [], '', sink.chunk);
+      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host], '', sink.chunk);
     }
 
-    await this.update(row.id, { status: 'building', startedAt: new Date() });
+    await this.update(row.id, { status: 'building', startedAt: new Date(), phase: 'resolve' });
+    sink.line(`== resolve: HEAD of ${proj.defaultBranch} ==`);
     const sha = (
-      await this.ssh.exec(buildTarget, 'resolve-head-sha', [proj.defaultBranch], cloneUrl + '\n')
+      await this.ssh.exec(
+        buildTarget,
+        'resolve-head-sha',
+        [proj.defaultBranch],
+        cloneUrl + '\n',
+        sink.chunk,
+      )
     ).trim();
-    await this.update(row.id, { sha });
+    await this.update(row.id, { sha, phase: 'build' });
+    sink.line(`== build: images at ${sha.slice(0, 7)} on ${buildServer.name} ==`);
     const buildOut = await this.ssh.exec(
       buildTarget,
       'build-images',
       [unit, sha],
       cloneUrl + '\n',
+      sink.chunk,
     );
     const apps = /apps=([a-z,]+)/.exec(buildOut)?.[1]?.split(',') ?? ['api', 'web'];
 
     // Transfer only when the images were built on a different box.
     if (buildServer.id !== appServer.id) {
+      await this.update(row.id, { phase: 'transfer' });
       for (const app of apps) {
+        sink.line(`== transfer: ${unit}-${app}:${sha.slice(0, 7)} → ${appServer.name} ==`);
         await this.ssh.pipeOp(
           buildTarget,
           'image-export',
@@ -145,7 +204,8 @@ export class DeploymentProcessor extends WorkerHost {
 
     // Snapshot the domain onto the run: it records what this deploy serves,
     // which is how the UI tells a live domain from a pending edit.
-    await this.update(row.id, { status: 'deploying', domain: env.domain ?? null });
+    await this.update(row.id, { status: 'deploying', domain: env.domain ?? null, phase: 'render' });
+    sink.line('== render: .env + compose + proxy ==');
     const publicPort = derivePublicPort(unit);
     const dir = env.deployPath?.replace(/\/+$/, '') || `apps/${unit}`;
     const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env);
@@ -164,7 +224,16 @@ export class DeploymentProcessor extends WorkerHost {
       },
     ]);
 
-    await this.ssh.exec(appTarget, 'ensure-dirs', [], dir + '\n');
+    try {
+      await this.ssh.exec(appTarget, 'ensure-dirs', [], dir + '\n', sink.chunk);
+    } catch (error) {
+      // The classic deployPath trap: a directory the SSH user cannot write.
+      // Name the field instead of surfacing a bare mkdir stderr.
+      if (/permission denied/i.test((error as Error).message ?? '')) {
+        throw new Error(k.environments.errors.deployPathNotWritable, { cause: error });
+      }
+      throw error;
+    }
     await this.ssh.writeFile(appTarget, `${dir}/.env`, envFile);
     await this.ssh.writeFile(
       appTarget,
@@ -179,13 +248,18 @@ export class DeploymentProcessor extends WorkerHost {
         renderCaddySite(unit, env.domain),
       );
     }
-    await this.ssh.exec(appTarget, 'deploy-stack', [
-      unit,
-      dir,
-      String(publicPort),
-      ...(env.domain ? [env.domain] : []),
-    ]);
+    await this.update(row.id, { phase: 'up' });
+    sink.line('== up: compose --wait + health gate ==');
+    await this.ssh.exec(
+      appTarget,
+      'deploy-stack',
+      [unit, dir, String(publicPort), ...(env.domain ? [env.domain] : [])],
+      '',
+      sink.chunk,
+    );
 
+    sink.line('deploy complete — healthy');
+    await sink.flush();
     await this.finish(row.id, 'healthy', null);
     this.logger.info(
       { deploymentId: row.id, unit, sha, port: publicPort },

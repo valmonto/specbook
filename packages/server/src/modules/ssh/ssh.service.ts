@@ -78,8 +78,18 @@ export class SshService {
     }
   }
 
-  /** Run a named remote-op, streaming `stdin` to it. Throws on non-zero exit. */
-  async exec(target: SshTarget, op: RemoteOp, args: string[] = [], stdin = ''): Promise<string> {
+  /**
+   * Run a named remote-op, streaming `stdin` to it. Throws on non-zero exit.
+   * `onOutput` (optional) receives every stdout/stderr chunk AS IT ARRIVES —
+   * how deployment logs show a build's progress while it is still running.
+   */
+  async exec(
+    target: SshTarget,
+    op: RemoteOp,
+    args: string[] = [],
+    stdin = '',
+    onOutput?: (chunk: string) => void,
+  ): Promise<string> {
     const script = REMOTE_OPS[op];
     const { client } = await this.connect(target);
     try {
@@ -90,13 +100,19 @@ export class SshService {
           let out = '';
           let errOut = '';
           stream
-            .on('data', (d: Buffer) => (out += d.toString()))
+            .on('data', (d: Buffer) => {
+              out += d.toString();
+              onOutput?.(d.toString());
+            })
             .on('close', (code: number) =>
               code === 0
                 ? resolve(out)
                 : reject(new Error(`remote-op ${op} exited ${code}: ${errOut || out}`)),
             );
-          stream.stderr.on('data', (d: Buffer) => (errOut += d.toString()));
+          stream.stderr.on('data', (d: Buffer) => {
+            errOut += d.toString();
+            onOutput?.(d.toString());
+          });
           // No separator: scripts are newline-terminated, and an extra blank
           // line would be consumed by the script's first data `read`.
           stream.end(script.endsWith('\n') ? script + stdin : script + '\n' + stdin);
