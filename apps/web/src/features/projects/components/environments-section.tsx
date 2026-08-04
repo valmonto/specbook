@@ -8,6 +8,7 @@ import {
   KeyRound,
   Lock,
   Plus,
+  RefreshCw,
   Rocket,
   Trash2,
 } from 'lucide-react';
@@ -43,9 +44,24 @@ import {
   useCreateEnvironment,
   useDeleteEnvVar,
   useEnvironments,
+  useProvisionEnvironment,
   useRemoveEnvironment,
   useSetEnvVar,
 } from '../hooks/use-environments';
+
+const provisionStyles: Record<Environment['provisionStatus'], string> = {
+  unprovisioned: 'bg-muted text-muted-foreground',
+  provisioning: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  provisioned: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  failed: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+};
+
+const provisionLabels: Record<Environment['provisionStatus'], string> = {
+  unprovisioned: k.environments.provisionStatus.unprovisioned,
+  provisioning: k.environments.provisionStatus.provisioning,
+  provisioned: k.environments.provisionStatus.provisioned,
+  failed: k.environments.provisionStatus.failed,
+};
 
 /**
  * The Environments section of the project page: where this project RUNS.
@@ -135,8 +151,13 @@ function EnvironmentRow({
   const [expanded, setExpanded] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const remove = useRemoveEnvironment(projectId);
+  const provision = useProvisionEnvironment(projectId);
 
   const platformNames = Object.keys(env.platformEnv).sort();
+  const runProvision = () =>
+    void provision.execute({ projectId, id: env.id }).then((res) => {
+      if (res.e) toast.error(t(res.e.message));
+    });
 
   return (
     <div>
@@ -170,7 +191,31 @@ function EnvironmentRow({
               {t(k.environments.autoDeploy)}
             </span>
           )}
+          <span
+            className={cn(
+              'inline-flex items-center rounded-md px-2 py-0.5 text-xs',
+              provisionStyles[env.provisionStatus],
+            )}
+          >
+            {t(provisionLabels[env.provisionStatus])}
+          </span>
         </button>
+        {canManage && env.provisionStatus !== 'provisioning' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            disabled={provision.isLoading}
+            onClick={runProvision}
+          >
+            <RefreshCw className="size-3" />
+            {t(
+              env.provisionStatus === 'unprovisioned'
+                ? k.environments.provisionAction
+                : k.environments.reprovisionAction,
+            )}
+          </Button>
+        )}
         {canManage && (
           <Button
             size="icon"
@@ -183,6 +228,14 @@ function EnvironmentRow({
           </Button>
         )}
       </div>
+
+      {env.provisionStatus === 'failed' && env.provisionError && (
+        <p className="border-t bg-rose-500/5 px-3 py-1.5 text-xs text-rose-700 dark:text-rose-400">
+          {env.provisionError.includes('.') && !env.provisionError.includes(' ')
+            ? t(env.provisionError)
+            : env.provisionError}
+        </p>
+      )}
 
       {expanded && (
         <div className="space-y-4 border-t bg-muted/20 px-3 py-3">

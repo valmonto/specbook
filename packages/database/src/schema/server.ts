@@ -40,6 +40,11 @@ export const server = pgTable(
     privateKeyEnc: text('private_key_enc').notNull(),
     /** SHA256 host-key fingerprint, pinned on first successful connect. */
     hostFingerprint: varchar('host_fingerprint', { length: 128 }),
+    /**
+     * Sealed JSON of the shared data-plane's root credentials on this box
+     * (generated at first provision). Write-only like every sealed column.
+     */
+    dataRootEnvEnc: text('data_root_env_enc'),
     status: varchar('status', { length: 32 }).notNull().default('unverified'),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     createdBy: uuid('created_by')

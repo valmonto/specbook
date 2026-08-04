@@ -11,7 +11,7 @@ import {
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { ENVIRONMENT_NAMES } from '@pkg/contracts';
+import { ENVIRONMENT_NAMES, PROVISION_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { project } from './project';
 import { server } from './server';
@@ -45,6 +45,11 @@ export const projectEnvironment = pgTable(
     platformEnv: jsonb('platform_env').notNull().default({}),
     /** Sealed (SecretsService v1) JSON map; null when no secrets are set. */
     userEnvEnc: text('user_env_enc'),
+    /** Data-plane lifecycle — values from @pkg/contracts PROVISION_STATUSES. */
+    provisionStatus: varchar('provision_status', { length: 16 }).notNull().default('unprovisioned'),
+    /** A k.* key or short detail from the last failed provision run. */
+    provisionError: text('provision_error'),
+    provisionedAt: timestamp('provisioned_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -58,6 +63,10 @@ export const projectEnvironment = pgTable(
     check(
       'project_environment_name_check',
       sql.raw(`name IN (${ENVIRONMENT_NAMES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'project_environment_provision_status_check',
+      sql.raw(`provision_status IN (${PROVISION_STATUSES.map((v) => `'${v}'`).join(', ')})`),
     ),
   ],
 );

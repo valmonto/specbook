@@ -97,7 +97,9 @@ export class SshService {
                 : reject(new Error(`remote-op ${op} exited ${code}: ${errOut || out}`)),
             );
           stream.stderr.on('data', (d: Buffer) => (errOut += d.toString()));
-          stream.end(script + '\n' + stdin);
+          // No separator: scripts are newline-terminated, and an extra blank
+          // line would be consumed by the script's first data `read`.
+          stream.end(script.endsWith('\n') ? script + stdin : script + '\n' + stdin);
         });
       });
     } finally {

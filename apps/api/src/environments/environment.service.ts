@@ -1,5 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectLogger, PinoLogger, SecretsService } from '@pkg/server';
+import {
+  dataPlaneUnitName,
+  EnvironmentProvisionProducer,
+  InjectLogger,
+  PinoLogger,
+  SecretsService,
+} from '@pkg/server';
 import { k } from '@pkg/locales';
 import type {
   ActiveUser,
@@ -8,10 +14,11 @@ import type {
   DeleteEnvVarRequest,
   Environment as EnvironmentDto,
   ListEnvironmentsResponse,
+  ProvisionEnvironmentRequest,
   SetEnvVarRequest,
   UpdateEnvironmentRequest,
 } from '@pkg/contracts';
-import type { Project } from '@pkg/database';
+import type { Project, Server } from '@pkg/database';
 import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository';
 
 const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
@@ -40,6 +47,7 @@ export class EnvironmentService {
   constructor(
     private readonly environmentRepository: EnvironmentRepository,
     private readonly secrets: SecretsService,
+    private readonly provisioner: EnvironmentProvisionProducer,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -51,8 +59,11 @@ export class EnvironmentService {
 
   async create(activeUser: ActiveUser, dto: CreateEnvironmentRequest): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
-    await this.assertAppServer(dto.serverId, activeUser.orgId);
+    const srv = await this.assertAppServer(dto.serverId, activeUser.orgId);
 
+    // Creation stays fast; provisioning is async. Auto-enqueue only when the
+    // server can actually host the data plane.
+    const autoProvision = serverRoles(srv).includes('data');
     let createdId: string;
     try {
       const created = await this.environmentRepository.create({
@@ -61,6 +72,7 @@ export class EnvironmentService {
         serverId: dto.serverId,
         domain: dto.domain,
         deployPath: dto.deployPath,
+        ...(autoProvision ? { provisionStatus: 'provisioning' } : {}),
       });
       createdId = created.id;
     } catch (error) {
@@ -69,9 +81,27 @@ export class EnvironmentService {
       }
       throw error;
     }
+    if (autoProvision) await this.provisioner.enqueueProvision(createdId);
 
     this.logger.info({ projectId: dto.projectId, name: dto.name }, 'Environment created');
     return this.getById(activeUser, dto.projectId, createdId);
+  }
+
+  /** Explicit (re-)provision: sets the status and hands off to the worker. */
+  async provision(activeUser: ActiveUser, dto: ProvisionEnvironmentRequest): Promise<EnvironmentDto> {
+    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    // Fast feedback at the API; the worker re-validates before acting.
+    const srv = await this.environmentRepository.findServer(existing.serverId, activeUser.orgId);
+    if (!srv || !serverRoles(srv).includes('data')) {
+      throw new BadRequestException(k.environments.errors.serverNotData);
+    }
+    await this.environmentRepository.update(dto.id, dto.projectId, {
+      provisionStatus: 'provisioning',
+      provisionError: null,
+    });
+    await this.provisioner.enqueueProvision(dto.id);
+    return this.getById(activeUser, dto.projectId, dto.id);
   }
 
   async update(activeUser: ActiveUser, dto: UpdateEnvironmentRequest): Promise<EnvironmentDto> {
@@ -96,8 +126,16 @@ export class EnvironmentService {
   }
 
   async delete(activeUser: ActiveUser, dto: DeleteEnvironmentRequest): Promise<void> {
-    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
-    await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const proj = await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    // Snapshot BEFORE the row disappears; teardown is best-effort by design —
+    // a dead server never makes an environment undeletable.
+    if (existing.provisionStatus !== 'unprovisioned') {
+      await this.provisioner.enqueueDeprovision(
+        existing.serverId,
+        dataPlaneUnitName(proj.name, existing.name),
+      );
+    }
     await this.environmentRepository.delete(dto.id, dto.projectId);
     this.logger.info({ environmentId: dto.id }, 'Environment deleted');
   }
@@ -170,13 +208,13 @@ export class EnvironmentService {
   }
 
   /** An environment's server must be the org's own and hold the 'app' role. */
-  private async assertAppServer(serverId: string, orgId: string): Promise<void> {
+  private async assertAppServer(serverId: string, orgId: string): Promise<Server> {
     const found = await this.environmentRepository.findServer(serverId, orgId);
     if (!found) throw new NotFoundException(k.servers.errors.notFound);
-    const roles = Array.isArray(found.roles) ? (found.roles as string[]) : [];
-    if (!roles.includes('app')) {
+    if (!serverRoles(found).includes('app')) {
       throw new BadRequestException(k.environments.errors.serverNotApp);
     }
+    return found;
   }
 
   private openUserEnv(sealed: string | null): Record<string, string> {
@@ -201,8 +239,13 @@ export class EnvironmentService {
       autoDeploy: e.autoDeploy,
       platformEnv: (e.platformEnv ?? {}) as Record<string, string>,
       userEnvNames: Object.keys(this.openUserEnv(e.userEnvEnc)).sort(),
+      provisionStatus: e.provisionStatus as EnvironmentDto['provisionStatus'],
+      provisionError: e.provisionError,
+      provisionedAt: e.provisionedAt?.toISOString() ?? null,
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),
     };
   }
 }
+
+const serverRoles = (srv: Server): string[] => (Array.isArray(srv.roles) ? (srv.roles as string[]) : []);

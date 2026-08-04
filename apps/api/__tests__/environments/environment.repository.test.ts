@@ -106,6 +106,18 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     ).resolves.toMatchObject({ name: 'staging' });
   });
 
+  it('the provision path is org-bound: a foreign org cannot reach or mark the row', async () => {
+    const mine = await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
+    // The provision endpoint resolves the row through findById(org) — which
+    // refuses — and the write itself is keyed by the owning project.
+    expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
+    expect(
+      await repo.update(mine.id, projectB, { provisionStatus: 'provisioning' }),
+    ).toBeNull();
+    const still = await repo.findById(mine.id, projectA, orgA);
+    expect(still?.provisionStatus).toBe('unprovisioned');
+  });
+
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();

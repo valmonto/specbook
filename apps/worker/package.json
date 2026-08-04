@@ -23,6 +23,7 @@
     "@nestjs/platform-fastify": "catalog:",
     "@pkg/contracts": "workspace:*",
     "@pkg/database": "workspace:*",
+    "@pkg/locales": "workspace:*",
     "@pkg/server": "workspace:*",
     "@pkg/utils": "workspace:*",
     "axios": "catalog:",

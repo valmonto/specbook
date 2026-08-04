@@ -1089,6 +1089,9 @@ importers:
       '@pkg/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@pkg/locales':
+        specifier: workspace:*
+        version: link:../../packages/locales
       '@pkg/server':
         specifier: workspace:*
         version: link:../../packages/server

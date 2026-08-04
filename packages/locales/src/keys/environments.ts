@@ -18,6 +18,16 @@ export const environments = {
   removeConfirmTitle: 'environments.removeConfirmTitle',
   removeConfirmBody: 'environments.removeConfirmBody',
 
+  // Data-plane provisioning
+  provisionAction: 'environments.provisionAction',
+  reprovisionAction: 'environments.reprovisionAction',
+  provisionStatus: {
+    unprovisioned: 'environments.provisionStatus.unprovisioned',
+    provisioning: 'environments.provisionStatus.provisioning',
+    provisioned: 'environments.provisionStatus.provisioned',
+    failed: 'environments.provisionStatus.failed',
+  },
+
   // Env var editor
   platformEnvTitle: 'environments.platformEnvTitle',
   platformEnvHint: 'environments.platformEnvHint',
@@ -37,6 +47,7 @@ export const environments = {
     notFound: 'environments.errors.notFound',
     nameTaken: 'environments.errors.nameTaken',
     serverNotApp: 'environments.errors.serverNotApp',
+    serverNotData: 'environments.errors.serverNotData',
     varNotFound: 'environments.errors.varNotFound',
   },
 } as const;
