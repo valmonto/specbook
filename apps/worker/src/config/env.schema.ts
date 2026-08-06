@@ -8,6 +8,12 @@ export const envSchema = z.object({
   // Node environment
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
+  /**
+   * Where managed agents reach THIS specbook (written into their .mcp.json).
+   * Defaults to the production host so first deploys need no new env.
+   */
+  PUBLIC_BASE_URL: z.string().url().default('https://specbook.valmonto.com'),
+
   // Database
   // `.url()` alone accepts anything with a scheme — "A:" passes — so a typo'd
   // connection string survives startup and only fails on the first query.

@@ -3,6 +3,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DEFAULT_JOB_OPTIONS } from './queues.config';
 import { EXAMPLE_QUEUE, ExampleProducer } from './example';
+import { AGENT_LIFECYCLE_QUEUE, AgentLifecycleProducer } from './agent-lifecycle';
 import { AGENT_SWEEP_QUEUE } from './agent-sweep';
 import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
 import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
@@ -49,15 +50,17 @@ import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment';
     BullModule.registerQueue({ name: EXAMPLE_QUEUE.name }),
     BullModule.registerQueue({ name: ATTACHMENTS_SWEEP_QUEUE.name }),
     BullModule.registerQueue({ name: AGENT_SWEEP_QUEUE.name }),
+    BullModule.registerQueue({ name: AGENT_LIFECYCLE_QUEUE.name }),
     BullModule.registerQueue({ name: GITHUB_WEBHOOK_QUEUE.name }),
     BullModule.registerQueue({ name: SERVER_CHECK_QUEUE.name }),
     BullModule.registerQueue({ name: ENVIRONMENT_PROVISION_QUEUE.name }),
     BullModule.registerQueue({ name: DEPLOYMENT_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer, DeploymentProducer],
+  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer, DeploymentProducer, AgentLifecycleProducer],
   exports: [
     BullModule,
     ExampleProducer,
+    AgentLifecycleProducer,
     GithubWebhookProducer,
     ServerCheckProducer,
     EnvironmentProvisionProducer,

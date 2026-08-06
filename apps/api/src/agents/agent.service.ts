@@ -1,6 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { AGENT_OFFLINE_AFTER_MS, type ActiveUser, type Agent as AgentDto } from '@pkg/contracts';
-import { InjectLogger, PinoLogger } from '@pkg/server';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  AGENT_OFFLINE_AFTER_MS,
+  type ActiveUser,
+  type Agent as AgentDto,
+  type AgentActionRequest,
+  type CreateManagedAgentRequest,
+} from '@pkg/contracts';
+import { k } from '@pkg/locales';
+import { AgentLifecycleProducer, InjectLogger, PinoLogger, SecretsService } from '@pkg/server';
+import { ApiKeyService } from '../api-key/api-key.service';
 import { AgentRepository, type AgentWithContext } from './agent.repository';
 
 /** What the MCP layer knows about the calling key — an agent's identity. */
@@ -31,8 +39,93 @@ function isNameCollision(error: unknown): boolean {
 export class AgentService {
   constructor(
     private readonly agentRepository: AgentRepository,
+    private readonly apiKeys: ApiKeyService,
+    private readonly secrets: SecretsService,
+    private readonly lifecycle: AgentLifecycleProducer,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
+
+  /**
+   * Create a managed agent: mint its dedicated API key (identity), seal the
+   * plaintext for the worker to materialize onto the box at start, and park
+   * it stopped. One managed agent per server is a DEFAULT, not a law — a
+   * second needs the explicit confirm (memory sizing is documented, the
+   * operator decides).
+   */
+  async createManaged(
+    activeUser: ActiveUser,
+    dto: CreateManagedAgentRequest,
+  ): Promise<AgentDto> {
+    const srv = await this.agentRepository.findServer(dto.serverId, activeUser.orgId);
+    if (!srv) throw new NotFoundException(k.servers.errors.notFound);
+    const roles = Array.isArray(srv.roles) ? (srv.roles as string[]) : [];
+    if (!roles.includes('runner')) {
+      throw new BadRequestException(k.agents.errors.serverNotRunner);
+    }
+    const existing = await this.agentRepository.findManagedByServer(
+      dto.serverId,
+      activeUser.orgId,
+    );
+    if (existing.length > 0 && !dto.confirmAdditional) {
+      throw new BadRequestException(k.agents.errors.serverBusy);
+    }
+
+    const minted = await this.apiKeys.create(activeUser, {
+      name: `agent:${dto.name}`,
+      scopes: ['tasks:agent'],
+    });
+    let row;
+    try {
+      row = await this.agentRepository.create({
+        orgId: activeUser.orgId,
+        name: dto.name,
+        apiKeyId: minted.id,
+        serverId: dto.serverId,
+        kind: 'managed',
+        status: 'stopped',
+        mcpKeyEnc: this.secrets.seal(minted.key),
+      });
+    } catch (error) {
+      if (isNameCollision(error)) {
+        throw new BadRequestException(k.agents.errors.nameTaken);
+      }
+      throw error;
+    }
+    this.logger.info(
+      { agentId: row.id, name: row.name, serverId: dto.serverId, keyId: minted.id },
+      'Managed agent created',
+    );
+    return this.serialize({ ...row, serverName: srv.name, currentTaskTitle: null });
+  }
+
+  async start(activeUser: ActiveUser, dto: AgentActionRequest): Promise<AgentDto> {
+    const row = await this.managedOrThrow(dto.id, activeUser.orgId);
+    await this.agentRepository.update(row.id, activeUser.orgId, { status: 'starting' });
+    await this.lifecycle.enqueue({ agentId: row.id, action: 'start' });
+    this.logger.info({ agentId: row.id }, 'Managed agent start enqueued');
+    return this.getById(activeUser, row.id);
+  }
+
+  async stop(activeUser: ActiveUser, dto: AgentActionRequest): Promise<AgentDto> {
+    const row = await this.managedOrThrow(dto.id, activeUser.orgId);
+    await this.lifecycle.enqueue({ agentId: row.id, action: 'stop' });
+    this.logger.info({ agentId: row.id }, 'Managed agent stop enqueued');
+    return this.getById(activeUser, row.id);
+  }
+
+  private async managedOrThrow(id: string, orgId: string) {
+    const row = await this.agentRepository.findById(id, orgId);
+    if (!row) throw new NotFoundException(k.agents.errors.notFound);
+    if (row.kind !== 'managed') throw new BadRequestException(k.agents.errors.notManaged);
+    return row;
+  }
+
+  private async getById(activeUser: ActiveUser, id: string): Promise<AgentDto> {
+    const rows = await this.agentRepository.listForOrg(activeUser.orgId);
+    const found = rows.find((r) => r.id === id);
+    if (!found) throw new NotFoundException(k.agents.errors.notFound);
+    return this.serialize(found);
+  }
 
   /**
    * Upsert-and-stamp. Never throws to the caller's benefit — the MCP layer
@@ -123,6 +216,7 @@ export class AgentService {
       currentTaskTitle: r.currentTaskTitle,
       lastSeenAt: r.lastSeenAt?.toISOString() ?? null,
       startedAt: r.startedAt?.toISOString() ?? null,
+      log: r.log ?? null,
       createdAt: r.createdAt.toISOString(),
     };
   }

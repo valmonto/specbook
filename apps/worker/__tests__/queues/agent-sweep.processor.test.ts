@@ -12,6 +12,7 @@ import {
   type DatabaseClient,
 } from '@pkg/database';
 import { STALE_CLAIM_AFTER_MS } from '@pkg/contracts';
+import type { SecretsService, SshService } from '@pkg/server';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
@@ -32,6 +33,8 @@ describeIntegration('AgentSweepProcessor — stale-claim release', () => {
   const processor = new AgentSweepProcessor(
     client,
     { upsertJobScheduler: async () => undefined } as unknown as Queue,
+    {} as SshService,
+    {} as SecretsService,
     new FakeLogger().as<PinoLogger>(),
   );
 

@@ -13,3 +13,4 @@ export * from './ssh';
 export * from './deploy/render';
 export * from './deploy/auto-deploy';
 export * from './deploy/deploy-log';
+export * from './deploy/runner-render';

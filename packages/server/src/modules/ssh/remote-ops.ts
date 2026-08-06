@@ -288,6 +288,104 @@ docker load
 `,
 
   /**
+   * v1: prepare a box to host a managed agent — node/tmux must exist, the
+   * Claude Code CLI is installed if missing, and the agent's workdir is
+   * created. Prints AUTH_OK/AUTH_MISSING from a cheap probe: Anthropic auth
+   * is the operator's manual step (claude setup-token over SSH) BY DESIGN —
+   * specbook never touches those credentials.
+   */
+  'ensure-runner': `#!/usr/bin/env bash
+set -euo pipefail
+name="\${1:?usage: ensure-runner <name>}"
+{
+  [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,46}$ ]] || { echo "invalid agent name" >&2; exit 1; }
+  command -v node >/dev/null 2>&1 || { echo "RUNNER_MISSING: node" >&2; exit 3; }
+  command -v tmux >/dev/null 2>&1 || { echo "RUNNER_MISSING: tmux" >&2; exit 3; }
+  if ! command -v claude >/dev/null 2>&1; then
+    npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 \\
+      || { echo "RUNNER_MISSING: claude (npm install -g failed)" >&2; exit 3; }
+  fi
+  mkdir -p "$HOME/specbook-runner/$name/.claude"
+  echo "claude: $(claude --version 2>/dev/null | head -1)"
+  if timeout 60 claude -p ok >/dev/null 2>&1; then
+    echo "AUTH_OK"
+  else
+    echo "AUTH_MISSING"
+  fi
+  echo "ensure-runner: ok"
+}
+`,
+
+  /**
+   * v1: launch the managed agent — one tmux session running the official
+   * Claude Code CLI on the pre-written runner prompt. The workdir's
+   * .mcp.json (SFTP'd 0600 beforehand) carries the specbook key; nothing
+   * secret rides argv. The trailing marker+sleep keeps the pane alive after
+   * an exit so runner-status can show WHY it died.
+   */
+  'runner-start': `#!/usr/bin/env bash
+set -euo pipefail
+name="\${1:?usage: runner-start <name>}"
+{
+  [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,46}$ ]] || { echo "invalid agent name" >&2; exit 1; }
+  dir="$HOME/specbook-runner/$name"
+  [ -f "$dir/.mcp.json" ] && [ -f "$dir/runner-prompt.md" ] \\
+    || { echo "runner-start: workdir not prepared" >&2; exit 1; }
+  session="specbook-$name"
+  if tmux has-session -t "$session" 2>/dev/null; then
+    echo "runner-start: already running"
+    exit 0
+  fi
+  # IS_SANDBOX: a runner host is a dedicated agent VM by definition (README
+  # requirements) — this is what lets the CLI run unattended, root included.
+  tmux new-session -d -s "$session" -c "$dir" \\
+    'IS_SANDBOX=1 claude --dangerously-skip-permissions "$(cat runner-prompt.md)"; echo RUNNER_EXITED; sleep 86400'
+  # First launch in a fresh workdir stacks one-time onboarding dialogs
+  # (folder trust, then bypass-permissions consent whose DEFAULT is exit).
+  # Walk them until the runner's live prompt appears — the CLI can take a
+  # while to boot on a busy box, so absence of a dialog is not completion.
+  for _ in $(seq 1 45); do
+    pane=$(tmux capture-pane -p -t "$session" 2>/dev/null || true)
+    if echo "$pane" | grep -qi "trust this folder"; then
+      tmux send-keys -t "$session" Enter; sleep 2; continue
+    fi
+    if echo "$pane" | grep -qi "Bypass Permissions mode"; then
+      tmux send-keys -t "$session" Down; sleep 1
+      tmux send-keys -t "$session" Enter; sleep 2; continue
+    fi
+    if echo "$pane" | grep -qE "esc to interrupt|bypass permissions on"; then
+      break
+    fi
+    sleep 2
+  done
+  echo "runner-start: ok"
+}
+`,
+
+  /** v1: stop the managed agent's tmux session; absence is success. */
+  'runner-stop': `#!/usr/bin/env bash
+set -uo pipefail
+name="\${1:?usage: runner-stop <name>}"
+[[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,46}$ ]] || { echo "invalid agent name" >&2; exit 1; }
+tmux kill-session -t "specbook-$name" 2>/dev/null || true
+echo "runner-stop: ok"
+`,
+
+  /** v1: session existence + the pane's visible tail (read-only). */
+  'runner-status': `#!/usr/bin/env bash
+set -uo pipefail
+name="\${1:?usage: runner-status <name>}"
+[[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,46}$ ]] || { echo "invalid agent name" >&2; exit 1; }
+session="specbook-$name"
+if tmux has-session -t "$session" 2>/dev/null; then
+  echo "RUNNER_RUNNING"
+else
+  echo "RUNNER_STOPPED"
+fi
+tmux capture-pane -p -t "$session" 2>/dev/null | tail -n 100 || true
+`,
+
+  /**
    * v1: tear down one environment's unit — redis container, database, role.
    * Best-effort by design: a half-dead box must not block deletion, so every
    * step tolerates absence.

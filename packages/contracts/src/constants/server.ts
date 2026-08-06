@@ -3,7 +3,7 @@
  * and/or host the shared data plane. Values are data (varchar + CHECK in
  * the database); one server may hold several roles.
  */
-export const SERVER_ROLES = ['build', 'app', 'data'] as const;
+export const SERVER_ROLES = ['build', 'app', 'data', 'runner'] as const;
 export type ServerRole = (typeof SERVER_ROLES)[number];
 
 export const SERVER_STATUSES = [

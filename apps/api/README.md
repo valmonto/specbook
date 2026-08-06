@@ -310,6 +310,30 @@ owns. User secrets remain write-only; this exception is for machine wiring
 only. Single-box assumption: the environment's server is both `app` and
 `data` — splitting the roles across machines is a later slice.
 
+**Agents** are the WORKERS of the loop, distinct from servers (the
+machines). An agent's identity is the API key it calls MCP with — the first
+call from a `tasks:agent` key creates its row, and every successful
+agent-court call stamps liveness (plus an explicit `heartbeat` tool for
+quiet stretches). The dashboard shows the fleet strip (state · name ·
+current task · seen-ago); an `in_progress` claim whose agent goes silent 30
+minutes returns to `ready` with an audit comment — never touching `blocked`
+(that silence is a human wait) and never without positive evidence of a
+dead agent.
+
+**Managed agents** are agents specbook launches itself: a server holding
+the `runner` role hosts a tmux session running the official Claude Code CLI
+on a rendered dispatch prompt, started/stopped from the UI and polled for
+its pane tail (scrubbed at the write boundary, like deployment logs). The
+agent's specbook API key is minted at creation, sealed, and materialized
+only into the workdir's `.mcp.json` (0600) at start. Anthropic credentials
+are NEVER handled by specbook — the operator SSHes in once and runs
+`claude setup-token`; a failed auth probe parks the agent in `auth_needed`
+with that exact instruction on the card. Manual takeover is always
+available: `ssh <user>@<host> -t tmux attach -t specbook-<name>`. Sizing
+rule, learned the hard way: one actively building agent per 8–16GB box
+(8GB requires swap) — a second agent on the same server asks for an
+explicit confirm.
+
 ## Seeding
 
 `pnpm db:seed` picks a strategy from `NODE_ENV`: production seeds one owner and
