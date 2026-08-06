@@ -27,6 +27,14 @@ export {
   type ServerStatus,
 } from './constants/server';
 export {
+  AGENT_KINDS,
+  AGENT_STATUSES,
+  AGENT_OFFLINE_AFTER_MS,
+  STALE_CLAIM_AFTER_MS,
+  type AgentKind,
+  type AgentStatus,
+} from './constants/agent';
+export {
   ANALYTICS_EVENTS,
   FEATURE_FLAGS,
   type AnalyticsEvent,

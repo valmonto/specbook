@@ -12,11 +12,50 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
+  useAgents,
   useCheckCriterion,
   useDeleteTask,
   useTask,
   useTransitionTask,
 } from '../hooks/use-projects';
+
+/**
+ * Liveness of whoever holds the claim: resolved from the agents list by
+ * current task, so a dead runner is visible right where the claim is shown.
+ */
+function ClaimantLiveness({ taskId, claimed }: { taskId: string; claimed: boolean }) {
+  const { t } = useTranslation();
+  const { data } = useAgents();
+  if (!claimed) return null;
+  const agent = (data?.data ?? []).find((a) => a.currentTaskId === taskId);
+  if (!agent) return null;
+  const offline = agent.status === 'offline';
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-xs',
+        offline ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground',
+      )}
+    >
+      <span
+        className={cn(
+          'size-1.5 rounded-full',
+          offline ? 'bg-amber-500' : 'bg-emerald-500',
+        )}
+      />
+      {agent.name}
+      {agent.lastSeenAt && ` · ${t(k.agents.seen, { when: agoShort(agent.lastSeenAt) })}`}
+    </span>
+  );
+}
+
+/** Compact recency for the liveness chip. */
+function agoShort(iso: string): string {
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
+}
 import { AttachmentsSection } from './attachments-section';
 import { CiStateDot, PrStateBadge } from './github-state-badges';
 import { TaskEditForm } from './task-edit-form';
@@ -169,6 +208,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                     {t(k.tasks.detail.claimedAgo, { when: fmtDate(task.claimedAt) })}
                   </span>
                 )}
+                <ClaimantLiveness taskId={task.id} claimed={Boolean(task.claimedBy)} />
               </div>
               <div className="flex items-start justify-between gap-2">
                 <SheetTitle className="text-left leading-snug">{task.title}</SheetTitle>

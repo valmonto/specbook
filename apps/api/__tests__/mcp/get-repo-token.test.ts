@@ -4,6 +4,7 @@ import { k } from '@pkg/locales';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AgentService } from '@/agents';
 import { McpTools } from '@/mcp/mcp-tools';
 import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
@@ -56,6 +57,7 @@ describe('MCP get_repo_token', () => {
       {} as TaskService,
       {} as AttachmentsService,
       github as unknown as GithubAppService,
+      {} as AgentService,
       new FakeLogger().as<PinoLogger>(),
     );
     handler = tools.catalog().find((tool) => tool.name === 'get_repo_token')!.handler;

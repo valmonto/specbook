@@ -1,4 +1,5 @@
 import type {
+  ListAgentsResponse,
   AddTaskCommentRequest,
   ArchiveProjectRequest,
   ArchiveProjectResponse,
@@ -70,6 +71,9 @@ export const projectsResource = (client: HttpClient) => ({
     client.post(`/api/projects/${dto.id}/archive`, {}),
   unarchiveProject: (dto: ArchiveProjectRequest): Promise<ArchiveProjectResponse> =>
     client.post(`/api/projects/${dto.id}/unarchive`, {}),
+
+  // Agents (the fleet strip)
+  listAgents: (): Promise<ListAgentsResponse> => client.get('/api/agents'),
 
   // Tasks
   createTask: (dto: CreateTaskRequest): Promise<CreateTaskResponse> =>

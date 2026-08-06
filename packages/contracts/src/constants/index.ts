@@ -13,4 +13,5 @@ export * from './task';
 export * from './server';
 export * from './environment';
 export * from './deployment';
+export * from './agent';
 export * from './attachment';

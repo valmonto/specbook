@@ -143,6 +143,13 @@ export const MCP_TOOLS = [
     description:
       "Write to the task's work log. kind 'progress' for narration mid-flight, 'comment' for everything else (questions go through update_status → blocked).",
   },
+  {
+    name: 'heartbeat',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      'Announce liveness: upserts your agent row (identity = this API key), stamps last-seen and your current claim. Call between work cycles — a claim whose agent goes silent too long is released back to ready.',
+  },
 ] as const satisfies readonly McpToolDescriptor[];
 
 export type McpToolName = (typeof MCP_TOOLS)[number]['name'];

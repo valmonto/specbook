@@ -14,6 +14,7 @@ export * from './deployment';
 export * from './task';
 export * from './task-comment';
 export * from './attachment';
+export * from './agent';
 
 // Relations
 export * from './relations';

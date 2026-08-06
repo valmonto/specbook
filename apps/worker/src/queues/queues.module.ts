@@ -3,6 +3,7 @@ import { GithubAppModule, QueuesModule as SharedQueuesModule, SecretsModule, Ssh
 import { ExampleProcessor } from './example/example.processor';
 import { ExampleListener } from './example/example.listener';
 import { NotificationRepository } from './example/notification.repository';
+import { AgentSweepProcessor } from './agent-sweep/agent-sweep.processor';
 import { AttachmentsSweepProcessor } from './attachments-sweep/attachments-sweep.processor';
 import { GithubWebhookProcessor } from './github-webhook/github-webhook.processor';
 import { ServerCheckProcessor } from './server-check/server-check.processor';
@@ -26,6 +27,8 @@ import { DeploymentProcessor } from './deployment/deployment.processor';
     NotificationRepository,
     // Storage GC
     AttachmentsSweepProcessor,
+
+    AgentSweepProcessor,
     // GitHub webhook → live task PR/CI state
     GithubWebhookProcessor,
     // Server reachability + host-key pinning
