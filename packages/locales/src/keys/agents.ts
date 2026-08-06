@@ -31,6 +31,13 @@ export const agents = {
   attachHint: 'agents.attachHint',
   serverBusyWarning: 'agents.serverBusyWarning',
   confirmAdditional: 'agents.confirmAdditional',
+  prepTitle: 'agents.prepTitle',
+  prepPackages: 'agents.prepPackages',
+  prepMemory: 'agents.prepMemory',
+  prepAuth: 'agents.prepAuth',
+  noRunnerServers: 'agents.noRunnerServers',
+  copy: 'agents.copy',
+  copied: 'agents.copied',
 
   errors: {
     notFound: 'agents.errors.notFound',

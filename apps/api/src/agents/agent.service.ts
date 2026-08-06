@@ -95,7 +95,13 @@ export class AgentService {
       { agentId: row.id, name: row.name, serverId: dto.serverId, keyId: minted.id },
       'Managed agent created',
     );
-    return this.serialize({ ...row, serverName: srv.name, currentTaskTitle: null });
+    return this.serialize({
+      ...row,
+      serverName: srv.name,
+      serverHost: srv.host,
+      serverSshUser: srv.sshUser,
+      currentTaskTitle: null,
+    });
   }
 
   async start(activeUser: ActiveUser, dto: AgentActionRequest): Promise<AgentDto> {
@@ -155,6 +161,8 @@ export class AgentService {
     return this.serialize({
       ...row,
       serverName: null,
+      serverHost: null,
+      serverSshUser: null,
       currentTaskTitle: claim?.title ?? null,
     });
   }
@@ -212,6 +220,8 @@ export class AgentService {
       status: (presence && stale ? 'offline' : r.status) as AgentDto['status'],
       serverId: r.serverId,
       serverName: r.serverName,
+      serverHost: r.serverHost,
+      serverSshUser: r.serverSshUser,
       currentTaskId: r.currentTaskId,
       currentTaskTitle: r.currentTaskTitle,
       lastSeenAt: r.lastSeenAt?.toISOString() ?? null,

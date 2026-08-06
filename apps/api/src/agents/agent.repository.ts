@@ -17,6 +17,8 @@ import {
 /** An agent row joined with its display context. */
 export type AgentWithContext = AgentRow & {
   serverName: string | null;
+  serverHost: string | null;
+  serverSshUser: string | null;
   currentTaskTitle: string | null;
 };
 
@@ -102,7 +104,13 @@ export class AgentRepository {
 
   async listForOrg(orgId: string): Promise<AgentWithContext[]> {
     const rows = await this.dbClient.db
-      .select({ agent: agent, serverName: server.name, currentTaskTitle: task.title })
+      .select({
+        agent: agent,
+        serverName: server.name,
+        serverHost: server.host,
+        serverSshUser: server.sshUser,
+        currentTaskTitle: task.title,
+      })
       .from(agent)
       .leftJoin(server, eq(server.id, agent.serverId))
       .leftJoin(task, eq(task.id, agent.currentTaskId))
@@ -111,6 +119,8 @@ export class AgentRepository {
     return rows.map((r) => ({
       ...r.agent,
       serverName: r.serverName ?? null,
+      serverHost: r.serverHost ?? null,
+      serverSshUser: r.serverSshUser ?? null,
       currentTaskTitle: r.currentTaskTitle ?? null,
     }));
   }

@@ -16,6 +16,9 @@ export const AgentSchema = z.object({
   status: z.enum(AGENT_STATUSES),
   serverId: z.string().uuid().nullable(),
   serverName: z.string().nullable(),
+  /** For the manual-takeover hint on managed agents; same visibility class as environment publicUrl. */
+  serverHost: z.string().nullable(),
+  serverSshUser: z.string().nullable(),
   currentTaskId: z.string().uuid().nullable(),
   currentTaskTitle: z.string().nullable(),
   lastSeenAt: z.string().nullable(),
