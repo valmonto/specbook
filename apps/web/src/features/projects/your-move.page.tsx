@@ -1,20 +1,48 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, CircleAlert, Inbox, MessageCircleQuestion, Radio, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Bot,
+  CircleAlert,
+  Inbox,
+  MessageCircleQuestion,
+  Play,
+  Plus,
+  Radio,
+  RotateCcw,
+  Square,
+} from 'lucide-react';
 import type { Agent, Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
+import { useCan } from '@/shared/hooks/use-permissions';
+import { useServers } from '@/shared/servers/hooks';
 import { StatusBadge } from './components/status-badge';
 import { CiStateDot, PrStateBadge } from './components/github-state-badges';
 import { TaskDetailSheet } from './components/task-detail-sheet';
 import {
   useAgents,
   useBlockedQuestions,
+  useCreateManagedAgent,
   useProjects,
+  useStartAgent,
+  useStopAgent,
   useTaskCount,
   useTasksByStatus,
   useTransitionTask,
@@ -32,32 +60,186 @@ const agentDot: Record<Agent['status'], string> = {
 
 /**
  * One agent, one pill: name, what it is doing RIGHT NOW, and when it was
- * last heard from — the fleet at a glance, per the legibility rule.
+ * last heard from — the fleet at a glance, per the legibility rule. Managed
+ * agents add lifecycle controls and an expandable log; the auth_needed state
+ * names the exact human action (the one command specbook will never run).
  */
-function AgentPill({ agent }: { agent: Agent }) {
+function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
   const { t } = useTranslation();
+  const [showLog, setShowLog] = useState(false);
+  const start = useStartAgent();
+  const stop = useStopAgent();
+  const managed = agent.kind === 'managed';
+  const running = ['idle', 'working', 'starting'].includes(agent.status);
   const stateLabel =
     agent.status === 'working' && agent.currentTaskTitle
       ? t(k.agents.workingOn, { task: agent.currentTaskTitle })
       : t(k.agents.status[agent.status]);
+  const act = (action: typeof start) => () =>
+    void action.execute({ id: agent.id }).then((res) => {
+      if (res.e) toast.error(t(res.e.message));
+    });
+
   return (
-    <div
-      className="flex max-w-full items-center gap-2 rounded-lg border bg-card/50 px-3 py-1.5"
-      title={stateLabel}
-    >
-      <span
-        className={cn(
-          'size-2 shrink-0 rounded-full',
-          agentDot[agent.status],
-          agent.status === 'working' && 'animate-pulse',
+    <div className="max-w-full rounded-lg border bg-card/50">
+      <div className="flex items-center gap-2 px-3 py-1.5" title={stateLabel}>
+        <span
+          className={cn(
+            'size-2 shrink-0 rounded-full',
+            agentDot[agent.status],
+            agent.status === 'working' && 'animate-pulse',
+          )}
+        />
+        <span className="shrink-0 text-sm font-medium">{agent.name}</span>
+        <span className="truncate text-xs text-muted-foreground">{stateLabel}</span>
+        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          {agent.lastSeenAt
+            ? t(k.agents.seen, { when: ago(agent.lastSeenAt) })
+            : t(k.agents.neverSeen)}
+        </span>
+        {managed && agent.log && (
+          <button
+            type="button"
+            onClick={() => setShowLog((s) => !s)}
+            className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:underline"
+          >
+            {t(showLog ? k.agents.hideLog : k.agents.showLog)}
+          </button>
         )}
-      />
-      <span className="shrink-0 text-sm font-medium">{agent.name}</span>
-      <span className="truncate text-xs text-muted-foreground">{stateLabel}</span>
-      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-        {agent.lastSeenAt ? t(k.agents.seen, { when: ago(agent.lastSeenAt) }) : t(k.agents.neverSeen)}
-      </span>
+        {managed && canManage && !running && (
+          <Button size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs" disabled={start.isLoading} onClick={act(start)}>
+            <Play className="size-3" />
+            {t(k.agents.start)}
+          </Button>
+        )}
+        {managed && canManage && running && (
+          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs text-muted-foreground" disabled={stop.isLoading} onClick={act(stop)}>
+            <Square className="size-3" />
+            {t(k.agents.stop)}
+          </Button>
+        )}
+      </div>
+      {agent.status === 'auth_needed' && (
+        <p className="border-t bg-amber-500/10 px-3 py-1.5 font-mono text-xs text-amber-800 dark:text-amber-300">
+          {t(k.agents.authNeededHint)}
+        </p>
+      )}
+      {showLog && (
+        <pre className="max-h-48 overflow-auto border-t bg-zinc-950 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-300">
+          {agent.log || t(k.agents.logEmpty)}
+        </pre>
+      )}
     </div>
+  );
+}
+
+/** Create-managed dialog: pick a runner server, name it, confirm if busy. */
+function AddManagedAgentDialog({
+  open,
+  onOpenChange,
+  agents,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  agents: Agent[];
+}) {
+  const { t } = useTranslation();
+  const create = useCreateManagedAgent();
+  const { data: serversData } = useServers();
+  const runnerServers = (serversData?.data ?? []).filter((s) => s.roles.includes('runner'));
+  const [name, setName] = useState('');
+  const [serverId, setServerId] = useState('');
+  const [confirmAdditional, setConfirmAdditional] = useState(false);
+
+  const picked = serverId || runnerServers[0]?.id || '';
+  const busy = agents.some((a) => a.kind === 'managed' && a.serverId === picked);
+
+  const submit = async () => {
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed || !picked) return;
+    const res = await create.execute({
+      serverId: picked,
+      name: trimmed,
+      confirmAdditional: busy ? confirmAdditional : undefined,
+    });
+    if (res.e) {
+      toast.error(t(res.e.message));
+      return;
+    }
+    setName('');
+    setConfirmAdditional(false);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t(k.agents.addManaged)}</DialogTitle>
+          <DialogDescription>{t(k.agents.addManagedDesc)}</DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="agent-name">{t(k.agents.name)}</Label>
+            <Input
+              id="agent-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="runner-2"
+              className="font-mono"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="agent-server">{t(k.agents.server)}</Label>
+            <NativeSelect
+              id="agent-server"
+              value={picked}
+              onChange={(e) => setServerId(e.target.value)}
+            >
+              {runnerServers.map((s) => (
+                <NativeSelectOption key={s.id} value={s.id}>
+                  {s.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+            <p className="text-xs text-muted-foreground">{t(k.agents.serverHint)}</p>
+          </div>
+          {busy && (
+            <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                {t(k.agents.serverBusyWarning)}
+              </p>
+              <label className="flex items-center gap-2 text-xs">
+                <Checkbox
+                  checked={confirmAdditional}
+                  onCheckedChange={(v) => setConfirmAdditional(v === true)}
+                />
+                {t(k.agents.confirmAdditional)}
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t(k.common.actions.cancel)}
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                create.isLoading || runnerServers.length === 0 || (busy && !confirmAdditional)
+              }
+            >
+              {t(k.agents.addManaged)}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -124,6 +306,8 @@ export default function YourMovePage() {
   const inFlight = inProgress?.data ?? [];
   const { data: agentsData } = useAgents();
   const agents = agentsData?.data ?? [];
+  const canManageAgents = useCan('settings:update');
+  const [addingAgent, setAddingAgent] = useState(false);
 
   const Row = ({ task }: { task: Task }) => (
     <button
@@ -238,17 +422,33 @@ export default function YourMovePage() {
       )}
 
       {/* Agents — the fleet strip: who works this board, live */}
-      {agents.length > 0 && (
+      {(agents.length > 0 || canManageAgents) && (
         <section className="space-y-2">
           <h2 className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             <Radio className="size-3.5" />
             {t(k.agents.title)}
+            {canManageAgents && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-6 gap-1 px-2 text-xs normal-case"
+                onClick={() => setAddingAgent(true)}
+              >
+                <Plus className="size-3" />
+                {t(k.agents.addManaged)}
+              </Button>
+            )}
           </h2>
           <div className="flex flex-wrap gap-2">
             {agents.map((agent) => (
-              <AgentPill key={agent.id} agent={agent} />
+              <AgentPill key={agent.id} agent={agent} canManage={canManageAgents} />
             ))}
           </div>
+          <AddManagedAgentDialog
+            open={addingAgent}
+            onOpenChange={setAddingAgent}
+            agents={agents}
+          />
         </section>
       )}
 

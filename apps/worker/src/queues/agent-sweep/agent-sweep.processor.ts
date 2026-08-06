@@ -7,15 +7,25 @@ import {
   agent,
   apiKey,
   project,
+  server,
   task,
   taskComment,
   and,
   eq,
   inArray,
   type AgentRow,
+  type Server,
 } from '@pkg/database';
 import { STALE_CLAIM_AFTER_MS } from '@pkg/contracts';
-import { AGENT_SWEEP_QUEUE, InjectLogger, PinoLogger } from '@pkg/server';
+import {
+  AGENT_SWEEP_QUEUE,
+  InjectLogger,
+  PinoLogger,
+  SecretsService,
+  SshService,
+  appendDeployLog,
+  scrubDeployText,
+} from '@pkg/server';
 
 /**
  * Stale-claim release: an in_progress task whose claimant agent has gone
@@ -36,6 +46,8 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     @Inject(DATABASE_CLIENT) private readonly dbClient: DatabaseClient,
     @InjectQueue(AGENT_SWEEP_QUEUE.name) private readonly queue: Queue,
+    private readonly ssh: SshService,
+    private readonly secrets: SecretsService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {
     super();
@@ -74,7 +86,59 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
       this.logger.info({ taskId: row.id, agent: name }, 'Stale claim released');
     }
 
+    await this.pollManaged();
+
     return { released };
+  }
+
+  /**
+   * Managed agents: reconcile the stored lifecycle with the box's reality —
+   * a session that vanished while the agent was supposed to be running flips
+   * to error (with the pane's last words in the log), and the visible tail
+   * refreshes each tick. Best-effort per agent: one dead box never stalls
+   * the sweep for the rest.
+   */
+  private async pollManaged(): Promise<void> {
+    const rows = await this.dbClient.db
+      .select({ agent: agent, server: server })
+      .from(agent)
+      .innerJoin(server, eq(server.id, agent.serverId))
+      .where(and(eq(agent.kind, 'managed'), inArray(agent.status, ['idle', 'working'])));
+
+    for (const { agent: row, server: srv } of rows) {
+      try {
+        const out = await this.ssh.exec(this.targetFor(srv), 'runner-status', [row.name]);
+        const alive = out.includes('RUNNER_RUNNING');
+        const tail = scrubDeployText(out.replace(/^RUNNER_(RUNNING|STOPPED)\n?/, ''));
+        await this.dbClient.db
+          .update(agent)
+          .set(
+            alive
+              ? { log: appendDeployLog(null, tail) }
+              : {
+                  status: 'error',
+                  log: appendDeployLog(
+                    appendDeployLog(null, tail),
+                    '\nsession not found — the runner died or was killed outside specbook\n',
+                  ),
+                },
+          )
+          .where(eq(agent.id, row.id));
+        if (!alive) this.logger.warn({ agentId: row.id, name: row.name }, 'Managed agent session gone');
+      } catch (error) {
+        this.logger.warn({ agentId: row.id, error }, 'Managed agent status poll failed');
+      }
+    }
+  }
+
+  private targetFor(srv: Server) {
+    return {
+      host: srv.host,
+      port: srv.port,
+      user: srv.sshUser,
+      privateKey: this.secrets.open(srv.privateKeyEnc),
+      hostFingerprint: srv.hostFingerprint,
+    };
   }
 
   /** The claimant user's agents inside the owning org (identity = api key). */

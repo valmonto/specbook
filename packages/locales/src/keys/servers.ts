@@ -14,6 +14,7 @@ export const servers = {
     build: 'servers.role.build',
     app: 'servers.role.app',
     data: 'servers.role.data',
+    runner: 'servers.role.runner',
   },
   status: {
     unverified: 'servers.status.unverified',

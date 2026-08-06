@@ -1,4 +1,8 @@
 import type {
+  AgentActionRequest,
+  AgentActionResponse,
+  CreateManagedAgentRequest,
+  CreateManagedAgentResponse,
   ListAgentsResponse,
   AddTaskCommentRequest,
   ArchiveProjectRequest,
@@ -72,8 +76,14 @@ export const projectsResource = (client: HttpClient) => ({
   unarchiveProject: (dto: ArchiveProjectRequest): Promise<ArchiveProjectResponse> =>
     client.post(`/api/projects/${dto.id}/unarchive`, {}),
 
-  // Agents (the fleet strip)
+  // Agents (the fleet strip + managed lifecycle)
   listAgents: (): Promise<ListAgentsResponse> => client.get('/api/agents'),
+  createManagedAgent: (dto: CreateManagedAgentRequest): Promise<CreateManagedAgentResponse> =>
+    client.post('/api/agents/managed', dto),
+  startAgent: (dto: AgentActionRequest): Promise<AgentActionResponse> =>
+    client.post(`/api/agents/${dto.id}/start`, {}),
+  stopAgent: (dto: AgentActionRequest): Promise<AgentActionResponse> =>
+    client.post(`/api/agents/${dto.id}/stop`, {}),
 
   // Tasks
   createTask: (dto: CreateTaskRequest): Promise<CreateTaskResponse> =>

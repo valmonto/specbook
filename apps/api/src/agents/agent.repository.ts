@@ -71,6 +71,35 @@ export class AgentRepository {
     return row ?? null;
   }
 
+  /** Server lookup for the runner-role check — org-scoped like everything. */
+  async findServer(serverId: string, orgId: string) {
+    const [row] = await this.dbClient.db
+      .select()
+      .from(server)
+      .where(and(eq(server.id, serverId), eq(server.orgId, orgId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findById(id: string, orgId: string): Promise<AgentRow | null> {
+    const [row] = await this.dbClient.db
+      .select()
+      .from(agent)
+      .where(and(eq(agent.id, id), eq(agent.orgId, orgId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Managed agents already hosted on a server (the soft one-per-box gate). */
+  async findManagedByServer(serverId: string, orgId: string): Promise<AgentRow[]> {
+    return this.dbClient.db
+      .select()
+      .from(agent)
+      .where(
+        and(eq(agent.serverId, serverId), eq(agent.orgId, orgId), eq(agent.kind, 'managed')),
+      );
+  }
+
   async listForOrg(orgId: string): Promise<AgentWithContext[]> {
     const rows = await this.dbClient.db
       .select({ agent: agent, serverName: server.name, currentTaskTitle: task.title })

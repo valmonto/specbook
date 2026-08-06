@@ -185,6 +185,9 @@ export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);
 export const useDeleteTask = () =>
   useProjectsAction((dto: DeleteTaskRequest) => projectsApi.removeTask(dto));
 export const useTransitionTask = () => useProjectsAction(projectsApi.transitionTask);
+export const useCreateManagedAgent = () => useProjectsAction(projectsApi.createManagedAgent);
+export const useStartAgent = () => useProjectsAction(projectsApi.startAgent);
+export const useStopAgent = () => useProjectsAction(projectsApi.stopAgent);
 export const useMergeTask = () => useProjectsAction(projectsApi.mergeTask);
 
 /** Live PR scope (files, +/−, areas) for one task — fetched when a card expands. */

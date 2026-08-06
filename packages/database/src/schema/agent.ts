@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, check, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, check, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { AGENT_KINDS, AGENT_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers';
@@ -32,6 +32,10 @@ export const agent = pgTable(
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     currentTaskId: uuid('current_task_id').references(() => task.id, { onDelete: 'set null' }),
     startedAt: timestamp('started_at', { withTimezone: true }),
+    /** Managed agents: scrubbed, tail-capped tmux capture (write-boundary rule). */
+    log: text('log'),
+    /** Managed agents: the sealed MCP key materialized onto the box at start. Write-only. */
+    mcpKeyEnc: text('mcp_key_enc'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
