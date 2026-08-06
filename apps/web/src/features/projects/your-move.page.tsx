@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, CircleAlert, Inbox, MessageCircleQuestion, RotateCcw } from 'lucide-react';
-import type { Task } from '@pkg/contracts';
+import { Bot, CircleAlert, Inbox, MessageCircleQuestion, Radio, RotateCcw } from 'lucide-react';
+import type { Agent, Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,54 @@ import { StatusBadge } from './components/status-badge';
 import { CiStateDot, PrStateBadge } from './components/github-state-badges';
 import { TaskDetailSheet } from './components/task-detail-sheet';
 import {
+  useAgents,
   useBlockedQuestions,
   useProjects,
   useTaskCount,
   useTasksByStatus,
   useTransitionTask,
 } from './hooks/use-projects';
+
+const agentDot: Record<Agent['status'], string> = {
+  working: 'bg-emerald-500',
+  idle: 'bg-sky-500',
+  offline: 'bg-zinc-400',
+  stopped: 'bg-zinc-400',
+  starting: 'bg-sky-500',
+  auth_needed: 'bg-amber-500',
+  error: 'bg-rose-500',
+};
+
+/**
+ * One agent, one pill: name, what it is doing RIGHT NOW, and when it was
+ * last heard from — the fleet at a glance, per the legibility rule.
+ */
+function AgentPill({ agent }: { agent: Agent }) {
+  const { t } = useTranslation();
+  const stateLabel =
+    agent.status === 'working' && agent.currentTaskTitle
+      ? t(k.agents.workingOn, { task: agent.currentTaskTitle })
+      : t(k.agents.status[agent.status]);
+  return (
+    <div
+      className="flex max-w-full items-center gap-2 rounded-lg border bg-card/50 px-3 py-1.5"
+      title={stateLabel}
+    >
+      <span
+        className={cn(
+          'size-2 shrink-0 rounded-full',
+          agentDot[agent.status],
+          agent.status === 'working' && 'animate-pulse',
+        )}
+      />
+      <span className="shrink-0 text-sm font-medium">{agent.name}</span>
+      <span className="truncate text-xs text-muted-foreground">{stateLabel}</span>
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        {agent.lastSeenAt ? t(k.agents.seen, { when: ago(agent.lastSeenAt) }) : t(k.agents.neverSeen)}
+      </span>
+    </div>
+  );
+}
 
 const STALE_CLAIM_MS = 4 * 60 * 60 * 1000;
 
@@ -80,6 +122,8 @@ export default function YourMovePage() {
 
   const loading = loadingReview || loadingBlocked;
   const inFlight = inProgress?.data ?? [];
+  const { data: agentsData } = useAgents();
+  const agents = agentsData?.data ?? [];
 
   const Row = ({ task }: { task: Task }) => (
     <button
@@ -190,6 +234,21 @@ export default function YourMovePage() {
               </div>
             );
           })}
+        </section>
+      )}
+
+      {/* Agents — the fleet strip: who works this board, live */}
+      {agents.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <Radio className="size-3.5" />
+            {t(k.agents.title)}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {agents.map((agent) => (
+              <AgentPill key={agent.id} agent={agent} />
+            ))}
+          </div>
         </section>
       )}
 

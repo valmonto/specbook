@@ -24,6 +24,7 @@ import { NotificationModule } from './notifications';
 import { TasksModule } from './tasks';
 import { ServerModule } from './servers';
 import { EnvironmentModule } from './environments';
+import { AgentModule } from './agents';
 import { AttachmentsModule } from './attachments';
 import type { SubjectResolvers } from './attachments/attachment.tokens';
 import { TaskRepository } from './tasks/task.repository';
@@ -92,6 +93,7 @@ import { validateEnv } from './config';
     TasksModule,
     ServerModule,
     EnvironmentModule,
+    AgentModule,
     StorageModule.forRootAsync({
       inject: [ConfigService],
       // Options factory is typed (...args: unknown[]) — narrow inside.

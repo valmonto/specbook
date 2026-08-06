@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MCP_SCOPES, MCP_TOOLS, type McpToolDescriptor } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
+import type { AgentService } from '@/agents';
 import { McpTools } from '@/mcp/mcp-tools';
 import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
@@ -22,6 +23,7 @@ describe('MCP catalog ↔ @pkg/contracts descriptors', () => {
     {} as TaskService,
     {} as AttachmentsService,
     {} as GithubAppService,
+    {} as AgentService,
     new FakeLogger().as<PinoLogger>(),
   );
   const catalog = tools.catalog();

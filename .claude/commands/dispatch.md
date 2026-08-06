@@ -17,10 +17,14 @@ stop on your own just because sweeps keep coming back empty.
 
 ## One sweep
 
-1. Over specbook MCP, `list_tasks` `status=in_progress` — agent-claimed
-   count is ACTIVE.
-2. `list_tasks` `available=true` — the ready queue, priority-ordered.
-3. Queue empty or ACTIVE >= CAP → say one short line, wait, next sweep.
+1. Call `heartbeat` — this stamps your agent row (presence) so the board
+   shows you alive and your claims are never mistaken for a dead runner's.
+   Every other MCP call also stamps implicitly, but a quiet sweep with no
+   other calls still needs this one. A claim whose agent stays silent past
+   the stale threshold (30 min) is auto-released back to ready.
+2. `list_tasks` `status=in_progress` — agent-claimed count is ACTIVE.
+3. `list_tasks` `available=true` — the ready queue, priority-ordered.
+4. Queue empty or ACTIVE >= CAP → say one short line, wait, next sweep.
    Otherwise claim up to `CAP - ACTIVE` tasks. One: work inline. Several:
    one subagent per task, isolated git worktrees, per-slot ports
    (api 3001/3002/3003, vite 5174/5175/5176).

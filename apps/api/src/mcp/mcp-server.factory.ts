@@ -47,7 +47,16 @@ export class McpServerFactory {
         { description: tool.description, inputSchema: tool.inputSchema },
         async (args: Record<string, unknown>) => {
           this.logger.info({ tool: tool.name, keyId: auth.keyId }, 'MCP tool call');
-          return text(await tool.handler(args ?? {}, auth.activeUser));
+          const result = await tool.handler(args ?? {}, auth.activeUser, {
+            keyId: auth.keyId,
+            name: auth.name,
+          });
+          // Presence rides normal traffic: any successful agent-court call
+          // stamps the key's agent row (the heartbeat tool already did).
+          if (tool.scope === 'tasks:agent' && tool.name !== 'heartbeat' && auth.activeUser) {
+            this.tools.stampPresence({ keyId: auth.keyId, name: auth.name }, auth.activeUser);
+          }
+          return text(result);
         },
       );
     }

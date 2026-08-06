@@ -13,6 +13,7 @@ import {
   type McpScope,
   type McpToolName,
 } from '@pkg/contracts';
+import { AgentService } from '../agents';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
@@ -27,7 +28,12 @@ export interface McpToolDef {
   needsOrgContext?: boolean;
   description: string;
   inputSchema?: ZodRawShape;
-  handler: (args: Record<string, unknown>, actor: ActiveUser | null) => Promise<unknown>;
+  handler: (
+    args: Record<string, unknown>,
+    actor: ActiveUser | null,
+    /** The calling key — an agent's identity (presence, heartbeat). */
+    auth?: { keyId: string; name: string },
+  ) => Promise<unknown>;
 }
 
 const MAX_LIMIT = 100;
@@ -68,6 +74,7 @@ export class McpTools {
     private readonly taskService: TaskService,
     private readonly attachmentsService: AttachmentsService,
     private readonly githubApp: GithubAppService,
+    private readonly agentService: AgentService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -256,7 +263,23 @@ export class McpTools {
             body: str(args.body),
           }),
       },
+      {
+        ...meta('heartbeat'),
+        handler: async (_args, actor, auth) =>
+          this.agentService.touch({ keyId: auth!.keyId, name: auth!.name, activeUser: actor! }),
+      },
     ];
+  }
+
+  /**
+   * Implicit presence: every successful agent-court call stamps the calling
+   * key's agent row. Fire-and-forget by contract — a presence hiccup must
+   * never fail the work that just succeeded.
+   */
+  stampPresence(auth: { keyId: string; name: string }, actor: ActiveUser): void {
+    void this.agentService
+      .touch({ keyId: auth.keyId, name: auth.name, activeUser: actor })
+      .catch((error) => this.logger.warn({ error, keyId: auth.keyId }, 'Presence stamp failed'));
   }
 
   /**

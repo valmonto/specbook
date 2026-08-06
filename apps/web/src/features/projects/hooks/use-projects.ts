@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
 import type {
+  ListAgentsResponse,
   CreateProjectRequest,
   TaskStatus,
   CreateTaskRequest,
@@ -87,6 +88,17 @@ export function useProjectTasks(projectId: string | null) {
 }
 
 /** Cross-project task list for one status — the dashboard's data source. */
+/** The fleet strip: who is working right now. Light 15s poll — presence data ages fast. */
+export function useAgents() {
+  const { user } = useAuth();
+  const canList = useCan('task:list');
+  return useCachedRequest<ListAgentsResponse>({
+    key: canList && prefix(user?.orgId) ? `${prefix(user?.orgId)}/agents` : null,
+    fetcher: () => projectsApi.listAgents(),
+    config: { refreshInterval: 15_000 },
+  });
+}
+
 export function useTasksByStatus(status: TaskStatus, limit = 100) {
   const { user } = useAuth();
   const canList = useCan('task:list');

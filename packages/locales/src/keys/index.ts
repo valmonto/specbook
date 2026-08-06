@@ -20,6 +20,7 @@ export { validation } from './validation';
 export { tasks } from './tasks';
 export { servers } from './servers';
 export { environments } from './environments';
+export { agents } from './agents';
 export { attachments } from './attachments';
 
 // Combined keys object for convenience
@@ -35,6 +36,7 @@ import { validation } from './validation';
 import { tasks } from './tasks';
 import { servers } from './servers';
 import { environments } from './environments';
+import { agents } from './agents';
 import { attachments } from './attachments';
 
 export const k = {
@@ -50,5 +52,6 @@ export const k = {
   tasks,
   servers,
   environments,
+  agents,
   attachments,
 } as const;

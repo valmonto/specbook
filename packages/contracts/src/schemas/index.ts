@@ -11,5 +11,6 @@ export * from './api-key.schema';
 export * from './project.schema';
 export * from './server.schema';
 export * from './environment.schema';
+export * from './agent.schema';
 export * from './task.schema';
 export * from './attachment.schema';
