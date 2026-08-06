@@ -24,6 +24,7 @@ import {
   renderDeployEnv,
   renderProxyConf,
   scrubDeployText,
+  seedEnvDefaults,
   DEPLOYMENT_QUEUE,
   GithubAppService,
   InjectLogger,
@@ -208,10 +209,13 @@ export class DeploymentProcessor extends WorkerHost {
     sink.line('== render: .env + compose + proxy ==');
     const publicPort = derivePublicPort(unit);
     const dir = env.deployPath?.replace(/\/+$/, '') || `apps/${unit}`;
-    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env);
     const userEnv = env.userEnvEnc
       ? (JSON.parse(this.secrets.open(env.userEnvEnc)) as Record<string, string>)
       : {};
+    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(
+      env,
+      Object.keys(userEnv),
+    );
     const envFile = renderDeployEnv([
       platformEnv,
       userEnv,
@@ -270,10 +274,13 @@ export class DeploymentProcessor extends WorkerHost {
   /**
    * IAM/session secrets are generated ONCE per environment and persisted
    * into platform_env so sessions survive redeploys; the marker also tells
-   * us whether this is the first deploy (→ seed).
+   * us whether this is the first deploy (→ seed). First deploys also get
+   * seed credentials generated unless the user layer already defines them —
+   * the template refuses to boot in production without them.
    */
   private async ensureRuntimeSecrets(
     env: ProjectEnvironment,
+    userEnvNames: readonly string[],
   ): Promise<{ platformEnv: Record<string, string>; firstDeploy: boolean }> {
     const platformEnv = { ...((env.platformEnv ?? {}) as Record<string, string>) };
     const firstDeploy = !platformEnv.IAM_JWT_SECRET;
@@ -281,6 +288,15 @@ export class DeploymentProcessor extends WorkerHost {
       platformEnv.IAM_JWT_SECRET = generateSecret();
       platformEnv.IAM_COOKIE_SECRET = generateSecret();
       platformEnv.APP_ENCRYPTION_KEY = randomBytes(32).toString('base64');
+      Object.assign(
+        platformEnv,
+        seedEnvDefaults({
+          platformEnv,
+          userEnvNames,
+          domain: env.domain ?? null,
+          generate: generateSecret,
+        }),
+      );
       await this.dbClient.db
         .update(projectEnvironment)
         .set({ platformEnv })

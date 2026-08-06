@@ -232,6 +232,9 @@ domain="\${4:-}"
   if ! docker compose -p "$unit" up -d --wait --wait-timeout 300; then
     echo "deploy-stack: unhealthy — diagnostics follow" >&2
     docker compose -p "$unit" ps >&2 || true
+    # One-shot containers (migrate) exit before --wait reports, so their
+    # failure only shows in their own logs — capture them alongside api's.
+    docker compose -p "$unit" logs --tail 40 migrate >&2 || true
     docker compose -p "$unit" logs --tail 40 api >&2 || true
     exit 1
   fi
