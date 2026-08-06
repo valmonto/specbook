@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   Bot,
+  Check,
   CircleAlert,
+  Copy,
   Inbox,
   MessageCircleQuestion,
   Play,
@@ -57,6 +59,47 @@ const agentDot: Record<Agent['status'], string> = {
   auth_needed: 'bg-amber-500',
   error: 'bg-rose-500',
 };
+
+/** Tiny inline copy button — same behavior as the api-keys reveal block. */
+function CopyInline({ value }: { value: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => void copy()}
+      className="inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] hover:bg-muted"
+    >
+      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+      {t(copied ? k.agents.copied : k.agents.copy)}
+    </button>
+  );
+}
+
+/**
+ * Everything a box needs before it can host an agent — rendered wherever the
+ * operator meets the concept, so the product carries its own onboarding.
+ */
+function PrepChecklist() {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-1 rounded-md border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+      <p className="font-medium text-foreground">{t(k.agents.prepTitle)}</p>
+      <p>• {t(k.agents.prepPackages)}</p>
+      <p>• {t(k.agents.prepMemory)}</p>
+      <p className="flex flex-wrap items-center gap-1.5">
+        <span>• {t(k.agents.prepAuth)}</span>
+        <code className="rounded bg-muted px-1.5 py-0.5 font-mono">claude setup-token</code>
+        <CopyInline value="claude setup-token" />
+      </p>
+    </div>
+  );
+}
 
 /**
  * One agent, one pill: name, what it is doing RIGHT NOW, and when it was
@@ -120,14 +163,26 @@ function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
         )}
       </div>
       {agent.status === 'auth_needed' && (
-        <p className="border-t bg-amber-500/10 px-3 py-1.5 font-mono text-xs text-amber-800 dark:text-amber-300">
-          {t(k.agents.authNeededHint)}
+        <p className="flex flex-wrap items-center gap-2 border-t bg-amber-500/10 px-3 py-1.5 font-mono text-xs text-amber-800 dark:text-amber-300">
+          <span>{t(k.agents.authNeededHint)}</span>
+          <CopyInline value="claude setup-token" />
         </p>
       )}
       {showLog && (
-        <pre className="max-h-48 overflow-auto border-t bg-zinc-950 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-300">
-          {agent.log || t(k.agents.logEmpty)}
-        </pre>
+        <>
+          {agent.serverHost && agent.serverSshUser && (
+            <p className="border-t bg-muted/40 px-3 py-1 font-mono text-[11px] text-muted-foreground">
+              {t(k.agents.attachHint, {
+                user: agent.serverSshUser,
+                host: agent.serverHost,
+                name: agent.name,
+              })}
+            </p>
+          )}
+          <pre className="max-h-48 overflow-auto border-t bg-zinc-950 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-300">
+            {agent.log || t(k.agents.logEmpty)}
+          </pre>
+        </>
       )}
     </div>
   );
@@ -210,6 +265,7 @@ function AddManagedAgentDialog({
             </NativeSelect>
             <p className="text-xs text-muted-foreground">{t(k.agents.serverHint)}</p>
           </div>
+          <PrepChecklist />
           {busy && (
             <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5">
               <p className="text-xs text-amber-800 dark:text-amber-300">
@@ -308,6 +364,8 @@ export default function YourMovePage() {
   const agents = agentsData?.data ?? [];
   const canManageAgents = useCan('settings:update');
   const [addingAgent, setAddingAgent] = useState(false);
+  const { data: serversData } = useServers();
+  const hasRunnerServer = (serversData?.data ?? []).some((s) => s.roles.includes('runner'));
 
   const Row = ({ task }: { task: Task }) => (
     <button
@@ -444,6 +502,12 @@ export default function YourMovePage() {
               <AgentPill key={agent.id} agent={agent} canManage={canManageAgents} />
             ))}
           </div>
+          {canManageAgents && !hasRunnerServer && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">{t(k.agents.noRunnerServers)}</p>
+              <PrepChecklist />
+            </div>
+          )}
           <AddManagedAgentDialog
             open={addingAgent}
             onOpenChange={setAddingAgent}
