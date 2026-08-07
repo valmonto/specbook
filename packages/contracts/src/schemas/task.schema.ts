@@ -59,6 +59,10 @@ export const TaskSchema = z.object({
   prSyncedAt: z.string().nullable(),
   /** Human-only work: never fed to the agent queue, styled "human task". */
   isHumanTask: z.boolean(),
+  /** Agent-reported cost, accumulated additively; null = never reported. */
+  costTokensIn: z.number().int().nullable(),
+  costTokensOut: z.number().int().nullable(),
+  costUsdCents: z.number().int().nullable(),
   statusChangedBy: z.string().uuid().nullable(),
   statusChangedAt: z.string().nullable(),
   createdBy: z.string().uuid(),
@@ -131,6 +135,21 @@ export const UpdateTaskResponseSchema = TaskSchema;
 
 export type UpdateTaskRequest = z.infer<typeof UpdateTaskRequestSchema>;
 export type UpdateTaskResponse = z.infer<typeof UpdateTaskResponseSchema>;
+
+// --- Report Cost (agent court, claimant-only, values ADD) ---
+export const ReportCostRequestSchema = z
+  .object({
+    taskId: z.string().uuid(),
+    tokensIn: z.number().int().min(0).max(1_000_000_000).optional(),
+    tokensOut: z.number().int().min(0).max(1_000_000_000).optional(),
+    usdCents: z.number().int().min(0).max(100_000_000).optional(),
+  })
+  .strict();
+
+export const ReportCostResponseSchema = TaskSchema;
+
+export type ReportCostRequest = z.infer<typeof ReportCostRequestSchema>;
+export type ReportCostResponse = z.infer<typeof ReportCostResponseSchema>;
 
 // --- List Tasks ---
 // `available: true` is THE agent queue query: status=ready AND every

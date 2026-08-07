@@ -58,6 +58,12 @@ export const tasks = {
   // Human-only work: excluded from the agent queue, chip on the board.
   humanTask: 'tasks.humanTask',
   humanTaskToggle: 'tasks.humanTaskToggle',
+
+  // Agent-reported cost (task detail line).
+  cost: {
+    label: 'tasks.cost.label',
+    tokens: 'tasks.cost.tokens',
+  },
   noTasks: 'tasks.noTasks',
   noTasksDesc: 'tasks.noTasksDesc',
 
@@ -78,6 +84,7 @@ export const tasks = {
     yourMoveReview: 'tasks.dashboard.yourMoveReview',
     yourMoveMergeGreen: 'tasks.dashboard.yourMoveMergeGreen',
     yourMoveMergeRed: 'tasks.dashboard.yourMoveMergeRed',
+    pausedBudget: 'tasks.dashboard.pausedBudget',
   },
 
   // Statuses
@@ -146,6 +153,9 @@ export const tasks = {
     maxParallelHint: 'tasks.mode.maxParallelHint',
     paused: 'tasks.mode.paused',
     pausedKind: 'tasks.mode.pausedKind',
+    budget: 'tasks.mode.budget',
+    spend: 'tasks.mode.spend',
+    pausedBudget: 'tasks.mode.pausedBudget',
   },
 
   // Pipeline project view (/v2/projects/:id)
@@ -218,6 +228,7 @@ export const tasks = {
     mergeNoPr: 'tasks.errors.mergeNoPr',
     dispatchGate: 'tasks.errors.dispatchGate',
     reviewGate: 'tasks.errors.reviewGate',
+    costNotClaimant: 'tasks.errors.costNotClaimant',
     questionRequired: 'tasks.errors.questionRequired',
     feedbackRequired: 'tasks.errors.feedbackRequired',
     alreadyClaimed: 'tasks.errors.alreadyClaimed',

@@ -10,6 +10,7 @@ import {
   desc,
   isNull,
   isNotNull,
+  sql,
   type NewProject,
   type Project,
 } from '@pkg/database';
@@ -62,6 +63,32 @@ export class ProjectRepository {
       counts[row.status] = Number(row.n);
       byProject.set(row.projectId, counts);
     }
+    return byProject;
+  }
+
+  /**
+   * This calendar month's summed agent-reported task cost per project —
+   * the header's spend-vs-budget line. Bucketing matches the queue's budget
+   * gate: a task counts in the month it last moved.
+   */
+  async monthSpendByProject(orgId: string): Promise<Map<string, number>> {
+    const rows = await this.dbClient.db
+      .select({
+        projectId: task.projectId,
+        spend: sql<number>`COALESCE(SUM(${task.costUsdCents}), 0)::int`,
+      })
+      .from(task)
+      .innerJoin(project, eq(task.projectId, project.id))
+      .where(
+        and(
+          eq(project.orgId, orgId),
+          sql`COALESCE(${task.statusChangedAt}, ${task.createdAt}) >= date_trunc('month', now())`,
+        ),
+      )
+      .groupBy(task.projectId);
+
+    const byProject = new Map<string, number>();
+    for (const row of rows) byProject.set(row.projectId, Number(row.spend));
     return byProject;
   }
 

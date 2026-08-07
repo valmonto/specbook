@@ -150,6 +150,13 @@ export const MCP_TOOLS = [
     description:
       'Announce liveness: upserts your agent row (identity = this API key), stamps last-seen and your current claim. Call between work cycles — a claim whose agent goes silent too long is released back to ready.',
   },
+  {
+    name: 'report_cost',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      'Report what your work on a claimed task cost so far: tokens in/out and optionally USD cents. Values ADD to the running totals — report increments, not cumulative figures. Claimant-only: the key must hold the claim.',
+  },
 ] as const satisfies readonly McpToolDescriptor[];
 
 export type McpToolName = (typeof MCP_TOOLS)[number]['name'];

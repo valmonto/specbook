@@ -43,6 +43,9 @@ export const project = pgTable(
     mode: varchar('mode', { length: 16 }).notNull().default('manual'),
     // Per-project claim cap for the agent queue; null = no project cap.
     maxParallel: integer('max_parallel'),
+    // Monthly agent-spend cap in USD cents; null = uncapped. The agent queue
+    // stops feeding the project once the month's summed task cost meets it.
+    budgetUsdCents: integer('budget_usd_cents'),
     // Circuit breaker: set while the default branch is red; auto modes hold.
     autoPausedAt: timestamp('auto_paused_at', { withTimezone: true }),
     // Classification + culprit of the red that tripped the breaker, so the

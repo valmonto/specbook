@@ -178,13 +178,32 @@ export class McpTools {
           id: z.string().uuid(),
           to: z.enum(TASK_STATUSES),
           comment: z.string().optional(),
+          // Optional final cost tally — one needs_review call can carry it.
+          costTokensIn: z.number().int().min(0).optional(),
+          costTokensOut: z.number().int().min(0).optional(),
+          costUsdCents: z.number().int().min(0).optional(),
         },
-        handler: async (args, actor) =>
-          this.taskService.transition(actor!, 'agent', {
+        handler: async (args, actor) => {
+          if (
+            args.costTokensIn !== undefined ||
+            args.costTokensOut !== undefined ||
+            args.costUsdCents !== undefined
+          ) {
+            // Cost rides the transition but is booked BEFORE it: the claim
+            // is still held here, so the claimant-only rule applies cleanly.
+            await this.taskService.reportCost(actor!, {
+              taskId: str(args.id),
+              tokensIn: args.costTokensIn as number | undefined,
+              tokensOut: args.costTokensOut as number | undefined,
+              usdCents: args.costUsdCents as number | undefined,
+            });
+          }
+          return this.taskService.transition(actor!, 'agent', {
             id: str(args.id),
             to: args.to as (typeof TASK_STATUSES)[number],
             comment: optStr(args.comment),
-          }),
+          });
+        },
       },
       {
         ...meta('update_task_links'),
@@ -198,6 +217,22 @@ export class McpTools {
             id: str(args.id),
             branch: optStr(args.branch),
             prUrl: optStr(args.prUrl),
+          }),
+      },
+      {
+        ...meta('report_cost'),
+        inputSchema: {
+          taskId: z.string().uuid(),
+          tokensIn: z.number().int().min(0).optional(),
+          tokensOut: z.number().int().min(0).optional(),
+          usdCents: z.number().int().min(0).optional(),
+        },
+        handler: async (args, actor) =>
+          this.taskService.reportCost(actor!, {
+            taskId: str(args.taskId),
+            tokensIn: args.tokensIn as number | undefined,
+            tokensOut: args.tokensOut as number | undefined,
+            usdCents: args.usdCents as number | undefined,
           }),
       },
       {
