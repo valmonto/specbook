@@ -203,7 +203,12 @@ export const tasks = {
       progress: 'tasks.detail.kind.progress',
       question: 'tasks.detail.kind.question',
       answer: 'tasks.detail.kind.answer',
+      note: 'tasks.detail.kind.note',
     },
+    noteToggle: 'tasks.detail.noteToggle',
+    sendNote: 'tasks.detail.sendNote',
+    noteSeen: 'tasks.detail.noteSeen',
+    notePending: 'tasks.detail.notePending',
   },
 
   // Errors
@@ -229,6 +234,10 @@ export const tasks = {
     dispatchGate: 'tasks.errors.dispatchGate',
     reviewGate: 'tasks.errors.reviewGate',
     costNotClaimant: 'tasks.errors.costNotClaimant',
+    noteHumanOnly: 'tasks.errors.noteHumanOnly',
+    noteNotInProgress: 'tasks.errors.noteNotInProgress',
+    notesNotClaimant: 'tasks.errors.notesNotClaimant',
+    unackedNotes: 'tasks.errors.unackedNotes',
     questionRequired: 'tasks.errors.questionRequired',
     feedbackRequired: 'tasks.errors.feedbackRequired',
     alreadyClaimed: 'tasks.errors.alreadyClaimed',

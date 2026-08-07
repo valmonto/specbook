@@ -220,6 +220,11 @@ export class McpTools {
           }),
       },
       {
+        ...meta('get_notes'),
+        inputSchema: { taskId: z.string().uuid() },
+        handler: async (args, actor) => this.taskService.getNotes(actor!, str(args.taskId)),
+      },
+      {
         ...meta('report_cost'),
         inputSchema: {
           taskId: z.string().uuid(),

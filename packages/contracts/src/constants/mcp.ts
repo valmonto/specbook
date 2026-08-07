@@ -151,6 +151,13 @@ export const MCP_TOOLS = [
       'Announce liveness: upserts your agent row (identity = this API key), stamps last-seen and your current claim. Call between work cycles — a claim whose agent goes silent too long is released back to ready.',
   },
   {
+    name: 'get_notes',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Read the human's pending steering notes on your claimed task — returning them STAMPS them as seen. Call at checkpoints (after claim, before opening the PR, before needs_review): the review gate refuses needs_review while an unread note exists. Claimant-only.",
+  },
+  {
     name: 'report_cost',
     scope: 'tasks:agent',
     needsOrgContext: true,

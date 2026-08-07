@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bot, Check, ExternalLink, GitBranch, MessageSquare, Pencil, User } from 'lucide-react';
 import type { TaskCommentKind, TaskStatus, TransitionTaskRequest } from '@pkg/contracts';
@@ -134,6 +134,7 @@ const kindStyles: Record<TaskCommentKind, string> = {
   progress: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-300',
   question: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
   answer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+  note: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20 ring-inset',
 };
 
 interface Props {
@@ -154,6 +155,11 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
   const [pending, setPending] = useState<HumanAction | null>(null);
   const [actionComment, setActionComment] = useState('');
   const [newComment, setNewComment] = useState('');
+  // 'note to agent': the steering channel — only meaningful mid-claim. The
+  // sheet instance survives across tasks, so the flag resets per task —
+  // note-mode must never leak onto the next sheet.
+  const [asNote, setAsNote] = useState(false);
+  useEffect(() => setAsNote(false), [taskId]);
 
   const busy = transition.isLoading || deleteTask.isLoading;
   const fmtDate = (iso: string) =>
@@ -178,7 +184,11 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
 
   const submitComment = async () => {
     if (!newComment.trim() || !task) return;
-    const res = await addComment.execute({ id: task.id, kind: 'comment', body: newComment.trim() });
+    const res = await addComment.execute({
+      id: task.id,
+      kind: asNote ? 'note' : 'comment',
+      body: newComment.trim(),
+    });
     if (!res.e) setNewComment('');
   };
 
@@ -458,6 +468,23 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                           >
                             {t(k.tasks.detail.kind[c.kind])}
                           </span>
+                          {c.kind === 'note' && (
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 text-[10px]',
+                                c.ackedAt
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-muted-foreground/70',
+                              )}
+                            >
+                              {c.ackedAt && <Check className="size-3" />}
+                              {t(
+                                c.ackedAt
+                                  ? k.tasks.detail.noteSeen
+                                  : k.tasks.detail.notePending,
+                              )}
+                            </span>
+                          )}
                           <span className="ml-auto">{fmtDate(c.createdAt)}</span>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{c.body}</p>
@@ -472,14 +499,25 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                     placeholder={t(k.tasks.detail.commentPlaceholder)}
                     rows={2}
                   />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={addComment.isLoading || !newComment.trim()}
-                    onClick={() => void submitComment()}
-                  >
-                    {t(k.tasks.detail.addComment)}
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={addComment.isLoading || !newComment.trim()}
+                      onClick={() => void submitComment()}
+                    >
+                      {t(asNote ? k.tasks.detail.sendNote : k.tasks.detail.addComment)}
+                    </Button>
+                    {task.status === 'in_progress' && task.claimedBy && (
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Checkbox
+                          checked={asNote}
+                          onCheckedChange={(checked) => setAsNote(checked === true)}
+                        />
+                        {t(k.tasks.detail.noteToggle)}
+                      </label>
+                    )}
+                  </div>
                 </div>
               </section>
             </div>

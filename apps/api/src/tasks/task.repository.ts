@@ -255,6 +255,47 @@ export class TaskRepository {
       .orderBy(asc(taskComment.createdAt));
   }
 
+  /**
+   * Atomically stamp every unacked note as seen and return them (ordered).
+   * Returning IS acking — there is no way to read a note without the stamp,
+   * which is what lets the review gate trust acked_at. Org-scoped like every
+   * tenant write: a foreign task id acks (and leaks) nothing.
+   */
+  async ackNotes(taskId: string, orgId: string): Promise<TaskComment[]> {
+    const rows = await this.dbClient.db
+      .update(taskComment)
+      .set({ ackedAt: new Date() })
+      .where(
+        and(
+          eq(taskComment.taskId, taskId),
+          eq(taskComment.kind, 'note'),
+          isNull(taskComment.ackedAt),
+          sql`${taskComment.taskId} IN (
+            SELECT t.id FROM task t
+            JOIN project p ON p.id = t.project_id
+            WHERE p.org_id = ${orgId}
+          )`,
+        ),
+      )
+      .returning();
+    return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  /** The needs_review gate's question: is a steering note still unread? */
+  async hasUnackedNotes(taskId: string): Promise<boolean> {
+    const [row] = await this.dbClient.db
+      .select({ n: count() })
+      .from(taskComment)
+      .where(
+        and(
+          eq(taskComment.taskId, taskId),
+          eq(taskComment.kind, 'note'),
+          isNull(taskComment.ackedAt),
+        ),
+      );
+    return (row?.n ?? 0) > 0;
+  }
+
   // --- Dependencies ---
 
   async addDependency(taskId: string, dependsOnTaskId: string): Promise<void> {

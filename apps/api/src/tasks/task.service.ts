@@ -171,6 +171,11 @@ export class TaskService {
       if (!comment || !current.branch?.trim() || !current.prUrl?.trim()) {
         throw new UnprocessableEntityException(k.tasks.errors.reviewGate);
       }
+      // A steering note can never be silently shipped past: the agent must
+      // read (get_notes acks) every note before submitting for review.
+      if (await this.taskRepository.hasUnackedNotes(dto.id)) {
+        throw new UnprocessableEntityException(k.tasks.errors.unackedNotes);
+      }
     }
 
     // A blocked task without the question, or a rejection without the
@@ -495,7 +500,18 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: AddTaskCommentRequest,
   ): Promise<AddTaskCommentResponse> {
-    await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+
+    // Notes are the human's steering channel INTO a working agent — agents
+    // cannot author them, and they only make sense while someone is working.
+    if (dto.kind === 'note') {
+      if (actor !== 'user') {
+        throw new UnprocessableEntityException(k.tasks.errors.noteHumanOnly);
+      }
+      if (current.status !== 'in_progress') {
+        throw new UnprocessableEntityException(k.tasks.errors.noteNotInProgress);
+      }
+    }
 
     const created = await this.taskRepository.createComment({
       taskId: dto.id,
@@ -506,6 +522,20 @@ export class TaskService {
     });
 
     return this.serializeComment(created);
+  }
+
+  /**
+   * The claimant's read-and-ack of pending steering notes: returns every
+   * unacked note on the claimed task and stamps acked_at in the same call —
+   * "returned" IS "seen", so the needs_review gate can trust the timestamp.
+   */
+  async getNotes(activeUser: ActiveUser, taskId: string): Promise<TaskCommentDto[]> {
+    const current = await this.requireTask(taskId, activeUser.orgId);
+    if (current.claimedBy !== activeUser.userId) {
+      throw new UnprocessableEntityException(k.tasks.errors.notesNotClaimant);
+    }
+    const notes = await this.taskRepository.ackNotes(taskId, activeUser.orgId);
+    return notes.map((c) => this.serializeComment(c));
   }
 
   async addDependency(activeUser: ActiveUser, dto: AddTaskDependencyRequest): Promise<void> {
@@ -616,6 +646,7 @@ export class TaskService {
       ...c,
       authorType: c.authorType as TaskCommentDto['authorType'],
       kind: c.kind as TaskCommentDto['kind'],
+      ackedAt: c.ackedAt?.toISOString() ?? null,
       createdAt: c.createdAt.toISOString(),
     };
   }

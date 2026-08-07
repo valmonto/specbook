@@ -27,6 +27,9 @@ export const taskComment = pgTable(
     authorType: varchar('author_type', { length: 16 }).notNull().default('user'),
     kind: varchar('kind', { length: 16 }).notNull().default('comment'),
     body: text('body').notNull(),
+    // kind 'note' only: when the claiming agent read it (get_notes stamps
+    // this). Null on an unacked note — the needs_review gate keys off it.
+    ackedAt: timestamp('acked_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

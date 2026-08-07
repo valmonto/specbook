@@ -4,6 +4,7 @@ import {
   organizationUser,
   project,
   task,
+  taskComment,
   user,
   eq,
   type DatabaseClient,
@@ -86,6 +87,29 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     await makeTask(gatedProject, ownerA, 'ready', 'a-ready');
     const { data } = await queue();
     expect(data.map((t) => t.title)).toEqual(['a-ready']);
+  });
+
+  it('notes: ackNotes stamps only within the org — a foreign org id acks nothing', async () => {
+    const taskId = await makeTask(gatedProject, ownerA, 'in_progress', 'noted-task');
+    await client.db.insert(taskComment).values({
+      taskId,
+      authorId: ownerA,
+      authorType: 'user',
+      kind: 'note',
+      body: 'steer left',
+    });
+
+    // Org B cannot ack (or read) org A's notes through the repository.
+    const foreign = await repo.ackNotes(taskId, orgB);
+    expect(foreign).toHaveLength(0);
+    expect(await repo.hasUnackedNotes(taskId)).toBe(true);
+
+    // The owning org acks and the gate clears; a second call is empty.
+    const acked = await repo.ackNotes(taskId, orgA);
+    expect(acked).toHaveLength(1);
+    expect(acked[0]?.ackedAt).not.toBeNull();
+    expect(await repo.hasUnackedNotes(taskId)).toBe(false);
+    expect(await repo.ackNotes(taskId, orgA)).toHaveLength(0);
   });
 
   it('budget gate: at the cap the project leaves the queue; below it and in other projects the gate is invisible', async () => {

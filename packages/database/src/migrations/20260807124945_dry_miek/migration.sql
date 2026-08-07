@@ -1,0 +1,2 @@
+ALTER TABLE "task_comment" ADD COLUMN "acked_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "task_comment" DROP CONSTRAINT "task_comment_kind_check", ADD CONSTRAINT "task_comment_kind_check" CHECK (kind IN ('comment', 'progress', 'question', 'answer', 'note'));

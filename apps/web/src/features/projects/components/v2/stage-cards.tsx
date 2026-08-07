@@ -632,6 +632,7 @@ const kindStyles: Record<string, string> = {
   progress: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-300',
   question: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
   answer: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+  note: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20 ring-inset',
 };
 
 /** The task's conversation with a reply box — the last section of every row. */
@@ -641,12 +642,18 @@ function ActivityThread({ taskId }: { taskId: string }) {
   const { data } = useTask(taskId);
   const addComment = useAddComment();
   const [body, setBody] = useState('');
+  const [asNote, setAsNote] = useState(false);
+  const canNote = data?.status === 'in_progress' && Boolean(data?.claimedBy);
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
 
   const submit = async () => {
     if (!body.trim()) return;
-    const res = await addComment.execute({ id: taskId, kind: 'comment', body: body.trim() });
+    const res = await addComment.execute({
+      id: taskId,
+      kind: asNote && canNote ? 'note' : 'comment',
+      body: body.trim(),
+    });
     if (res.e) toast.error(t(res.e.message));
     else setBody('');
   };
@@ -683,6 +690,19 @@ function ActivityThread({ taskId }: { taskId: string }) {
                   >
                     {t(k.tasks.detail.kind[c.kind])}
                   </span>
+                  {c.kind === 'note' && (
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1 text-[10px]',
+                        c.ackedAt
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-muted-foreground/70',
+                      )}
+                    >
+                      {c.ackedAt && <Check className="size-3" />}
+                      {t(c.ackedAt ? k.tasks.detail.noteSeen : k.tasks.detail.notePending)}
+                    </span>
+                  )}
                   <span className="ml-auto tabular-nums" title={fmtDate(c.createdAt)}>
                     {ago(c.createdAt)}
                   </span>
@@ -720,6 +740,17 @@ function ActivityThread({ taskId }: { taskId: string }) {
           <SendHorizontal className="size-4" />
         </Button>
       </div>
+      )}
+      {readOnly || !canNote ? null : (
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={asNote}
+            onChange={(e) => setAsNote(e.target.checked)}
+            className="size-3.5 accent-sky-600"
+          />
+          {t(k.tasks.detail.noteToggle)}
+        </label>
       )}
     </div>
   );
