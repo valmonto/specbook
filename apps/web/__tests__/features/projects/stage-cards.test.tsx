@@ -277,4 +277,23 @@ describe('approved card (merge queue)', () => {
     );
     expect(screen.getByRole('button', { name: 'tasks.actions.merge' })).toBeDisabled();
   });
+
+  it('a closed PR offers ONLY Mark merged, with the hint — the server merge can only error', async () => {
+    const transition = makeAction();
+    hooks.useTransitionTask.mockReturnValue(transition);
+    const closed = makeTask({
+      status: 'approved',
+      ciState: 'passing',
+      prState: 'closed',
+      prNumber: 12,
+    });
+    render(<ApprovedCard task={closed} expanded={false} onToggle={noop} />);
+
+    expect(
+      screen.queryByRole('button', { name: 'tasks.actions.merge' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('tasks.v2.prClosedHint')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'tasks.actions.markMerged' }));
+    expect(transition.execute).toHaveBeenCalledWith({ id: closed.id, to: 'done' });
+  });
 });

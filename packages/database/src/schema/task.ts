@@ -5,6 +5,7 @@ import {
   text,
   integer,
   jsonb,
+  boolean,
   timestamp,
   index,
   check,
@@ -64,6 +65,9 @@ export const task = pgTable(
     // guard behind "retry ONCE per sha".
     ciRetriedSha: varchar('ci_retried_sha', { length: 64 }),
     prSyncedAt: timestamp('pr_synced_at', { withTimezone: true }),
+    // Human-only work: stays visible on the board but never enters the agent
+    // queue — the repository's `available` filter excludes it.
+    isHumanTask: boolean('is_human_task').notNull().default(false),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
     createdBy: uuid('created_by')

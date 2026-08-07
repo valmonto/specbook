@@ -57,6 +57,8 @@ export const TaskSchema = z.object({
   /** Why the red is red — classified conservatively; null = plain red. */
   ciFailureKind: CiFailureKindSchema.nullable(),
   prSyncedAt: z.string().nullable(),
+  /** Human-only work: never fed to the agent queue, styled "human task". */
+  isHumanTask: z.boolean(),
   statusChangedBy: z.string().uuid().nullable(),
   statusChangedAt: z.string().nullable(),
   createdBy: z.string().uuid(),
@@ -100,6 +102,7 @@ export const CreateTaskRequestSchema = z
     outOfScope: z.string().max(10_000).optional(),
     acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(50).optional(),
     priority: z.number().int().min(0).max(1000).optional(),
+    isHumanTask: z.boolean().optional(),
   })
   .strict();
 
@@ -120,6 +123,7 @@ export const UpdateTaskRequestSchema = z
     priority: z.number().int().min(0).max(1000).optional(),
     branch: z.string().max(255).nullable().optional(),
     prUrl: z.string().max(500).nullable().optional(),
+    isHumanTask: z.boolean().optional(),
   })
   .strict();
 
