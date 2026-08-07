@@ -266,6 +266,35 @@ describeIntegration('GithubWebhookProcessor', () => {
     expect(a?.status).toBe('done');
   });
 
+  it('breaker reset releases submissions parked green during the pause — and never merges twice', async () => {
+    await setMode('auto');
+    // Red main trips the breaker.
+    await processor.process(
+      jobOf({ ...ciGreen('pk-red'), headBranch: 'main', ciState: 'failing' }),
+    );
+
+    // The task's own CI goes green while paused: annotated but held.
+    await processor.process(jobOf(ciGreen('pk-held')));
+    let [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('needs_review');
+    expect(a?.ciState).toBe('passing');
+    expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+
+    // Green main: the reset itself re-scans the project's parked green
+    // tasks — no further feature-branch event needed.
+    await processor.process(jobOf({ ...ciGreen('pk-clear'), headBranch: 'main' }));
+    [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.status).toBe('done');
+    expect(a?.prState).toBe('merged');
+    expect(githubApp.mergePullRequest).toHaveBeenCalledTimes(1);
+
+    // Redelivered green events after the merge find no candidates: no
+    // second merge, however many times the webhook fires.
+    await processor.process(jobOf(ciGreen('pk-redeliver')));
+    await processor.process(jobOf({ ...ciGreen('pk-clear2'), headBranch: 'main' }));
+    expect(githubApp.mergePullRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('a merge GitHub refuses leaves the task approved for the human', async () => {
     await setMode('auto');
     githubApp.mergePullRequest.mockResolvedValue(false);
