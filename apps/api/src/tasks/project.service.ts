@@ -536,6 +536,8 @@ export class ProjectService {
       ...p,
       mode: p.mode as ProjectDto['mode'],
       autoPausedAt: p.autoPausedAt?.toISOString() ?? null,
+      autoPauseKind: p.autoPauseKind as ProjectDto['autoPauseKind'],
+      autoPausePointer: p.autoPausePointer ?? null,
       archivedAt: p.archivedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),

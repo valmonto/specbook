@@ -35,6 +35,8 @@ describeIntegration('GithubWebhookProcessor', () => {
     getPullRequest: vi.fn().mockResolvedValue(null),
     createPullRequest: vi.fn().mockResolvedValue(12),
     mergePullRequest: vi.fn().mockResolvedValue(true),
+    listWorkflowJobs: vi.fn().mockResolvedValue([]),
+    rerunFailedJobs: vi.fn().mockResolvedValue(true),
   };
   const deployProducer = { enqueueDeploy: vi.fn().mockResolvedValue(undefined) };
   const processor = new GithubWebhookProcessor(
@@ -96,6 +98,8 @@ describeIntegration('GithubWebhookProcessor', () => {
     githubApp.getPullRequest.mockReset().mockResolvedValue(null);
     githubApp.createPullRequest.mockReset().mockResolvedValue(12);
     githubApp.mergePullRequest.mockReset().mockResolvedValue(true);
+    githubApp.listWorkflowJobs.mockReset().mockResolvedValue([]);
+    githubApp.rerunFailedJobs.mockReset().mockResolvedValue(true);
   });
 
   afterAll(async () => {
@@ -285,6 +289,114 @@ describeIntegration('GithubWebhookProcessor', () => {
       'https://github.com/valmonto/specbook/compare/main...feat/shared-branch-name',
     );
     expect(a?.prState).toBe('merged');
+  });
+
+  // --- CI failure classification -------------------------------------------
+
+  const ciRed = (
+    deliveryId: string,
+    over: Partial<Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }>> = {},
+  ): Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }> => ({
+    kind: 'workflow_run',
+    deliveryId,
+    installationId: 777,
+    repoFullName: 'valmonto/specbook',
+    headBranch: 'feat/shared-branch-name',
+    ciState: 'failing',
+    prNumbers: [],
+    runId: 9001,
+    headSha: 'sha-1',
+    runConclusion: 'failure',
+    ...over,
+  });
+
+  it('a retryable red re-runs failed jobs ONCE per sha, then escalates to plain red', async () => {
+    await processor.process(jobOf(ciRed('rt-1', { runConclusion: 'cancelled' })));
+
+    let [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciState).toBe('failing');
+    expect(a?.ciFailureKind).toBe('retryable');
+    expect(a?.ciRetriedSha).toBe('sha-1');
+    expect(githubApp.rerunFailedJobs).toHaveBeenCalledTimes(1);
+    expect(githubApp.rerunFailedJobs).toHaveBeenCalledWith(777, 'valmonto/specbook', 9001);
+
+    // Same sha fails again: the retry is spent — no second rerun, and the
+    // task escalates to plain red so the human treats it as real.
+    await processor.process(jobOf(ciRed('rt-2', { runConclusion: 'cancelled' })));
+    [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciFailureKind).toBeNull();
+    expect(githubApp.rerunFailedJobs).toHaveBeenCalledTimes(1);
+  });
+
+  it('a NEW sha gets its own retry', async () => {
+    await processor.process(jobOf(ciRed('ns-1', { runConclusion: 'cancelled' })));
+    await processor.process(
+      jobOf(ciRed('ns-2', { runConclusion: 'cancelled', headSha: 'sha-2', runId: 9002 })),
+    );
+    expect(githubApp.rerunFailedJobs).toHaveBeenCalledTimes(2);
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciRetriedSha).toBe('sha-2');
+  });
+
+  it('a plain red (unclassified) never triggers a rerun', async () => {
+    await processor.process(jobOf(ciRed('plain-1')));
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciFailureKind).toBeNull();
+    expect(githubApp.rerunFailedJobs).not.toHaveBeenCalled();
+  });
+
+  it('green clears the classification', async () => {
+    await processor.process(jobOf(ciRed('clr-1', { runConclusion: 'cancelled' })));
+    await processor.process(jobOf({ ...ciGreen('clr-2'), runId: 9001, headSha: 'sha-1' }));
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciState).toBe('passing');
+    expect(a?.ciFailureKind).toBeNull();
+  });
+
+  it('breaker: a retryable red on main does NOT pause; a setup red pauses with a pointer', async () => {
+    await setMode('auto');
+
+    // Outage-cancelled main run: breaker untouched.
+    await processor.process(
+      jobOf(ciRed('bk-1', { headBranch: 'main', runConclusion: 'cancelled' })),
+    );
+    let [p] = await client.db.select().from(project).where(eq(project.name, 'org-a-project'));
+    expect(p?.autoPausedAt).toBeNull();
+
+    // Workflow startup failure on main: pauses, and the banner knows why.
+    await processor.process(
+      jobOf(ciRed('bk-2', { headBranch: 'main', runConclusion: 'startup_failure' })),
+    );
+    [p] = await client.db.select().from(project).where(eq(project.name, 'org-a-project'));
+    expect(p?.autoPausedAt).not.toBeNull();
+    expect(p?.autoPauseKind).toBe('setup');
+    expect(p?.autoPausePointer).toContain('startup');
+
+    // Green main clears all three.
+    await processor.process(jobOf({ ...ciGreen('bk-3'), headBranch: 'main' }));
+    [p] = await client.db.select().from(project).where(eq(project.name, 'org-a-project'));
+    expect(p?.autoPausedAt).toBeNull();
+    expect(p?.autoPauseKind).toBeNull();
+    expect(p?.autoPausePointer).toBeNull();
+  });
+
+  it('classification consults the jobs fetch for hard failures', async () => {
+    githubApp.listWorkflowJobs.mockResolvedValue([
+      {
+        name: 'verify',
+        conclusion: 'failure',
+        steps: [
+          { name: 'Set up job', conclusion: 'failure' },
+          { name: 'Run tests', conclusion: 'skipped' },
+        ],
+      },
+    ]);
+    await processor.process(jobOf(ciRed('ext-1')));
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    expect(a?.ciFailureKind).toBe('external');
+    expect(githubApp.listWorkflowJobs).toHaveBeenCalledWith(777, 'valmonto/specbook', 9001);
+    // External is not retryable: no rerun.
+    expect(githubApp.rerunFailedJobs).not.toHaveBeenCalled();
   });
 
   // --- auto-deploy on merge -------------------------------------------------

@@ -455,6 +455,62 @@ export class GithubAppService {
   }
 
   /**
+   * The failed run's jobs with their step conclusions — the classifier's
+   * entire input. Empty array (not an exception) on any fetch problem: a
+   * classification is an enrichment, never worth failing the webhook job.
+   */
+  async listWorkflowJobs(
+    installationId: number,
+    repoFullName: string,
+    runId: number,
+  ): Promise<Array<{ name: string; conclusion: string | null; steps: Array<{ name: string; conclusion: string | null }> }>> {
+    try {
+      const token = await this.installationToken(installationId, { actions: 'read' });
+      const { data } = await this.http.get<{
+        jobs: Array<{
+          name: string;
+          conclusion: string | null;
+          steps?: Array<{ name: string; conclusion: string | null }>;
+        }>;
+      }>(`/repos/${repoFullName}/actions/runs/${runId}/jobs`, {
+        params: { per_page: 100, filter: 'latest' },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return data.jobs.map((j) => ({
+        name: j.name,
+        conclusion: j.conclusion,
+        steps: (j.steps ?? []).map((s) => ({ name: s.name, conclusion: s.conclusion })),
+      }));
+    } catch {
+      // Classification is an enrichment: a failed fetch degrades to plain red.
+      return [];
+    }
+  }
+
+  /**
+   * Re-run only the failed jobs of a run. False (not an exception) when
+   * GitHub refuses — the caller already marked the retry as spent, and a
+   * refused rerun must not loop.
+   */
+  async rerunFailedJobs(
+    installationId: number,
+    repoFullName: string,
+    runId: number,
+  ): Promise<boolean> {
+    try {
+      const token = await this.installationToken(installationId, { actions: 'write' });
+      await this.http.post(
+        `/repos/${repoFullName}/actions/runs/${runId}/rerun-failed-jobs`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Tokens are downscoped per call: an omitted permissions object inherits
    * the installation's full grant (read paths), an explicit one narrows to
    * exactly what the operation needs.

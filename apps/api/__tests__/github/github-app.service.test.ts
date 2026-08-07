@@ -186,10 +186,14 @@ describe('GithubAppService', () => {
       'installationToken',
       'listBranches',
       'listRepositories',
+      // Read-only jobs fetch for the CI failure classifier.
+      'listWorkflowJobs',
       'mergePullRequest',
       'mintRepoToken',
       // Additive only: refuses repos that already have commits.
       'populateFromTemplate',
+      // Re-runs failed jobs of an existing run — no repo mutation.
+      'rerunFailedJobs',
     ]);
   });
 

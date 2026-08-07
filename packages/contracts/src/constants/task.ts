@@ -29,6 +29,18 @@ export const TASK_COMMENT_KINDS = ['comment', 'progress', 'question', 'answer'] 
 export const TASK_PR_STATES = ['open', 'merged', 'closed'] as const;
 export const TASK_CI_STATES = ['pending', 'passing', 'failing'] as const;
 
+/**
+ * Why a red check is red, classified conservatively from run/job conclusions
+ * (never job logs). Null = plain red: unknown causes are never guessed.
+ * - retryable: flaky infrastructure (timeouts, lost runners, cancellations) —
+ *   worth one automatic re-run, and the auto-mode breaker ignores it.
+ * - setup: the workflow itself cannot run (file error, missing secret or
+ *   permission) — retrying is pointless, a human owns the fix.
+ * - external: an upstream service failed (action download, registry, rate
+ *   limit) — patience, not code changes.
+ */
+export const CI_FAILURE_KINDS = ['retryable', 'setup', 'external'] as const;
+
 export const TASK_AUTHOR_TYPES = ['user', 'agent'] as const;
 
 type Status = (typeof TASK_STATUSES)[number];

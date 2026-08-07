@@ -11,7 +11,7 @@ import {
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { PROJECT_MODES } from '@pkg/contracts';
+import { CI_FAILURE_KINDS, PROJECT_MODES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { organization } from './organization';
 import { user } from './user';
@@ -45,6 +45,11 @@ export const project = pgTable(
     maxParallel: integer('max_parallel'),
     // Circuit breaker: set while the default branch is red; auto modes hold.
     autoPausedAt: timestamp('auto_paused_at', { withTimezone: true }),
+    // Classification + culprit of the red that tripped the breaker, so the
+    // pause banner can say WHY ("workflow setup — job build") instead of a
+    // bare "red main". Cleared together with autoPausedAt on green.
+    autoPauseKind: varchar('auto_pause_kind', { length: 16 }),
+    autoPausePointer: varchar('auto_pause_pointer', { length: 256 }),
     // Archived projects keep their history but leave every active surface:
     // lists, dispatch, auto-progression. Archiving also frees the name.
     archivedAt: timestamp('archived_at', { withTimezone: true }),
@@ -71,6 +76,12 @@ export const project = pgTable(
     check(
       'project_max_parallel_check',
       sql.raw('max_parallel IS NULL OR (max_parallel BETWEEN 1 AND 10)'),
+    ),
+    check(
+      'project_auto_pause_kind_check',
+      sql.raw(
+        `auto_pause_kind IS NULL OR auto_pause_kind IN (${CI_FAILURE_KINDS.map((v) => `'${v}'`).join(', ')})`,
+      ),
     ),
   ],
 );

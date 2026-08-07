@@ -19,6 +19,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     prState: null,
     prNumber: null,
     ciState: null,
+    ciFailureKind: null,
     prSyncedAt: null,
     statusChangedBy: null,
     statusChangedAt: '2026-08-02T10:00:00.000Z',

@@ -86,6 +86,13 @@ export const tasks = {
     failing: 'tasks.ciState.failing',
   },
 
+  // Why the red is red — classification badge next to the CI dot.
+  ciFailureKind: {
+    retryable: 'tasks.ciFailureKind.retryable',
+    setup: 'tasks.ciFailureKind.setup',
+    external: 'tasks.ciFailureKind.external',
+  },
+
   status: {
     draft: 'tasks.status.draft',
     ready: 'tasks.status.ready',
@@ -131,6 +138,7 @@ export const tasks = {
     maxParallel: 'tasks.mode.maxParallel',
     maxParallelHint: 'tasks.mode.maxParallelHint',
     paused: 'tasks.mode.paused',
+    pausedKind: 'tasks.mode.pausedKind',
   },
 
   // Pipeline project view (/v2/projects/:id)

@@ -30,4 +30,12 @@ export type GithubWebhookJobPayload =
       ciState: 'pending' | 'passing' | 'failing';
       /** PR numbers GitHub associates with the run (may be empty). */
       prNumbers: number[];
+      /** Run id — lets the worker fetch jobs and re-run failures. Optional:
+       *  jobs enqueued before this field existed still process. */
+      runId?: number;
+      /** Head sha of the run — the one-retry-per-sha guard key. */
+      headSha?: string;
+      /** GitHub's raw run conclusion (failure, cancelled, startup_failure, …)
+       *  — the classifier's run-level input. */
+      runConclusion?: string;
     };

@@ -570,6 +570,7 @@ export class TaskService {
       status: t.status as TaskStatus,
       prState: t.prState as TaskDto['prState'],
       ciState: t.ciState as TaskDto['ciState'],
+      ciFailureKind: t.ciFailureKind as TaskDto['ciFailureKind'],
       claimedAt: t.claimedAt?.toISOString() ?? null,
       statusChangedAt: t.statusChangedAt?.toISOString() ?? null,
       prSyncedAt: t.prSyncedAt?.toISOString() ?? null,
