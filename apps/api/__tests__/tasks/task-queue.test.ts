@@ -88,6 +88,26 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     expect(data.map((t) => t.title)).toEqual(['a-ready']);
   });
 
+  it('a human task never enters the agent queue but stays in plain lists', async () => {
+    await makeTask(gatedProject, ownerA, 'ready', 'machine-work');
+    const [human] = await client.db
+      .insert(task)
+      .values({
+        projectId: gatedProject,
+        title: 'human-work',
+        status: 'ready',
+        isHumanTask: true,
+        createdBy: ownerA,
+      })
+      .returning();
+    const { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['machine-work']);
+    // Visible outside the dispatch queue — the board still shows it.
+    const plain = await repo.findForOrg(orgA, { skip: 0, limit: 20, status: 'ready' });
+    expect(plain.data.map((t) => t.title).sort()).toEqual(['human-work', 'machine-work']);
+    expect(plain.data.find((t) => t.id === human!.id)?.isHumanTask).toBe(true);
+  });
+
   it('an archived project feeds no agents — its ready tasks leave the queue', async () => {
     await makeTask(gatedProject, ownerA, 'ready', 'kept');
     await makeTask(freeProject, ownerA, 'ready', 'archived-away');

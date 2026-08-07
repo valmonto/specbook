@@ -18,6 +18,7 @@ import {
   SendHorizontal,
   Undo2,
   User,
+  UserRound,
   X,
 } from 'lucide-react';
 import type { AcceptanceCriterion, Task } from '@pkg/contracts';
@@ -284,6 +285,12 @@ function CardShell({
           >
             {shownTitle}
           </button>
+        )}
+        {task.isHumanTask && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-orange-700 ring-1 ring-orange-500/20 ring-inset dark:text-orange-300">
+            <UserRound className="size-3" />
+            {t(k.tasks.humanTask)}
+          </span>
         )}
         <PrChip task={task} />
         <CiDot task={task} />
@@ -991,6 +998,9 @@ export function ApprovedCard(props: CardProps) {
   const [givingFeedback, setGivingFeedback] = useState(false);
   const busy = transition.isLoading || merge.isLoading;
   const ciFailing = task.ciState === 'failing';
+  // A closed (unmerged) PR makes the server-side merge a guaranteed error —
+  // the only honest offer left is completing the task by hand.
+  const prClosed = task.prState === 'closed';
 
   const doMerge = async () => {
     const res = await merge.execute({ id: task.id });
@@ -1003,14 +1013,29 @@ export function ApprovedCard(props: CardProps) {
       {...props}
       actions={
         <div className="flex items-center gap-1.5">
-          <Button size="sm" disabled={busy || ciFailing} onClick={() => void doMerge()}>
-            {merge.isLoading ? (
-              <Loader2 className="size-4 mr-1 animate-spin" />
-            ) : (
-              <GitMerge className="size-4 mr-1" />
-            )}
-            {t(merge.isLoading ? k.tasks.v2.merging : k.tasks.actions.merge)}
-          </Button>
+          {prClosed ? (
+            <>
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => void transition.execute({ id: task.id, to: 'done' })}
+              >
+                {t(k.tasks.actions.markMerged)}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {t(k.tasks.v2.prClosedHint, { n: task.prNumber ?? '?' })}
+              </span>
+            </>
+          ) : (
+            <Button size="sm" disabled={busy || ciFailing} onClick={() => void doMerge()}>
+              {merge.isLoading ? (
+                <Loader2 className="size-4 mr-1 animate-spin" />
+              ) : (
+                <GitMerge className="size-4 mr-1" />
+              )}
+              {t(merge.isLoading ? k.tasks.v2.merging : k.tasks.actions.merge)}
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"

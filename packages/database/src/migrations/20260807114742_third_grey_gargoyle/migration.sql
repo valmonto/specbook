@@ -1,0 +1,1 @@
+ALTER TABLE "task" ADD COLUMN "is_human_task" boolean DEFAULT false NOT NULL;

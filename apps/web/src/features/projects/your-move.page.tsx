@@ -385,6 +385,17 @@ export default function YourMovePage() {
         </span>
       </div>
       <p className="text-sm font-medium break-words">{task.title}</p>
+      {/* One line naming the expected action — whose move, and what it is. */}
+      {task.status === 'needs_review' && (
+        <p className="text-xs text-muted-foreground">{t(k.tasks.dashboard.yourMoveReview)}</p>
+      )}
+      {task.status === 'approved' && (
+        <p className="text-xs text-muted-foreground">
+          {task.ciState === 'failing'
+            ? t(k.tasks.dashboard.yourMoveMergeRed)
+            : t(k.tasks.dashboard.yourMoveMergeGreen)}
+        </p>
+      )}
       {task.status === 'blocked' && questions?.[task.id] && (
         <p className="flex items-start gap-1.5 text-sm text-amber-700 dark:text-amber-300">
           <MessageCircleQuestion className="mt-0.5 size-4 shrink-0" />

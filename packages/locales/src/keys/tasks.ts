@@ -55,6 +55,9 @@ export const tasks = {
   criterionPlaceholder: 'tasks.criterionPlaceholder',
   addCriterion: 'tasks.addCriterion',
   priority: 'tasks.priority',
+  // Human-only work: excluded from the agent queue, chip on the board.
+  humanTask: 'tasks.humanTask',
+  humanTaskToggle: 'tasks.humanTaskToggle',
   noTasks: 'tasks.noTasks',
   noTasksDesc: 'tasks.noTasksDesc',
 
@@ -71,6 +74,10 @@ export const tasks = {
     draftsWaiting: 'tasks.dashboard.draftsWaiting',
     agentsIdle: 'tasks.dashboard.agentsIdle',
     waiting: 'tasks.dashboard.waiting',
+    // One-line "your move" hints on review/approved rows.
+    yourMoveReview: 'tasks.dashboard.yourMoveReview',
+    yourMoveMergeGreen: 'tasks.dashboard.yourMoveMergeGreen',
+    yourMoveMergeRed: 'tasks.dashboard.yourMoveMergeRed',
   },
 
   // Statuses
@@ -151,6 +158,7 @@ export const tasks = {
     touches: 'tasks.v2.touches',
     ciGreenHint: 'tasks.v2.ciGreenHint',
     mergeBlockedCi: 'tasks.v2.mergeBlockedCi',
+    prClosedHint: 'tasks.v2.prClosedHint',
     merging: 'tasks.v2.merging',
     mergedToast: 'tasks.v2.mergedToast',
     approvedToast: 'tasks.v2.approvedToast',

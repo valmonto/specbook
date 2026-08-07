@@ -78,6 +78,7 @@ export class TaskService {
       outOfScope: dto.outOfScope,
       acceptanceCriteria: (dto.acceptanceCriteria ?? []).map((text) => ({ text, done: false })),
       priority: dto.priority ?? 0,
+      isHumanTask: dto.isHumanTask ?? false,
       createdBy: activeUser.userId,
     });
 

@@ -112,6 +112,9 @@ export class TaskRepository {
     if (filter.status) conditions.push(eq(task.status, filter.status));
     if (filter.available) {
       conditions.push(eq(task.status, 'ready'));
+      // Human-only tasks never feed agents — enforced here so no client
+      // (MCP or HTTP) can claim one into the claim-then-blocked dance.
+      conditions.push(eq(task.isHumanTask, false));
       // Archived projects feed no agents; their tasks stay visible in plain
       // lists (history) but leave the dispatch queue entirely.
       conditions.push(isNull(project.archivedAt));

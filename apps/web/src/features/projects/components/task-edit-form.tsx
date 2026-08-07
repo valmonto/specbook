@@ -4,6 +4,7 @@ import { Plus, X } from 'lucide-react';
 import type { AcceptanceCriterion, GetTaskByIdResponse } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,6 +31,7 @@ export function TaskEditForm({ task, onClose }: Props) {
     task.acceptanceCriteria.length > 0 ? task.acceptanceCriteria : [{ text: '', done: false }],
   );
   const [priority, setPriority] = useState(String(task.priority));
+  const [isHumanTask, setIsHumanTask] = useState(task.isHumanTask);
 
   const setCriterionText = (i: number, text: string) =>
     setCriteria((prev) => prev.map((c, idx) => (idx === i ? { ...c, text } : c)));
@@ -64,6 +66,7 @@ export function TaskEditForm({ task, onClose }: Props) {
         .map((c) => ({ ...c, text: c.text.trim() }))
         .filter((c) => c.text.length > 0),
       priority: Number.parseInt(priority, 10) || 0,
+      isHumanTask,
     });
     if (!res.e) onClose();
   };
@@ -134,6 +137,13 @@ export function TaskEditForm({ task, onClose }: Props) {
           onChange={(e) => setPriority(e.target.value)}
         />
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox
+          checked={isHumanTask}
+          onCheckedChange={(checked) => setIsHumanTask(checked === true)}
+        />
+        {t(k.tasks.humanTaskToggle)}
+      </label>
       {update.error && <p className="text-sm text-destructive">{t(update.error.message)}</p>}
       <div className="flex gap-2">
         <Button onClick={() => void save()} disabled={update.isLoading || !title.trim()}>
