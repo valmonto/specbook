@@ -19,7 +19,10 @@ export const TASK_STATUSES = [
   'cancelled',
 ] as const;
 
-export const TASK_COMMENT_KINDS = ['comment', 'progress', 'question', 'answer'] as const;
+// 'note' = a human steering instruction to the working agent: ordered,
+// acked_at-stamped when the claimant reads it, and the needs_review gate
+// refuses to ship past an unacked one.
+export const TASK_COMMENT_KINDS = ['comment', 'progress', 'question', 'answer', 'note'] as const;
 
 /**
  * Live GitHub state on a task, written only by the webhook worker — never by

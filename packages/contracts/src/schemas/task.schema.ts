@@ -80,6 +80,8 @@ export const TaskCommentSchema = z.object({
   authorType: TaskAuthorTypeSchema,
   kind: TaskCommentKindSchema,
   body: z.string(),
+  /** kind 'note' only: when the claiming agent read it; null = unseen. */
+  ackedAt: z.string().nullable(),
   createdAt: z.string(),
 });
 

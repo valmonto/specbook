@@ -38,6 +38,10 @@ stop on your own just because sweeps keep coming back empty.
   via the returned `cloneUrl` — the token is repo-scoped and dies in an
   hour, so re-mint rather than store it. Machine SSH credentials remain
   the fallback for unbound projects.
+- Call `get_notes` at three checkpoints: right after claiming, before
+  opening the PR, and before `update_status` → `needs_review`. It returns
+  the human's steering notes and marks them seen — act on what it says.
+  The review gate hard-rejects `needs_review` while an unread note exists.
 - Branch from fresh main. Implement. UI work is not done until driven in a
   real browser (playwright) with screenshots.
 - `pnpm verify` must pass. Push the branch. `update_task_links` with the

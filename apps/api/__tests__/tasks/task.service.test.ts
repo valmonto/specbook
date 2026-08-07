@@ -79,6 +79,8 @@ describe('TaskService — the status protocol', () => {
       findDependentInfo: vi.fn().mockResolvedValue([]),
       findProjectDependencyEdges: vi.fn().mockResolvedValue([]),
       findOrgMemberIds: vi.fn().mockResolvedValue([USER, AGENT]),
+      hasUnackedNotes: vi.fn().mockResolvedValue(false),
+      ackNotes: vi.fn().mockResolvedValue([]),
     };
     projectRepo = {
       findById: vi.fn().mockResolvedValue({ id: PROJECT, orgId: ORG }),
@@ -99,6 +101,81 @@ describe('TaskService — the status protocol', () => {
       githubApp as unknown as GithubAppService,
       new FakeLogger().as<PinoLogger>(),
     );
+  });
+
+  // --- Mid-task notes: human-authored steering, gate-enforced ---
+
+  describe('notes', () => {
+    const reviewReady = () =>
+      taskInState({
+        status: 'in_progress',
+        claimedBy: AGENT,
+        branch: 'feat/x',
+        prUrl: 'https://github.com/x/y/pull/1',
+      });
+
+    it('needs_review is rejected while an unacked note exists', async () => {
+      repo.findById!.mockResolvedValue(reviewReady());
+      repo.hasUnackedNotes!.mockResolvedValue(true);
+      await expect(
+        service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' }),
+      ).rejects.toMatchObject({ message: 'tasks.errors.unackedNotes' });
+
+      // Acked (none pending) → the same call goes through.
+      repo.hasUnackedNotes!.mockResolvedValue(false);
+      const result = await service.transition(agent, 'agent', {
+        id: TASK,
+        to: 'needs_review',
+        comment: 'done',
+      });
+      expect(result.status).toBe('needs_review');
+    });
+
+    it('agents cannot author notes; humans cannot note a task nobody works on', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: AGENT }));
+      await expect(
+        service.addComment(agent, 'agent', { id: TASK, kind: 'note', body: 'sneaky' }),
+      ).rejects.toMatchObject({ message: 'tasks.errors.noteHumanOnly' });
+
+      repo.findById!.mockResolvedValue(taskInState({ status: 'ready' }));
+      await expect(
+        service.addComment(human, 'user', { id: TASK, kind: 'note', body: 'too early' }),
+      ).rejects.toMatchObject({ message: 'tasks.errors.noteNotInProgress' });
+
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: AGENT }));
+      const note = await service.addComment(human, 'user', {
+        id: TASK,
+        kind: 'note',
+        body: 'also rename that button',
+      });
+      expect(note.kind).toBe('note');
+    });
+
+    it('getNotes is claimant-only and acks via the repository', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: USER }));
+      await expect(service.getNotes(agent, TASK)).rejects.toMatchObject({
+        message: 'tasks.errors.notesNotClaimant',
+      });
+      expect(repo.ackNotes).not.toHaveBeenCalled();
+
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: AGENT }));
+      repo.ackNotes!.mockResolvedValue([
+        {
+          id: OTHER,
+          taskId: TASK,
+          authorId: USER,
+          authorType: 'user',
+          kind: 'note',
+          body: 'skip the mobile variant',
+          ackedAt: now,
+          createdAt: now,
+        },
+      ]);
+      const notes = await service.getNotes(agent, TASK);
+      expect(repo.ackNotes).toHaveBeenCalledWith(TASK, ORG);
+      expect(notes).toHaveLength(1);
+      expect(notes[0]?.ackedAt).not.toBeNull();
+    });
   });
 
   // --- Cost reporting: claimant-only, additive ---
