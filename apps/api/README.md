@@ -310,6 +310,17 @@ owns. User secrets remain write-only; this exception is for machine wiring
 only. Single-box assumption: the environment's server is both `app` and
 `data` — splitting the roles across machines is a later slice.
 
+First deploys are **self-seeding**: the valmatic template refuses to boot in
+production without `SEED_INITIAL_EMAIL` / `SEED_INITIAL_PASSWORD`, so the
+worker generates them alongside the IAM secrets when no layer defines them —
+email `admin@<environment domain>` (falling back to `admin@staging.local`),
+password random. They persist in platform_env, readable by design (same
+tradeoff class as the database password above): that credential pair IS the
+login the human uses to enter the fresh staging. Setting either as a user
+secret before the first deploy wins — the generated value is only minted
+when nothing else defines the name, and user layers always override
+platform ones anyway.
+
 **Agents** are the WORKERS of the loop, distinct from servers (the
 machines). An agent's identity is the API key it calls MCP with — the first
 call from a `tasks:agent` key creates its row, and every successful

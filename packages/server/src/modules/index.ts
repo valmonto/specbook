@@ -14,3 +14,4 @@ export * from './deploy/render';
 export * from './deploy/auto-deploy';
 export * from './deploy/deploy-log';
 export * from './deploy/runner-render';
+export * from './deploy/seed-env';
