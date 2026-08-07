@@ -162,7 +162,7 @@ export const MCP_TOOLS = [
     scope: 'tasks:agent',
     needsOrgContext: true,
     description:
-      'Report what your work on a claimed task cost so far: tokens in/out and optionally USD cents. Values ADD to the running totals — report increments, not cumulative figures. Claimant-only: the key must hold the claim.',
+      'Report what your work on a claimed task cost so far. MEASURE, never estimate: run `node scripts/session-usage.mjs report <taskId>` (repo script) and pass its output — tokensIn is input + cache-write + cache-read (the input-class volume actually processed), tokensOut is output tokens. Values ADD to the running totals — report increments, not cumulative figures. usdCents only when you know your billing. Claimant-only: the key must hold the claim.',
   },
 ] as const satisfies readonly McpToolDescriptor[];
 

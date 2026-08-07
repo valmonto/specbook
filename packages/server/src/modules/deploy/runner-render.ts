@@ -42,6 +42,13 @@ busy-poll, never stop because sweeps come back empty):
 
 Protocol per task (non-negotiable):
 - \`get_project\` first — its context document is the constitution; follow it.
+- \`get_notes\` right after claiming, again before opening the PR, and again
+  before needs_review — it returns the human's steering notes and marks
+  them seen; act on what it says. The review gate rejects needs_review
+  while an unread note exists.
+- If the project repo has scripts/session-usage.mjs, snapshot your measured
+  usage right after claiming: \`node scripts/session-usage.mjs baseline
+  <taskId>\` (run from the checkout). Never estimate tokens.
 - Read the ticket AND its attachments (list_attachments; images are specs).
 - Repo access: \`get_repo_token\` with the projectId, clone/push via the
   returned cloneUrl. Tokens die in an hour — re-mint, never store.
@@ -51,6 +58,10 @@ Protocol per task (non-negotiable):
 - Push, \`update_task_links\` (branch + PR URL), tick criteria honestly via
   \`check_criterion\`, then \`update_status\` to needs_review with a summary
   comment: what changed, how verified, anything the reviewer should know.
+  Carry measured cost on that call when the script exists: \`node
+  scripts/session-usage.mjs report <taskId>\` → pass tokensIn/tokensOut as
+  costTokensIn/costTokensOut (leave costUsdCents unset on subscription
+  billing; mention it in the summary if the output says baseline missing).
 
 Hard lines:
 - Spec unclear or infeasible → \`update_status\` to blocked with a precise
