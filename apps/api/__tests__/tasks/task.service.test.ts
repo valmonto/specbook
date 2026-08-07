@@ -103,6 +103,69 @@ describe('TaskService — the status protocol', () => {
     );
   });
 
+  // --- Auto progression on transition (api side): green-before-review ---
+
+  describe('auto progression on transition', () => {
+    const greenSubmission = (over: Record<string, unknown> = {}) =>
+      taskInState({
+        status: 'in_progress',
+        claimedBy: AGENT,
+        branch: 'feat/x',
+        prUrl: 'https://github.com/x/y/pull/12',
+        prNumber: 12,
+        ciState: 'passing',
+        ...over,
+      });
+    const autoProject = (over: Record<string, unknown> = {}) => ({
+      id: PROJECT,
+      orgId: ORG,
+      mode: 'auto',
+      autoPausedAt: null,
+      githubRepoFullName: 'valmonto/specbook',
+      defaultBranch: 'main',
+      ...over,
+    });
+
+    it('mode=auto: an agent submission whose CI is ALREADY green approves and merges itself', async () => {
+      projectRepo.findById!.mockResolvedValue(autoProject());
+      repo.findById!
+        .mockResolvedValueOnce(greenSubmission()) // transition's own read
+        .mockResolvedValue(greenSubmission({ status: 'approved' })); // merge's read
+      // Status writes keep the task's live GitHub state (the generic mock
+      // overlays plain baseTask, which would drop ciState).
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) =>
+        greenSubmission(patch),
+      );
+
+      const result = await service.transition(agent, 'agent', {
+        id: TASK,
+        to: 'needs_review',
+        comment: 'done',
+      });
+      expect(result.status).toBe('needs_review');
+      expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 12);
+    });
+
+    it('manual mode and a paused breaker both leave the submission waiting', async () => {
+      projectRepo.findById!.mockResolvedValue(autoProject({ mode: 'manual' }));
+      repo.findById!.mockResolvedValue(greenSubmission());
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'x' });
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+
+      projectRepo.findById!.mockResolvedValue(autoProject({ autoPausedAt: now }));
+      repo.findById!.mockResolvedValue(greenSubmission());
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'x' });
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('a submission with pending CI waits for the webhook path', async () => {
+      projectRepo.findById!.mockResolvedValue(autoProject());
+      repo.findById!.mockResolvedValue(greenSubmission({ ciState: 'pending' }));
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'x' });
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+  });
+
   // --- Mid-task notes: human-authored steering, gate-enforced ---
 
   describe('notes', () => {

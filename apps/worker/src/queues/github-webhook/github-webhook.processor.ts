@@ -312,6 +312,29 @@ export class GithubWebhookProcessor extends WorkerHost {
           .where(eq(project.id, p.id));
         p.autoPausedAt = null;
         this.logger.info({ projectId: p.id }, 'Auto progression resumed: default branch green');
+        // Tasks that went green (or entered review) WHILE the breaker held
+        // were skipped by every path — their own webhook already fired, and
+        // the api's transition hook returned early on the pause. The reset
+        // is the one moment that knows to re-scan them; without this they
+        // sit in needs_review with passing CI forever.
+        const parked = await this.dbClient.db
+          .select({ id: task.id })
+          .from(task)
+          .where(
+            and(
+              eq(task.projectId, p.id),
+              inArray(task.status, ['needs_review', 'approved']),
+              eq(task.ciState, 'passing'),
+            ),
+          );
+        if (parked.length > 0) {
+          await this.autoProgress(
+            [p],
+            event.installationId,
+            event.repoFullName,
+            parked.map((t) => t.id),
+          );
+        }
       }
     }
 
