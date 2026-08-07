@@ -32,3 +32,4 @@ ignored
 .claude/settings.local.json
 .claude/*.local.*
 .claude/worktrees/
+.claude/cost-baseline-*.json

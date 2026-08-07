@@ -42,6 +42,10 @@ stop on your own just because sweeps keep coming back empty.
   opening the PR, and before `update_status` → `needs_review`. It returns
   the human's steering notes and marks them seen — act on what it says.
   The review gate hard-rejects `needs_review` while an unread note exists.
+- Right after claiming, snapshot your measured usage:
+  `node scripts/session-usage.mjs baseline <taskId>`. Never estimate
+  tokens — your own transcript is the ground truth and estimates are off
+  by orders of magnitude.
 - Branch from fresh main. Implement. UI work is not done until driven in a
   real browser (playwright) with screenshots.
 - `pnpm verify` must pass. Push the branch. `update_task_links` with the
@@ -49,12 +53,15 @@ stop on your own just because sweeps keep coming back empty.
 - Upload verification screenshots to the ticket
   (`create_attachment_upload` + `confirm_attachment`).
 - `needs_review` with an honest summary: what changed, how verified,
-  anything the reviewer should know. Carry your cost tally on the same
-  call — `update_status` accepts `costTokensIn`/`costTokensOut`/
-  `costUsdCents` (increments; use `/usage` or your session stats, report
-  what you know, omit what you don't). For long tasks, `report_cost`
-  mid-flight works too. Claimant-only, values ADD — never re-report the
-  running total.
+  anything the reviewer should know. Carry your MEASURED cost on the same
+  call: run `node scripts/session-usage.mjs report <taskId>` and pass its
+  `tokensIn`/`tokensOut` to `update_status` (`costTokensIn`/`costTokensOut`)
+  or `report_cost`. tokensIn folds cache reads/writes in — that is the
+  input-class volume actually processed. If the output says
+  `"baseline": "missing"` (session restarted mid-task), still report but
+  say so in the summary — the figure is whole-session, an over-attribution.
+  Leave `costUsdCents` unset on subscription billing. Claimant-only,
+  values ADD — never re-report a running total.
 
 ## Rejection and hard lines
 
