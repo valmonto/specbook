@@ -47,6 +47,12 @@ export function PrStateBadge({ task, className }: { task: Task; className?: stri
   );
 }
 
+const ciKindStyles: Record<NonNullable<Task['ciFailureKind']>, string> = {
+  retryable: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20',
+  setup: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20',
+  external: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 ring-sky-500/20',
+};
+
 export function CiStateDot({ task, className }: { task: Task; className?: string }) {
   const { t } = useTranslation();
   if (!task.ciState) return null;
@@ -66,6 +72,16 @@ export function CiStateDot({ task, className }: { task: Task; className?: string
         )}
       />
       {t(k.tasks.ciState[task.ciState])}
+      {task.ciState === 'failing' && task.ciFailureKind ? (
+        <span
+          className={cn(
+            'rounded-full px-1.5 py-px text-[10px] font-medium ring-1 ring-inset',
+            ciKindStyles[task.ciFailureKind],
+          )}
+        >
+          {t(k.tasks.ciFailureKind[task.ciFailureKind])}
+        </span>
+      ) : null}
     </span>
   );
 }

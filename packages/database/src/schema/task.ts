@@ -11,7 +11,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { TASK_CI_STATES, TASK_PR_STATES, TASK_STATUSES } from '@pkg/contracts';
+import { CI_FAILURE_KINDS, TASK_CI_STATES, TASK_PR_STATES, TASK_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { project } from './project';
 import { user } from './user';
@@ -56,6 +56,13 @@ export const task = pgTable(
     prState: varchar('pr_state', { length: 16 }),
     prNumber: integer('pr_number'),
     ciState: varchar('ci_state', { length: 16 }),
+    // Why a red check is red (retryable/setup/external), classified by the
+    // webhook worker from run/job conclusions; cleared on green. Null while
+    // failing = plain red — unknown causes are never guessed.
+    ciFailureKind: varchar('ci_failure_kind', { length: 16 }),
+    // Head sha whose failed jobs were already auto re-run once — the loop
+    // guard behind "retry ONCE per sha".
+    ciRetriedSha: varchar('ci_retried_sha', { length: 64 }),
     prSyncedAt: timestamp('pr_synced_at', { withTimezone: true }),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
@@ -86,6 +93,12 @@ export const task = pgTable(
       'task_ci_state_check',
       sql.raw(
         `ci_state IS NULL OR ci_state IN (${TASK_CI_STATES.map((v) => `'${v}'`).join(', ')})`,
+      ),
+    ),
+    check(
+      'task_ci_failure_kind_check',
+      sql.raw(
+        `ci_failure_kind IS NULL OR ci_failure_kind IN (${CI_FAILURE_KINDS.map((v) => `'${v}'`).join(', ')})`,
       ),
     ),
   ],

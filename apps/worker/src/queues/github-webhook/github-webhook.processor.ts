@@ -18,12 +18,14 @@ import {
   sql,
 } from '@pkg/database';
 import {
+  classifyCiFailure,
   computeAutoDeployPaused,
   DeploymentProducer,
   GITHUB_WEBHOOK_QUEUE,
   GithubAppService,
   InjectLogger,
   PinoLogger,
+  type CiClassification,
   type GithubWebhookJobPayload,
 } from '@pkg/server';
 
@@ -272,25 +274,41 @@ export class GithubWebhookProcessor extends WorkerHost {
     projects: ProjectRow[],
     event: Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }>,
   ): Promise<number> {
+    // Why is the red red? Fetched and classified ONCE per event — both the
+    // breaker and the task annotation read the same verdict. Null (plain
+    // red) whenever nothing is positively recognized.
+    const classification = event.ciState === 'failing' ? await this.classify(event) : null;
+
     // Circuit breaker: default-branch runs gate ALL auto progression for
     // their project. Red trips it (keeping the FIRST trip time), green
-    // resets it. Feature-branch runs never touch it.
+    // resets it. Feature-branch runs never touch it. A RETRYABLE red —
+    // outage cancellations, lost runners — does not trip it: a flake on
+    // main must not freeze the whole project's auto modes.
     for (const p of projects) {
       if (p.mode === 'manual' || event.headBranch !== p.defaultBranch) continue;
-      if (event.ciState === 'failing' && !p.autoPausedAt) {
+      if (event.ciState === 'failing' && classification?.kind === 'retryable') {
+        this.logger.info(
+          { projectId: p.id, pointer: classification.pointer },
+          'Default branch red is retryable — breaker not tripped',
+        );
+      } else if (event.ciState === 'failing' && !p.autoPausedAt) {
         await this.dbClient.db
           .update(project)
-          .set({ autoPausedAt: new Date() })
+          .set({
+            autoPausedAt: new Date(),
+            autoPauseKind: classification?.kind ?? null,
+            autoPausePointer: classification?.pointer ?? null,
+          })
           .where(and(eq(project.id, p.id), isNull(project.autoPausedAt)));
         p.autoPausedAt = new Date();
         this.logger.warn(
-          { projectId: p.id, branch: event.headBranch },
+          { projectId: p.id, branch: event.headBranch, kind: classification?.kind ?? 'plain' },
           'Auto progression paused: default branch is red',
         );
       } else if (event.ciState === 'passing' && p.autoPausedAt) {
         await this.dbClient.db
           .update(project)
-          .set({ autoPausedAt: null })
+          .set({ autoPausedAt: null, autoPauseKind: null, autoPausePointer: null })
           .where(eq(project.id, p.id));
         p.autoPausedAt = null;
         this.logger.info({ projectId: p.id }, 'Auto progression resumed: default branch green');
@@ -307,11 +325,29 @@ export class GithubWebhookProcessor extends WorkerHost {
         ? or(branchMatch, inArray(task.prNumber, event.prNumbers))
         : branchMatch;
 
+    // A retryable red whose sha was already retried once ESCALATES to plain
+    // red on the task: the retry is spent, the breaker and the human should
+    // treat it as real. (Comparison happens per task below.)
     const rows = await this.dbClient.db
       .update(task)
-      .set({ ciState: event.ciState, prSyncedAt: new Date() })
+      .set({
+        ciState: event.ciState,
+        prSyncedAt: new Date(),
+        ciFailureKind: event.ciState === 'failing' ? (classification?.kind ?? null) : null,
+      })
       .where(and(inArray(task.projectId, projectIds), match))
-      .returning({ id: task.id });
+      .returning({ id: task.id, ciRetriedSha: task.ciRetriedSha });
+
+    if (
+      event.ciState === 'failing' &&
+      classification?.kind === 'retryable' &&
+      rows.length > 0 &&
+      event.runId &&
+      event.headSha &&
+      this.githubApp.enabled
+    ) {
+      await this.maybeRetry(event, rows);
+    }
 
     if (event.ciState === 'passing' && rows.length > 0) {
       await this.autoProgress(
@@ -322,6 +358,67 @@ export class GithubWebhookProcessor extends WorkerHost {
       );
     }
     return rows.length;
+  }
+
+  /** Jobs fetch + pure classification; degrades to null without runId or App. */
+  private async classify(
+    event: Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }>,
+  ): Promise<CiClassification | null> {
+    const jobs =
+      event.runId && this.githubApp.enabled
+        ? await this.githubApp.listWorkflowJobs(event.installationId, event.repoFullName, event.runId)
+        : [];
+    return classifyCiFailure({ runConclusion: event.runConclusion ?? 'failure', jobs });
+  }
+
+  /**
+   * One automatic re-run of the failed jobs per head sha. The marker is
+   * written BEFORE the rerun call: if the rerun then fails, the retry is
+   * simply spent — the machine never loops on GitHub's answer. A sha whose
+   * marker already exists escalates the task's kind to plain red instead.
+   */
+  private async maybeRetry(
+    event: Extract<GithubWebhookJobPayload, { kind: 'workflow_run' }>,
+    rows: Array<{ id: string; ciRetriedSha: string | null }>,
+  ): Promise<void> {
+    const spent = rows.filter((r) => r.ciRetriedSha === event.headSha);
+    if (spent.length > 0) {
+      await this.dbClient.db
+        .update(task)
+        .set({ ciFailureKind: null })
+        .where(
+          inArray(
+            task.id,
+            spent.map((r) => r.id),
+          ),
+        );
+      this.logger.warn(
+        { taskIds: spent.map((r) => r.id), headSha: event.headSha },
+        'Retryable red failed again after its one retry — escalated to plain red',
+      );
+      return;
+    }
+
+    await this.dbClient.db
+      .update(task)
+      .set({ ciRetriedSha: event.headSha })
+      .where(
+        inArray(
+          task.id,
+          rows.map((r) => r.id),
+        ),
+      );
+    const rerun = await this.githubApp.rerunFailedJobs(
+      event.installationId,
+      event.repoFullName,
+      event.runId!,
+    );
+    this.logger.info(
+      { runId: event.runId, headSha: event.headSha, rerun },
+      rerun
+        ? 'Retryable red: failed jobs re-run once'
+        : 'Retryable red: rerun refused by GitHub — retry spent, no loop',
+    );
   }
 
   /**

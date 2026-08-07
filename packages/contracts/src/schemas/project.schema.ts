@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PROJECT_MODES } from '../constants';
+import { CI_FAILURE_KINDS, PROJECT_MODES } from '../constants';
 import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
 
 export const ProjectModeSchema = z.enum(PROJECT_MODES);
@@ -24,6 +24,10 @@ export const ProjectSchema = z.object({
   maxParallel: z.number().int().nullable(),
   /** Set while the circuit breaker holds auto progression (red default branch). */
   autoPausedAt: z.string().nullable(),
+  /** Classification of the red that tripped the breaker; null = plain red. */
+  autoPauseKind: z.enum(CI_FAILURE_KINDS).nullable(),
+  /** One-line pointer at the culprit (failed job name), for the pause banner. */
+  autoPausePointer: z.string().nullable(),
   /** Archived projects keep history but leave lists, dispatch and automation. */
   archivedAt: z.string().nullable(),
   createdBy: z.string().uuid(),

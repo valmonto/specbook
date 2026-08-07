@@ -159,8 +159,33 @@ describe('normalizeGithubEvent', () => {
     expect(normalizeGithubEvent('workflow_run', run('completed', 'failure'), 'd')).toMatchObject({
       ciState: 'failing',
     });
+    // cancelled IS a verdict now — the classifier files it retryable, which
+    // the auto-retry acts on instead of leaving the task pending forever.
     expect(normalizeGithubEvent('workflow_run', run('completed', 'cancelled'), 'd')).toMatchObject({
+      ciState: 'failing',
+    });
+    expect(normalizeGithubEvent('workflow_run', run('completed', 'skipped'), 'd')).toMatchObject({
       ciState: 'pending',
+    });
+  });
+
+  it('passes run id, head sha and raw conclusion through for the classifier', () => {
+    const payload = {
+      installation: { id: 777 },
+      repository: { full_name: 'valmonto/specbook' },
+      workflow_run: {
+        id: 9001,
+        head_branch: 'feat/x',
+        head_sha: 'abc123',
+        status: 'completed',
+        conclusion: 'cancelled',
+        pull_requests: [],
+      },
+    };
+    expect(normalizeGithubEvent('workflow_run', payload, 'd')).toMatchObject({
+      runId: 9001,
+      headSha: 'abc123',
+      runConclusion: 'cancelled',
     });
   });
 

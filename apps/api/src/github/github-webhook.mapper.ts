@@ -45,14 +45,18 @@ export function normalizeGithubEvent(
     const run = payload.workflow_run;
     if (typeof run?.head_branch !== 'string') return null;
 
-    // action_required / cancelled / skipped / neutral read as "not a
-    // verdict" — only a completed run with a hard failure marks failing.
+    // action_required / skipped / neutral read as "not a verdict" — only a
+    // completed run with a hard failure marks failing. cancelled and stale
+    // ARE verdicts now: the classifier files them as retryable reds, which
+    // the auto-retry can act on instead of leaving the task pending forever.
     const ciState: 'pending' | 'passing' | 'failing' =
       run.status !== 'completed'
         ? 'pending'
         : run.conclusion === 'success'
           ? 'passing'
-          : ['failure', 'timed_out', 'startup_failure'].includes(run.conclusion)
+          : ['failure', 'timed_out', 'startup_failure', 'cancelled', 'stale'].includes(
+                run.conclusion,
+              )
             ? 'failing'
             : 'pending';
 
@@ -70,6 +74,9 @@ export function normalizeGithubEvent(
       headBranch: run.head_branch,
       ciState,
       prNumbers,
+      ...(typeof run.id === 'number' ? { runId: run.id } : {}),
+      ...(typeof run.head_sha === 'string' ? { headSha: run.head_sha } : {}),
+      ...(typeof run.conclusion === 'string' ? { runConclusion: run.conclusion } : {}),
     };
   }
 

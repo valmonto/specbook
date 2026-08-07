@@ -303,9 +303,17 @@ export function ProjectHeader({
             </Popover>
 
             {project.mode !== 'manual' && project.autoPausedAt && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-300">
+              <span
+                className="inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-300"
+                title={project.autoPausePointer ?? undefined}
+              >
                 <Pause className="size-3" />
-                {t(k.tasks.mode.paused)}
+                {project.autoPauseKind
+                  ? t(k.tasks.mode.pausedKind, {
+                      kind: t(k.tasks.ciFailureKind[project.autoPauseKind]),
+                      pointer: project.autoPausePointer ?? '',
+                    })
+                  : t(k.tasks.mode.paused)}
               </span>
             )}
 
