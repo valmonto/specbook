@@ -70,6 +70,14 @@ export function ProjectHeader({
   const [modeOpen, setModeOpen] = useState(false);
   const [maxParallel, setMaxParallel] = useState(String(project.maxParallel ?? 1));
   useEffect(() => setMaxParallel(String(project.maxParallel ?? 1)), [project.maxParallel]);
+  // Dollars in the input, cents in the API — empty clears the cap.
+  const [budget, setBudget] = useState(
+    project.budgetUsdCents === null ? '' : String(project.budgetUsdCents / 100),
+  );
+  useEffect(
+    () => setBudget(project.budgetUsdCents === null ? '' : String(project.budgetUsdCents / 100)),
+    [project.budgetUsdCents],
+  );
 
   const save = async (
     patch: Record<string, unknown>,
@@ -299,8 +307,45 @@ export function ProjectHeader({
                     className="h-7 w-16 text-right"
                   />
                 </label>
+                <label className="mt-1.5 flex items-center justify-between gap-2 px-2 text-xs text-muted-foreground">
+                  {t(k.tasks.mode.budget)}
+                  <Input
+                    type="number"
+                    min={0}
+                    value={budget}
+                    placeholder="—"
+                    onChange={(e) => setBudget(e.target.value)}
+                    onBlur={() => {
+                      const cents =
+                        budget.trim() === '' ? null : Math.max(0, Math.round(Number(budget) * 100));
+                      if (cents === project.budgetUsdCents) return;
+                      void save({ budgetUsdCents: cents }, () => {});
+                    }}
+                    className="h-7 w-20 text-right"
+                  />
+                </label>
               </PopoverContent>
             </Popover>
+
+            {project.budgetUsdCents !== null && (
+              <span
+                className={cn(
+                  'text-xs tabular-nums text-muted-foreground',
+                  project.budgetPaused && 'font-medium text-amber-700 dark:text-amber-300',
+                )}
+              >
+                {t(k.tasks.mode.spend, {
+                  spent: (Math.round(project.monthSpendUsdCents ?? 0) / 100).toFixed(2),
+                  budget: (project.budgetUsdCents / 100).toFixed(2),
+                })}
+              </span>
+            )}
+            {project.budgetPaused && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <Pause className="size-3" />
+                {t(k.tasks.mode.pausedBudget)}
+              </span>
+            )}
 
             {project.mode !== 'manual' && project.autoPausedAt && (
               <span

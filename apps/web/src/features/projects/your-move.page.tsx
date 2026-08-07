@@ -538,6 +538,17 @@ export default function YourMovePage() {
         <span className="tabular-nums">
           {t(k.tasks.dashboard.draftsWaiting, { n: draftCount })}
         </span>
+        {(projectsData?.data ?? [])
+          .filter((p) => p.budgetPaused)
+          .map((p) => (
+            <span
+              key={p.id}
+              className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300"
+            >
+              <CircleAlert className="size-3.5" />
+              {t(k.tasks.dashboard.pausedBudget, { name: p.name })}
+            </span>
+          ))}
         {readyCount === 0 && (
           <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300">
             <CircleAlert className="size-3.5" />

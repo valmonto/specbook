@@ -25,6 +25,7 @@ import {
   type ListTasksRequest,
   type ListTasksResponse,
   type RemoveTaskDependencyRequest,
+  type ReportCostRequest,
   type Task as TaskDto,
   type TaskAuthorType,
   type TaskComment as TaskCommentDto,
@@ -456,6 +457,36 @@ export class TaskService {
     if (!updated) {
       throw new NotFoundException(k.tasks.errors.notFound);
     }
+    return this.serialize(updated);
+  }
+
+  /**
+   * Agent-reported cost, ADDITIVE — the caller reports increments and the
+   * columns accumulate. Claimant-only: the reporting identity must hold the
+   * claim; anyone else is rejected, so a stray key cannot pollute another
+   * agent's tally. The claim survives needs_review, so the final tally can
+   * ride the submission itself.
+   */
+  async reportCost(activeUser: ActiveUser, dto: ReportCostRequest): Promise<TaskDto> {
+    const current = await this.requireTask(dto.taskId, activeUser.orgId, { mutating: true });
+    if (isTerminal(current.status as TaskStatus)) {
+      throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
+    }
+    if (current.claimedBy !== activeUser.userId) {
+      throw new UnprocessableEntityException(k.tasks.errors.costNotClaimant);
+    }
+    const updated = await this.taskRepository.addCost(dto.taskId, activeUser.orgId, {
+      tokensIn: dto.tokensIn,
+      tokensOut: dto.tokensOut,
+      usdCents: dto.usdCents,
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    this.logger.info(
+      { taskId: dto.taskId, tokensIn: dto.tokensIn, tokensOut: dto.tokensOut, usdCents: dto.usdCents },
+      'Cost reported',
+    );
     return this.serialize(updated);
   }
 

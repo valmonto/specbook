@@ -399,17 +399,22 @@ export class ProjectService {
   }
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {
-    const [{ data, total }, counts] = await Promise.all([
+    const [{ data, total }, counts, spend] = await Promise.all([
       this.projectRepository.findForOrg(activeUser.orgId, {
         skip: dto.skip,
         limit: dto.limit,
         archived: dto.archived,
       }),
       this.projectRepository.countTasksByStatus(activeUser.orgId),
+      this.projectRepository.monthSpendByProject(activeUser.orgId),
     ]);
 
     return {
-      data: data.map((p) => ({ ...this.serialize(p), statusCounts: counts.get(p.id) ?? {} })),
+      data: data.map((p) => ({
+        ...this.serialize(p),
+        statusCounts: counts.get(p.id) ?? {},
+        ...this.budgetFields(p, spend.get(p.id) ?? 0),
+      })),
       meta: { total, skip: dto.skip, limit: dto.limit },
     };
   }
@@ -419,7 +424,19 @@ export class ProjectService {
     if (!found) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
-    return this.serialize(found);
+    const spend = await this.projectRepository.monthSpendByProject(activeUser.orgId);
+    return { ...this.serialize(found), ...this.budgetFields(found, spend.get(found.id) ?? 0) };
+  }
+
+  /** Month-to-date spend + whether the budget gate holds the agent queue. */
+  private budgetFields(
+    p: Project,
+    monthSpendUsdCents: number,
+  ): { monthSpendUsdCents: number; budgetPaused: boolean } {
+    return {
+      monthSpendUsdCents,
+      budgetPaused: p.budgetUsdCents !== null && monthSpendUsdCents >= p.budgetUsdCents,
+    };
   }
 
   async update(activeUser: ActiveUser, dto: UpdateProjectRequest): Promise<UpdateProjectResponse> {

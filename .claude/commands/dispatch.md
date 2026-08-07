@@ -45,7 +45,12 @@ stop on your own just because sweeps keep coming back empty.
 - Upload verification screenshots to the ticket
   (`create_attachment_upload` + `confirm_attachment`).
 - `needs_review` with an honest summary: what changed, how verified,
-  anything the reviewer should know.
+  anything the reviewer should know. Carry your cost tally on the same
+  call — `update_status` accepts `costTokensIn`/`costTokensOut`/
+  `costUsdCents` (increments; use `/usage` or your session stats, report
+  what you know, omit what you don't). For long tasks, `report_cost`
+  mid-flight works too. Claimant-only, values ADD — never re-report the
+  running total.
 
 ## Rejection and hard lines
 

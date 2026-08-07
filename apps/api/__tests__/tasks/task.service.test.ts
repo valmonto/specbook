@@ -101,6 +101,51 @@ describe('TaskService — the status protocol', () => {
     );
   });
 
+  // --- Cost reporting: claimant-only, additive ---
+
+  describe('reportCost', () => {
+    it('books increments for the key holding the claim', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: AGENT }));
+      repo.addCost = vi
+        .fn()
+        .mockResolvedValue(taskInState({ costTokensIn: 100, costTokensOut: 50, costUsdCents: 12 }));
+
+      const result = await service.reportCost(agent, {
+        taskId: TASK,
+        tokensIn: 100,
+        tokensOut: 50,
+        usdCents: 12,
+      });
+      expect(repo.addCost).toHaveBeenCalledWith(TASK, ORG, {
+        tokensIn: 100,
+        tokensOut: 50,
+        usdCents: 12,
+      });
+      expect(result.costUsdCents).toBe(12);
+    });
+
+    it('rejects any caller not holding the claim — including nobody-claimed', async () => {
+      repo.addCost = vi.fn();
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: USER }));
+      await expect(
+        service.reportCost(agent, { taskId: TASK, tokensIn: 1 }),
+      ).rejects.toMatchObject({ message: 'tasks.errors.costNotClaimant' });
+
+      repo.findById!.mockResolvedValue(taskInState({ status: 'ready', claimedBy: null }));
+      await expect(
+        service.reportCost(agent, { taskId: TASK, tokensIn: 1 }),
+      ).rejects.toMatchObject({ message: 'tasks.errors.costNotClaimant' });
+      expect(repo.addCost).not.toHaveBeenCalled();
+    });
+
+    it('rejects on terminal tasks', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done', claimedBy: AGENT }));
+      await expect(service.reportCost(agent, { taskId: TASK, tokensIn: 1 })).rejects.toMatchObject(
+        { message: 'tasks.errors.terminalTask' },
+      );
+    });
+  });
+
   // --- Actor enforcement: the maps, not convention, hold the line ---
 
   it('lets the human dispatch draft → ready', async () => {

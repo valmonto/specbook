@@ -47,6 +47,36 @@ export function PrStateBadge({ task, className }: { task: Task; className?: stri
   );
 }
 
+/** "1234" → "1.2k", "2345678" → "2.3M" — cost lines, not accounting. */
+const compact = (n: number): string =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000
+      ? `${(n / 1_000).toFixed(1)}k`
+      : String(n);
+
+/** Agent-reported cost, rendered only once something was reported. */
+export function CostLine({ task, className }: { task: Task; className?: string }) {
+  const { t } = useTranslation();
+  const hasTokens = task.costTokensIn !== null || task.costTokensOut !== null;
+  if (!hasTokens && task.costUsdCents === null) return null;
+  const parts: string[] = [];
+  if (hasTokens) {
+    parts.push(
+      t(k.tasks.cost.tokens, {
+        in: compact(task.costTokensIn ?? 0),
+        out: compact(task.costTokensOut ?? 0),
+      }),
+    );
+  }
+  if (task.costUsdCents !== null) parts.push(`$${(task.costUsdCents / 100).toFixed(2)}`);
+  return (
+    <span className={cn('text-xs text-muted-foreground tabular-nums', className)}>
+      {t(k.tasks.cost.label)}: {parts.join(' · ')}
+    </span>
+  );
+}
+
 const ciKindStyles: Record<NonNullable<Task['ciFailureKind']>, string> = {
   retryable: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20',
   setup: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20',

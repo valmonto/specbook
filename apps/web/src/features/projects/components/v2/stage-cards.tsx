@@ -43,6 +43,7 @@ import {
 } from '../../hooks/use-projects';
 import { AttachmentsSection } from '../attachments-section';
 import { useProjectReadOnly } from './read-only-context';
+import { CostLine } from '../github-state-badges';
 import { StatusBadge } from '../status-badge';
 
 /**
@@ -838,6 +839,7 @@ function ExpandedBody({
       />
       <CriteriaEditor task={task} />
       <WorkLinks task={task} />
+      <CostLine task={task} />
       {readOnly ? null : actions}
       <AttachmentsSection taskId={task.id} readOnly={readOnly} />
       <DependenciesNote taskId={task.id} />

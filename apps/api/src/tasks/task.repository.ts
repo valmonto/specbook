@@ -98,6 +98,52 @@ export class TaskRepository {
     )`;
   }
 
+  /**
+   * The budget gate: a project whose monthly spend (summed agent-reported
+   * task cost, bucketed by when the task last moved) has reached its budget
+   * stops feeding the agent queue — the runaway-loop stop, enforced in the
+   * same query as the other caps so no client can bypass it.
+   */
+  private underBudgetCap() {
+    return sql`${task.projectId} NOT IN (
+      SELECT p.id FROM project p
+      WHERE p.budget_usd_cents IS NOT NULL
+        AND (
+          SELECT COALESCE(SUM(t2.cost_usd_cents), 0) FROM task t2
+          WHERE t2.project_id = p.id
+            AND COALESCE(t2.status_changed_at, t2.created_at) >= date_trunc('month', now())
+        ) >= p.budget_usd_cents
+    )`;
+  }
+
+  /**
+   * Additive cost accumulation — increments, never overwrites. A field the
+   * agent did not report stays untouched (and stays null if never reported):
+   * an agent that only knows tokens must not zero the USD column.
+   */
+  async addCost(
+    id: string,
+    orgId: string,
+    delta: { tokensIn?: number; tokensOut?: number; usdCents?: number },
+  ): Promise<Task | null> {
+    const patch: Record<string, unknown> = {};
+    if (delta.tokensIn !== undefined) {
+      patch.costTokensIn = sql`COALESCE(${task.costTokensIn}, 0) + ${delta.tokensIn}`;
+    }
+    if (delta.tokensOut !== undefined) {
+      patch.costTokensOut = sql`COALESCE(${task.costTokensOut}, 0) + ${delta.tokensOut}`;
+    }
+    if (delta.usdCents !== undefined) {
+      patch.costUsdCents = sql`COALESCE(${task.costUsdCents}, 0) + ${delta.usdCents}`;
+    }
+    const [result] = await this.dbClient.db
+      .update(task)
+      .set(patch)
+      .where(and(eq(task.id, id), this.orgGuard(orgId)))
+      .returning();
+    return result ?? null;
+  }
+
   async create(data: NewTask): Promise<Task> {
     const [result] = await this.dbClient.db.insert(task).values(data).returning();
     return result!;
@@ -121,6 +167,7 @@ export class TaskRepository {
       conditions.push(this.noUnfinishedDependencies());
       conditions.push(this.underMergeDebtCap());
       conditions.push(this.underProjectThrottles());
+      conditions.push(this.underBudgetCap());
     }
     const whereClause = and(...conditions);
 

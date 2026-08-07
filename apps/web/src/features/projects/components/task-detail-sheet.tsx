@@ -57,7 +57,7 @@ function agoShort(iso: string): string {
   return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 }
 import { AttachmentsSection } from './attachments-section';
-import { CiStateDot, PrStateBadge } from './github-state-badges';
+import { CiStateDot, CostLine, PrStateBadge } from './github-state-badges';
 import { TaskEditForm } from './task-edit-form';
 import { StatusBadge } from './status-badge';
 
@@ -297,6 +297,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                   )}
                   <PrStateBadge task={task} />
                   <CiStateDot task={task} />
+                  <CostLine task={task} />
                   {task.prUrl && (
                     <a
                       href={task.prUrl}

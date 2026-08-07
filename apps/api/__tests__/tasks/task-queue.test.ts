@@ -88,6 +88,44 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     expect(data.map((t) => t.title)).toEqual(['a-ready']);
   });
 
+  it('budget gate: at the cap the project leaves the queue; below it and in other projects the gate is invisible', async () => {
+    await client.db
+      .update(project)
+      .set({ budgetUsdCents: 500 })
+      .where(eq(project.id, gatedProject));
+    await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
+    await makeTask(freeProject, ownerA, 'ready', 'free-ready');
+
+    // Below the cap: spend 499 of 500 — still feeding.
+    const [spender] = await client.db
+      .insert(task)
+      .values({
+        projectId: gatedProject,
+        title: 'spender',
+        status: 'done',
+        costUsdCents: 499,
+        statusChangedAt: new Date(),
+        createdBy: ownerA,
+      })
+      .returning();
+    let { data } = await queue();
+    expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
+
+    // At the cap (boundary: spend == budget): the project stops feeding;
+    // the uncapped project is untouched.
+    await client.db.update(task).set({ costUsdCents: 500 }).where(eq(task.id, spender!.id));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title)).toEqual(['free-ready']);
+
+    // Last month's spend never counts: move the cost out of the window.
+    await client.db
+      .update(task)
+      .set({ statusChangedAt: new Date(Date.now() - 45 * 24 * 3600 * 1000) })
+      .where(eq(task.id, spender!.id));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
+  });
+
   it('a human task never enters the agent queue but stays in plain lists', async () => {
     await makeTask(gatedProject, ownerA, 'ready', 'machine-work');
     const [human] = await client.db

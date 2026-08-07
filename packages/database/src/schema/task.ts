@@ -5,6 +5,7 @@ import {
   text,
   integer,
   jsonb,
+  bigint,
   boolean,
   timestamp,
   index,
@@ -68,6 +69,12 @@ export const task = pgTable(
     // Human-only work: stays visible on the board but never enters the agent
     // queue — the repository's `available` filter excludes it.
     isHumanTask: boolean('is_human_task').notNull().default(false),
+    // Agent-reported cost, accumulated ADDITIVELY (a session may report
+    // several times). Null = never reported; usdCents may stay null when the
+    // agent only knows tokens.
+    costTokensIn: bigint('cost_tokens_in', { mode: 'number' }),
+    costTokensOut: bigint('cost_tokens_out', { mode: 'number' }),
+    costUsdCents: integer('cost_usd_cents'),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
     createdBy: uuid('created_by')

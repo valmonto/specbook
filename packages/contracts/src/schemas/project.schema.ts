@@ -22,6 +22,13 @@ export const ProjectSchema = z.object({
   mode: ProjectModeSchema,
   /** Per-project claim cap for the agent queue; null = no project cap. */
   maxParallel: z.number().int().nullable(),
+  /** Monthly agent-spend cap in USD cents; null = uncapped. */
+  budgetUsdCents: z.number().int().nullable(),
+  /** This calendar month's summed task cost — present on list/get responses. */
+  monthSpendUsdCents: z.number().int().optional(),
+  /** True when the budget is set and this month's spend has reached it —
+   *  the agent queue stops feeding this project's tasks. */
+  budgetPaused: z.boolean().optional(),
   /** Set while the circuit breaker holds auto progression (red default branch). */
   autoPausedAt: z.string().nullable(),
   /** Classification of the red that tripped the breaker; null = plain red. */
@@ -63,6 +70,7 @@ export const CreateProjectRequestSchema = z
     workdir: z.string().max(500).optional(),
     mode: ProjectModeSchema.optional(),
     maxParallel: z.number().int().min(1).max(10).nullable().optional(),
+    budgetUsdCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
   })
   .strict()
   .refine((v) => !(v.githubRepoId && v.newRepoName), {
@@ -89,6 +97,7 @@ export const UpdateProjectRequestSchema = z
     workdir: z.string().max(500).nullable().optional(),
     mode: ProjectModeSchema.optional(),
     maxParallel: z.number().int().min(1).max(10).nullable().optional(),
+    budgetUsdCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
   })
   .strict();
 
