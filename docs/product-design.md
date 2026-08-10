@@ -128,23 +128,29 @@ Grouped by whose move it is:
 
 **Agent's court**
 
-- `ready` — the queue. The only state agents pull from, and only when no
-  unfinished dependencies remain.
+- `ready` — the queue. Agents pull from here (and from
+  `changes_requested`), and only when no unfinished dependencies remain.
 - `in_progress` — claimed by an agent session.
 - `changes_requested` — **the feedback loop as a first-class state.** The
   human reviews, leaves comments on what is wrong, flips the task here; it
   re-enters the agent queue with the full prior context — spec, previous
   attempt, objections — attached. `needs_review → changes_requested →
   in_progress → needs_review` cycles as many times as needed, entirely on
-  the record.
+  the record. It feeds the agent queue alongside `ready` — a rejection
+  never waits for a manual re-dispatch.
 
 **Terminal**
 
 - `done` — MERGED: normally stamped by the machine (the merge endpoint or
   the PR-merge webhook completing an `approved` task). The human's manual
   `→ done` remains for repo-less tasks. The agent may claim completion,
-  never accept its own work.
-- `cancelled`.
+  never accept its own work. One human-only exit exists: **reopen** —
+  `done → changes_requested` with a required feedback comment, for when
+  manual testing after the merge finds residuals. The comment is the
+  round-2 spec delta; recording fresh links over the merged round-1 PR
+  auto-logs it to the activity thread and resets the live GitHub state
+  for the new PR. Agents can never resurrect their own shipped work.
+- `cancelled` — terminal for everyone.
 
 **Progress is not a status.** There is no `50%` or `almost_done`. Coarse
 status answers whose move it is; fine progress lives in ticked acceptance
@@ -155,7 +161,7 @@ criteria and `progress` comments.
 | Actor | Allowed transitions |
 | --- | --- |
 | Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer) |
-| Human | `draft→ready`, `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, any→`cancelled` |
+| Human | `draft→ready`, `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), any non-done→`cancelled` |
 | Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
 
 **Automation modes (per project — the trust dial).** `manual` is the

@@ -133,6 +133,7 @@ export const tasks = {
     undoApprove: 'tasks.actions.undoApprove',
     markMerged: 'tasks.actions.markMerged',
     requestChanges: 'tasks.actions.requestChanges',
+    reopenWithFeedback: 'tasks.actions.reopenWithFeedback',
     cancelTask: 'tasks.actions.cancelTask',
     deleteDraft: 'tasks.actions.deleteDraft',
     feedbackPlaceholder: 'tasks.actions.feedbackPlaceholder',

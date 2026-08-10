@@ -886,6 +886,7 @@ function ExpandedBody({
       <DependenciesNote taskId={task.id} />
       <ActivityThread taskId={task.id} />
       <StageMoves task={task} />
+      <ReopenMove task={task} />
     </div>
   );
 }
@@ -948,6 +949,30 @@ function FeedbackBox({ taskId, onClose }: { taskId: string; onClose: () => void 
           {t(k.common.actions.cancel)}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * done's one legal move: reopen with feedback (→ changes_requested). Manual
+ * testing after the merge found residuals; the feedback comment is the
+ * round-2 spec delta and the server refuses the transition without it.
+ */
+function ReopenMove({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const readOnly = useProjectReadOnly();
+  const [open, setOpen] = useState(false);
+  if (readOnly || task.status !== 'done') return null;
+  return (
+    <div className="grid grid-cols-1 gap-2 border-t pt-3">
+      {open ? (
+        <FeedbackBox taskId={task.id} onClose={() => setOpen(false)} />
+      ) : (
+        <Button size="sm" variant="outline" className="w-fit" onClick={() => setOpen(true)}>
+          <RotateCcw className="size-3.5 mr-1" />
+          {t(k.tasks.actions.reopenWithFeedback)}
+        </Button>
+      )}
     </div>
   );
 }

@@ -71,7 +71,7 @@ export const MCP_TOOLS = [
     scope: 'tasks:agent',
     needsOrgContext: true,
     description:
-      'Tasks, filterable by project and status. available=true is THE work queue: ready tasks whose dependencies are all finished — pull from here.',
+      'Tasks, filterable by project and status. available=true is THE work queue: ready and changes_requested tasks whose dependencies are all finished — pull from here. A changes_requested task was sent back or reopened: the latest human comments are the spec delta.',
   },
   {
     name: 'get_task',

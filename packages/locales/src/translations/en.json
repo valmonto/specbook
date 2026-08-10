@@ -417,6 +417,7 @@
   "tasks.actions.markReady": "Mark ready",
   "tasks.actions.merge": "Merge",
   "tasks.actions.mergeAllGreen": "Merge all green",
+  "tasks.actions.reopenWithFeedback": "Reopen with feedback",
   "tasks.actions.requestChanges": "Request changes",
   "tasks.actions.requeue": "Answer & requeue",
   "tasks.actions.resetClaim": "Reset claim",

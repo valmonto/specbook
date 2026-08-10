@@ -89,6 +89,25 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     expect(data.map((t) => t.title)).toEqual(['a-ready']);
   });
 
+  it('serves changes_requested alongside ready — rejections and reopens re-enter the feed', async () => {
+    await makeTask(gatedProject, ownerA, 'ready', 'fresh');
+    await makeTask(gatedProject, ownerA, 'changes_requested', 'sent-back');
+    await makeTask(gatedProject, ownerA, 'done', 'shipped');
+    const { data } = await queue();
+    expect(data.map((t) => t.title).sort()).toEqual(['fresh', 'sent-back']);
+  });
+
+  it('a changes_requested task obeys the same gates — archived project feeds none', async () => {
+    const archived = await makeProject(orgA, ownerA, 'attic');
+    await client.db
+      .update(project)
+      .set({ archivedAt: new Date() })
+      .where(eq(project.id, archived));
+    await makeTask(archived, ownerA, 'changes_requested', 'attic-sent-back');
+    const { data } = await queue();
+    expect(data).toHaveLength(0);
+  });
+
   it('notes: ackNotes stamps only within the org — a foreign org id acks nothing', async () => {
     const taskId = await makeTask(gatedProject, ownerA, 'in_progress', 'noted-task');
     await client.db.insert(taskComment).values({

@@ -157,7 +157,10 @@ export class TaskRepository {
     if (filter.projectId) conditions.push(eq(task.projectId, filter.projectId));
     if (filter.status) conditions.push(eq(task.status, filter.status));
     if (filter.available) {
-      conditions.push(eq(task.status, 'ready'));
+      // changes_requested is fed alongside ready: review rejections and
+      // done-task reopens both carry their spec delta as the latest human
+      // comment, and without this they sit invisible to runner sweeps.
+      conditions.push(inArray(task.status, ['ready', 'changes_requested']));
       // Human-only tasks never feed agents — enforced here so no client
       // (MCP or HTTP) can claim one into the claim-then-blocked dance.
       conditions.push(eq(task.isHumanTask, false));
