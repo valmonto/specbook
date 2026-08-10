@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import type { AcceptanceCriterion, GetTaskByIdResponse } from '@pkg/contracts';
 import { k } from '@pkg/locales';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -38,7 +39,7 @@ export function TaskEditForm({ task, onClose }: Props) {
   const removeCriterion = (i: number) =>
     setCriteria((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
 
-  const pasteCriteria = (i: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+  const pasteCriteria = (i: number, e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const text = e.clipboardData.getData('text');
     if (!text.includes('\n')) return;
     e.preventDefault();
@@ -98,13 +99,28 @@ export function TaskEditForm({ task, onClose }: Props) {
       <div className="grid gap-2">
         <Label>{t(k.tasks.acceptanceCriteria)}</Label>
         {criteria.map((c, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <Input
+          <div key={i} className="flex items-start gap-2">
+            {/* A wrapping textarea, not an Input: long criteria must wrap on
+                phone widths. The inline ref autosizes it to its content. */}
+            <textarea
+              rows={1}
+              ref={(el) => {
+                if (el) {
+                  el.style.height = 'auto';
+                  el.style.height = `${el.scrollHeight}px`;
+                }
+              }}
               value={c.text}
               onChange={(e) => setCriterionText(i, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.preventDefault();
+              }}
               onPaste={(e) => pasteCriteria(i, e)}
               placeholder={t(k.tasks.criterionPlaceholder)}
-              className={c.done ? 'text-muted-foreground line-through' : undefined}
+              className={cn(
+                'min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-input bg-transparent px-3 py-1.5 text-sm break-words shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                c.done && 'text-muted-foreground line-through',
+              )}
             />
             <Button
               variant="ghost"
