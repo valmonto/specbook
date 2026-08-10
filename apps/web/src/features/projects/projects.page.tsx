@@ -106,7 +106,7 @@ function ProjectCard({
             )}
           </div>
           {project.context && (
-            <p className="line-clamp-2 text-sm text-muted-foreground">{project.context}</p>
+            <p className="line-clamp-2 break-words text-sm text-muted-foreground">{project.context}</p>
           )}
           {project.repoUrl && (
             <p className="mt-auto inline-flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
@@ -192,7 +192,7 @@ export default function ProjectsPage() {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-28" />
           ))}
@@ -211,7 +211,7 @@ export default function ProjectsPage() {
           )}
         </Empty>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
