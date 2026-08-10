@@ -71,7 +71,7 @@ function ProjectCard({
                     size="icon"
                     variant="ghost"
                     aria-label={t(archived ? k.tasks.unarchiveProject : k.tasks.archiveProject)}
-                    className="size-6 -my-0.5 -mr-1 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                    className="size-6 -my-0.5 -mr-1 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                     onClick={(e) => e.preventDefault()}
                   >
                     <Settings2 className="size-3.5" />

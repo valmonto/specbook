@@ -363,7 +363,7 @@ function InlineArea({
   };
 
   return (
-    <div className="grid gap-1">
+    <div className="grid grid-cols-1 gap-1">
       <h4 className={SECTION_HEADING}>{t(labelKey)}</h4>
       {editing ? (
         /* Seamless, Notion-style: same typography, padding and position as
@@ -379,7 +379,7 @@ function InlineArea({
             if (e.key === 'Escape') setEditing(false);
           }}
           rows={Math.min(24, Math.max(3, draft.split('\n').length))}
-          className="-mx-1.5 w-[calc(100%+0.75rem)] resize-none rounded-md bg-muted/40 px-1.5 py-0.5 text-sm leading-relaxed whitespace-pre-wrap outline-none [field-sizing:content]"
+          className="-mx-1.5 w-[calc(100%+0.75rem)] min-w-0 resize-none rounded-md bg-muted/40 px-1.5 py-0.5 text-sm leading-relaxed whitespace-pre-wrap outline-none [field-sizing:content]"
         />
       ) : (
         <button
@@ -390,7 +390,7 @@ function InlineArea({
             setEditing(true);
           }}
           className={cn(
-            '-mx-1.5 rounded-md px-1.5 py-0.5 text-left text-sm leading-relaxed whitespace-pre-wrap',
+            '-mx-1.5 rounded-md px-1.5 py-0.5 text-left text-sm leading-relaxed break-words whitespace-pre-wrap',
             editable && 'cursor-text hover:bg-muted/50',
           )}
         >
@@ -446,19 +446,19 @@ function CriteriaEditor({ task }: { task: Task }) {
   const hasEmptyRow = draft.some((c) => !c.text.trim());
 
   return (
-    <div className="grid gap-1">
+    <div className="grid grid-cols-1 gap-1">
       <h4 className={SECTION_HEADING}>
         {t(k.tasks.acceptanceCriteria)} ({draft.filter((c) => c.done).length}/{draft.length})
       </h4>
-      <ul className="grid gap-0.5">
+      <ul className="grid grid-cols-1 gap-0.5">
         {draft.map((c, i) => (
-          <li key={i} className="group/crit flex items-center gap-2">
+          <li key={i} className="group/crit flex items-start gap-2">
             {/* Ticking is the AGENT's act (progress = criteria checked over
                 MCP); here the checkbox is a read-only indicator. */}
             <span
               aria-hidden
               className={cn(
-                'flex size-4 shrink-0 items-center justify-center rounded-[4px] border',
+                'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-[4px] border',
                 c.done
                   ? 'border-emerald-500 bg-emerald-500 text-white'
                   : 'border-muted-foreground/40',
@@ -511,7 +511,7 @@ function CriteriaEditor({ task }: { task: Task }) {
                 )}
               />
             ) : (
-              <span className={cn('text-sm', c.done && 'text-muted-foreground line-through')}>
+              <span className={cn('min-w-0 flex-1 text-sm break-words', c.done && 'text-muted-foreground line-through')}>
                 {c.text}
               </span>
             )}
@@ -519,7 +519,7 @@ function CriteriaEditor({ task }: { task: Task }) {
               <button
                 type="button"
                 onClick={() => remove(i)}
-                className="text-muted-foreground/50 opacity-0 transition-opacity group-hover/crit:opacity-100 hover:text-destructive"
+                className="mt-1 text-muted-foreground/50 opacity-0 transition-opacity group-hover/crit:opacity-100 hover:text-destructive pointer-coarse:opacity-100"
                 aria-label={t(k.common.actions.delete)}
               >
                 <X className="size-3.5" />
@@ -575,7 +575,7 @@ function WorkLinks({ task }: { task: Task }) {
   const { t } = useTranslation();
   if (!task.branch && !task.prUrl) return null;
   return (
-    <div className="grid gap-1.5">
+    <div className="grid grid-cols-1 gap-1.5">
       <div className="flex flex-wrap items-center gap-3 text-xs">
         {task.branch && (
           <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono">
@@ -606,13 +606,13 @@ function DependenciesNote({ taskId }: { taskId: string }) {
   const { data } = useTask(taskId);
   if (!data || (data.dependencies.length === 0 && data.dependents.length === 0)) return null;
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {(['dependencies', 'dependents'] as const).map(
         (kind) =>
           data[kind].length > 0 && (
-            <div key={kind} className="grid gap-1">
+            <div key={kind} className="grid grid-cols-1 gap-1">
               <h4 className={SECTION_HEADING}>{t(k.tasks.detail[kind])}</h4>
-              <ul className="grid gap-1">
+              <ul className="grid grid-cols-1 gap-1">
                 {data[kind].map((d) => (
                   <li key={d.id} className="flex items-center gap-2 text-sm">
                     <StatusBadge status={d.status} />
@@ -659,7 +659,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
   };
 
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-1 gap-2">
       <h4 className={SECTION_HEADING}>
         <MessageSquare className="size-3.5" />
         {t(k.tasks.detail.comments)}
@@ -667,7 +667,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
       {!data || data.comments.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t(k.tasks.detail.noComments)}</p>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid grid-cols-1 gap-3">
           {data.comments.map((c) => (
             <li key={c.id} className="flex gap-2.5">
               <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -707,7 +707,7 @@ function ActivityThread({ taskId }: { taskId: string }) {
                     {ago(c.createdAt)}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm whitespace-pre-wrap">{c.body}</p>
+                <p className="mt-0.5 text-sm break-words whitespace-pre-wrap">{c.body}</p>
               </div>
             </li>
           ))}
@@ -854,7 +854,7 @@ function ExpandedBody({
 }) {
   const readOnly = useProjectReadOnly();
   return (
-    <div className="grid gap-4 border-t py-3 pr-4 pl-9">
+    <div className="grid grid-cols-1 gap-4 border-t py-3 pr-4 pl-9">
       {headline}
       <InlineArea
         task={task}
@@ -893,7 +893,7 @@ function AgentSummary({ taskId }: { taskId: string }) {
         <Bot className="size-3.5" />
         {t(k.tasks.v2.agentSummary)}
       </h4>
-      <p className="text-sm whitespace-pre-wrap">{summary?.body ?? t(k.tasks.v2.noSummary)}</p>
+      <p className="text-sm break-words whitespace-pre-wrap">{summary?.body ?? t(k.tasks.v2.noSummary)}</p>
     </div>
   );
 }
@@ -916,7 +916,7 @@ function FeedbackBox({ taskId, onClose }: { taskId: string; onClose: () => void 
   };
 
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-1 gap-2">
       <Textarea
         autoFocus
         rows={3}
@@ -1145,7 +1145,7 @@ export function BlockedCard(props: CardProps) {
           ) : undefined
         }
         actions={
-          <div className="grid gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <Textarea
               rows={2}
               value={answer}

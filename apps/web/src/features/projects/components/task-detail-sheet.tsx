@@ -248,7 +248,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                   <h4 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {t(k.tasks.taskContext)}
                   </h4>
-                  <p className="text-sm whitespace-pre-wrap">{task.context}</p>
+                  <p className="text-sm break-words whitespace-pre-wrap">{task.context}</p>
                 </section>
               )}
               {task.outOfScope && (
@@ -256,7 +256,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                   <h4 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                     {t(k.tasks.outOfScope)}
                   </h4>
-                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
+                  <p className="text-sm break-words whitespace-pre-wrap text-muted-foreground">
                     {task.outOfScope}
                   </p>
                 </section>
@@ -285,7 +285,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                           }
                           className="mt-0.5"
                         />
-                        <span className={cn('text-sm', c.done && 'text-muted-foreground line-through')}>
+                        <span className={cn('min-w-0 flex-1 text-sm break-words', c.done && 'text-muted-foreground line-through')}>
                           {c.text}
                         </span>
                       </li>
@@ -487,7 +487,7 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                           )}
                           <span className="ml-auto">{fmtDate(c.createdAt)}</span>
                         </div>
-                        <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+                        <p className="text-sm break-words whitespace-pre-wrap">{c.body}</p>
                       </li>
                     ))}
                   </ul>
