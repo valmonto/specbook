@@ -467,8 +467,17 @@ function CriteriaEditor({ task }: { task: Task }) {
               {c.done && <Check className="size-3" />}
             </span>
             {editable ? (
-              <input
+              /* A textarea, not an input: criterion text must WRAP on phone
+                 widths instead of scrolling inside a single line. rows=1 +
+                 the inline-ref autosize (re-runs every render) grow it with
+                 content; Enter never inserts a newline — it adds a row. */
+              <textarea
+                rows={1}
                 ref={(el) => {
+                  if (el) {
+                    el.style.height = 'auto';
+                    el.style.height = `${el.scrollHeight}px`;
+                  }
                   if (el && focusIndex === i) {
                     el.focus();
                     setFocusIndex(null);
@@ -480,10 +489,11 @@ function CriteriaEditor({ task }: { task: Task }) {
                 }}
                 onChange={(e) => setText(i, e.target.value)}
                 onKeyDown={(e) => {
-                  // Enter on a non-empty row inserts the next one below it.
-                  if (e.key === 'Enter' && c.text.trim()) {
+                  // Enter on a non-empty row inserts the next one below it;
+                  // it never becomes a literal newline inside the criterion.
+                  if (e.key === 'Enter') {
                     e.preventDefault();
-                    addRow(i);
+                    if (c.text.trim()) addRow(i);
                   }
                 }}
                 onPaste={(e) => {
@@ -506,7 +516,7 @@ function CriteriaEditor({ task }: { task: Task }) {
                   if (draft[i]?.text !== task.acceptanceCriteria[i]?.text) void persist(draft);
                 }}
                 className={cn(
-                  'min-w-0 flex-1 bg-transparent text-sm outline-none',
+                  'min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-sm break-words outline-none',
                   c.done && 'text-muted-foreground line-through',
                 )}
               />
