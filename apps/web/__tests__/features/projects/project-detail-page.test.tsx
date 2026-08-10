@@ -25,6 +25,7 @@ const hooks = vi.hoisted(() => ({
   useTask: vi.fn(),
   useTaskPr: vi.fn(),
   useUnarchiveProject: vi.fn(),
+  useResumeProject: vi.fn(),
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
@@ -76,6 +77,7 @@ beforeAll(() => installRadixDomShims());
 beforeEach(() => {
   hooks.useProject.mockReturnValue({ data: project, isLoading: false });
   hooks.useUpdateProject.mockReturnValue(makeAction());
+  hooks.useResumeProject.mockReturnValue(makeAction());
   hooks.useCreateTask.mockReturnValue(makeAction());
   hooks.useMergeTask.mockReturnValue(makeAction());
   hooks.useTransitionTask.mockReturnValue(makeAction());

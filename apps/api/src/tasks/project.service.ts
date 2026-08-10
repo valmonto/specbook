@@ -496,6 +496,28 @@ export class ProjectService {
     return this.serialize(archived);
   }
 
+  /**
+   * Manually clears the auto-mode breaker pause. The automatic clear — a
+   * green default-branch workflow run — assumes such runs exist; a repo
+   * whose default branch triggers no workflow (observed live: a template
+   * repo with its failing deploy workflow disabled) can never emit one, so
+   * without this override its pause is permanent and its tasks silently
+   * never feed agents. Idempotent: resuming an unpaused project is a no-op.
+   * Human court only — no MCP tool exposes it.
+   */
+  async resume(activeUser: ActiveUser, id: string): Promise<ProjectDto> {
+    const resumed = await this.projectRepository.update(id, activeUser.orgId, {
+      autoPausedAt: null,
+      autoPauseKind: null,
+      autoPausePointer: null,
+    });
+    if (!resumed) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    this.logger.info({ projectId: id, userId: activeUser.userId }, 'Project auto-pause cleared');
+    return this.serialize(resumed);
+  }
+
   /** Reverses archive; fails with nameTaken if a live project claimed the name meanwhile. */
   async unarchive(activeUser: ActiveUser, id: string): Promise<ProjectDto> {
     let restored: Project | null;

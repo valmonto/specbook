@@ -176,6 +176,16 @@ progression AND the project's agent queue until main is green, and
 approximates post-merge CI. The webhook worker drives progression; the api
 covers the CI-already-green orderings.
 
+The breaker's automatic reset (a green default-branch run) assumes such
+runs exist. A repo whose default branch triggers no workflow — observed
+live on a template repo after its always-failing deploy workflow was
+disabled — can never emit one, so its pause would be permanent. **Resume**
+is the human override: the paused chip in the project header shows when
+and why the project paused, that agents are not being dispatched from it,
+and a Resume button (`POST /projects/:id/resume`, `project:update`) that
+clears the pause. Human court only — no MCP tool exposes it, so an agent
+cannot un-gate its own queue.
+
 Two gates make the protocol honest:
 
 1. **Dispatch gate** — `draft→ready` requires `context` filled and at

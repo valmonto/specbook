@@ -179,6 +179,7 @@ export const useDeleteProject = () =>
   useProjectsAction((dto: DeleteProjectRequest) => projectsApi.removeProject(dto));
 export const useArchiveProject = () => useProjectsAction(projectsApi.archiveProject);
 export const useUnarchiveProject = () => useProjectsAction(projectsApi.unarchiveProject);
+export const useResumeProject = () => useProjectsAction(projectsApi.resumeProject);
 export const useCreateTask = () =>
   useProjectsAction((dto: CreateTaskRequest) => projectsApi.createTask(dto));
 export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);

@@ -21,6 +21,9 @@ import {
   type GetProjectByIdResponse,
   type ListProjectsRequest,
   type ListProjectsResponse,
+  ResumeProjectRequestSchema,
+  type ResumeProjectRequest,
+  type ResumeProjectResponse,
   type UpdateProjectRequest,
   type UpdateProjectResponse,
 } from '@pkg/contracts';
@@ -76,6 +79,18 @@ export class ProjectController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<CompleteProvisionResponse> {
     return this.projectService.completeProvisioning(activeUser, dto);
+  }
+
+  // Resume is the human override for the auto-mode breaker: the automatic
+  // clear (a green default-branch run) cannot fire on repos whose default
+  // branch runs no workflow, so a pause there would otherwise be permanent.
+  @Post(':id/resume')
+  @Permissions('project:update')
+  async resume(
+    @ZodRequest(ResumeProjectRequestSchema) dto: ResumeProjectRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ResumeProjectResponse> {
+    return this.projectService.resume(activeUser, dto.id);
   }
 
   // Archive sits behind project:delete — it is the destructive-adjacent

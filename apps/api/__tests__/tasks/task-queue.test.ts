@@ -13,6 +13,8 @@ import { MERGE_DEBT_CAP } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { TaskRepository } from '@/tasks/task.repository';
+import { ProjectRepository } from '@/tasks/project.repository';
+import { ProjectService } from '@/tasks/project.service';
 
 /**
  * The agent queue (`available: true`) under the merge-debt gate: a project
@@ -247,6 +249,48 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     await client.db.update(project).set({ autoPausedAt: null }).where(eq(project.id, gatedProject));
     ({ data } = await queue());
     expect(data.map((t) => t.title).sort()).toEqual(['free-ready', 'gated-ready']);
+  });
+
+  it('manual resume clears a stale breaker pause and refeeds the queue — org-scoped, so a foreign org resumes nothing', async () => {
+    // A pause with no future green run to clear it (the observed deadlock:
+    // the default branch runs no workflow, so the automatic reset can
+    // never fire). Resume is the human way out; agents have no such tool.
+    await client.db
+      .update(project)
+      .set({
+        mode: 'auto',
+        autoPausedAt: new Date(),
+        autoPauseKind: 'setup',
+        autoPausePointer: 'deploy.yml',
+      })
+      .where(eq(project.id, gatedProject));
+    await makeTask(gatedProject, ownerA, 'ready', 'gated-ready');
+
+    let { data } = await queue();
+    expect(data).toEqual([]);
+
+    // Only resume() touches its dependencies' surface area: the untouched
+    // collaborators are stubs so the real repository does the org scoping.
+    const service = new ProjectService(
+      new ProjectRepository(client),
+      {} as never,
+      {} as never,
+      {} as never,
+      { info: () => {}, warn: () => {}, error: () => {} } as never,
+    );
+
+    const foreign = { userId: ownerA, orgId: orgB, orgRole: 'OWNER', systemRole: 'USER' } as const;
+    await expect(service.resume(foreign, gatedProject)).rejects.toThrow();
+    ({ data } = await queue());
+    expect(data).toEqual([]);
+
+    const owner = { userId: ownerA, orgId: orgA, orgRole: 'OWNER', systemRole: 'USER' } as const;
+    const resumed = await service.resume(owner, gatedProject);
+    expect(resumed.autoPausedAt).toBeNull();
+    expect(resumed.autoPauseKind).toBeNull();
+    expect(resumed.autoPausePointer).toBeNull();
+    ({ data } = await queue());
+    expect(data.map((t) => t.title)).toEqual(['gated-ready']);
   });
 
   it('below the cap the gate is invisible', async () => {
