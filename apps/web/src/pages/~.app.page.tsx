@@ -116,19 +116,23 @@ export default function AppLayout() {
               </kbd>
             </button>
             <OrgSwitcher />
-            <Separator orientation="vertical" className="mx-0.5 h-5" />
+            <Separator orientation="vertical" className="mx-0.5 hidden h-5 md:block" />
             <div className="flex items-center gap-0.5">
               <NotificationBell />
-              <LanguageSwitcher />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={toggleTheme}
-              >
-                {theme === 'light' ? <Moon className="size-4" /> : <Sun className="size-4" />}
-                <span className="sr-only">Toggle theme</span>
-              </Button>
+              {/* Language + theme are secondary controls: below md they leave
+                  the crowded top bar and live in the sidebar's user menu. */}
+              <div className="hidden items-center gap-0.5 md:flex">
+                <LanguageSwitcher />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={toggleTheme}
+                >
+                  {theme === 'light' ? <Moon className="size-4" /> : <Sun className="size-4" />}
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              </div>
             </div>
           </div>
         </header>
