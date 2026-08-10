@@ -27,6 +27,19 @@ The servers → environments → provisioning → build & deploy chain shipped
 - **Storage provisioning** — the data plane covers Postgres and Redis;
   attachments need per-environment buckets + scoped keys on a shared
   S3-compatible store (rustfs), filling `STORAGE_*` in `platform_env`.
+- **Edge hardening in the rendered nginx** — the nginx `render.ts` emits is
+  the single public listener for every environment specbook deploys, so it
+  is the one place to fix an entire fleet's edge at once. Today it serves
+  the SPA with no security headers, no HTTP→HTTPS redirect, and a version
+  banner. The template should render: a port-80 `return 301`, HSTS on the
+  443 block, `X-Frame-Options`/`X-Content-Type-Options`/`Referrer-Policy`/a
+  `Content-Security-Policy` on the static document (the API already sends
+  these via helmet — the gap is the SPA's first paint, which loads before
+  any API response), and `server_tokens off`. An external assessment
+  (2026-08-10) surfaced this against a sibling product; specbook's own
+  edge shares the shape. App-layer defenses are already in place — throttler
+  on auth, allowlisted CORS, helmet on the API — so this is purely the
+  transport edge.
 
 Deliberately deferred within the platform: registry-based image transport
 (the `docker save | ssh | load` seam is one function; a registry replaces it
