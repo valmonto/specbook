@@ -417,6 +417,7 @@
   "tasks.actions.markReady": "Marcar lista",
   "tasks.actions.merge": "Fusionar",
   "tasks.actions.mergeAllGreen": "Fusionar todo en verde",
+  "tasks.actions.reopenWithFeedback": "Reabrir con comentarios",
   "tasks.actions.requestChanges": "Solicitar cambios",
   "tasks.actions.requeue": "Responder y reencolar",
   "tasks.actions.resetClaim": "Liberar reclamo",

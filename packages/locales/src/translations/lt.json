@@ -417,6 +417,7 @@
   "tasks.actions.markReady": "Žymėti paruošta",
   "tasks.actions.merge": "Sulieti",
   "tasks.actions.mergeAllGreen": "Sulieti visas žalias",
+  "tasks.actions.reopenWithFeedback": "Atidaryti iš naujo su atsiliepimu",
   "tasks.actions.requestChanges": "Prašyti pakeitimų",
   "tasks.actions.requeue": "Atsakyti ir grąžinti į eilę",
   "tasks.actions.resetClaim": "Atlaisvinti",

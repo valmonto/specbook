@@ -23,7 +23,10 @@ stop on your own just because sweeps keep coming back empty.
    other calls still needs this one. A claim whose agent stays silent past
    the stale threshold (30 min) is auto-released back to ready.
 2. `list_tasks` `status=in_progress` — agent-claimed count is ACTIVE.
-3. `list_tasks` `available=true` — the ready queue, priority-ordered.
+3. `list_tasks` `available=true` — the work queue, priority-ordered. It
+   serves `ready` tasks AND `changes_requested` ones (review rejections and
+   reopened done tasks): for those, read the task's latest human comments
+   first — they are the spec delta for this round.
 4. Queue empty or ACTIVE >= CAP → say one short line, wait, next sweep.
    Otherwise claim up to `CAP - ACTIVE` tasks. One: work inline. Several:
    one subagent per task, isolated git worktrees, per-slot ports

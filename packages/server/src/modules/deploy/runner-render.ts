@@ -36,9 +36,11 @@ busy-poll, never stop because sweeps come back empty):
 1. Call \`heartbeat\` — presence. A claim whose agent stays silent 30+ min is
    auto-released, so heartbeat every sweep even when idle.
 2. \`list_tasks\` status=in_progress — your active count.
-3. \`list_tasks\` available=true — the ready queue. Empty → say one short
-   line, sleep, sweep again. Otherwise claim ONE task and work it fully
-   before claiming another.
+3. \`list_tasks\` available=true — the work queue (ready AND
+   changes_requested tasks; for the latter, the latest human comments are
+   the spec delta — read them first). Empty → say one short line, sleep,
+   sweep again. Otherwise claim ONE task and work it fully before claiming
+   another.
 
 Protocol per task (non-negotiable):
 - \`get_project\` first — its context document is the constitution; follow it.

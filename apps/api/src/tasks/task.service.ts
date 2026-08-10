@@ -120,14 +120,49 @@ export class TaskService {
     };
   }
 
-  async update(activeUser: ActiveUser, dto: UpdateTaskRequest): Promise<UpdateTaskResponse> {
+  async update(
+    activeUser: ActiveUser,
+    dto: UpdateTaskRequest,
+    actor: TaskAuthorType = 'user',
+  ): Promise<UpdateTaskResponse> {
     const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
 
     const { id, ...patch } = dto;
-    const updated = await this.taskRepository.update(id, activeUser.orgId, patch as Partial<NewTask>);
+
+    // Round 2 (a reopened task recording fresh links over a merged PR):
+    // preserve round 1 in the activity log — the link columns are about to
+    // be overwritten and the card would otherwise lose the shipped PR.
+    const startsNewRound =
+      dto.prUrl !== undefined &&
+      dto.prUrl !== current.prUrl &&
+      current.prUrl !== null &&
+      current.prState === 'merged';
+    if (startsNewRound) {
+      await this.taskRepository.createComment({
+        taskId: id,
+        authorId: activeUser.userId,
+        authorType: actor,
+        kind: 'comment',
+        body: `Previous round: branch ${current.branch ?? '—'}, PR ${current.prUrl} — merged.`,
+      });
+    }
+
+    const repoPatch = patch as Partial<NewTask>;
+    if (startsNewRound || (dto.prUrl !== undefined && dto.prUrl !== current.prUrl)) {
+      // New PR, clean slate: the webhook re-fills these from the new PR's
+      // events; carrying round 1's merged/green over would lie on the card.
+      repoPatch.prState = null;
+      repoPatch.prNumber = null;
+      repoPatch.ciState = null;
+      repoPatch.ciFailureKind = null;
+      repoPatch.ciRetriedSha = null;
+      repoPatch.prSyncedAt = null;
+    }
+
+    const updated = await this.taskRepository.update(id, activeUser.orgId, repoPatch);
     if (!updated) {
       throw new NotFoundException(k.tasks.errors.notFound);
     }

@@ -213,11 +213,15 @@ export class McpTools {
           prUrl: z.string().max(500).optional(),
         },
         handler: async (args, actor) =>
-          this.taskService.update(actor!, {
-            id: str(args.id),
-            branch: optStr(args.branch),
-            prUrl: optStr(args.prUrl),
-          }),
+          this.taskService.update(
+            actor!,
+            {
+              id: str(args.id),
+              branch: optStr(args.branch),
+              prUrl: optStr(args.prUrl),
+            },
+            'agent',
+          ),
       },
       {
         ...meta('get_notes'),

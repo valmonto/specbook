@@ -164,6 +164,63 @@ describe('TaskService — the status protocol', () => {
       await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'x' });
       expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
     });
+
+    it('round 2 end to end: reopen → resume → new links (round 1 logged) → green submission auto-merges again', async () => {
+      projectRepo.findById!.mockResolvedValue(autoProject());
+      const round1 = {
+        claimedBy: AGENT,
+        branch: 'feat/x',
+        prUrl: 'https://github.com/x/y/pull/12',
+        prState: 'merged',
+        prNumber: 12,
+        ciState: 'passing',
+      };
+
+      // Human reopens the shipped task with feedback.
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done', ...round1 }));
+      const reopened = await service.transition(human, 'user', {
+        id: TASK,
+        to: 'changes_requested',
+        comment: 'phone testing found residuals',
+      });
+      expect(reopened.status).toBe('changes_requested');
+
+      // The claimant resumes.
+      repo.findById!.mockResolvedValue(taskInState({ status: 'changes_requested', ...round1 }));
+      const resumed = await service.transition(agent, 'agent', { id: TASK, to: 'in_progress' });
+      expect(resumed.status).toBe('in_progress');
+
+      // Fresh links over the merged round-1 PR: history logged, state reset.
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', ...round1 }));
+      await service.update(
+        agent,
+        { id: TASK, branch: 'feat/x-round2', prUrl: 'https://github.com/x/y/pull/13' },
+        'agent',
+      );
+      expect(repo.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({ body: expect.stringContaining('pull/12') }),
+      );
+
+      // Round-2 submission with green CI auto-merges through the same path.
+      const round2 = greenSubmission({
+        branch: 'feat/x-round2',
+        prUrl: 'https://github.com/x/y/pull/13',
+        prNumber: 13,
+      });
+      repo.findById!
+        .mockResolvedValueOnce(round2)
+        .mockResolvedValue(greenSubmission({ ...round2, status: 'approved' }));
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) =>
+        taskInState({ ...round2, ...patch }),
+      );
+      const submitted = await service.transition(agent, 'agent', {
+        id: TASK,
+        to: 'needs_review',
+        comment: 'round 2 done',
+      });
+      expect(submitted.status).toBe('needs_review');
+      expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 13);
+    });
   });
 
   // --- Mid-task notes: human-authored steering, gate-enforced ---
@@ -363,6 +420,83 @@ describe('TaskService — the status protocol', () => {
     repo.findById!.mockResolvedValue(taskInState({ status: 'approved' }));
     const result = await service.transition(human, 'user', { id: TASK, to: 'needs_review' });
     expect(result.status).toBe('needs_review');
+  });
+
+  // --- Reopen: done → changes_requested (round 2 on the same task) ---
+
+  describe('reopen — done → changes_requested', () => {
+    it('lets the human reopen a done task with feedback', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done' }));
+      const result = await service.transition(human, 'user', {
+        id: TASK,
+        to: 'changes_requested',
+        comment: 'Criteria still overflow on the phone',
+      });
+      expect(result.status).toBe('changes_requested');
+      expect(repo.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'comment', body: 'Criteria still overflow on the phone' }),
+      );
+    });
+
+    it('refuses a reopen without the feedback comment — the comment IS the round-2 spec', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done' }));
+      await expect(
+        service.transition(human, 'user', { id: TASK, to: 'changes_requested' }),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('refuses the agent — done stays terminal for agents', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done' }));
+      await expect(
+        service.transition(agent, 'agent', { id: TASK, to: 'changes_requested', comment: 'no' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('recording fresh links over a merged PR logs round 1 and resets live GitHub state', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({
+          status: 'in_progress',
+          branch: 'fix/round-1',
+          prUrl: 'https://github.com/o/r/pull/1',
+          prState: 'merged',
+          prNumber: 1,
+          ciState: 'passing',
+        }),
+      );
+      await service.update(
+        agent,
+        { id: TASK, branch: 'fix/round-2', prUrl: 'https://github.com/o/r/pull/2' },
+        'agent',
+      );
+      expect(repo.createComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorType: 'agent',
+          body: expect.stringContaining('https://github.com/o/r/pull/1'),
+        }),
+      );
+      const patch = repo.update!.mock.calls[0]![2];
+      expect(patch).toMatchObject({
+        prUrl: 'https://github.com/o/r/pull/2',
+        prState: null,
+        prNumber: null,
+        ciState: null,
+      });
+    });
+
+    it('a same-URL links update logs nothing and resets nothing', async () => {
+      repo.findById!.mockResolvedValue(
+        taskInState({
+          status: 'in_progress',
+          branch: 'b',
+          prUrl: 'https://github.com/o/r/pull/1',
+          prState: 'merged',
+        }),
+      );
+      await service.update(agent, { id: TASK, prUrl: 'https://github.com/o/r/pull/1' }, 'agent');
+      expect(repo.createComment).not.toHaveBeenCalled();
+      const patch = repo.update!.mock.calls[0]![2];
+      expect(patch.prState).toBeUndefined();
+    });
   });
 
   describe('merge — approved lands on main, server-side', () => {

@@ -75,6 +75,11 @@ export const AGENT_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
  * repo-less tasks, back to needs_review to undo an approval, or
  * changes_requested when CI turns red after approval. `needs_review → done`
  * stays legal for tasks that have no PR to merge.
+ *
+ * `done → changes_requested` is the reopen: manual testing after the merge
+ * found residuals, and the feedback comment (required, like a review
+ * rejection) is the round-2 spec delta. Human-only — done stays terminal
+ * for agents, so nothing can resurrect its own shipped work.
  */
 export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
   draft: ['ready', 'cancelled'],
@@ -84,6 +89,7 @@ export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
   needs_review: ['approved', 'done', 'changes_requested', 'cancelled'],
   approved: ['done', 'needs_review', 'changes_requested', 'cancelled'],
   changes_requested: ['ready', 'cancelled'],
+  done: ['changes_requested'],
 };
 
 /** Statuses that count as "the human's move" — the daily dashboard filter. */
