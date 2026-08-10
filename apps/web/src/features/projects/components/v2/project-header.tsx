@@ -9,6 +9,7 @@ import {
   GitBranch,
   Lock,
   Pause,
+  Play,
   TerminalSquare,
   Zap,
 } from 'lucide-react';
@@ -19,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useAuth } from '@/shared/auth/auth-context';
 import { useGithubStatus } from '@/shared/github/use-github';
-import { useUpdateProject } from '../../hooks/use-projects';
+import { useResumeProject, useUpdateProject } from '../../hooks/use-projects';
 
 /**
  * The project header IS the edit surface — the last edit dialog is gone.
@@ -55,6 +56,7 @@ export function ProjectHeader({
   const { t } = useTranslation();
   const { user } = useAuth();
   const update = useUpdateProject();
+  const resume = useResumeProject();
   const github = useGithubStatus(user?.orgId);
 
   const [editingTitle, setEditingTitle] = useState(false);
@@ -350,7 +352,14 @@ export function ProjectHeader({
             {project.mode !== 'manual' && project.autoPausedAt && (
               <span
                 className="inline-flex items-center gap-1 rounded-md bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-300"
-                title={project.autoPausePointer ?? undefined}
+                title={[
+                  t(k.tasks.mode.pausedHint, {
+                    date: new Date(project.autoPausedAt).toLocaleString(),
+                  }),
+                  project.autoPausePointer ?? '',
+                ]
+                  .filter(Boolean)
+                  .join('\n')}
               >
                 <Pause className="size-3" />
                 {project.autoPauseKind
@@ -359,6 +368,23 @@ export function ProjectHeader({
                       pointer: project.autoPausePointer ?? '',
                     })
                   : t(k.tasks.mode.paused)}
+                <span className="font-normal opacity-75">
+                  · {new Date(project.autoPausedAt).toLocaleDateString()}
+                </span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    disabled={resume.isLoading}
+                    onClick={async () => {
+                      const res = await resume.execute({ id: project.id });
+                      if (res.e) toast.error(t(res.e.message));
+                    }}
+                    className="ml-1 inline-flex items-center gap-1 rounded bg-rose-500/15 px-1.5 py-0.5 font-medium transition-colors hover:bg-rose-500/25 disabled:opacity-50"
+                  >
+                    <Play className="size-3" />
+                    {t(k.tasks.mode.resume)}
+                  </button>
+                )}
               </span>
             )}
 

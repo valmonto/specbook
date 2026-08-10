@@ -154,6 +154,8 @@ export const tasks = {
     maxParallelHint: 'tasks.mode.maxParallelHint',
     paused: 'tasks.mode.paused',
     pausedKind: 'tasks.mode.pausedKind',
+    pausedHint: 'tasks.mode.pausedHint',
+    resume: 'tasks.mode.resume',
     budget: 'tasks.mode.budget',
     spend: 'tasks.mode.spend',
     pausedBudget: 'tasks.mode.pausedBudget',

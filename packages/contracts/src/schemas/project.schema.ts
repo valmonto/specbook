@@ -151,3 +151,10 @@ export const ArchiveProjectResponseSchema = ProjectSchema;
 
 export type ArchiveProjectRequest = z.infer<typeof ArchiveProjectRequestSchema>;
 export type ArchiveProjectResponse = z.infer<typeof ArchiveProjectResponseSchema>;
+
+// --- Resume Project (manually clear the auto-mode breaker pause) ---
+export const ResumeProjectRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const ResumeProjectResponseSchema = ProjectSchema;
+
+export type ResumeProjectRequest = z.infer<typeof ResumeProjectRequestSchema>;
+export type ResumeProjectResponse = z.infer<typeof ResumeProjectResponseSchema>;

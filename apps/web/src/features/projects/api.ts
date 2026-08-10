@@ -44,6 +44,8 @@ import type {
   ListTasksResponse,
   RemoveTaskDependencyRequest,
   RemoveTaskDependencyResponse,
+  ResumeProjectRequest,
+  ResumeProjectResponse,
   TransitionTaskRequest,
   TransitionTaskResponse,
   UpdateProjectRequest,
@@ -75,6 +77,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.post(`/api/projects/${dto.id}/archive`, {}),
   unarchiveProject: (dto: ArchiveProjectRequest): Promise<ArchiveProjectResponse> =>
     client.post(`/api/projects/${dto.id}/unarchive`, {}),
+  resumeProject: (dto: ResumeProjectRequest): Promise<ResumeProjectResponse> =>
+    client.post(`/api/projects/${dto.id}/resume`, {}),
 
   // Agents (the fleet strip + managed lifecycle)
   listAgents: (): Promise<ListAgentsResponse> => client.get('/api/agents'),
