@@ -87,7 +87,12 @@ export class ApiKeyService {
     const row = await this.repository.findActiveByHash(hash(token));
     if (!row) return null;
 
-    this.repository.touchLastUsed(row.id);
+    // Fire-and-forget: a failed timestamp must never fail an auth check. But we
+    // log the rejection rather than swallow it — this stamp silently no-op'd for
+    // months once, and silence is what hid it.
+    this.repository.touchLastUsed(row.id).catch((err: unknown) => {
+      this.logger.warn({ err, keyId: row.id }, 'failed to stamp API key last_used_at');
+    });
 
     let activeUser: ActiveUser | null = null;
     if (row.orgId) {
