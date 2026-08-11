@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import {
   Bot,
   Check,
   ChevronRight,
   ExternalLink,
+  FlaskConical,
   GitBranch,
   GitMerge,
   Loader2,
@@ -104,6 +106,29 @@ const ciDotStyles: Record<NonNullable<Task['ciState']>, string> = {
   passing: 'bg-emerald-500',
   failing: 'bg-rose-500',
 };
+
+/**
+ * Lineage: a quiet "from · <research title>" chip linking back to the research
+ * document a ticket was cut from. Shown only when the read path resolved the
+ * source title; it's provenance, not a primary action, so it stays subtle.
+ */
+function FromResearchChip({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  if (!task.sourceResearchId || !task.sourceResearchTitle) return null;
+  return (
+    <Link
+      to={`/research/${task.sourceResearchId}`}
+      onClick={(e) => e.stopPropagation()}
+      title={task.sourceResearchTitle}
+      className="inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground hover:underline"
+    >
+      <FlaskConical className="size-3 shrink-0" />
+      <span className="shrink-0">{t(k.tasks.v2.fromResearch)}</span>
+      <span aria-hidden className="shrink-0">·</span>
+      <span className="max-w-[10rem] truncate">{task.sourceResearchTitle}</span>
+    </Link>
+  );
+}
 
 /** CI as a bare dot — the words live in the tooltip. */
 function CiDot({ task }: { task: Task }) {
@@ -293,6 +318,7 @@ function CardShell({
             {t(k.tasks.humanTask)}
           </span>
         )}
+        <FromResearchChip task={task} />
         <PrChip task={task} />
         <CiDot task={task} />
         {total > 0 && (

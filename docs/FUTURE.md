@@ -99,12 +99,12 @@ See `docs/product-design.md` → Research for what exists.
 
 - **Research documents** — a first-class `research` entity (title, nullable
   `project_id`, `body_markdown`, `version`, `researching → needs_review →
-  accepted` status) with a message conversation. Appending a message enqueues
-  an async agent turn; the agent's reply publishes a new draft (new body, bumped
-  version, → `needs_review`). Data model, REST/MCP API, keyset listing and the
-  agent tools (`get_research`, `list_research`, `append_research_message`) exist
-  today. **Still to build:** the worker that actually drives the agent turn (the
-  enqueue is a typed stub), and the web/mobile UI.
+  accepted` status) with a message conversation. Appending a message moves the
+  document back to `researching`; the ambient dispatch runner pulls it from
+  `list_research` and its reply publishes a new draft (new body, bumped version,
+  → `needs_review`). Data model, REST/MCP API, keyset listing, the agent tools
+  (`get_research`, `list_research`, `append_research_message`), the runner turn
+  and the web UI exist today. **Still to build:** the mobile UI.
 - **Research → tickets ("cut tickets")** — an accepted document's natural
   output is a set of *draft* build tasks cut from it, each carrying
   `source_research_id` lineage. This exists (REST `POST /research/:id/cut-tickets`,

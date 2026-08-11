@@ -41,7 +41,7 @@ import { GithubAppService } from '@pkg/server';
 import { NotificationService } from '../notifications/notification.service';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
-import { TaskRepository } from './task.repository';
+import { TaskRepository, type TaskWithSource } from './task.repository';
 
 const isTerminal = (status: TaskStatus): boolean =>
   (TERMINAL_TASK_STATUSES as readonly string[]).includes(status);
@@ -623,7 +623,7 @@ export class TaskService {
     id: string,
     orgId: string,
     opts: { mutating?: boolean } = {},
-  ): Promise<Task> {
+  ): Promise<TaskWithSource> {
     const found = await this.taskRepository.findById(id, orgId);
     if (!found) {
       throw new NotFoundException(k.tasks.errors.notFound);
@@ -661,10 +661,14 @@ export class TaskService {
     return false;
   }
 
-  private serialize(t: Task): TaskDto {
+  private serialize(t: Task & { sourceResearchTitle?: string | null }): TaskDto {
     return {
       ...t,
       status: t.status as TaskStatus,
+      // Present only on rows from the board/detail read path (the joined
+      // title); other writes return a plain task, so default to null.
+      sourceResearchId: t.sourceResearchId ?? null,
+      sourceResearchTitle: t.sourceResearchTitle ?? null,
       prState: t.prState as TaskDto['prState'],
       ciState: t.ciState as TaskDto['ciState'],
       ciFailureKind: t.ciFailureKind as TaskDto['ciFailureKind'],

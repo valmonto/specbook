@@ -652,6 +652,7 @@
   "tasks.v2.ciGreenHint": "CI žalias — suliejimas vienu paspaudimu",
   "tasks.v2.diffStats": "{{files}} failai · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Paskirstymas pristabdytas — pasiekta nesulietų riba ({{count}} patvirtintos laukia suliejimo)",
+  "tasks.v2.fromResearch": "iš",
   "tasks.v2.mergeBlockedCi": "Suliejimas užblokuotas — CI nepavyksta",
   "tasks.v2.mergedToast": "PR sulietas — užduotis atlikta",
   "tasks.v2.merging": "Suliejama…",

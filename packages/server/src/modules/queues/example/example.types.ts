@@ -7,10 +7,8 @@ export interface ExampleJobPayload {
   userId: string;
   /** The organization the job was enqueued from, so processors can scope their work */
   orgId: string;
-  /** Action to perform. `research-turn` is the async agent research turn
-   *  enqueued when a research message is appended — the processor is a stub
-   *  today (the research worker is not yet built); see docs/product-design.md. */
-  action: 'send-email' | 'generate-report' | 'sync-data' | 'research-turn';
+  /** Action to perform */
+  action: 'send-email' | 'generate-report' | 'sync-data';
   /** Additional data for the job */
   data: Record<string, unknown>;
 }

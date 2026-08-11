@@ -65,6 +65,10 @@ export const TaskSchema = z.object({
   costUsdCents: z.number().int().nullable(),
   statusChangedBy: z.string().uuid().nullable(),
   statusChangedAt: z.string().nullable(),
+  /** Lineage: the research document this task was cut from; null = filed directly. */
+  sourceResearchId: z.string().uuid().nullable(),
+  /** Title of that research, resolved via an org-scoped join; null = no source. */
+  sourceResearchTitle: z.string().nullable(),
   createdBy: z.string().uuid(),
   createdAt: z.string(),
   updatedAt: z.string(),
