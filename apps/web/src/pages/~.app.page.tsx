@@ -40,6 +40,7 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 const pageTitles: Record<string, string> = {
   '/': 'Your move',
   '/projects': 'Projects',
+  '/research': 'Research',
   '/users': 'Users',
   '/jobs': 'Jobs',
   '/notifications': 'Notifications',

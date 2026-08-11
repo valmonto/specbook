@@ -4,6 +4,7 @@ import { http } from '@/shared/api/http';
 import { AUTH_ME_KEY } from '@/shared/auth/auth-context';
 import { userRoutes } from '@/features/users';
 import { projectsRoutes } from '@/features/projects';
+import { researchRoutes } from '@/features/research';
 import { jobsRoutes } from '@/features/jobs';
 import { notificationsRoutes } from '@/features/notifications';
 import { authRoutes } from '@/features/auth';
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
         lazy: () => import('@/pages/index.page').then((m) => ({ Component: m.default })),
       },
       ...projectsRoutes,
+      ...researchRoutes,
       ...userRoutes,
       ...jobsRoutes,
       ...adminRoutes,
