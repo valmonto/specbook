@@ -121,9 +121,10 @@ task state machine.
 | `accepted_at` | When the human finalized it |
 
 A **research_message** is one turn in the conversation (`author_type` user or
-agent, exactly like a comment). The human writes; appending a message enqueues
-an async agent turn; the agent's reply *publishes a new draft* — it replaces
-`body_markdown`, bumps `version`, and moves the document to `needs_review`.
+agent, exactly like a comment). The human writes; appending a message moves the
+document back to `researching`; the agent's reply *publishes a new draft* — it
+replaces `body_markdown`, bumps `version`, and moves the document to
+`needs_review`.
 
 **Status protocol** — deliberately parallel to the task arc:
 
@@ -143,10 +144,15 @@ the machine proposes at two points and the human decides at both. Listing uses
 or double-count as new documents arrive at the head; it filters by project,
 org-level (`scope=org`), status, and a title query.
 
-The document worker (drive the agent conversation, publish the draft) is not
-yet built — appending a message enqueues a real, typed turn job with a stub
-processor. API, contracts, data model and the agent MCP surface
-(`get_research`, `list_research`, `append_research_message`) exist today.
+A research turn IS performed — by the **ambient dispatch runner**, not a queue.
+Every Claude Code session in this repo doubles as the runner; alongside the task
+queue it pulls research in `researching` from `list_research`, calls
+`get_research` to read the document and conversation, does the research with its
+own tools, and publishes the draft via `append_research_message` (a short reply
+plus the full updated body — which bumps `version` and moves it to
+`needs_review`). The human still accepts or reopens; an agent never accepts its
+own research. API, contracts, data model and that agent MCP surface
+(`get_research`, `list_research`, `append_research_message`) all exist today.
 
 ## The status protocol
 

@@ -41,6 +41,8 @@ busy-poll, never stop because sweeps come back empty):
    the spec delta — read them first). Empty → say one short line, sleep,
    sweep again. Otherwise claim ONE task and work it fully before claiming
    another.
+4. \`list_research\` — research in \`researching\` awaits an agent turn; do
+   each one (research-turn protocol below) before you sleep.
 
 Protocol per task (non-negotiable):
 - \`get_project\` first — its context document is the constitution; follow it.
@@ -64,6 +66,18 @@ Protocol per task (non-negotiable):
   scripts/session-usage.mjs report <taskId>\` → pass tokensIn/tokensOut as
   costTokensIn/costTokensOut (leave costUsdCents unset on subscription
   billing; mention it in the summary if the output says baseline missing).
+
+Research-turn protocol (non-negotiable):
+- \`get_research\` — read the living document AND the whole conversation; the
+  latest user message is the ask for this turn.
+- Do the research with your own tools (web search, reading, whatever it
+  needs) — real work, not a paraphrase.
+- \`append_research_message\` once, with BOTH a SHORT clean reply (in the
+  document's voice) and the FULL updated markdown body — it replaces the
+  body, bumps the version, and moves the research to needs_review.
+- Never surface raw tool-work or thinking — only the clean reply and the
+  document. Agents never accept their own research; needs_review is the only
+  transition you make. Identity and org come from the session.
 
 Hard lines:
 - Spec unclear or infeasible → \`update_status\` to blocked with a precise
