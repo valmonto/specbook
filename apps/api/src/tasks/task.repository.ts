@@ -4,6 +4,7 @@ import {
   type DatabaseClient,
   organizationUser,
   project,
+  research,
   task,
   taskComment,
   taskDependency,
@@ -35,6 +36,13 @@ export interface DependencyInfoRow {
   title: string;
   status: string;
 }
+
+/**
+ * A task row carrying its lineage: the title of the research it was cut from,
+ * resolved via an org-scoped LEFT JOIN. Null when the task was filed directly
+ * (or its source research was deleted — the FK is ON DELETE SET NULL).
+ */
+export type TaskWithSource = Task & { sourceResearchTitle: string | null };
 
 /**
  * Tasks carry no orgId of their own — every query is scoped through the
@@ -152,7 +160,7 @@ export class TaskRepository {
   async findForOrg(
     orgId: string,
     filter: ListTasksFilter,
-  ): Promise<{ data: Task[]; total: number }> {
+  ): Promise<{ data: TaskWithSource[]; total: number }> {
     const conditions = [eq(project.orgId, orgId)];
     if (filter.projectId) conditions.push(eq(task.projectId, filter.projectId));
     if (filter.status) conditions.push(eq(task.status, filter.status));
@@ -176,9 +184,15 @@ export class TaskRepository {
 
     const [rows, totalResult] = await Promise.all([
       this.dbClient.db
-        .select()
+        .select({ task, sourceResearchTitle: research.title })
         .from(task)
         .innerJoin(project, eq(task.projectId, project.id))
+        // Lineage title, resolved inside the tenant: the join is pinned to the
+        // same org, so a null source_research_id (or a foreign row) yields null.
+        .leftJoin(
+          research,
+          and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)),
+        )
         .where(whereClause)
         .orderBy(desc(task.priority), asc(task.createdAt))
         .offset(filter.skip)
@@ -190,18 +204,25 @@ export class TaskRepository {
         .where(whereClause),
     ]);
 
-    return { data: rows.map((r) => r.task), total: totalResult[0]?.count ?? 0 };
+    return {
+      data: rows.map((r) => ({ ...r.task, sourceResearchTitle: r.sourceResearchTitle })),
+      total: totalResult[0]?.count ?? 0,
+    };
   }
 
-  async findById(id: string, orgId: string): Promise<Task | null> {
+  async findById(id: string, orgId: string): Promise<TaskWithSource | null> {
     const [row] = await this.dbClient.db
-      .select()
+      .select({ task, sourceResearchTitle: research.title })
       .from(task)
       .innerJoin(project, eq(task.projectId, project.id))
+      .leftJoin(
+        research,
+        and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)),
+      )
       .where(and(eq(task.id, id), eq(project.orgId, orgId)))
       .limit(1);
 
-    return row?.task ?? null;
+    return row ? { ...row.task, sourceResearchTitle: row.sourceResearchTitle } : null;
   }
 
   async update(id: string, orgId: string, data: Partial<NewTask>): Promise<Task | null> {

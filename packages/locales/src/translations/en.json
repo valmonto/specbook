@@ -652,6 +652,7 @@
   "tasks.v2.ciGreenHint": "CI green — merge is one click",
   "tasks.v2.diffStats": "{{files}} files · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Dispatch paused — merge debt at cap ({{count}} approved awaiting merge)",
+  "tasks.v2.fromResearch": "from",
   "tasks.v2.mergeBlockedCi": "Merge blocked — CI failing",
   "tasks.v2.mergedToast": "PR merged — task done",
   "tasks.v2.merging": "Merging…",
