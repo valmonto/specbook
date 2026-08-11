@@ -652,6 +652,7 @@
   "tasks.v2.ciGreenHint": "CI en verde — fusionar es un clic",
   "tasks.v2.diffStats": "{{files}} archivos · +{{additions}} −{{deletions}}",
   "tasks.v2.dispatchPaused": "Despacho en pausa — límite de fusiones pendientes alcanzado ({{count}} aprobadas sin fusionar)",
+  "tasks.v2.fromResearch": "de",
   "tasks.v2.mergeBlockedCi": "Fusión bloqueada — CI fallando",
   "tasks.v2.mergedToast": "PR fusionado — tarea hecha",
   "tasks.v2.merging": "Fusionando…",

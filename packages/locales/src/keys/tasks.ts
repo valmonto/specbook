@@ -169,6 +169,8 @@ export const tasks = {
     noSummary: 'tasks.v2.noSummary',
     diffStats: 'tasks.v2.diffStats',
     touches: 'tasks.v2.touches',
+    // Lineage chip: the research document a ticket was cut from.
+    fromResearch: 'tasks.v2.fromResearch',
     ciGreenHint: 'tasks.v2.ciGreenHint',
     mergeBlockedCi: 'tasks.v2.mergeBlockedCi',
     prClosedHint: 'tasks.v2.prClosedHint',
