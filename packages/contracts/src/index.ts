@@ -63,6 +63,7 @@ export {
   MERGE_DEBT_CAP,
   PROJECT_MODES,
 } from './constants/task';
+export { RESEARCH_STATUSES } from './constants/research';
 export {
   ATTACHMENT_KINDS,
   ATTACHMENT_STATUSES,

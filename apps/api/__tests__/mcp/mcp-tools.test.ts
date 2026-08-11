@@ -8,6 +8,7 @@ import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
+import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -29,6 +30,7 @@ describe('McpTools — attachment tools', () => {
     {} as OrgService,
     {} as ProjectService,
     {} as TaskService,
+    {} as ResearchService,
     attachments as unknown as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,

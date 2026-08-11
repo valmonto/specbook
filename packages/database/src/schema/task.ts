@@ -16,6 +16,7 @@ import { sql } from 'drizzle-orm';
 import { CI_FAILURE_KINDS, TASK_CI_STATES, TASK_PR_STATES, TASK_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers';
 import { project } from './project';
+import { research } from './research';
 import { user } from './user';
 
 export interface AcceptanceCriterion {
@@ -77,6 +78,12 @@ export const task = pgTable(
     costUsdCents: integer('cost_usd_cents'),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+    // Lineage: the research document this task was cut from (a DRAFT proposal
+    // accepted by the human). Nullable — most tasks are filed directly. Set
+    // null on research delete so the task survives its origin.
+    sourceResearchId: uuid('source_research_id').references(() => research.id, {
+      onDelete: 'set null',
+    }),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => user.id, { onDelete: 'restrict' }),

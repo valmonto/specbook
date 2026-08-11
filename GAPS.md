@@ -136,6 +136,16 @@ findings are excluded along with them.
 Seven across `packages/database` (4), `apps/web` (2) and `apps/worker` (1).
 Small, but warnings that live forever teach people to ignore the output.
 
+### Research worker and UI are unbuilt
+
+The **Research** feature (data model, contracts, REST + MCP API, keyset
+listing, cut-tickets) ships and is tested, but two pieces are deliberately
+stubbed: appending a research message enqueues a `research-turn` job whose
+processor is a **no-op** (no agent is driven, no draft is published from the
+worker — the agent MCP tool `append_research_message` is the only path that
+publishes today), and there is **no web/mobile UI**. See
+`docs/product-design.md` → Research and `docs/FUTURE.md` §4.
+
 ---
 
 ## 5. Feature gaps — what a SaaS starter is expected to have

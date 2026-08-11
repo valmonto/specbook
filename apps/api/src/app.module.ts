@@ -22,6 +22,7 @@ import { OrgModule } from './org/org.module';
 import { JobsModule } from './jobs';
 import { NotificationModule } from './notifications';
 import { TasksModule } from './tasks';
+import { ResearchModule } from './research';
 import { ServerModule } from './servers';
 import { EnvironmentModule } from './environments';
 import { AgentModule } from './agents';
@@ -91,6 +92,7 @@ import { validateEnv } from './config';
     JobsModule,
     NotificationModule,
     TasksModule,
+    ResearchModule,
     ServerModule,
     EnvironmentModule,
     AgentModule,

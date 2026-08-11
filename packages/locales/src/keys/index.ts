@@ -18,6 +18,7 @@ export { mcp } from './mcp';
 export { common } from './common';
 export { validation } from './validation';
 export { tasks } from './tasks';
+export { research } from './research';
 export { servers } from './servers';
 export { environments } from './environments';
 export { agents } from './agents';
@@ -34,6 +35,7 @@ import { mcp } from './mcp';
 import { common } from './common';
 import { validation } from './validation';
 import { tasks } from './tasks';
+import { research } from './research';
 import { servers } from './servers';
 import { environments } from './environments';
 import { agents } from './agents';
@@ -50,6 +52,7 @@ export const k = {
   common,
   validation,
   tasks,
+  research,
   servers,
   environments,
   agents,

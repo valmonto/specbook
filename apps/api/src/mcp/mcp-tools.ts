@@ -19,6 +19,7 @@ import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
 import { ProjectService } from '../tasks/project.service';
 import { TaskService } from '../tasks/task.service';
+import { ResearchService } from '../research/research.service';
 
 export interface McpToolDef {
   name: string;
@@ -72,6 +73,7 @@ export class McpTools {
     private readonly orgService: OrgService,
     private readonly projectService: ProjectService,
     private readonly taskService: TaskService,
+    private readonly researchService: ResearchService,
     private readonly attachmentsService: AttachmentsService,
     private readonly githubApp: GithubAppService,
     private readonly agentService: AgentService,
@@ -305,6 +307,41 @@ export class McpTools {
             id: str(args.id),
             kind: (args.kind as (typeof TASK_COMMENT_KINDS)[number] | undefined) ?? 'comment',
             body: str(args.body),
+          }),
+      },
+      // --- Research court: the async agent conversation ---
+      {
+        ...meta('list_research'),
+        inputSchema: {
+          projectId: z.string().uuid().optional(),
+          limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
+          cursor: z.string().optional(),
+        },
+        handler: async (args, actor) =>
+          this.researchService.list(actor!, {
+            status: 'researching',
+            projectId: optStr(args.projectId),
+            limit: (args.limit as number | undefined) ?? 20,
+            cursor: optStr(args.cursor),
+          }),
+      },
+      {
+        ...meta('get_research'),
+        inputSchema: { id: z.string().uuid() },
+        handler: async (args, actor) => this.researchService.getById(actor!, str(args.id)),
+      },
+      {
+        ...meta('append_research_message'),
+        inputSchema: {
+          id: z.string().uuid(),
+          bodyMarkdown: z.string().min(1),
+          message: z.string().optional(),
+        },
+        handler: async (args, actor) =>
+          this.researchService.agentAppend(actor!, {
+            id: str(args.id),
+            bodyMarkdown: str(args.bodyMarkdown),
+            message: optStr(args.message),
           }),
       },
       {

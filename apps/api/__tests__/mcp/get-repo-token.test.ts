@@ -10,6 +10,7 @@ import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
+import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
 
 const ORG_A = '11111111-1111-4111-8111-111111111111';
@@ -55,6 +56,7 @@ describe('MCP get_repo_token', () => {
       orgService as unknown as OrgService,
       projectService as unknown as ProjectService,
       {} as TaskService,
+      {} as ResearchService,
       {} as AttachmentsService,
       github as unknown as GithubAppService,
       {} as AgentService,
