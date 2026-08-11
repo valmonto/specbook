@@ -141,6 +141,12 @@ catalog:
   recharts: 3.8.1
   framer-motion: 12.40.0
 
+  # Markdown rendering (research living document) — react-markdown renders to
+  # React nodes (no dangerouslySetInnerHTML, no raw HTML) so the surface is safe
+  # by construction; remark-gfm adds tables/strikethrough/autolinks.
+  react-markdown: 10.1.0
+  remark-gfm: 4.0.1
+
   # Styling
   tailwindcss: 4.3.0
   '@tailwindcss/vite': 4.3.0
