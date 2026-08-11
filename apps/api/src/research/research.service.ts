@@ -3,7 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { InjectLogger, PinoLogger, ExampleProducer } from '@pkg/server';
+import { InjectLogger, PinoLogger } from '@pkg/server';
 import {
   type AcceptResearchRequest,
   type ActiveUser,
@@ -48,7 +48,6 @@ export class ResearchService {
     private readonly researchRepository: ResearchRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly taskRepository: TaskRepository,
-    private readonly turnQueue: ExampleProducer,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -63,6 +62,8 @@ export class ResearchService {
     });
 
     // An optional first message seeds the conversation and asks for a turn.
+    // The document is born `researching` (schema default); the ambient dispatch
+    // runner picks the turn up from `list_research` and publishes a draft.
     if (dto.message) {
       await this.researchRepository.createMessage({
         researchId: created.id,
@@ -71,7 +72,6 @@ export class ResearchService {
         authorType: 'user',
         body: dto.message,
       });
-      await this.enqueueTurn(activeUser, created.id);
     }
 
     this.logger.info({ researchId: created.id, title: created.title }, 'Research created');
@@ -121,10 +121,10 @@ export class ResearchService {
   }
 
   /**
-   * The human side of the conversation: persist the user's message and enqueue
-   * an agent turn. The document goes back to `researching` — a reply awaits.
-   * The research worker (drive the agent, publish a draft) is out of scope;
-   * the enqueue is real so wiring it later needs no API change.
+   * The human side of the conversation: persist the user's message and move the
+   * document back to `researching` — a reply awaits. The ambient dispatch runner
+   * pulls research in this state from `list_research`, does the research with its
+   * own tools, and publishes a draft via `append_research_message` (agentAppend).
    */
   async appendMessage(
     activeUser: ActiveUser,
@@ -139,7 +139,6 @@ export class ResearchService {
       body: dto.body,
     });
     await this.researchRepository.update(dto.id, activeUser.orgId, { status: 'researching' });
-    await this.enqueueTurn(activeUser, dto.id);
     return this.serializeMessage(created);
   }
 
@@ -290,17 +289,6 @@ export class ResearchService {
     if (owner.archivedAt) {
       throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
     }
-  }
-
-  private async enqueueTurn(activeUser: ActiveUser, researchId: string): Promise<void> {
-    // Identity from the session, never the payload. The action rides the
-    // existing example queue as a typed stub until the research worker lands.
-    await this.turnQueue.enqueue({
-      userId: activeUser.userId,
-      orgId: activeUser.orgId,
-      action: 'research-turn',
-      data: { researchId },
-    });
   }
 
   private encodeCursor(cursor: ResearchCursor): string {

@@ -28,12 +28,11 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
   const repo = new ResearchRepository(client);
 
   // cutTickets and appendMessage are service logic; a real service over real
-  // repositories does the org scoping (the queue + logger are inert stubs).
+  // repositories does the org scoping (the logger is an inert stub).
   const service = new ResearchService(
     repo,
     new ProjectRepository(client),
     new TaskRepository(client),
-    { enqueue: async () => undefined } as never,
     { info: () => {}, warn: () => {}, error: () => {} } as never,
   );
 

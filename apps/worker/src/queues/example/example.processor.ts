@@ -65,9 +65,6 @@ export class ExampleProcessor extends WorkerHost {
         case 'sync-data':
           await this.handleSyncData(job.data);
           break;
-        case 'research-turn':
-          await this.handleResearchTurn(job.data);
-          break;
         default:
           throw new Error(`Unknown action: ${job.data.action}`);
       }
@@ -131,19 +128,6 @@ export class ExampleProcessor extends WorkerHost {
   private async handleSyncData(data: ExampleJobPayload): Promise<void> {
     this.logger.debug({ userId: data.userId }, 'Syncing data');
     await this.delay(150);
-  }
-
-  /**
-   * Handle research-turn action — the async agent research turn.
-   * Stub today: the research worker (drive an agent conversation, publish a
-   * new document draft) is out of scope; this exists so the enqueue on
-   * research-message append is real and typed. No-op, never throws.
-   */
-  private async handleResearchTurn(data: ExampleJobPayload): Promise<void> {
-    this.logger.info(
-      { userId: data.userId, researchId: data.data?.researchId },
-      'Research turn enqueued (stub processor — no agent driven yet)',
-    );
   }
 
   private delay(ms: number): Promise<void> {

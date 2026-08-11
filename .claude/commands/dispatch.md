@@ -31,6 +31,9 @@ stop on your own just because sweeps keep coming back empty.
    Otherwise claim up to `CAP - ACTIVE` tasks. One: work inline. Several:
    one subagent per task, isolated git worktrees, per-slot ports
    (api 3001/3002/3003, vite 5174/5175/5176).
+5. `list_research` — research in `researching` is awaiting an agent turn. For
+   each, perform the turn (protocol below). These are cheap next to a build
+   task; the CAP above governs tasks, not turns.
 
 ## Protocol per task (non-negotiable)
 
@@ -65,6 +68,22 @@ stop on your own just because sweeps keep coming back empty.
   say so in the summary — the figure is whole-session, an over-attribution.
   Leave `costUsdCents` unset on subscription billing. Claimant-only,
   values ADD — never re-report a running total.
+
+## Protocol per research turn (non-negotiable)
+
+- `get_research` — read the living document AND the whole conversation; the
+  latest user message is the ask for this turn.
+- Do the research with your own tools (web search, reading the repo, whatever
+  the question needs). This is real work, not a paraphrase.
+- `append_research_message` once, with BOTH: (a) a SHORT, clean reply message
+  — what you found / changed, in the document's voice — and (b) the FULL
+  updated markdown body. This bumps `version` and moves the research to
+  `needs_review`. Send the whole body every time; it replaces, not patches.
+- Same hard lines as tasks: NEVER surface raw tool-work, thinking, or scratch
+  into the reply — only the clean message and the document. Identity and org
+  come from the session, never the payload. Agents never accept their own
+  research — the human accepts or reopens; `researching` → `needs_review` is
+  the only transition you make here.
 
 ## Rejection and hard lines
 

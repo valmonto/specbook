@@ -36,6 +36,17 @@ const recentKey = (orgId: string | undefined, limit: number) =>
 const RECENT_LIMIT = 6;
 const SEARCH_PAGE = 20;
 
+/**
+ * While a turn is in flight the document lives-updates on a poll; the moment it
+ * settles (`needs_review`/`accepted`) polling stops. SWR's `refreshInterval`
+ * accepts a function of the latest data, so the gate reads the current status
+ * with no timers of our own — 0 means "do not poll".
+ */
+const RESEARCHING_POLL_MS = 3000;
+const RECENT_POLL_MS = 15000;
+const pollWhileResearching = (latest: GetResearchResponse | undefined): number =>
+  latest?.status === 'researching' ? RESEARCHING_POLL_MS : 0;
+
 export function useInvalidateResearch() {
   const { mutate } = useSWRConfig();
   const { user } = useAuth();
@@ -67,6 +78,9 @@ export function useResearch(id: string | null) {
   return useCachedRequest<GetResearchResponse>({
     key: canRead ? researchKey(user?.orgId, id) : null,
     fetcher: () => researchApi.getResearch({ id: id! }),
+    // The conversation rides this same payload, so one poll live-updates both
+    // the document and the feed while a turn is out with the ambient runner.
+    config: { refreshInterval: pollWhileResearching },
   });
 }
 
@@ -78,6 +92,9 @@ export function useRecentResearch(limit = RECENT_LIMIT) {
   return useCachedRequest<ListResearchResponse>({
     key: canRead ? recentKey(user?.orgId, limit) : null,
     fetcher: () => researchApi.listResearch({ limit }),
+    // A gentle revalidation so a settled turn surfaces its new status here soon
+    // without a manual refresh — modest on purpose, this list is not urgent.
+    config: { refreshInterval: RECENT_POLL_MS },
   });
 }
 
