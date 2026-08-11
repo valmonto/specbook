@@ -87,7 +87,7 @@ export class ApiKeyService {
     const row = await this.repository.findActiveByHash(hash(token));
     if (!row) return null;
 
-    this.repository.touchLastUsed(row.id);
+    void this.repository.touchLastUsed(row.id);
 
     let activeUser: ActiveUser | null = null;
     if (row.orgId) {
