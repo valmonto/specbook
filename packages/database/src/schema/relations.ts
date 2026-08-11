@@ -6,13 +6,25 @@ import { notification } from './notification';
 import { project } from './project';
 import { task, taskDependency } from './task';
 import { taskComment } from './task-comment';
+import { research, researchMessage } from './research';
 
 /**
  * Relational config for the relational query builder (drizzle v1 API).
  * Replaces the per-table `relations()` helpers from drizzle v0.
  */
 export const relations = defineRelations(
-  { user, organization, organizationUser, notification, project, task, taskDependency, taskComment },
+  {
+    user,
+    organization,
+    organizationUser,
+    notification,
+    project,
+    task,
+    taskDependency,
+    taskComment,
+    research,
+    researchMessage,
+  },
   (r) => ({
     user: {
       availableOrganizations: r.many.organizationUser(),
@@ -85,6 +97,31 @@ export const relations = defineRelations(
       }),
       author: r.one.user({
         from: r.taskComment.authorId,
+        to: r.user.id,
+      }),
+    },
+    research: {
+      organization: r.one.organization({
+        from: r.research.orgId,
+        to: r.organization.id,
+      }),
+      project: r.one.project({
+        from: r.research.projectId,
+        to: r.project.id,
+      }),
+      creator: r.one.user({
+        from: r.research.createdBy,
+        to: r.user.id,
+      }),
+      messages: r.many.researchMessage(),
+    },
+    researchMessage: {
+      research: r.one.research({
+        from: r.researchMessage.researchId,
+        to: r.research.id,
+      }),
+      author: r.one.user({
+        from: r.researchMessage.authorId,
         to: r.user.id,
       }),
     },

@@ -13,4 +13,5 @@ export * from './server.schema';
 export * from './environment.schema';
 export * from './agent.schema';
 export * from './task.schema';
+export * from './research.schema';
 export * from './attachment.schema';

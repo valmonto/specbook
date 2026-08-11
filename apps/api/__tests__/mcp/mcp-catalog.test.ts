@@ -8,6 +8,7 @@ import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service';
 import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
+import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
 
 /**
@@ -21,6 +22,7 @@ describe('MCP catalog ↔ @pkg/contracts descriptors', () => {
     {} as OrgService,
     {} as ProjectService,
     {} as TaskService,
+    {} as ResearchService,
     {} as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,

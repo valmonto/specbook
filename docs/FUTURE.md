@@ -90,17 +90,29 @@ branch and PR, and `done` means merged. But half the valuable agent work in
 any real project is not code — architecture research, option comparisons,
 copy, specs. That work currently happens outside the tracker and evaporates.
 
-- **Research tasks** — a task *kind* (`build` | `research`) where the
-  review gate swaps its evidence requirement: instead of branch+PR,
-  `needs_review` demands a deliverable document (comment or attachment —
-  both exist). `done` means approved. The iteration court
-  (`changes_requested` → revise → review) works unchanged.
-- **Research → tickets** — an approved research task's natural output is a
-  set of *draft* build tasks (agents can already file drafts via MCP). That
-  is the ideation pipeline done specbook's way: the machine proposes at two
-  gated points, the human decides at both. What we will NOT build is
-  autonomous backlog generation that files work without a human gate — the
-  Ready boundary is the product's discipline, not a friction to remove.
+The first cut of this shipped as **Research** — but as its own document type,
+not a task *kind*. Bending research onto the task state machine (swapping the
+review gate's evidence requirement) was the original plan; the doc-first model
+won because a research deliverable is a *living, versioned document*, not a
+one-shot PR, and the conversation that produces it is async and multi-turn.
+See `docs/product-design.md` → Research for what exists.
+
+- **Research documents** — a first-class `research` entity (title, nullable
+  `project_id`, `body_markdown`, `version`, `researching → needs_review →
+  accepted` status) with a message conversation. Appending a message enqueues
+  an async agent turn; the agent's reply publishes a new draft (new body, bumped
+  version, → `needs_review`). Data model, REST/MCP API, keyset listing and the
+  agent tools (`get_research`, `list_research`, `append_research_message`) exist
+  today. **Still to build:** the worker that actually drives the agent turn (the
+  enqueue is a typed stub), and the web/mobile UI.
+- **Research → tickets ("cut tickets")** — an accepted document's natural
+  output is a set of *draft* build tasks cut from it, each carrying
+  `source_research_id` lineage. This exists (REST `POST /research/:id/cut-tickets`,
+  gated by `task:create`). It is the ideation pipeline done specbook's way: the
+  machine proposes at two gated points, the human decides at both. What we will
+  NOT build is autonomous backlog generation that files work without a human
+  gate — the Ready boundary is the product's discipline, not a friction to
+  remove.
 
 ## 5. Going public
 

@@ -102,6 +102,52 @@ Screenshots and proof-of-work artifacts (e.g. ui-verifier output) attached
 to comments. Deferred until storage is wired (rustfs, S3-compatible, runs
 on the same VPS); until then, PR links carry proof-of-work.
 
+### Research
+
+A first-class, **durable, versioned research document** produced through an
+async agent conversation, loosely associated with a project. Not every unit
+of valuable agent work is code: architecture research, option comparisons,
+specs. A task's evidence of "done" is a branch + PR; a research document's is
+the document itself, so it is modelled separately rather than bent onto the
+task state machine.
+
+| Field | Purpose |
+| --- | --- |
+| `title` | What the document is about |
+| `project_id` | The associated project — **nullable**; null = an org-level document. The default target when tickets are cut |
+| `status` | `researching` → `needs_review` → `accepted` (see below) |
+| `body_markdown` | The living document — null until the first agent draft lands |
+| `version` | Bumped every time the agent publishes a new draft |
+| `accepted_at` | When the human finalized it |
+
+A **research_message** is one turn in the conversation (`author_type` user or
+agent, exactly like a comment). The human writes; appending a message enqueues
+an async agent turn; the agent's reply *publishes a new draft* — it replaces
+`body_markdown`, bumps `version`, and moves the document to `needs_review`.
+
+**Status protocol** — deliberately parallel to the task arc:
+
+- `researching` — an agent turn is in flight or awaited (the agent feed,
+  `list_research`, pulls from here).
+- `needs_review` — a draft is ready for the human.
+- `accepted` — finalized. Reopen (`accepted → needs_review`) is **human-only**,
+  mirroring the task reopen (`done → changes_requested`): agents can never
+  resurrect their own accepted work, and reopening requires a feedback message.
+
+**Research → tickets ("cut tickets").** The natural output of an accepted
+document is a set of **draft** tasks cut from it, each carrying
+`source_research_id` lineage (a reverse "tasks cut" count is queryable). Cutting
+lands DRAFTS, never queued work — the Ready boundary still gates dispatch, so
+the machine proposes at two points and the human decides at both. Listing uses
+**keyset (cursor) pagination** (`nextCursor`) so an infinite scroll cannot skip
+or double-count as new documents arrive at the head; it filters by project,
+org-level (`scope=org`), status, and a title query.
+
+The document worker (drive the agent conversation, publish the draft) is not
+yet built — appending a message enqueues a real, typed turn job with a stub
+processor. API, contracts, data model and the agent MCP surface
+(`get_research`, `list_research`, `append_research_message`) exist today.
+
 ## The status protocol
 
 ```

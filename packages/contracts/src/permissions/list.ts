@@ -55,6 +55,13 @@ export const PERMISSIONS = [
   'task:merge', // Server-side PR merge of an approved task — writes to GitHub
   'task:comment',
 
+  // Research permissions
+  'research:read',
+  'research:create',
+  'research:update',
+  'research:accept',
+  'research:delete',
+
   // Attachment permissions
   'attachment:create',
   'attachment:list',

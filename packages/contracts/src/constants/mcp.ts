@@ -6,7 +6,7 @@
  * IS choosing which functions it can reach. Zod-free: ships to clients for
  * the key-creation UI.
  */
-export const MCP_SCOPES = ['platform:read', 'orgs:read', 'tasks:agent'] as const;
+export const MCP_SCOPES = ['platform:read', 'orgs:read', 'tasks:agent', 'research:agent'] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 
 export interface McpToolDescriptor {
@@ -142,6 +142,28 @@ export const MCP_TOOLS = [
     needsOrgContext: true,
     description:
       "Write to the task's work log. kind 'progress' for narration mid-flight, 'comment' for everything else (questions go through update_status → blocked).",
+  },
+  // --- Research court: the agent conversation surface ---
+  {
+    name: 'list_research',
+    scope: 'research:agent',
+    needsOrgContext: true,
+    description:
+      'The research feed: documents whose status is `researching` — an agent turn is awaited. Pull from here, read the conversation (get_research), then reply with append_research_message.',
+  },
+  {
+    name: 'get_research',
+    scope: 'research:agent',
+    needsOrgContext: true,
+    description:
+      'Full research document: its title, the current body (markdown) and version, its associated project (the default target when tickets are cut), and the message conversation so far.',
+  },
+  {
+    name: 'append_research_message',
+    scope: 'research:agent',
+    needsOrgContext: true,
+    description:
+      'Reply into a research conversation AND publish a new draft: appends your message, replaces the document body with the markdown you pass, bumps the version, and moves the document to `needs_review` for the human. This is the research analogue of submitting for review.',
   },
   {
     name: 'heartbeat',

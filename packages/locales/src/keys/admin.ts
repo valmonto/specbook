@@ -27,6 +27,7 @@ export const admin = {
       'platform:read': 'admin.apiKeys.scopeDesc.platform-read',
       'orgs:read': 'admin.apiKeys.scopeDesc.orgs-read',
       'tasks:agent': 'admin.apiKeys.scopeDesc.tasks-agent',
+      'research:agent': 'admin.apiKeys.scopeDesc.research-agent',
     },
     prefix: 'admin.apiKeys.prefix',
     lastUsed: 'admin.apiKeys.lastUsed',

@@ -13,7 +13,9 @@ import { TaskService } from './task.service';
   imports: [NotificationModule, GithubModule, OrgModule],
   controllers: [ProjectController, TaskController],
   providers: [ProjectService, ProjectRepository, TaskService, TaskRepository],
-  // Exported for the MCP module: tools wrap the same services with actor 'agent'.
-  exports: [ProjectService, TaskService, TaskRepository],
+  // Exported for the MCP module: tools wrap the same services with actor
+  // 'agent'. ProjectRepository is exported for the research module, which
+  // validates a ticket-cut target project through the same org-scoped lookup.
+  exports: [ProjectService, TaskService, TaskRepository, ProjectRepository],
 })
 export class TasksModule {}
