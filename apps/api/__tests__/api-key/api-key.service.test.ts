@@ -33,7 +33,7 @@ describe('ApiKeyService', () => {
       listActive: vi.fn().mockResolvedValue([]),
       findActiveByHash: vi.fn().mockResolvedValue(null),
       revoke: vi.fn().mockResolvedValue(true),
-      touchLastUsed: vi.fn(),
+      touchLastUsed: vi.fn().mockResolvedValue(undefined),
       findOrgStanding: vi.fn().mockResolvedValue({ orgRole: 'OWNER', systemRole: 'ADMIN' }),
     };
     service = new ApiKeyService(

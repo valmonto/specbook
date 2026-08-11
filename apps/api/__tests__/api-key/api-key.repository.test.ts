@@ -45,7 +45,8 @@ describeIntegration('ApiKeyRepository — touchLastUsed persists (lazy-builder g
     });
     expect(key.lastUsedAt).toBeNull();
 
-    // Awaitable BECAUSE the query is executed inside; production callers void it.
+    // Awaitable BECAUSE the query is executed inside; the production caller
+    // fires-and-forgets it with a .catch that logs (never blocks the request).
     await repo.touchLastUsed(key.id);
 
     const after = (await repo.listActive()).find((r) => r.id === key.id);

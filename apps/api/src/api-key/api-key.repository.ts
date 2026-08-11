@@ -77,21 +77,20 @@ export class ApiKeyRepository {
   }
 
   /**
-   * Stamp last-used, fire-and-forget. The query MUST be executed here: a drizzle
-   * builder is lazy and only hits the database when awaited or `.then`'d — a bare
+   * Stamp last-used. Returns a real, executing promise: a drizzle builder is
+   * lazy and only touches the database when awaited or `.then`'d — a bare
    * `void builder` evaluates the object and silently never runs (which left
-   * `last_used_at` null forever despite constant use). `.then` forces execution;
-   * swallowing the rejection keeps a failed timestamp from ever failing the
-   * request. Returning the promise lets tests await the side effect; callers void it.
+   * `last_used_at` null forever despite constant use). `.then(() => undefined)`
+   * forces execution and normalizes the result to void while letting a rejection
+   * propagate — the fire-and-forget policy and its logging live at the caller,
+   * so a failure here is observable rather than swallowed in silence (silence is
+   * exactly what hid the original no-op).
    */
   touchLastUsed(id: string): Promise<void> {
     return this.dbClient.db
       .update(apiKey)
       .set({ lastUsedAt: new Date() })
       .where(eq(apiKey.id, id))
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      .then(() => undefined);
   }
 }
