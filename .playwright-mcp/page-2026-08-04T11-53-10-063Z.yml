@@ -1,0 +1,147 @@
+- generic [ref=f16e2]:
+  - generic [ref=f16e3]:
+    - generic [ref=f16e6]:
+      - list [ref=f16e8]:
+        - listitem [ref=f16e9]:
+          - link "specbook Workspace" [ref=f16e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f16e14]:
+              - generic [ref=f16e15]: specbook
+              - generic [ref=f16e16]: Workspace
+      - generic [ref=f16e17]:
+        - generic [ref=f16e18]:
+          - generic [ref=f16e19]: Management
+          - list [ref=f16e21]:
+            - listitem [ref=f16e22]:
+              - link "Your move" [ref=f16e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f16e28]:
+              - link "Projects" [ref=f16e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f16e33]:
+              - link "Settings" [ref=f16e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f16e39]:
+          - generic [ref=f16e40]: Developer
+          - list [ref=f16e42]:
+            - listitem [ref=f16e43]:
+              - link "Components" [ref=f16e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f16e49]:
+              - link "Mobile" [ref=f16e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f16e54]:
+          - generic [ref=f16e55]: Platform
+          - list [ref=f16e57]:
+            - listitem [ref=f16e58]:
+              - link "Organizations" [ref=f16e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f16e65]:
+              - link "Permissions" [ref=f16e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f16e71]:
+              - link "API keys" [ref=f16e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f16e78]:
+        - listitem [ref=f16e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f16e80] [cursor=pointer]:
+            - generic [ref=f16e81]: DA
+            - generic [ref=f16e83]:
+              - generic [ref=f16e84]: Dev Admin
+              - generic [ref=f16e85]: admin@valmonto.com
+    - generic [ref=f16e89]:
+      - heading "Navigation" [level=2] [ref=f16e90]
+      - paragraph [ref=f16e91]: Search or jump to…
+    - main [ref=f16e92]:
+      - generic [ref=f16e93]:
+        - generic [ref=f16e94]:
+          - button "Toggle Sidebar" [ref=f16e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f16e97]:
+            - list [ref=f16e98]:
+              - listitem [ref=f16e99]:
+                - link "Projects" [disabled] [ref=f16e100]
+        - generic [ref=f16e101]:
+          - button "Search or jump to… ⌘K" [ref=f16e102] [cursor=pointer]:
+            - generic [ref=f16e106]: Search or jump to…
+            - generic [ref=f16e107]: ⌘K
+          - button "Valmonto" [ref=f16e108] [cursor=pointer]
+          - generic [ref=f16e111]:
+            - button "Notifications" [ref=f16e112] [cursor=pointer]
+            - button "Change language" [ref=f16e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f16e116] [cursor=pointer]
+      - main [ref=f16e118]:
+        - generic [ref=f16e119]:
+          - link "Projects" [ref=f16e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f16e124]:
+            - generic [ref=f16e129]:
+              - button "Pipeline Demo" [ref=f16e130]
+              - generic [ref=f16e131]:
+                - button "valmonto/specbook" [ref=f16e132] [cursor=pointer]
+                - button "main" [ref=f16e137] [cursor=pointer]
+                - button "Manual" [ref=f16e138] [cursor=pointer]
+                - button "Working directory" [ref=f16e141] [cursor=pointer]
+            - button "New task" [ref=f16e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f16e148] [cursor=pointer]:
+            - generic [ref=f16e151]: Context document
+            - generic [ref=f16e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f16e153]:
+            - button "Environments" [expanded] [ref=f16e206] [cursor=pointer]
+            - generic [ref=f16e207]:
+              - generic [ref=f16e210]:
+                - button "staging hetzner-dev staging.demo.valmonto.com Provisioned Deployed deployed b080b4a · 1m" [ref=f16e232] [cursor=pointer]:
+                  - generic [ref=f16e214]: staging
+                  - generic [ref=f16e215]: hetzner-dev
+                  - generic [ref=f16e218]: staging.demo.valmonto.com
+                  - generic [ref=f16e223]: Provisioned
+                  - generic [ref=f16e224]: Deployed
+                  - generic [ref=f16e233]: deployed b080b4a · 1m
+                - link "Open staging" [ref=f16e234] [cursor=pointer]:
+                  - /url: http://89.167.119.124:25444
+                - button "Deploy" [ref=f16e239] [cursor=pointer]
+                - button "Re-provision" [ref=f16e226] [cursor=pointer]
+                - button "Remove environment" [ref=f16e227] [cursor=pointer]
+              - button "Add environment" [ref=f16e229] [cursor=pointer]
+          - generic [ref=f16e159]:
+            - button "Draft 1" [ref=f16e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f16e161]: "1"
+            - generic [ref=f16e162]: →
+            - button "Ready 1" [ref=f16e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f16e164]: "1"
+            - generic [ref=f16e165]: →
+            - button "In progress 1" [ref=f16e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f16e167]: "1"
+            - generic [ref=f16e168]: →
+            - button "Blocked 1" [ref=f16e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f16e171]: "1"
+            - generic [ref=f16e172]: →
+            - button "Needs review 1" [pressed] [ref=f16e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f16e175]: "1"
+            - generic [ref=f16e176]: →
+            - button "Approved 0 /3" [ref=f16e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f16e178]: "0"
+              - generic [ref=f16e179]: /3
+            - generic [ref=f16e180]: →
+            - button "Changes requested 1" [ref=f16e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f16e182]: "1"
+            - generic [ref=f16e183]: →
+            - button "Done 4" [ref=f16e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f16e185]: "4"
+          - generic [ref=f16e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f16e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f16e192] [cursor=pointer]'
+            - generic "PR open" [ref=f16e193]
+            - generic "CI failing" [ref=f16e198]
+            - generic [ref=f16e199]: 2/3
+            - generic [ref=f16e203]: P9
+            - generic [ref=f16e204]: 2d
+            - button "Cancel task" [ref=f16e205] [cursor=pointer]
+  - region "Notifications alt+T"

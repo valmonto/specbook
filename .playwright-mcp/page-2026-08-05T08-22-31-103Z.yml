@@ -1,0 +1,18 @@
+- generic [ref=f2e2]:
+  - generic [ref=f2e4]:
+    - generic [ref=f2e5]: specbook
+    - generic [ref=f2e10]:
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12]: Welcome back
+        - generic [ref=f2e13]: Sign in to your account to continue
+      - generic [ref=f2e15]:
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]: Email
+          - textbox "Email" [ref=f2e18]:
+            - /placeholder: you@example.com
+        - generic [ref=f2e19]:
+          - generic [ref=f2e20]: Password
+          - textbox "Password" [ref=f2e21]:
+            - /placeholder: Enter your password
+        - button "Sign in" [ref=f2e22] [cursor=pointer]
+  - region "Notifications alt+T"

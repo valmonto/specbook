@@ -1,0 +1,145 @@
+- generic [ref=f39e2]:
+  - generic [ref=f39e3]:
+    - generic [ref=f39e6]:
+      - list [ref=f39e8]:
+        - listitem [ref=f39e9]:
+          - link "specbook Workspace" [ref=f39e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f39e14]:
+              - generic [ref=f39e15]: specbook
+              - generic [ref=f39e16]: Workspace
+      - generic [ref=f39e17]:
+        - generic [ref=f39e18]:
+          - generic [ref=f39e19]: Management
+          - list [ref=f39e21]:
+            - listitem [ref=f39e22]:
+              - link "Your move" [ref=f39e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f39e28]:
+              - link "Projects" [ref=f39e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f39e33]:
+              - link "Settings" [ref=f39e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f39e39]:
+          - generic [ref=f39e40]: Developer
+          - list [ref=f39e42]:
+            - listitem [ref=f39e43]:
+              - link "Components" [ref=f39e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f39e49]:
+              - link "Mobile" [ref=f39e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f39e54]:
+          - generic [ref=f39e55]: Platform
+          - list [ref=f39e57]:
+            - listitem [ref=f39e58]:
+              - link "Organizations" [ref=f39e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f39e65]:
+              - link "Permissions" [ref=f39e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f39e71]:
+              - link "API keys" [ref=f39e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f39e78]:
+        - listitem [ref=f39e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f39e80] [cursor=pointer]:
+            - generic [ref=f39e81]: DA
+            - generic [ref=f39e83]:
+              - generic [ref=f39e84]: Dev Admin
+              - generic [ref=f39e85]: admin@valmonto.com
+    - generic [ref=f39e89]:
+      - heading "Navigation" [level=2] [ref=f39e90]
+      - paragraph [ref=f39e91]: Search or jump to…
+    - main [ref=f39e92]:
+      - generic [ref=f39e93]:
+        - generic [ref=f39e94]:
+          - button "Toggle Sidebar" [ref=f39e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f39e97]:
+            - list [ref=f39e98]:
+              - listitem [ref=f39e99]:
+                - link "Projects" [disabled] [ref=f39e100]
+        - generic [ref=f39e101]:
+          - button "Search or jump to… ⌘K" [ref=f39e102] [cursor=pointer]:
+            - generic [ref=f39e106]: Search or jump to…
+            - generic [ref=f39e107]: ⌘K
+          - button "Valmonto" [ref=f39e108] [cursor=pointer]
+          - generic [ref=f39e111]:
+            - button "Notifications" [ref=f39e112] [cursor=pointer]
+            - button "Change language" [ref=f39e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f39e116] [cursor=pointer]
+      - main [ref=f39e118]:
+        - generic [ref=f39e119]:
+          - link "Projects" [ref=f39e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f39e124]:
+            - generic [ref=f39e129]:
+              - button "Pipeline Demo" [ref=f39e130]
+              - generic [ref=f39e131]:
+                - button "valmonto/specbook" [ref=f39e132] [cursor=pointer]
+                - button "main" [ref=f39e137] [cursor=pointer]
+                - button "Manual" [ref=f39e138] [cursor=pointer]
+                - button "Working directory" [ref=f39e141] [cursor=pointer]
+            - button "New task" [ref=f39e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f39e148] [cursor=pointer]:
+            - generic [ref=f39e151]: Context document
+            - generic [ref=f39e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f39e153]:
+            - button "Environments" [expanded] [ref=f39e206] [cursor=pointer]
+            - generic [ref=f39e207]:
+              - generic [ref=f39e209]:
+                - generic [ref=f39e210]:
+                  - button "staging hetzner-dev Auto-deploy off Provisioned Building · 34s" [active] [ref=f39e246] [cursor=pointer]:
+                    - generic [ref=f39e214]: staging
+                    - generic [ref=f39e215]: hetzner-dev
+                    - button "Auto-deploy off" [ref=f39e218]
+                    - generic [ref=f39e224]: Provisioned
+                    - button "Building · 34s" [ref=f39e247]
+                  - button "Re-provision" [ref=f39e239] [cursor=pointer]
+                  - button "Remove environment" [ref=f39e233] [cursor=pointer]
+                - generic [ref=f39e248]: "== resolve: HEAD of main == b080b4a0004126063166173337f639c40758fa8b == build: images at b080b4a on hetzner-dev == == building pipeline_demo_staging-api:b080b4a0004126063166173337f639c40758fa8b == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 7.722MB Step 1/22 : FROM node:26-alpine AS base ---> 233761595746 Step 2/22 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/22 : FROM base AS builder ---> 560118443979 Step 4/22 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/22 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> bbddda7bab65 Step 6/22 : COPY .npmrc ./ ---> Using cache ---> 042ed87eb1e9 Step 7/22 : COPY packages ./packages ---> Using cache ---> 23d178a9bc63 Step 8/22 : COPY apps/api ./apps/api ---> Using cache ---> b22949a09028 Step 9/22 : RUN pnpm install --frozen-lockfile ---> Using cache ---> 3cadf7919beb Step 10/22 : RUN pnpm --filter @pkg/api... build ---> Using cache ---> af43146c7cb4 Step 11/22 : FROM node:26-alpine AS runner ---> 233761595746 Step 12/22 : WORKDIR /app ---> Using cache ---> 3d37ee43f799 Step 13/22 : COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./ ---> Using cache ---> 8c28f57d4ca6 Step 14/22 : COPY --from=builder /app/.npmrc ./ ---> Using cache ---> f822d1f3d4a5 Step 15/22 : COPY --from=builder /app/node_modules ./node_modules ---> Using cache ---> 38fb53ffa298 Step 16/22 : COPY --from=builder /app/packages ./packages ---> Using cache ---> 1d70645e26b5 Step 17/22 : COPY --from=builder /app/apps/api ./apps/api ---> Using cache ---> 60527710a403 Step 18/22 : COPY --from=builder /app/apps/api/docker-entrypoint.sh /docker-entrypoint.sh ---> Using cache ---> 194c3ab152e3 Step 19/22 : RUN chmod +x /docker-entrypoint.sh ---> Using cache ---> 1a7a849930b7 Step 20/22 : WORKDIR /app/apps/api ---> Using cache ---> f7736d80850c Step 21/22 : EXPOSE 3001 ---> Using cache ---> 113d735606d6 Step 22/22 : ENTRYPOINT [\"/docker-entrypoint.sh\"] ---> Using cache ---> 63fd330739b1 Successfully built 63fd330739b1 Successfully tagged pipeline_demo_staging-api:b080b4a0004126063166173337f639c40758fa8b == building pipeline_demo_staging-worker:b080b4a0004126063166173337f639c40758fa8b == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 7.722MB Step 1/19 : FROM node:26-alpine AS base ---> 233761595746 Step 2/19 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/19 : FROM base AS builder ---> 560118443979 Step 4/19 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/19 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> bbddda7bab65 Step 6/19 : COPY .npmrc ./ ---> Using cache ---> 042ed87eb1e9 Step 7/19 : COPY packages ./packages ---> Using cache ---> 23d178a9bc63 Step 8/19 : COPY apps/worker ./apps/worker ---> Using cache ---> d2097f52a2a3 Step 9/19 : RUN pnpm install --frozen-lockfile ---> Using cache ---> 456b11206235 Step 10/19 : RUN pnpm --filter @pkg/worker... build ---> Using cache ---> 360dc3a4d56f Step 11/19 : FROM node:26-alpine AS runner ---> 233761595746 Step 12/19 : WORKDIR /app ---> Using cache ---> 3d37ee43f799 Step 13/19 : COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./ ---> Using cache ---> 8c28f57d4ca6 Step 14/19 : COPY --from=builder /app/.npmrc ./ ---> Using cache ---> f822d1f3d4a5 Step 15/19 : COPY --from=builder /app/node_modules ./node_modules ---> Using cache ---> bae4a0f8411f Step 16/19 : COPY --from=builder /app/packages ./packages ---> Using cache ---> cd16566a1061 Step 17/19 : COPY --from=builder /app/apps/worker ./apps/worker ---> Using cache ---> c3a9e5398e14 Step 18/19 : WORKDIR /app/apps/worker ---> Using cache ---> bd3d80058103 Step 19/19 : CMD [\"node\", \"dist/main.js\"] ---> Using cache ---> 42c75524cb0e Successfully built 42c75524cb0e Successfully tagged pipeline_demo_staging-worker:b080b4a0004126063166173337f639c40758fa8b == building pipeline_demo_staging-web:b080b4a0004126063166173337f639c40758fa8b == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 7.722MB Step 1/16 : FROM node:26-alpine AS base ---> 233761595746 Step 2/16 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/16 : FROM base AS builder ---> 560118443979 Step 4/16 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/16 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> bbddda7bab65 Step 6/16 : COPY .npmrc ./ ---> Using cache ---> 042ed87eb1e9 Step 7/16 : COPY packages ./packages ---> Using cache ---> 23d178a9bc63 Step 8/16 : COPY apps/web ./apps/web ---> 78f7f7ad8a57 Step 9/16 : RUN pnpm install --frozen-lockfile ---> Running in 63e7b923de30 Scope: all 11 workspace projects ? Verifying lockfile against supply-chain policies (1842 entries)..."
+              - button "Add environment" [ref=f39e235] [cursor=pointer]
+          - generic [ref=f39e159]:
+            - button "Draft 1" [ref=f39e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f39e161]: "1"
+            - generic [ref=f39e162]: →
+            - button "Ready 1" [ref=f39e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f39e164]: "1"
+            - generic [ref=f39e165]: →
+            - button "In progress 1" [ref=f39e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f39e167]: "1"
+            - generic [ref=f39e168]: →
+            - button "Blocked 1" [ref=f39e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f39e171]: "1"
+            - generic [ref=f39e172]: →
+            - button "Needs review 1" [pressed] [ref=f39e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f39e175]: "1"
+            - generic [ref=f39e176]: →
+            - button "Approved 0 /3" [ref=f39e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f39e178]: "0"
+              - generic [ref=f39e179]: /3
+            - generic [ref=f39e180]: →
+            - button "Changes requested 1" [ref=f39e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f39e182]: "1"
+            - generic [ref=f39e183]: →
+            - button "Done 4" [ref=f39e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f39e185]: "4"
+          - generic [ref=f39e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f39e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f39e192] [cursor=pointer]'
+            - generic "PR open" [ref=f39e193]
+            - generic "CI failing" [ref=f39e198]
+            - generic [ref=f39e199]: 2/3
+            - generic [ref=f39e203]: P9
+            - generic [ref=f39e204]: 3d
+            - button "Cancel task" [ref=f39e205] [cursor=pointer]
+  - region "Notifications alt+T"

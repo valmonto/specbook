@@ -1,0 +1,152 @@
+- generic [ref=f7e2]:
+  - generic [ref=f7e384]:
+    - generic [ref=f7e387]:
+      - list [ref=f7e389]:
+        - listitem [ref=f7e390]:
+          - link "specbook Workspace" [ref=f7e391] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f7e395]:
+              - generic [ref=f7e396]: specbook
+              - generic [ref=f7e397]: Workspace
+      - generic [ref=f7e398]:
+        - generic [ref=f7e399]:
+          - generic [ref=f7e400]: Management
+          - list [ref=f7e402]:
+            - listitem [ref=f7e403]:
+              - link "Your move" [ref=f7e404] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f7e409]:
+              - link "Projects" [ref=f7e410] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f7e414]:
+              - link "Settings" [ref=f7e415] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f7e420]:
+          - generic [ref=f7e421]: Developer
+          - list [ref=f7e423]:
+            - listitem [ref=f7e424]:
+              - link "Components" [ref=f7e425] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f7e430]:
+              - link "Mobile" [ref=f7e431] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f7e435]:
+          - generic [ref=f7e436]: Platform
+          - list [ref=f7e438]:
+            - listitem [ref=f7e439]:
+              - link "Organizations" [ref=f7e440] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f7e446]:
+              - link "Permissions" [ref=f7e447] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f7e452]:
+              - link "API keys" [ref=f7e453] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f7e459]:
+        - listitem [ref=f7e460]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f7e461] [cursor=pointer]:
+            - generic [ref=f7e462]: DA
+            - generic [ref=f7e464]:
+              - generic [ref=f7e465]: Dev Admin
+              - generic [ref=f7e466]: admin@valmonto.com
+    - generic [ref=f7e470]:
+      - heading "Navigation" [level=2] [ref=f7e471]
+      - paragraph [ref=f7e472]: Search or jump to…
+    - main [ref=f7e473]:
+      - generic [ref=f7e474]:
+        - generic [ref=f7e475]:
+          - button "Toggle Sidebar" [ref=f7e476] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f7e478]:
+            - list [ref=f7e479]:
+              - listitem [ref=f7e480]:
+                - link "Your move" [disabled] [ref=f7e481]
+        - generic [ref=f7e482]:
+          - button "Search or jump to… ⌘K" [ref=f7e483] [cursor=pointer]:
+            - generic [ref=f7e487]: Search or jump to…
+            - generic [ref=f7e488]: ⌘K
+          - button "Valmonto" [ref=f7e489] [cursor=pointer]
+          - generic [ref=f7e492]:
+            - button "Notifications" [ref=f7e493] [cursor=pointer]
+            - button "Change language" [ref=f7e495] [cursor=pointer]
+            - button "Toggle theme" [ref=f7e497] [cursor=pointer]
+      - main [ref=f7e499]:
+        - generic [ref=f7e500]:
+          - generic [ref=f7e507]:
+            - heading "Your move" [level=1] [ref=f7e508]
+            - paragraph [ref=f7e509]: Everything waiting on you — answers, reviews, and a queue that needs feeding.
+          - generic [ref=f7e510]:
+            - 'button "Needs review PR open CI failing Pipeline Demo waiting 4d Quick-add: paste images (renamed inline)" [ref=f7e698] [cursor=pointer]':
+              - generic [ref=f7e699]:
+                - generic [ref=f7e700]: Needs review
+                - generic [ref=f7e701]: PR open
+                - generic "CI failing" [ref=f7e706]
+                - generic [ref=f7e708]: Pipeline Demo
+                - generic [ref=f7e709]: waiting 4d
+              - paragraph [ref=f7e710]: "Quick-add: paste images (renamed inline)"
+            - button "Blocked Pipeline Demo waiting 4d Which staging domain scheme should previews use? Should preview URLs be <app>.staging.valmonto.com (wildcard DNS, one cert) or per-app subdomains with individual certs? Wildcard needs the DNS record you own." [ref=f7e711] [cursor=pointer]:
+              - generic [ref=f7e712]:
+                - generic [ref=f7e713]: Blocked
+                - generic [ref=f7e714]: Pipeline Demo
+                - generic [ref=f7e715]: waiting 4d
+              - paragraph [ref=f7e716]: Which staging domain scheme should previews use?
+              - paragraph [ref=f7e717]:
+                - generic [ref=f7e721]: Should preview URLs be <app>.staging.valmonto.com (wildcard DNS, one cert) or per-app subdomains with individual certs? Wildcard needs the DNS record you own.
+            - button [ref=f7e722] [cursor=pointer]:
+              - generic [ref=f7e723]:
+                - generic [ref=f7e724]: Blocked
+                - generic [ref=f7e725]: Pipeline Demo
+                - generic [ref=f7e726]: waiting 2m
+              - paragraph [ref=f7e727]: Board keyboard navigation
+              - paragraph [ref=f7e728]:
+                - generic [ref=f7e732]: "get_repo_token fails every time (\"Command failed with no output\" — 7 attempts over ~20 min, while heartbeat/list_tasks/add_comment all work), so I cannot push or open a PR. Two questions: 1. Can you fix the GitHub token minting (org GitHub connection / GITHUB_APP_* config on the API), or provide another sanctioned way to push? The finished, verified work sits on local branch feat/board-keyboard-nav (commit 988402e, based on origin/main 0670725) in the runner's clone of valmonto/specbook at /root/specbook-runner/runner-local/work/specbook. 2. Please confirm the target repo: the project record's repoUrl says valmonto/valmatic.git but its bound GitHub repo (githubRepoFullName) is valmonto/specbook. The your-move board only exists in specbook, so I implemented there — if valmatic was truly intended, tell me what \"board\" means in that repo. Work summary: j/k moves the selection (visible cursor ring, clamped, scrolls into view), a approves the selected needs_review task, m marks the selected approved task merged; muted while the detail sheet is open or focus is in a form control. 4 component tests added; pnpm verify exit 0; verified in real Chromium against an isolated dev stack (transitions landed in the DB through the real API)."
+            - 'button "Blocked Pipeline Demo waiting 1m Managed-agent hello: add one comment and block for review Was the managed lifecycle proven?" [ref=f7e733] [cursor=pointer]':
+              - generic [ref=f7e734]:
+                - generic [ref=f7e735]: Blocked
+                - generic [ref=f7e736]: Pipeline Demo
+                - generic [ref=f7e737]: waiting 1m
+              - paragraph [ref=f7e738]: "Managed-agent hello: add one comment and block for review"
+              - paragraph [ref=f7e739]:
+                - generic [ref=f7e743]: Was the managed lifecycle proven?
+          - generic [ref=f7e535]:
+            - heading "In flight" [level=2] [ref=f7e536]
+            - generic [ref=f7e540]:
+              - 'button "MCP: expose merge-queue state to runners Pipeline Demo" [ref=f7e541] [cursor=pointer]':
+                - generic [ref=f7e542]: "MCP: expose merge-queue state to runners"
+                - generic [ref=f7e543]: Pipeline Demo
+              - generic [ref=f7e544]: claimed
+            - generic [ref=f7e641]:
+              - 'button "Presence demo: agent visibly working Pipeline Demo" [ref=f7e642] [cursor=pointer]':
+                - generic [ref=f7e643]: "Presence demo: agent visibly working"
+                - generic [ref=f7e644]: Pipeline Demo
+              - generic [ref=f7e645]: claimed 1m
+          - generic [ref=f7e550]:
+            - heading [level=2] [ref=f7e551]:
+              - text: Agents
+              - button "New managed agent" [ref=f7e558] [cursor=pointer]
+            - generic [ref=f7e559]:
+              - generic [ref=f7e560]:
+                - generic "auth needed" [ref=f7e561]:
+                  - generic [ref=f7e563]: auth-demo
+                  - generic [ref=f7e565]: never seen
+                  - button "Show log" [active] [ref=f7e744] [cursor=pointer]
+                  - button "Start" [ref=f7e567] [cursor=pointer]
+                - paragraph [ref=f7e568]: "SSH into the server and run: claude setup-token — then Start again"
+              - generic "offline" [ref=f7e570]:
+                - generic [ref=f7e572]: presence-verifier
+                - generic [ref=f7e574]: seen 4h ago
+              - 'generic "working on Managed-agent hello: add one comment and block for review" [ref=f7e576]':
+                - generic [ref=f7e578]: runner-fresh
+                - generic [ref=f7e580]: seen 1m ago
+                - button "Show log" [ref=f7e581] [cursor=pointer]
+                - button "Stop" [ref=f7e582] [cursor=pointer]
+              - 'generic "working on Presence demo: agent visibly working" [ref=f7e646]':
+                - generic [ref=f7e586]: runner-local
+                - generic [ref=f7e588]: seen 1m ago
+                - button "Show log" [ref=f7e589] [cursor=pointer]
+                - button "Stop" [ref=f7e590] [cursor=pointer]
+          - generic [ref=f7e591]:
+            - generic [ref=f7e592]: Queue
+            - generic [ref=f7e593]: 0 ready for agents
+            - generic [ref=f7e594]: 1 drafts waiting on you
+            - generic [ref=f7e647]: Agents are idle — write specs
+  - region "Notifications alt+T"

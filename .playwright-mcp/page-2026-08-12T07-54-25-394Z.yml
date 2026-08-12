@@ -1,0 +1,100 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e23]:
+    - generic [ref=f3e26]:
+      - list [ref=f3e28]:
+        - listitem [ref=f3e29]:
+          - link "specbook Workspace" [ref=f3e30] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f3e34]:
+              - generic [ref=f3e35]: specbook
+              - generic [ref=f3e36]: Workspace
+      - generic [ref=f3e37]:
+        - generic [ref=f3e38]:
+          - generic [ref=f3e39]: Management
+          - list [ref=f3e41]:
+            - listitem [ref=f3e42]:
+              - link "Your move" [ref=f3e43] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f3e48]:
+              - link "Projects" [ref=f3e49] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f3e53]:
+              - link "Research" [ref=f3e54] [cursor=pointer]:
+                - /url: /research
+            - listitem [ref=f3e64]:
+              - link "Settings" [ref=f3e65] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f3e70]:
+          - generic [ref=f3e71]: Developer
+          - list [ref=f3e73]:
+            - listitem [ref=f3e74]:
+              - link "Components" [ref=f3e75] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f3e80]:
+              - link "Mobile" [ref=f3e81] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f3e85]:
+          - generic [ref=f3e86]: Platform
+          - list [ref=f3e88]:
+            - listitem [ref=f3e89]:
+              - link "Organizations" [ref=f3e90] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f3e96]:
+              - link "Permissions" [ref=f3e97] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f3e102]:
+              - link "API keys" [ref=f3e103] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f3e109]:
+        - listitem [ref=f3e110]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f3e111] [cursor=pointer]:
+            - generic [ref=f3e112]: DA
+            - generic [ref=f3e114]:
+              - generic [ref=f3e115]: Dev Admin
+              - generic [ref=f3e116]: admin@valmonto.com
+    - generic [ref=f3e120]:
+      - heading "Navigation" [level=2] [ref=f3e121]
+      - paragraph [ref=f3e122]: Search or jump to…
+    - main [ref=f3e123]:
+      - generic [ref=f3e124]:
+        - generic [ref=f3e125]:
+          - button "Toggle Sidebar" [ref=f3e126] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f3e128]:
+            - list [ref=f3e129]:
+              - listitem [ref=f3e130]:
+                - link "Your move" [disabled] [ref=f3e131]
+        - generic [ref=f3e132]:
+          - button "Search or jump to… ⌘K" [ref=f3e133] [cursor=pointer]:
+            - generic [ref=f3e137]: Search or jump to…
+            - generic [ref=f3e138]: ⌘K
+          - button "Loading..." [disabled]
+          - generic [ref=f3e139]:
+            - button "Notifications" [ref=f3e140] [cursor=pointer]
+            - generic [ref=f3e142]:
+              - button "Change language" [ref=f3e143] [cursor=pointer]
+              - button "Toggle theme" [ref=f3e145] [cursor=pointer]
+      - main [ref=f3e147]:
+        - generic [ref=f3e148]:
+          - generic [ref=f3e155]:
+            - heading "Your move" [level=1] [ref=f3e156]
+            - paragraph [ref=f3e157]: Everything waiting on you — answers, reviews, and a queue that needs feeding.
+          - generic [ref=f3e161]:
+            - heading [level=2] [ref=f3e162]:
+              - text: Agents
+              - button "New managed agent" [ref=f3e169] [cursor=pointer]
+            - generic [ref=f3e170]:
+              - paragraph [ref=f3e171]: "No runner servers yet — give a server the runner role in Settings → Servers, then prepare it:"
+              - generic [ref=f3e172]:
+                - paragraph [ref=f3e173]: Server preparation
+                - paragraph [ref=f3e174]: • node, npm and tmux installed on the box
+                - paragraph [ref=f3e175]: • ~16GB RAM per actively building agent (8GB works with swap)
+                - paragraph [ref=f3e176]:
+                  - generic [ref=f3e177]: "• one-time Anthropic auth over SSH:"
+                  - code [ref=f3e178]: claude setup-token
+                  - button "Copy" [ref=f3e179] [cursor=pointer]
+          - generic [ref=f3e183]:
+            - generic [ref=f3e184]: Queue
+            - generic [ref=f3e185]: 0 ready for agents
+            - generic [ref=f3e186]: 0 drafts waiting on you
+            - generic [ref=f3e187]: Agents are idle — write specs
+  - region "Notifications alt+T"

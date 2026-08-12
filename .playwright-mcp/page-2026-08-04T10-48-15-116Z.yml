@@ -1,0 +1,142 @@
+- generic [ref=f8e2]:
+  - generic [ref=f8e3]:
+    - generic [ref=f8e6]:
+      - list [ref=f8e8]:
+        - listitem [ref=f8e9]:
+          - link "specbook Workspace" [ref=f8e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f8e14]:
+              - generic [ref=f8e15]: specbook
+              - generic [ref=f8e16]: Workspace
+      - generic [ref=f8e17]:
+        - generic [ref=f8e18]:
+          - generic [ref=f8e19]: Management
+          - list [ref=f8e21]:
+            - listitem [ref=f8e22]:
+              - link "Your move" [ref=f8e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f8e28]:
+              - link "Projects" [ref=f8e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f8e33]:
+              - link "Settings" [ref=f8e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f8e39]:
+          - generic [ref=f8e40]: Developer
+          - list [ref=f8e42]:
+            - listitem [ref=f8e43]:
+              - link "Components" [ref=f8e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f8e49]:
+              - link "Mobile" [ref=f8e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f8e54]:
+          - generic [ref=f8e55]: Platform
+          - list [ref=f8e57]:
+            - listitem [ref=f8e58]:
+              - link "Organizations" [ref=f8e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f8e65]:
+              - link "Permissions" [ref=f8e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f8e71]:
+              - link "API keys" [ref=f8e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f8e78]:
+        - listitem [ref=f8e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f8e80] [cursor=pointer]:
+            - generic [ref=f8e81]: DA
+            - generic [ref=f8e83]:
+              - generic [ref=f8e84]: Dev Admin
+              - generic [ref=f8e85]: admin@valmonto.com
+    - generic [ref=f8e89]:
+      - heading "Navigation" [level=2] [ref=f8e90]
+      - paragraph [ref=f8e91]: Search or jump to…
+    - main [ref=f8e92]:
+      - generic [ref=f8e93]:
+        - generic [ref=f8e94]:
+          - button "Toggle Sidebar" [ref=f8e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f8e97]:
+            - list [ref=f8e98]:
+              - listitem [ref=f8e99]:
+                - link "Projects" [disabled] [ref=f8e100]
+        - generic [ref=f8e101]:
+          - button "Search or jump to… ⌘K" [ref=f8e102] [cursor=pointer]:
+            - generic [ref=f8e106]: Search or jump to…
+            - generic [ref=f8e107]: ⌘K
+          - button "Valmonto" [ref=f8e108] [cursor=pointer]
+          - generic [ref=f8e111]:
+            - button "Notifications" [ref=f8e112] [cursor=pointer]
+            - button "Change language" [ref=f8e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f8e116] [cursor=pointer]
+      - main [ref=f8e118]:
+        - generic [ref=f8e119]:
+          - link "Projects" [ref=f8e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f8e124]:
+            - generic [ref=f8e129]:
+              - button "Pipeline Demo" [ref=f8e130]
+              - generic [ref=f8e131]:
+                - button "valmonto/specbook" [ref=f8e132] [cursor=pointer]
+                - button "main" [ref=f8e137] [cursor=pointer]
+                - button "Manual" [ref=f8e138] [cursor=pointer]
+                - button "Working directory" [ref=f8e141] [cursor=pointer]
+            - button "New task" [ref=f8e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f8e148] [cursor=pointer]:
+            - generic [ref=f8e151]: Context document
+            - generic [ref=f8e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f8e153]:
+            - button "Environments" [expanded] [active] [ref=f8e206] [cursor=pointer]
+            - generic [ref=f8e207]:
+              - generic [ref=f8e210]:
+                - button "staging hetzner-dev staging.demo.valmonto.com Provisioned" [ref=f8e211] [cursor=pointer]:
+                  - generic [ref=f8e214]: staging
+                  - generic [ref=f8e215]: hetzner-dev
+                  - generic [ref=f8e218]: staging.demo.valmonto.com
+                  - generic [ref=f8e223]: Provisioned
+                - button "Re-provision" [ref=f8e224] [cursor=pointer]
+                - button "Remove environment" [ref=f8e225] [cursor=pointer]
+              - button "Add environment" [ref=f8e226] [cursor=pointer]
+          - generic [ref=f8e159]:
+            - button "Draft 1" [ref=f8e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f8e161]: "1"
+            - generic [ref=f8e162]: →
+            - button "Ready 1" [ref=f8e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f8e164]: "1"
+            - generic [ref=f8e165]: →
+            - button "In progress 1" [ref=f8e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f8e167]: "1"
+            - generic [ref=f8e168]: →
+            - button "Blocked 1" [ref=f8e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f8e171]: "1"
+            - generic [ref=f8e172]: →
+            - button "Needs review 1" [pressed] [ref=f8e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f8e175]: "1"
+            - generic [ref=f8e176]: →
+            - button "Approved 0 /3" [ref=f8e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f8e178]: "0"
+              - generic [ref=f8e179]: /3
+            - generic [ref=f8e180]: →
+            - button "Changes requested 1" [ref=f8e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f8e182]: "1"
+            - generic [ref=f8e183]: →
+            - button "Done 4" [ref=f8e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f8e185]: "4"
+          - generic [ref=f8e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f8e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f8e192] [cursor=pointer]'
+            - generic "PR open" [ref=f8e193]
+            - generic "CI failing" [ref=f8e198]
+            - generic [ref=f8e199]: 2/3
+            - generic [ref=f8e203]: P9
+            - generic [ref=f8e204]: 2d
+            - button "Cancel task" [ref=f8e205] [cursor=pointer]
+  - region "Notifications alt+T"

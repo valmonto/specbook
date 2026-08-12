@@ -1,0 +1,186 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - generic [ref=f3e6]:
+      - list [ref=f3e8]:
+        - listitem [ref=f3e9]:
+          - link "specbook Workspace" [ref=f3e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f3e14]:
+              - generic [ref=f3e15]: specbook
+              - generic [ref=f3e16]: Workspace
+      - generic [ref=f3e17]:
+        - generic [ref=f3e18]:
+          - generic [ref=f3e19]: Management
+          - list [ref=f3e21]:
+            - listitem [ref=f3e22]:
+              - link "Your move" [ref=f3e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f3e28]:
+              - link "Projects" [ref=f3e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f3e33]:
+              - link "Settings" [ref=f3e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f3e39]:
+          - generic [ref=f3e40]: Developer
+          - list [ref=f3e42]:
+            - listitem [ref=f3e43]:
+              - link "Components" [ref=f3e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f3e49]:
+              - link "Mobile" [ref=f3e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f3e54]:
+          - generic [ref=f3e55]: Platform
+          - list [ref=f3e57]:
+            - listitem [ref=f3e58]:
+              - link "Organizations" [ref=f3e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f3e65]:
+              - link "Permissions" [ref=f3e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f3e71]:
+              - link "API keys" [ref=f3e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f3e78]:
+        - listitem [ref=f3e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f3e80] [cursor=pointer]:
+            - generic [ref=f3e81]: DA
+            - generic [ref=f3e83]:
+              - generic [ref=f3e84]: Dev Admin
+              - generic [ref=f3e85]: admin@valmonto.com
+    - generic [ref=f3e89]:
+      - heading "Navigation" [level=2] [ref=f3e90]
+      - paragraph [ref=f3e91]: Search or jump to…
+    - main [ref=f3e92]:
+      - generic [ref=f3e93]:
+        - generic [ref=f3e94]:
+          - button "Toggle Sidebar" [ref=f3e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f3e97]:
+            - list [ref=f3e98]:
+              - listitem [ref=f3e99]:
+                - link "Projects" [disabled] [ref=f3e100]
+        - generic [ref=f3e101]:
+          - button "Search or jump to… ⌘K" [ref=f3e102] [cursor=pointer]:
+            - generic [ref=f3e106]: Search or jump to…
+            - generic [ref=f3e107]: ⌘K
+          - button "Valmonto" [ref=f3e108] [cursor=pointer]
+          - generic [ref=f3e111]:
+            - button "Notifications" [ref=f3e112] [cursor=pointer]
+            - button "Change language" [ref=f3e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f3e116] [cursor=pointer]
+      - main [ref=f3e118]:
+        - generic [ref=f3e119]:
+          - link "Projects" [ref=f3e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f3e124]:
+            - generic [ref=f3e129]:
+              - button "Pipeline Demo" [ref=f3e130]
+              - generic [ref=f3e131]:
+                - button "valmonto/specbook" [ref=f3e132] [cursor=pointer]
+                - button "main" [ref=f3e137] [cursor=pointer]
+                - button "Manual" [ref=f3e138] [cursor=pointer]
+                - button "Working directory" [ref=f3e141] [cursor=pointer]
+            - button "New task" [ref=f3e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f3e148] [cursor=pointer]:
+            - generic [ref=f3e151]: Context document
+            - generic [ref=f3e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f3e153]:
+            - button "Environments" [expanded] [ref=f3e206] [cursor=pointer]
+            - generic [ref=f3e207]:
+              - generic [ref=f3e209]:
+                - generic [ref=f3e210]:
+                  - button "staging hetzner-dev Auto-deploy off Provisioned Deploy failed" [expanded] [ref=f3e329] [cursor=pointer]:
+                    - generic [ref=f3e214]: staging
+                    - generic [ref=f3e215]: hetzner-dev
+                    - button "Auto-deploy off" [ref=f3e218]
+                    - generic [ref=f3e224]: Provisioned
+                    - button "Deploy failed" [ref=f3e330]
+                  - button "Deploy" [ref=f3e331] [cursor=pointer]
+                  - button "Re-provision" [ref=f3e227] [cursor=pointer]
+                  - button "Remove environment" [ref=f3e228] [cursor=pointer]
+                - paragraph [ref=f3e332]: "remote-op deploy-stack exited 1: Container pipeline_demo_staging-web-1 Running Container pipeline_demo_staging-migrate-1 Starting Container pipeline_demo_staging-migrate-1 Started Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 service \"migrate\" didn't complete successfully: exit 1 Container"
+                - generic [ref=f3e300]: "== resolve: HEAD of main == 64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == build: images at 64d5ea3 on hetzner-dev == == building pipeline_demo_staging-api:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 9.877MB Step 1/22 : FROM node:26-alpine AS base ---> 233761595746 Step 2/22 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/22 : FROM base AS builder ---> 560118443979 Step 4/22 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/22 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> 56cf17433176 Step 6/22 : COPY .npmrc ./ ---> Using cache ---> b3d2cac3f46e Step 7/22 : COPY packages ./packages ---> Using cache ---> f8d1c626f31c Step 8/22 : COPY apps/api ./apps/api ---> Using cache ---> dbf00c837df8 Step 9/22 : RUN pnpm install --frozen-lockfile ---> Using cache ---> 368c8b872931 Step 10/22 : RUN pnpm --filter @pkg/api... build ---> Using cache ---> a3ce6cfcdbef Step 11/22 : FROM node:26-alpine AS runner ---> 233761595746 Step 12/22 : WORKDIR /app ---> Using cache ---> c23de42ba5d3 Step 13/22 : COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./ ---> Using cache ---> c55625da7eab Step 14/22 : COPY --from=builder /app/.npmrc ./ ---> Using cache ---> a7c5ac772f9d Step 15/22 : COPY --from=builder /app/node_modules ./node_modules ---> Using cache ---> 884b17ad1905 Step 16/22 : COPY --from=builder /app/packages ./packages ---> Using cache ---> f3753eb7c542 Step 17/22 : COPY --from=builder /app/apps/api ./apps/api ---> Using cache ---> d6f0f627043c Step 18/22 : COPY --from=builder /app/apps/api/docker-entrypoint.sh /docker-entrypoint.sh ---> Using cache ---> ec3de613b396 Step 19/22 : RUN chmod +x /docker-entrypoint.sh ---> Using cache ---> 93972b2a4c63 Step 20/22 : WORKDIR /app/apps/api ---> Using cache ---> e123821d2b72 Step 21/22 : EXPOSE 3001 ---> Using cache ---> 6caba1e29a24 Step 22/22 : ENTRYPOINT [\"/docker-entrypoint.sh\"] ---> Using cache ---> 0be916358b3e Successfully built 0be916358b3e Successfully tagged pipeline_demo_staging-api:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == building pipeline_demo_staging-worker:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 9.877MB Step 1/19 : FROM node:26-alpine AS base ---> 233761595746 Step 2/19 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/19 : FROM base AS builder ---> 560118443979 Step 4/19 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/19 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> 56cf17433176 Step 6/19 : COPY .npmrc ./ ---> Using cache ---> b3d2cac3f46e Step 7/19 : COPY packages ./packages ---> Using cache ---> f8d1c626f31c Step 8/19 : COPY apps/worker ./apps/worker ---> Using cache ---> a6506d7b171c Step 9/19 : RUN pnpm install --frozen-lockfile ---> Using cache ---> 85f5b572efcd Step 10/19 : RUN pnpm --filter @pkg/worker... build ---> Using cache ---> f50f657133b2 Step 11/19 : FROM node:26-alpine AS runner ---> 233761595746 Step 12/19 : WORKDIR /app ---> Using cache ---> c23de42ba5d3 Step 13/19 : COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./ ---> Using cache ---> c55625da7eab Step 14/19 : COPY --from=builder /app/.npmrc ./ ---> Using cache ---> a7c5ac772f9d Step 15/19 : COPY --from=builder /app/node_modules ./node_modules ---> Using cache ---> 4018b13a557c Step 16/19 : COPY --from=builder /app/packages ./packages ---> Using cache ---> c79879978b61 Step 17/19 : COPY --from=builder /app/apps/worker ./apps/worker ---> Using cache ---> 1ee155d5b499 Step 18/19 : WORKDIR /app/apps/worker ---> Using cache ---> 2a94958503bb Step 19/19 : CMD [\"node\", \"dist/main.js\"] ---> Using cache ---> a8c52bb00ea3 Successfully built a8c52bb00ea3 Successfully tagged pipeline_demo_staging-worker:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == building pipeline_demo_staging-web:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d == DEPRECATED: The legacy builder is deprecated and will be removed in a future release. Install the buildx component to build images with BuildKit: https://docs.docker.com/go/buildx/ Sending build context to Docker daemon 9.877MB Step 1/16 : FROM node:26-alpine AS base ---> 233761595746 Step 2/16 : RUN npm install -g pnpm@10 ---> Using cache ---> 560118443979 Step 3/16 : FROM base AS builder ---> 560118443979 Step 4/16 : WORKDIR /app ---> Using cache ---> 4a23d4e64200 Step 5/16 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./ ---> Using cache ---> 56cf17433176 Step 6/16 : COPY .npmrc ./ ---> Using cache ---> b3d2cac3f46e Step 7/16 : COPY packages ./packages ---> Using cache ---> f8d1c626f31c Step 8/16 : COPY apps/web ./apps/web ---> Using cache ---> 43226ba45b2f Step 9/16 : RUN pnpm install --frozen-lockfile ---> Using cache ---> 2d40ef5636a4 Step 10/16 : RUN pnpm --filter @pkg/web... build ---> Using cache ---> d17560d72f0e Step 11/16 : FROM node:26-alpine AS runner ---> 233761595746 Step 12/16 : RUN npm install -g serve@14 ---> Using cache ---> 402fd22760fa Step 13/16 : WORKDIR /app ---> Using cache ---> d08658854245 Step 14/16 : COPY --from=builder /app/apps/web/dist ./dist ---> Using cache ---> 07f55b0f3d2c Step 15/16 : EXPOSE 3000 ---> Using cache ---> d24ea3d4e3eb Step 16/16 : CMD [\"serve\", \"-s\", \"dist\", \"-l\", \"3000\"] ---> Using cache ---> 13a8cfde954d Successfully built 13a8cfde954d Successfully tagged pipeline_demo_staging-web:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d build-images: ok apps=api,worker,web == render: .env + compose + proxy == == up: compose --wait + health gate == Container pipeline_demo_staging-web-1 Running Container pipeline_demo_staging-migrate-1 Starting Container pipeline_demo_staging-migrate-1 Started Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 service \"migrate\" didn't complete successfully: exit 1 Container pipeline_demo_staging-migrate-1 service \"migrate\" didn't complete successfully: exit 1 service \"migrate\" didn't complete successfully: exit 1 deploy-stack: unhealthy — diagnostics follow NAME IMAGE COMMAND SERVICE CREATED STATUS PORTS pipeline_demo_staging-web-1 pipeline_demo_staging-web:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d \"docker-entrypoint.s…\" web 4 minutes ago Up 4 minutes 3000/tcp ERROR: remote-op deploy-stack exited 1: Container pipeline_demo_staging-web-1 Running Container pipeline_demo_staging-migrate-1 Starting Container pipeline_demo_staging-migrate-1 Started Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 Waiting Container pipeline_demo_staging-migrate-1 service \"migrate\" didn't complete successfully: exit 1 Container pipeline_demo_staging-migrate-1 service \"migrate\" didn't complete successfully: exit 1 service \"migrate\" didn't complete successfully: exit 1 deploy-stack: unhealthy — diagnostics follow NAME IMAGE COMMAND SERVICE CREATED STATUS PORTS pipeline_demo_staging-web-1 pipeline_demo_staging-web:64d5ea31e6b19a4f48f80cf6b0c971e3cec0aa1d \"docker-entrypoint.s…\" web 4 minutes ago Up 4 minutes 3000/tcp"
+                - generic [ref=f3e231]:
+                  - generic [ref=f3e232]:
+                    - paragraph [ref=f3e233]: Platform variables
+                    - paragraph [ref=f3e237]: Managed by specbook when resources are provisioned — visible for debugging, never editable.
+                    - generic [ref=f3e238]:
+                      - generic [ref=f3e239]:
+                        - generic [ref=f3e240]: APP_ENCRYPTION_KEY=
+                        - generic [ref=f3e241]: LVnXIG+S6mYEfTJpP8DZuto6mBkKH1t1PKaK2lOVamY=
+                      - generic [ref=f3e242]:
+                        - generic [ref=f3e243]: DATABASE_URL=
+                        - generic [ref=f3e244]: postgresql://pipeline_demo_staging:9CQ0hhFrn9LUS12qSJxTovWmuTY4zL43@specbook-postgres:5432/pipeline_demo_staging
+                      - generic [ref=f3e245]:
+                        - generic [ref=f3e246]: IAM_COOKIE_SECRET=
+                        - generic [ref=f3e247]: YJvAVar91JuRj8jxJIgKU4hame5xrW1k
+                      - generic [ref=f3e248]:
+                        - generic [ref=f3e249]: IAM_JWT_SECRET=
+                        - generic [ref=f3e250]: OdsccEZvxoGh2G0wUnJdjXhx0NI3V2ps
+                      - generic [ref=f3e251]:
+                        - generic [ref=f3e252]: REDIS_HOST=
+                        - generic [ref=f3e253]: specbook-redis-pipeline_demo_staging
+                      - generic [ref=f3e254]:
+                        - generic [ref=f3e255]: REDIS_PORT=
+                        - generic [ref=f3e256]: "6379"
+                  - generic [ref=f3e257]:
+                    - paragraph [ref=f3e258]: Secrets
+                    - paragraph [ref=f3e262]: "Values are write-only: they can be set or replaced but never read back."
+                    - generic [ref=f3e263]:
+                      - generic [ref=f3e264]:
+                        - generic [ref=f3e265]: SEED_INITIAL_EMAIL
+                        - generic [ref=f3e266]: ••••••••
+                        - button "Delete this secret? SEED_INITIAL_EMAIL" [ref=f3e267] [cursor=pointer]
+                      - generic [ref=f3e268]:
+                        - generic [ref=f3e269]: SEED_INITIAL_PASSWORD
+                        - generic [ref=f3e270]: ••••••••
+                        - button "Delete this secret? SEED_INITIAL_PASSWORD" [ref=f3e271] [cursor=pointer]
+                    - generic [ref=f3e272]:
+                      - textbox "NAME" [ref=f3e273]
+                      - textbox "Enter a new value to replace" [ref=f3e274]
+                      - button "Set" [ref=f3e279] [cursor=pointer]
+              - button "Add environment" [ref=f3e230] [cursor=pointer]
+          - generic [ref=f3e159]:
+            - button "Draft 1" [ref=f3e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f3e161]: "1"
+            - generic [ref=f3e162]: →
+            - button "Ready 1" [ref=f3e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f3e164]: "1"
+            - generic [ref=f3e165]: →
+            - button "In progress 1" [ref=f3e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f3e167]: "1"
+            - generic [ref=f3e168]: →
+            - button "Blocked 1" [ref=f3e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f3e171]: "1"
+            - generic [ref=f3e172]: →
+            - button "Needs review 1" [pressed] [ref=f3e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f3e175]: "1"
+            - generic [ref=f3e176]: →
+            - button "Approved 0 /3" [ref=f3e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f3e178]: "0"
+              - generic [ref=f3e179]: /3
+            - generic [ref=f3e180]: →
+            - button "Changes requested 1" [ref=f3e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f3e182]: "1"
+            - generic [ref=f3e183]: →
+            - button "Done 4" [ref=f3e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f3e185]: "4"
+          - generic [ref=f3e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f3e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f3e192] [cursor=pointer]'
+            - generic "PR open" [ref=f3e193]
+            - generic "CI failing" [ref=f3e198]
+            - generic [ref=f3e199]: 2/3
+            - generic [ref=f3e203]: P9
+            - generic [ref=f3e204]: 3d
+            - button "Cancel task" [ref=f3e205] [cursor=pointer]
+  - region "Notifications alt+T"

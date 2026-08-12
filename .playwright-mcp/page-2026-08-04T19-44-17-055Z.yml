@@ -1,0 +1,212 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - generic:
+                      - generic: specbook
+                      - generic: Workspace
+            - generic:
+              - generic:
+                - generic: Management
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - generic: Your move
+                    - listitem:
+                      - link:
+                        - /url: /projects
+                        - generic: Projects
+                    - listitem:
+                      - link:
+                        - /url: /settings
+                        - generic: Settings
+              - generic:
+                - generic: Developer
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /components
+                        - generic: Components
+                    - listitem:
+                      - link:
+                        - /url: /mobile
+                        - generic: Mobile
+              - generic:
+                - generic: Platform
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /admin/orgs
+                        - generic: Organizations
+                    - listitem:
+                      - link:
+                        - /url: /admin/permissions
+                        - generic: Permissions
+                    - listitem:
+                      - link:
+                        - /url: /admin/api-keys
+                        - generic: API keys
+            - generic:
+              - list:
+                - listitem:
+                  - button:
+                    - generic: DA
+                    - generic:
+                      - generic: Dev Admin
+                      - generic: admin@valmonto.com
+      - generic:
+        - heading [level=2]: Navigation
+        - paragraph: Search or jump to…
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - generic: Toggle Sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link [disabled]: Projects
+          - generic:
+            - button:
+              - generic: Search or jump to…
+              - generic: ⌘K
+            - button:
+              - generic: Valmonto
+            - generic:
+              - button:
+                - generic: Notifications
+              - button:
+                - generic: Change language
+              - button:
+                - generic: Toggle theme
+        - main:
+          - generic:
+            - generic:
+              - link:
+                - /url: /projects
+                - text: Projects
+            - generic:
+              - generic:
+                - generic:
+                  - button: Pipeline Demo
+                  - generic:
+                    - button: valmonto/specbook
+                    - button: main
+                    - button: Manual
+                    - button: Working directory
+              - generic:
+                - button: New task
+            - generic:
+              - button:
+                - generic: Context document
+                - generic: What this product is, the stack, conventions, boundaries. Agents read this first.
+            - generic:
+              - button [expanded]:
+                - generic: Environments
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - button:
+                        - generic: staging
+                        - generic: hetzner-dev
+                        - button: Auto-deploy off
+                        - generic: Provisioned
+                        - generic: Deployed
+                        - generic: deployed b080b4a · 8h
+                      - link:
+                        - /url: https://staging.demo.valmonto.com
+                        - text: Open staging
+                      - button: Deploy
+                      - button: Re-provision
+                      - button
+                - button: Add environment
+            - generic:
+              - button:
+                - text: Draft
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Ready
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: In progress
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Blocked
+                - generic: "1"
+              - generic: →
+              - button [pressed]:
+                - text: Needs review
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Approved
+                - generic: "0"
+                - generic: /3
+              - generic: →
+              - button:
+                - text: Changes requested
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Done
+                - generic: "4"
+            - generic:
+              - generic:
+                - generic:
+                  - button
+                  - button: "Quick-add: paste images (renamed inline)"
+                  - generic: 2/3
+                  - generic: P9
+                  - generic: 2d
+                  - button
+    - region "Notifications alt+T"
+  - dialog [ref=f36e237]:
+    - generic [ref=f36e238]:
+      - heading "Add environment" [level=2] [ref=f36e239]
+      - paragraph [ref=f36e240]: Where this project runs — each environment binds to a server and carries its own configuration.
+    - generic [ref=f36e241]:
+      - generic [ref=f36e242]:
+        - generic [ref=f36e243]:
+          - generic [ref=f36e244]: Name
+          - combobox "Name" [active] [ref=f36e246]:
+            - option "production" [selected]
+        - generic [ref=f36e247]:
+          - generic [ref=f36e248]: Server
+          - combobox "Server" [ref=f36e250]:
+            - option "hetzner-dev" [selected]
+            - option "localbox"
+          - paragraph [ref=f36e251]: Only servers with the app role can host environments.
+      - generic [ref=f36e252]:
+        - generic [ref=f36e253]: Domain
+        - textbox "Domain" [ref=f36e254]:
+          - /placeholder: staging.example.com
+      - generic [ref=f36e255]:
+        - generic [ref=f36e256]: Deploy path
+        - textbox "Deploy path" [ref=f36e257]:
+          - /placeholder: /srv/myapp
+        - paragraph [ref=f36e258]: Must be writable by the SSH user; leave empty for the default
+      - generic [ref=f36e259]:
+        - generic [ref=f36e260]:
+          - generic [ref=f36e261]: Auto-deploy
+          - paragraph [ref=f36e262]: Redeploy staging automatically when the default branch changes.
+        - switch "Auto-deploy" [ref=f36e263] [cursor=pointer]
+        - checkbox
+      - generic [ref=f36e264]:
+        - button "Cancel" [ref=f36e265] [cursor=pointer]
+        - button "Add environment" [ref=f36e266] [cursor=pointer]
+    - button "Close" [ref=f36e267] [cursor=pointer]

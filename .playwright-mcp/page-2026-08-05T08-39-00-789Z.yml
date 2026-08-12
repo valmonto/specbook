@@ -1,0 +1,183 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - generic [ref=f3e6]:
+      - list [ref=f3e8]:
+        - listitem [ref=f3e9]:
+          - link "specbook Workspace" [ref=f3e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f3e14]:
+              - generic [ref=f3e15]: specbook
+              - generic [ref=f3e16]: Workspace
+      - generic [ref=f3e17]:
+        - generic [ref=f3e18]:
+          - generic [ref=f3e19]: Management
+          - list [ref=f3e21]:
+            - listitem [ref=f3e22]:
+              - link "Your move" [ref=f3e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f3e28]:
+              - link "Projects" [ref=f3e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f3e33]:
+              - link "Settings" [ref=f3e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f3e39]:
+          - generic [ref=f3e40]: Developer
+          - list [ref=f3e42]:
+            - listitem [ref=f3e43]:
+              - link "Components" [ref=f3e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f3e49]:
+              - link "Mobile" [ref=f3e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f3e54]:
+          - generic [ref=f3e55]: Platform
+          - list [ref=f3e57]:
+            - listitem [ref=f3e58]:
+              - link "Organizations" [ref=f3e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f3e65]:
+              - link "Permissions" [ref=f3e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f3e71]:
+              - link "API keys" [ref=f3e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f3e78]:
+        - listitem [ref=f3e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f3e80] [cursor=pointer]:
+            - generic [ref=f3e81]: DA
+            - generic [ref=f3e83]:
+              - generic [ref=f3e84]: Dev Admin
+              - generic [ref=f3e85]: admin@valmonto.com
+    - generic [ref=f3e89]:
+      - heading "Navigation" [level=2] [ref=f3e90]
+      - paragraph [ref=f3e91]: Search or jump to…
+    - main [ref=f3e92]:
+      - generic [ref=f3e93]:
+        - generic [ref=f3e94]:
+          - button "Toggle Sidebar" [ref=f3e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f3e97]:
+            - list [ref=f3e98]:
+              - listitem [ref=f3e99]:
+                - link "Projects" [disabled] [ref=f3e100]
+        - generic [ref=f3e101]:
+          - button "Search or jump to… ⌘K" [ref=f3e102] [cursor=pointer]:
+            - generic [ref=f3e106]: Search or jump to…
+            - generic [ref=f3e107]: ⌘K
+          - button "Valmonto" [ref=f3e108] [cursor=pointer]
+          - generic [ref=f3e111]:
+            - button "Notifications" [ref=f3e112] [cursor=pointer]
+            - button "Change language" [ref=f3e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f3e116] [cursor=pointer]
+      - main [ref=f3e118]:
+        - generic [ref=f3e119]:
+          - link "Projects" [ref=f3e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f3e124]:
+            - generic [ref=f3e129]:
+              - button "Pipeline Demo" [ref=f3e130]
+              - generic [ref=f3e131]:
+                - button "valmonto/specbook" [ref=f3e132] [cursor=pointer]
+                - button "main" [ref=f3e137] [cursor=pointer]
+                - button "Manual" [ref=f3e138] [cursor=pointer]
+                - button "Working directory" [ref=f3e141] [cursor=pointer]
+            - button "New task" [ref=f3e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f3e148] [cursor=pointer]:
+            - generic [ref=f3e151]: Context document
+            - generic [ref=f3e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f3e153]:
+            - button "Environments" [expanded] [ref=f3e206] [cursor=pointer]
+            - generic [ref=f3e207]:
+              - generic [ref=f3e209]:
+                - generic [ref=f3e210]:
+                  - button "staging hetzner-dev Auto-deploy off Provisioned Building · 4m 10s" [expanded] [ref=f3e286] [cursor=pointer]:
+                    - generic [ref=f3e214]: staging
+                    - generic [ref=f3e215]: hetzner-dev
+                    - button "Auto-deploy off" [ref=f3e218]
+                    - generic [ref=f3e224]: Provisioned
+                    - button "Building · 4m 10s" [ref=f3e287]
+                  - button "Re-provision" [ref=f3e227] [cursor=pointer]
+                  - button "Remove environment" [ref=f3e228] [cursor=pointer]
+                - generic [ref=f3e231]:
+                  - generic [ref=f3e232]:
+                    - paragraph [ref=f3e233]: Platform variables
+                    - paragraph [ref=f3e237]: Managed by specbook when resources are provisioned — visible for debugging, never editable.
+                    - generic [ref=f3e238]:
+                      - generic [ref=f3e239]:
+                        - generic [ref=f3e240]: APP_ENCRYPTION_KEY=
+                        - generic [ref=f3e241]: LVnXIG+S6mYEfTJpP8DZuto6mBkKH1t1PKaK2lOVamY=
+                      - generic [ref=f3e242]:
+                        - generic [ref=f3e243]: DATABASE_URL=
+                        - generic [ref=f3e244]: postgresql://pipeline_demo_staging:9CQ0hhFrn9LUS12qSJxTovWmuTY4zL43@specbook-postgres:5432/pipeline_demo_staging
+                      - generic [ref=f3e245]:
+                        - generic [ref=f3e246]: IAM_COOKIE_SECRET=
+                        - generic [ref=f3e247]: YJvAVar91JuRj8jxJIgKU4hame5xrW1k
+                      - generic [ref=f3e248]:
+                        - generic [ref=f3e249]: IAM_JWT_SECRET=
+                        - generic [ref=f3e250]: OdsccEZvxoGh2G0wUnJdjXhx0NI3V2ps
+                      - generic [ref=f3e251]:
+                        - generic [ref=f3e252]: REDIS_HOST=
+                        - generic [ref=f3e253]: specbook-redis-pipeline_demo_staging
+                      - generic [ref=f3e254]:
+                        - generic [ref=f3e255]: REDIS_PORT=
+                        - generic [ref=f3e256]: "6379"
+                  - generic [ref=f3e257]:
+                    - paragraph [ref=f3e258]: Secrets
+                    - paragraph [ref=f3e262]: "Values are write-only: they can be set or replaced but never read back."
+                    - generic [ref=f3e263]:
+                      - generic [ref=f3e264]:
+                        - generic [ref=f3e265]: SEED_INITIAL_EMAIL
+                        - generic [ref=f3e266]: ••••••••
+                        - button "Delete this secret? SEED_INITIAL_EMAIL" [ref=f3e267] [cursor=pointer]
+                      - generic [ref=f3e268]:
+                        - generic [ref=f3e269]: SEED_INITIAL_PASSWORD
+                        - generic [ref=f3e270]: ••••••••
+                        - button "Delete this secret? SEED_INITIAL_PASSWORD" [ref=f3e271] [cursor=pointer]
+                    - generic [ref=f3e272]:
+                      - textbox "NAME" [ref=f3e273]
+                      - textbox "Enter a new value to replace" [ref=f3e274]
+                      - button "Set" [ref=f3e279] [cursor=pointer]
+              - button "Add environment" [ref=f3e230] [cursor=pointer]
+          - generic [ref=f3e159]:
+            - button "Draft 1" [ref=f3e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f3e161]: "1"
+            - generic [ref=f3e162]: →
+            - button "Ready 1" [ref=f3e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f3e164]: "1"
+            - generic [ref=f3e165]: →
+            - button "In progress 1" [ref=f3e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f3e167]: "1"
+            - generic [ref=f3e168]: →
+            - button "Blocked 1" [ref=f3e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f3e171]: "1"
+            - generic [ref=f3e172]: →
+            - button "Needs review 1" [pressed] [ref=f3e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f3e175]: "1"
+            - generic [ref=f3e176]: →
+            - button "Approved 0 /3" [ref=f3e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f3e178]: "0"
+              - generic [ref=f3e179]: /3
+            - generic [ref=f3e180]: →
+            - button "Changes requested 1" [ref=f3e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f3e182]: "1"
+            - generic [ref=f3e183]: →
+            - button "Done 4" [ref=f3e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f3e185]: "4"
+          - generic [ref=f3e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f3e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f3e192] [cursor=pointer]'
+            - generic "PR open" [ref=f3e193]
+            - generic "CI failing" [ref=f3e198]
+            - generic [ref=f3e199]: 2/3
+            - generic [ref=f3e203]: P9
+            - generic [ref=f3e204]: 3d
+            - button "Cancel task" [ref=f3e205] [cursor=pointer]
+  - region "Notifications alt+T"

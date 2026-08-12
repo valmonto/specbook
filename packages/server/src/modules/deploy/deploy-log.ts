@@ -3,8 +3,8 @@ import { DEPLOYMENT_LOG_CAP_BYTES } from '@pkg/contracts';
 /**
  * The deployment log: everything the remote ops say, scrubbed and tail-capped
  * BEFORE it touches the database — a log row must be safe to serialize to any
- * reader with project access, so secrets are removed at the write boundary,
- * not the read one.
+ * reader authorized to see the deploy, so secrets are removed at the write
+ * boundary, not the read one.
  */
 
 /** Head marker proving the log was cut; always the first line when present. */

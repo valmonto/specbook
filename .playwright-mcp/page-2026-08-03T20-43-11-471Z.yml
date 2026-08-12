@@ -1,0 +1,192 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - generic:
+                      - generic: specbook
+                      - generic: Workspace
+            - generic:
+              - generic:
+                - generic: Management
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - generic: Your move
+                    - listitem:
+                      - link:
+                        - /url: /projects
+                        - generic: Projects
+                    - listitem:
+                      - link:
+                        - /url: /settings
+                        - generic: Settings
+              - generic:
+                - generic: Developer
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /components
+                        - generic: Components
+                    - listitem:
+                      - link:
+                        - /url: /mobile
+                        - generic: Mobile
+              - generic:
+                - generic: Platform
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /admin/orgs
+                        - generic: Organizations
+                    - listitem:
+                      - link:
+                        - /url: /admin/permissions
+                        - generic: Permissions
+                    - listitem:
+                      - link:
+                        - /url: /admin/api-keys
+                        - generic: API keys
+            - generic:
+              - list:
+                - listitem:
+                  - button:
+                    - generic: DA
+                    - generic:
+                      - generic: Dev Admin
+                      - generic: admin@valmonto.com
+      - generic:
+        - heading [level=2]: Navigation
+        - paragraph: Search or jump to…
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - generic: Toggle Sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link [disabled]: Projects
+          - generic:
+            - button:
+              - generic: Search or jump to…
+              - generic: ⌘K
+            - button:
+              - generic: Valmonto
+            - generic:
+              - button:
+                - generic: Notifications
+              - button:
+                - generic: Change language
+              - button:
+                - generic: Toggle theme
+        - main:
+          - generic:
+            - generic:
+              - link:
+                - /url: /projects
+                - text: Projects
+            - generic:
+              - generic:
+                - generic:
+                  - button: Pipeline Demo
+                  - generic:
+                    - button: valmonto/specbook
+                    - button: main
+                    - button: Manual
+                    - button: Working directory
+              - generic:
+                - button: New task
+            - generic:
+              - button:
+                - generic: Context document
+                - generic: What this product is, the stack, conventions, boundaries. Agents read this first.
+            - generic:
+              - button [expanded]:
+                - generic: Environments
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - button [expanded]:
+                        - generic: staging
+                        - generic: localbox
+                        - generic: staging.example.com
+                      - button
+                    - generic:
+                      - paragraph: "Deploy path: /srv/app"
+                      - generic:
+                        - paragraph: Platform variables
+                        - paragraph: Managed by specbook when resources are provisioned — visible for debugging, never editable.
+                        - paragraph: Nothing provisioned yet.
+                      - generic:
+                        - paragraph: Secrets
+                        - paragraph: "Values are write-only: they can be set or replaced but never read back."
+                        - paragraph: No secrets set.
+                        - generic:
+                          - textbox:
+                            - /placeholder: NAME
+                          - textbox:
+                            - /placeholder: Enter a new value to replace
+                          - button: Set
+                - button: Add environment
+            - generic:
+              - button:
+                - text: Draft
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Ready
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: In progress
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Blocked
+                - generic: "1"
+              - generic: →
+              - button [pressed]:
+                - text: Needs review
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Approved
+                - generic: "0"
+                - generic: /3
+              - generic: →
+              - button:
+                - text: Changes requested
+                - generic: "1"
+              - generic: →
+              - button:
+                - text: Done
+                - generic: "4"
+            - generic:
+              - generic:
+                - generic:
+                  - button
+                  - button: "Quick-add: paste images (renamed inline)"
+                  - generic: 2/3
+                  - generic: P9
+                  - generic: 36h
+                  - button
+    - region "Notifications alt+T"
+  - alertdialog [ref=f2e290]:
+    - generic [ref=f2e291]:
+      - heading "Remove this environment?" [level=2] [ref=f2e292]
+      - paragraph [ref=f2e293]: Its configuration and secrets are deleted. The server itself is not touched.
+    - generic [ref=f2e294]:
+      - button "Cancel" [active] [ref=f2e295] [cursor=pointer]
+      - button "Remove environment" [ref=f2e296] [cursor=pointer]

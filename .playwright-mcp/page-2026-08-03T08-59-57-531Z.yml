@@ -1,0 +1,124 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /
+                    - generic:
+                      - generic: specbook
+                      - generic: Workspace
+            - generic:
+              - generic:
+                - generic: Management
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /
+                        - generic: Your move
+                    - listitem:
+                      - link:
+                        - /url: /projects
+                        - generic: Projects
+                    - listitem:
+                      - link:
+                        - /url: /settings
+                        - generic: Settings
+              - generic:
+                - generic: Developer
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /components
+                        - generic: Components
+                    - listitem:
+                      - link:
+                        - /url: /mobile
+                        - generic: Mobile
+              - generic:
+                - generic: Platform
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: /admin/orgs
+                        - generic: Organizations
+                    - listitem:
+                      - link:
+                        - /url: /admin/permissions
+                        - generic: Permissions
+                    - listitem:
+                      - link:
+                        - /url: /admin/api-keys
+                        - generic: API keys
+            - generic:
+              - list:
+                - listitem:
+                  - button:
+                    - generic: DA
+                    - generic:
+                      - generic: Dev Admin
+                      - generic: admin@valmonto.com
+      - generic:
+        - heading [level=2]: Navigation
+        - paragraph: Search or jump to…
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - generic: Toggle Sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link [disabled]: Projects
+          - generic:
+            - button:
+              - generic: Search or jump to…
+              - generic: ⌘K
+            - button:
+              - generic: Valmonto
+            - generic:
+              - button:
+                - generic: Notifications
+              - button:
+                - generic: Change language
+              - button:
+                - generic: Toggle theme
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=1]: Projects
+                  - paragraph: Each project is a repo plus its constitution — the context document agents read before working.
+              - generic:
+                - generic:
+                  - button: New project
+            - generic:
+              - link:
+                - /url: /projects/01990000-0000-7000-8000-000000000001
+                - generic:
+                  - generic:
+                    - generic:
+                      - paragraph: Pipeline Demo
+                      - button
+                    - paragraph:
+                      - generic: github.com/valmonto/specbook
+              - link:
+                - /url: /projects/019fbdcb-0a52-730e-a644-44a39ecdef3b
+                - generic:
+                  - generic:
+                    - generic:
+                      - paragraph: Stub Project
+                      - button [expanded]
+                    - paragraph:
+                      - generic: github.com/valmonto/specbook
+    - region "Notifications alt+T"
+  - menu "Archive project" [active] [ref=f52e164]:
+    - menuitem "Archive project" [ref=f52e165]
