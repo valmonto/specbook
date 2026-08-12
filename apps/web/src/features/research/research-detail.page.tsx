@@ -68,7 +68,7 @@ export default function ResearchDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="-m-6 grid h-[calc(100dvh-3.5rem)] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+      <div className="-m-6 grid h-[calc(100dvh-3.5rem)] grid-cols-1 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]">
         <div className="space-y-4 border-r border-border/60 p-6">
           <Skeleton className="h-8 w-40" />
           <Skeleton className="h-24 w-full" />
@@ -165,7 +165,7 @@ export default function ResearchDetailPage() {
         </TabsList>
       </Tabs>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]">
         <div className={view === 'document' ? 'hidden lg:flex lg:min-h-0' : 'flex min-h-0'}>
           <ResearchConversation
             research={conversationView}
