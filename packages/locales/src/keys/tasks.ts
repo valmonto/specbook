@@ -51,6 +51,13 @@ export const tasks = {
   taskContext: 'tasks.taskContext',
   taskContextHint: 'tasks.taskContextHint',
   outOfScope: 'tasks.outOfScope',
+  // Free-text feature/flow label + the board's group-by control.
+  area: 'tasks.area',
+  areaPlaceholder: 'tasks.areaPlaceholder',
+  noArea: 'tasks.noArea',
+  groupBy: 'tasks.groupBy',
+  groupByStatus: 'tasks.groupByStatus',
+  groupByArea: 'tasks.groupByArea',
   acceptanceCriteria: 'tasks.acceptanceCriteria',
   criterionPlaceholder: 'tasks.criterionPlaceholder',
   addCriterion: 'tasks.addCriterion',

@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { Archive, ArchiveRestore, ArrowLeft, GitMerge, Pause, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, GitMerge, Pause, Plus } from 'lucide-react';
 import { MERGE_DEBT_CAP, TASK_STATUSES, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectContextSection, ProjectHeader } from './components/v2/project-header';
-import { PipelineStrip } from './components/v2/pipeline-strip';
-import { ApprovedCard, BlockedCard, PlainCard, ReviewCard } from './components/v2/stage-cards';
+import { GroupByControl, PipelineStrip, type GroupBy } from './components/v2/pipeline-strip';
+import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import {
   useCreateTask,
   useMergeTask,
@@ -42,6 +43,63 @@ const EMPTY_KEYS: Partial<Record<TaskStatus, string>> = {
   done: k.tasks.v2.stageEmpty.done,
 };
 
+// Newest first: most recent stage/area entry on top (same idiom everywhere).
+const byRecency = (a: Task, b: Task) =>
+  new Date(b.statusChangedAt ?? b.createdAt).getTime() -
+  new Date(a.statusChangedAt ?? a.createdAt).getTime();
+
+/** The three-bucket rollup an area section header carries at a glance. */
+interface Rollup {
+  done: number;
+  inProgress: number;
+  draft: number;
+}
+const rollupOf = (tasks: Task[]): Rollup => {
+  const roll: Rollup = { done: 0, inProgress: 0, draft: 0 };
+  for (const task of tasks) {
+    if (task.status === 'done') roll.done += 1;
+    else if (task.status === 'draft') roll.draft += 1;
+    else if (task.status !== 'cancelled') roll.inProgress += 1;
+  }
+  return roll;
+};
+
+/** A tiny status rollup bar + counts for a feature section header. */
+function RollupBar({ roll }: { roll: Rollup }) {
+  const { t } = useTranslation();
+  const segments = [
+    { n: roll.done, cls: 'bg-emerald-500', label: t(k.tasks.status.done) },
+    { n: roll.inProgress, cls: 'bg-indigo-500', label: t(k.tasks.status.in_progress) },
+    { n: roll.draft, cls: 'bg-muted-foreground/40', label: t(k.tasks.status.draft) },
+  ];
+  const denom = roll.done + roll.inProgress + roll.draft || 1;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-muted sm:flex">
+        {segments.map(
+          (s) =>
+            s.n > 0 && (
+              <span
+                key={s.label}
+                className={cn('h-full', s.cls)}
+                style={{ width: `${(s.n / denom) * 100}%` }}
+                title={`${s.label}: ${s.n}`}
+              />
+            ),
+        )}
+      </div>
+      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+        {segments.map((s) => (
+          <span key={s.label} className="inline-flex items-center gap-0.5" title={s.label}>
+            <span className={cn('size-1.5 rounded-full', s.cls)} />
+            {s.n}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 export default function ProjectDetailV2Page() {
   const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
@@ -61,15 +119,39 @@ export default function ProjectDetailV2Page() {
     stageParam && (TASK_STATUSES as readonly string[]).includes(stageParam)
       ? (stageParam as TaskStatus)
       : null;
+  // The grouping axis lives in the URL too (?group=area): Status is the
+  // default (no param), Area regroups the same list under feature sections.
+  const groupBy: GroupBy = searchParams.get('group') === 'area' ? 'area' : 'status';
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // The just-created draft: its row mounts with the title already in edit mode.
   const [freshId, setFreshId] = useState<string | null>(null);
+  // Collapsed feature sections (Area mode) — keyed by area label; '' = No area.
+  const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
 
   const setStage = (next: TaskStatus) => {
     setSearchParams({ stage: next }, { replace: true });
     setExpandedId(null);
   };
+  const setGroup = (next: GroupBy) => {
+    setExpandedId(null);
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next === 'area') params.set('group', 'area');
+        else params.delete('group');
+        return params;
+      },
+      { replace: true },
+    );
+  };
+  const toggleArea = (key: string) =>
+    setCollapsedAreas((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
 
   // Creation IS editing: make the draft immediately, land on it expanded with
@@ -93,13 +175,26 @@ export default function ProjectDetailV2Page() {
 
   const selected = stage ?? smartDefault(counts);
   // Newest first: most recent stage entry on top (done = latest merged first).
-  const stageTasks = tasks
-    .filter((task) => task.status === selected)
-    .sort(
-      (a, b) =>
-        new Date(b.statusChangedAt ?? b.createdAt).getTime() -
-        new Date(a.statusChangedAt ?? a.createdAt).getTime(),
-    );
+  const stageTasks = tasks.filter((task) => task.status === selected).sort(byRecency);
+
+  // Area mode: the SAME list, grouped under one section per area. Named areas
+  // first (busiest first, then alphabetical); the untagged "No area" group
+  // always sits last. Rows within a section keep the newest-first order.
+  const areaGroups = useMemo(() => {
+    const byArea = new Map<string, Task[]>();
+    for (const task of tasks) {
+      const key = task.area?.trim() ?? '';
+      const list = byArea.get(key) ?? [];
+      list.push(task);
+      byArea.set(key, list);
+    }
+    for (const list of byArea.values()) list.sort(byRecency);
+    const named = [...byArea.entries()]
+      .filter(([key]) => key !== '')
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    const untagged = byArea.get('');
+    return untagged ? [...named, ['', untagged] as const] : named;
+  }, [tasks]);
   const approvedCount = counts.approved ?? 0;
   const mergeCandidates = tasks.filter(
     (task) => task.status === 'approved' && task.ciState !== 'failing',
@@ -127,8 +222,7 @@ export default function ProjectDetailV2Page() {
     );
   }
 
-  const Card =
-    selected === 'needs_review' ? ReviewCard : selected === 'approved' ? ApprovedCard : selected === 'blocked' ? BlockedCard : PlainCard;
+  const Card = cardFor(selected);
 
   const readOnly = Boolean(project.archivedAt);
 
@@ -183,7 +277,17 @@ export default function ProjectDetailV2Page() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <>
-          <PipelineStrip counts={counts} selected={selected} onSelect={setStage} />
+          {/* Stage strip (Status mode) and the Group by: Status | Area
+              control sit on one row; in Area mode the strip gives way to the
+              feature sections below. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            {groupBy === 'status' ? (
+              <PipelineStrip counts={counts} selected={selected} onSelect={setStage} />
+            ) : (
+              <span />
+            )}
+            <GroupByControl value={groupBy} onChange={setGroup} />
+          </div>
 
           {/* The merge-debt gate, visible where it jams. */}
           {!readOnly && approvedCount >= MERGE_DEBT_CAP && (
@@ -204,7 +308,68 @@ export default function ProjectDetailV2Page() {
             </div>
           )}
 
-          {stageTasks.length === 0 ? (
+          {groupBy === 'area' ? (
+            // Area mode: one collapsible section per feature, each with its
+            // status rollup; rows wear their area as a chip.
+            <ShowAreaChipContext.Provider value={true}>
+              {areaGroups.length === 0 ? (
+                <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                  {t(k.tasks.v2.stageEmpty.generic)}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {areaGroups.map(([key, groupTasks]) => {
+                    const collapsed = collapsedAreas.has(key);
+                    return (
+                      <div
+                        key={key || '__no_area__'}
+                        className="overflow-hidden rounded-xl border bg-card shadow-xs"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleArea(key)}
+                          aria-expanded={!collapsed}
+                          className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <ChevronRight
+                            className={cn(
+                              'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
+                              !collapsed && 'rotate-90',
+                            )}
+                          />
+                          <span className="truncate text-sm font-medium">
+                            {key || t(k.tasks.noArea)}
+                          </span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {groupTasks.length}
+                          </span>
+                          <span className="ml-auto shrink-0">
+                            <RollupBar roll={rollupOf(groupTasks)} />
+                          </span>
+                        </button>
+                        {!collapsed && (
+                          <div className="divide-y border-t">
+                            {groupTasks.map((task: Task) => {
+                              const RowCard = cardFor(task.status);
+                              return (
+                                <RowCard
+                                  key={task.id}
+                                  task={task}
+                                  expanded={expandedId === task.id}
+                                  freshlyCreated={freshId === task.id}
+                                  onToggle={toggleExpanded}
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ShowAreaChipContext.Provider>
+          ) : stageTasks.length === 0 ? (
             <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
               {t(EMPTY_KEYS[selected] ?? k.tasks.v2.stageEmpty.generic)}
             </p>

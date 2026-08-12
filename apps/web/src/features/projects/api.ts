@@ -36,6 +36,8 @@ import type {
   GetTaskByIdResponse,
   GetTaskPrRequest,
   GetTaskPrResponse,
+  ListTaskAreasRequest,
+  ListTaskAreasResponse,
   MergeTaskRequest,
   MergeTaskResponse,
   ListProjectsRequest,
@@ -94,6 +96,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.post('/api/tasks', dto),
   listTasks: (dto: ListTasksRequest): Promise<ListTasksResponse> =>
     client.get('/api/tasks', { params: dto }),
+  listTaskAreas: (dto: ListTaskAreasRequest): Promise<ListTaskAreasResponse> =>
+    client.get('/api/tasks/areas', { params: dto }),
   getTask: (dto: GetTaskByIdRequest): Promise<GetTaskByIdResponse> =>
     client.get(`/api/tasks/${dto.id}`),
   updateTask: (dto: UpdateTaskRequest): Promise<UpdateTaskResponse> =>

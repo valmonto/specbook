@@ -11,6 +11,7 @@ import type {
   GetTaskByIdResponse,
   GetTaskPrResponse,
   ListProjectsResponse,
+  ListTaskAreasResponse,
   ListTasksRequest,
   ListTasksResponse,
   UpdateProjectRequest,
@@ -84,6 +85,19 @@ export function useProjectTasks(projectId: string | null) {
   return useCachedRequest<ListTasksResponse>({
     key: canList && projectId ? taskListKey(user?.orgId, params) : null,
     fetcher: () => projectsApi.listTasks(params),
+  });
+}
+
+/** Distinct area labels for a project — the edit form's area autocomplete. */
+export function useProjectAreas(projectId: string | null) {
+  const { user } = useAuth();
+  const canList = useCan('task:read');
+  return useCachedRequest<ListTaskAreasResponse>({
+    key:
+      canList && projectId && prefix(user?.orgId)
+        ? `${prefix(user?.orgId)}/tasks/areas?${projectId}`
+        : null,
+    fetcher: () => projectsApi.listTaskAreas({ projectId: projectId! }),
   });
 }
 

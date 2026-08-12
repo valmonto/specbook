@@ -8,6 +8,7 @@ import {
   DeleteTaskRequestSchema,
   GetTaskByIdRequestSchema,
   GetTaskPrRequestSchema,
+  ListTaskAreasRequestSchema,
   ListTasksRequestSchema,
   MergeTaskRequestSchema,
   RemoveTaskDependencyRequestSchema,
@@ -28,6 +29,8 @@ import {
   type GetTaskByIdResponse,
   type GetTaskPrRequest,
   type GetTaskPrResponse,
+  type ListTaskAreasRequest,
+  type ListTaskAreasResponse,
   type ListTasksRequest,
   type ListTasksResponse,
   type MergeTaskRequest,
@@ -66,6 +69,18 @@ export class TaskController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<CreateTaskResponse> {
     return this.taskService.create(activeUser, dto);
+  }
+
+  // Static route before ':id' — Nest matches top-down. Distinct area labels
+  // for one project, powering the edit form's autocomplete and the board's
+  // group-by-area view.
+  @Get('areas')
+  @Permissions('task:read')
+  async listAreas(
+    @ZodRequest(ListTaskAreasRequestSchema) dto: ListTaskAreasRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ListTaskAreasResponse> {
+    return this.taskService.listAreas(activeUser, dto.projectId);
   }
 
   @Get(':id')

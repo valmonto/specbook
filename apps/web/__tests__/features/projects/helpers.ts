@@ -9,6 +9,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     title: 'Fixture task',
     context: 'Some context',
     outOfScope: null,
+    area: null,
     acceptanceCriteria: [],
     status: 'draft',
     priority: 0,

@@ -6,10 +6,18 @@ import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUpdateTask } from '../hooks/use-projects';
+import { useProjectAreas, useUpdateTask } from '../hooks/use-projects';
 
 interface Props {
   task: GetTaskByIdResponse;
@@ -28,6 +36,10 @@ export function TaskEditForm({ task, onClose }: Props) {
   const [title, setTitle] = useState(task.title);
   const [context, setContext] = useState(task.context ?? '');
   const [outOfScope, setOutOfScope] = useState(task.outOfScope ?? '');
+  const [area, setArea] = useState(task.area ?? '');
+  // Suggestions only — the field stays free text (type anything, or pick one).
+  const { data: areaData } = useProjectAreas(task.projectId);
+  const areaSuggestions = areaData?.areas ?? [];
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>(
     task.acceptanceCriteria.length > 0 ? task.acceptanceCriteria : [{ text: '', done: false }],
   );
@@ -63,6 +75,7 @@ export function TaskEditForm({ task, onClose }: Props) {
       title: title.trim(),
       context: context.trim() || null,
       outOfScope: outOfScope.trim() || null,
+      area: area.trim() || null,
       acceptanceCriteria: criteria
         .map((c) => ({ ...c, text: c.text.trim() }))
         .filter((c) => c.text.length > 0),
@@ -95,6 +108,33 @@ export function TaskEditForm({ task, onClose }: Props) {
           onChange={(e) => setOutOfScope(e.target.value)}
           rows={2}
         />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="edit-area">{t(k.tasks.area)}</Label>
+        {/* Free-text combobox: type any label, or pick one already used on
+            this project. Suggestions come from the distinct-areas read. */}
+        <Combobox
+          items={areaSuggestions}
+          inputValue={area}
+          onInputValueChange={(value) => setArea(value)}
+        >
+          <ComboboxInput
+            id="edit-area"
+            placeholder={t(k.tasks.areaPlaceholder)}
+            className="w-full sm:w-72"
+            showClear
+          />
+          <ComboboxContent>
+            <ComboboxEmpty>{t(k.tasks.noArea)}</ComboboxEmpty>
+            <ComboboxList>
+              {(item: string) => (
+                <ComboboxItem key={item} value={item}>
+                  {item}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       </div>
       <div className="grid gap-2">
         <Label>{t(k.tasks.acceptanceCriteria)}</Label>
