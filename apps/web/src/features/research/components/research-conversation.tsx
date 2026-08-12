@@ -90,15 +90,16 @@ export function ResearchConversation({
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col border-r border-border/60">
-      <header className="flex items-center gap-3 border-b border-border/60 px-4 py-2.5">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-4">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          aria-label={t(k.research.detail.back)}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" />
-          {t(k.research.detail.back)}
+          <ArrowLeft className="size-4" />
         </button>
+        <span className="min-w-0 truncate text-sm font-medium">{research.title}</span>
       </header>
 
       <div ref={streamRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">

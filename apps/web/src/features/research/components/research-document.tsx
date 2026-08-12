@@ -49,7 +49,7 @@ export function ResearchDocument({
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col bg-muted/30">
-      <header className="flex items-center gap-2 border-b border-border/60 px-4 py-2.5">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-4">
         <span className="text-[11px] font-semibold tracking-[0.07em] text-muted-foreground uppercase">
           {t(k.research.document.label)}
         </span>
