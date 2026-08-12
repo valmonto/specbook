@@ -87,7 +87,7 @@ export function ResearchDocument({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mx-auto mb-4 flex max-w-[68ch] flex-wrap items-center gap-2">
           <ResearchStatusPill status={research.status} />
           <span className="text-muted-foreground">·</span>
           {canUpdate ? (
@@ -120,7 +120,7 @@ export function ResearchDocument({
         </div>
 
         {hasDoc ? (
-          <article className="max-w-[62ch]">
+          <article className="mx-auto max-w-[68ch]">
             <Markdown>{research.bodyMarkdown!}</Markdown>
           </article>
         ) : (
