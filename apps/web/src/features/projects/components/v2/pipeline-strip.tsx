@@ -29,6 +29,50 @@ const ORDER: TaskStatus[] = [
 ];
 const GATES: TaskStatus[] = ['blocked', 'needs_review', 'approved'];
 
+export type GroupBy = 'status' | 'area';
+
+/**
+ * The segmented Status | Area control that sits by the pipeline strip. Status
+ * keeps the stage-filtered list (today's default); Area regroups the SAME
+ * list under collapsible feature sections. Persisted in the URL (?group=area).
+ */
+export function GroupByControl({
+  value,
+  onChange,
+}: {
+  value: GroupBy;
+  onChange: (group: GroupBy) => void;
+}) {
+  const { t } = useTranslation();
+  const options: Array<{ key: GroupBy; label: string }> = [
+    { key: 'status', label: t(k.tasks.groupByStatus) },
+    { key: 'area', label: t(k.tasks.groupByArea) },
+  ];
+  return (
+    <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+      <span>{t(k.tasks.groupBy)}</span>
+      <div className="inline-flex rounded-full border p-0.5">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            aria-pressed={value === o.key}
+            className={cn(
+              'rounded-full px-2.5 py-1 text-[13px] whitespace-nowrap transition-colors',
+              value === o.key
+                ? 'bg-primary/10 text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   counts: Partial<Record<TaskStatus, number>>;
   selected: TaskStatus;

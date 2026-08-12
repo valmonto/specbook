@@ -19,6 +19,7 @@ import {
   type CreateTaskResponse,
   type GetTaskByIdResponse,
   type GetTaskPrRequest,
+  type ListTaskAreasResponse,
   type GetTaskPrResponse,
   type MergeTaskRequest,
   type MergeTaskResponse,
@@ -77,6 +78,7 @@ export class TaskService {
       title: dto.title,
       context: dto.context,
       outOfScope: dto.outOfScope,
+      area: dto.area,
       acceptanceCriteria: (dto.acceptanceCriteria ?? []).map((text) => ({ text, done: false })),
       priority: dto.priority ?? 0,
       isHumanTask: dto.isHumanTask ?? false,
@@ -101,6 +103,20 @@ export class TaskService {
       data: data.map((t) => this.serialize(t)),
       meta: { total, skip: dto.skip, limit: dto.limit },
     };
+  }
+
+  /**
+   * The distinct area labels used on a project's tasks — the form's
+   * autocomplete source. Requires the project to exist inside the tenant;
+   * the repository read is org-scoped either way.
+   */
+  async listAreas(activeUser: ActiveUser, projectId: string): Promise<ListTaskAreasResponse> {
+    const owner = await this.projectRepository.findById(projectId, activeUser.orgId);
+    if (!owner) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    const areas = await this.taskRepository.distinctAreas(activeUser.orgId, projectId);
+    return { areas };
   }
 
   async getById(activeUser: ActiveUser, id: string): Promise<GetTaskByIdResponse> {

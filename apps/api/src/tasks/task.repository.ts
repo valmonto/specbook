@@ -16,6 +16,7 @@ import {
   sql,
   inArray,
   isNull,
+  isNotNull,
   type NewTask,
   type NewTaskComment,
   type Task,
@@ -208,6 +209,22 @@ export class TaskRepository {
       data: rows.map((r) => ({ ...r.task, sourceResearchTitle: r.sourceResearchTitle })),
       total: totalResult[0]?.count ?? 0,
     };
+  }
+
+  /**
+   * The distinct non-null `area` labels used within one project, most-used
+   * first — the form's autocomplete source. Org-scoped: the project is joined
+   * on the owning org, so a foreign project id yields nothing.
+   */
+  async distinctAreas(orgId: string, projectId: string): Promise<string[]> {
+    const rows = await this.dbClient.db
+      .select({ area: task.area, n: count() })
+      .from(task)
+      .innerJoin(project, eq(task.projectId, project.id))
+      .where(and(eq(project.orgId, orgId), eq(task.projectId, projectId), isNotNull(task.area)))
+      .groupBy(task.area)
+      .orderBy(desc(count()), asc(task.area));
+    return rows.map((r) => r.area!).filter((a): a is string => a !== null);
   }
 
   async findById(id: string, orgId: string): Promise<TaskWithSource | null> {

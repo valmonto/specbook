@@ -43,6 +43,10 @@ export const task = pgTable(
     title: varchar('title', { length: 500 }).notNull(),
     context: text('context'),
     outOfScope: text('out_of_scope'),
+    // One free-text label for the feature/flow this task belongs to
+    // ("Onboarding", "Login"). Not an entity — a lean grouping tag the board
+    // groups by. Free text, so no pgEnum/CHECK; null = untagged ("No area").
+    area: varchar('area', { length: 120 }),
     acceptanceCriteria: jsonb('acceptance_criteria')
       .$type<AcceptanceCriterion[]>()
       .notNull()
@@ -97,6 +101,8 @@ export const task = pgTable(
     index('task_project_id_idx').on(table.projectId),
     // The queue query: ready tasks by priority within a project.
     index('task_project_status_idx').on(table.projectId, table.status, table.priority),
+    // The board's group-by-area read: distinct areas within a project.
+    index('task_project_area_idx').on(table.projectId, table.area),
     check(
       'task_status_check',
       sql.raw(`status IN (${TASK_STATUSES.map((v) => `'${v}'`).join(', ')})`),

@@ -43,6 +43,8 @@ export const TaskSchema = z.object({
   title: z.string(),
   context: z.string().nullable(),
   outOfScope: z.string().nullable(),
+  /** One free-text feature/flow label the board can group by; null = untagged. */
+  area: z.string().max(120).nullable(),
   acceptanceCriteria: z.array(AcceptanceCriterionSchema),
   status: TaskStatusSchema,
   priority: z.number().int(),
@@ -110,6 +112,7 @@ export const CreateTaskRequestSchema = z
     title: z.string().min(1).max(500),
     context: z.string().max(100_000).optional(),
     outOfScope: z.string().max(10_000).optional(),
+    area: z.string().max(120).optional(),
     acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(50).optional(),
     priority: z.number().int().min(0).max(1000).optional(),
     isHumanTask: z.boolean().optional(),
@@ -128,6 +131,7 @@ export const UpdateTaskRequestSchema = z
     title: z.string().min(1).max(500).optional(),
     context: z.string().max(100_000).nullable().optional(),
     outOfScope: z.string().max(10_000).nullable().optional(),
+    area: z.string().max(120).nullable().optional(),
     // Full replacement, preserving done flags — the checklist is small.
     acceptanceCriteria: z.array(AcceptanceCriterionSchema).max(50).optional(),
     priority: z.number().int().min(0).max(1000).optional(),
@@ -173,6 +177,19 @@ export const ListTasksResponseSchema = PaginatedResponseSchema(TaskSchema);
 
 export type ListTasksRequest = z.infer<typeof ListTasksRequestSchema>;
 export type ListTasksResponse = z.infer<typeof ListTasksResponseSchema>;
+
+// --- List distinct areas for a project (autocomplete + board grouping) ---
+// Just task data under task:read — the distinct non-null `area` values used
+// for one project, most-used first, so the form combobox suggests them.
+export const ListTaskAreasRequestSchema = z
+  .object({ projectId: z.string().uuid() })
+  .strict();
+export const ListTaskAreasResponseSchema = z.object({
+  areas: z.array(z.string()),
+});
+
+export type ListTaskAreasRequest = z.infer<typeof ListTaskAreasRequestSchema>;
+export type ListTaskAreasResponse = z.infer<typeof ListTaskAreasResponseSchema>;
 
 // --- Get Task by ID (full detail: spec + comments + dependency state) ---
 export const GetTaskByIdRequestSchema = z.object({ id: z.string().uuid() }).strict();

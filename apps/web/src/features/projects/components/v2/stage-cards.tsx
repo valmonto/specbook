@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -18,12 +18,13 @@ import {
   Plus,
   RotateCcw,
   SendHorizontal,
+  Tag,
   Undo2,
   User,
   UserRound,
   X,
 } from 'lucide-react';
-import type { AcceptanceCriterion, Task } from '@pkg/contracts';
+import type { AcceptanceCriterion, Task, TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -128,6 +129,35 @@ function FromResearchChip({ task }: { task: Task }) {
       <span className="max-w-[10rem] truncate">{task.sourceResearchTitle}</span>
     </Link>
   );
+}
+
+/**
+ * When the board groups by area, each row wears its area as a quiet chip
+ * (the group header already names it, but the chip keeps the label with the
+ * row as it scrolls). Off by default so Status mode renders exactly as before.
+ */
+export const ShowAreaChipContext = createContext(false);
+
+function AreaChip({ task }: { task: Task }) {
+  const show = useContext(ShowAreaChipContext);
+  if (!show || !task.area) return null;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-muted-foreground">
+      <Tag className="size-3 shrink-0" />
+      <span className="max-w-[10rem] truncate">{task.area}</span>
+    </span>
+  );
+}
+
+/** The stage-specific card component for a task's status (mixed in Area mode). */
+export function cardFor(status: TaskStatus): (props: CardProps) => React.JSX.Element {
+  return status === 'needs_review'
+    ? ReviewCard
+    : status === 'approved'
+      ? ApprovedCard
+      : status === 'blocked'
+        ? BlockedCard
+        : PlainCard;
 }
 
 /** CI as a bare dot — the words live in the tooltip. */
@@ -318,6 +348,7 @@ function CardShell({
             {t(k.tasks.humanTask)}
           </span>
         )}
+        <AreaChip task={task} />
         <FromResearchChip task={task} />
         <PrChip task={task} />
         <CiDot task={task} />
