@@ -180,6 +180,29 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
     expect(byQuery.data).toHaveLength(2);
   });
 
+  it('filters by status (and no filter returns every status), org-scoped', async () => {
+    await client.db.insert(research).values([
+      { orgId: orgA, title: 'in-queue', status: 'researching', createdBy: ownerA },
+      { orgId: orgA, title: 'in-review', status: 'needs_review', createdBy: ownerA },
+      { orgId: orgA, title: 'done', status: 'accepted', createdBy: ownerA },
+      { orgId: orgB, title: 'other-org-review', status: 'needs_review', createdBy: ownerB },
+    ]);
+
+    // No status filter → the org's docs across every status.
+    const all = await repo.list(orgA, { limit: 20 });
+    expect(all.data.map((r) => r.title).sort()).toEqual(['done', 'in-queue', 'in-review']);
+
+    // A specific status → only that subset.
+    const review = await repo.list(orgA, { limit: 20, status: 'needs_review' });
+    expect(review.data.map((r) => r.title)).toEqual(['in-review']);
+
+    // Org-scoped: org B's needs_review doc is invisible to org A's status query.
+    expect(review.data.some((r) => r.title === 'other-org-review')).toBe(false);
+    expect((await repo.list(orgB, { limit: 20, status: 'needs_review' })).data.map((r) => r.title)).toEqual([
+      'other-org-review',
+    ]);
+  });
+
   it('cutTickets creates DRAFT tasks with lineage AND area, defaulting the target to the research project', async () => {
     const doc = await seed(orgA, ownerA, 'cuttable', projectA);
     const { taskIds } = await service.cutTickets(actorA(), {

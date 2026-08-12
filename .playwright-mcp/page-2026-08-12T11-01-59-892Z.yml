@@ -1,0 +1,154 @@
+- generic [ref=f10e2]:
+  - generic [ref=f10e23]:
+    - generic [ref=f10e26]:
+      - list [ref=f10e28]:
+        - listitem [ref=f10e29]:
+          - link "specbook Workspace" [ref=f10e30] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f10e34]:
+              - generic [ref=f10e35]: specbook
+              - generic [ref=f10e36]: Workspace
+      - generic [ref=f10e37]:
+        - generic [ref=f10e38]:
+          - generic [ref=f10e39]: Management
+          - list [ref=f10e41]:
+            - listitem [ref=f10e42]:
+              - link "Your move" [ref=f10e43] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f10e48]:
+              - link "Projects" [ref=f10e49] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f10e53]:
+              - link "Research" [ref=f10e54] [cursor=pointer]:
+                - /url: /research
+            - listitem [ref=f10e64]:
+              - link "Settings" [ref=f10e65] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f10e70]:
+          - generic [ref=f10e71]: Developer
+          - list [ref=f10e73]:
+            - listitem [ref=f10e74]:
+              - link "Components" [ref=f10e75] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f10e80]:
+              - link "Mobile" [ref=f10e81] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f10e85]:
+          - generic [ref=f10e86]: Platform
+          - list [ref=f10e88]:
+            - listitem [ref=f10e89]:
+              - link "Organizations" [ref=f10e90] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f10e96]:
+              - link "Permissions" [ref=f10e97] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f10e102]:
+              - link "API keys" [ref=f10e103] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f10e109]:
+        - listitem [ref=f10e110]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f10e111] [cursor=pointer]:
+            - generic [ref=f10e112]: DA
+            - generic [ref=f10e114]:
+              - generic [ref=f10e115]: Dev Admin
+              - generic [ref=f10e116]: admin@valmonto.com
+    - generic [ref=f10e120]:
+      - heading "Navigation" [level=2] [ref=f10e121]
+      - paragraph [ref=f10e122]: Search or jump to…
+    - main [ref=f10e123]:
+      - generic [ref=f10e124]:
+        - generic [ref=f10e125]:
+          - button "Toggle Sidebar" [ref=f10e126] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f10e128]:
+            - list [ref=f10e129]:
+              - listitem [ref=f10e130]:
+                - link "Your move" [disabled] [ref=f10e131]
+        - generic [ref=f10e132]:
+          - button "Search or jump to… ⌘K" [ref=f10e133] [cursor=pointer]:
+            - generic [ref=f10e137]: Search or jump to…
+            - generic [ref=f10e138]: ⌘K
+          - button "Valmonto" [ref=f10e139] [cursor=pointer]
+          - generic [ref=f10e142]:
+            - button "Notifications" [ref=f10e143] [cursor=pointer]
+            - generic [ref=f10e145]:
+              - button "Change language" [ref=f10e146] [cursor=pointer]
+              - button "Toggle theme" [ref=f10e148] [cursor=pointer]
+      - main [ref=f10e150]:
+        - generic [ref=f10e151]:
+          - generic [ref=f10e158]:
+            - heading "Your move" [level=1] [ref=f10e159]
+            - paragraph [ref=f10e160]: Everything waiting on you — answers, reviews, and a queue that needs feeding.
+          - generic [ref=f10e161]:
+            - button "Blocked Pipeline Demo waiting 10d Which staging domain scheme should previews use?" [ref=f10e162] [cursor=pointer]:
+              - generic [ref=f10e163]:
+                - generic [ref=f10e164]: Blocked
+                - generic [ref=f10e165]: Pipeline Demo
+                - generic [ref=f10e166]: waiting 10d
+              - paragraph [ref=f10e167]: Which staging domain scheme should previews use?
+            - button "Blocked Pipeline Demo waiting 6d Board keyboard navigation" [ref=f10e168] [cursor=pointer]:
+              - generic [ref=f10e169]:
+                - generic [ref=f10e170]: Blocked
+                - generic [ref=f10e171]: Pipeline Demo
+                - generic [ref=f10e172]: waiting 6d
+              - paragraph [ref=f10e173]: Board keyboard navigation
+            - 'button "Blocked Pipeline Demo waiting 6d Managed-agent hello: add one comment and block for review" [ref=f10e174] [cursor=pointer]':
+              - generic [ref=f10e175]:
+                - generic [ref=f10e176]: Blocked
+                - generic [ref=f10e177]: Pipeline Demo
+                - generic [ref=f10e178]: waiting 6d
+              - paragraph [ref=f10e179]: "Managed-agent hello: add one comment and block for review"
+            - 'button "Blocked Pipeline Demo waiting 6d Presence demo: agent visibly working" [ref=f10e180] [cursor=pointer]':
+              - generic [ref=f10e181]:
+                - generic [ref=f10e182]: Blocked
+                - generic [ref=f10e183]: Pipeline Demo
+                - generic [ref=f10e184]: waiting 6d
+              - paragraph [ref=f10e185]: "Presence demo: agent visibly working"
+            - 'button "Needs review PR open CI failing Pipeline Demo waiting 5d Quick-add: paste images (renamed inline) awaiting your review" [ref=f10e186] [cursor=pointer]':
+              - generic [ref=f10e187]:
+                - generic [ref=f10e188]: Needs review
+                - generic [ref=f10e189]: PR open
+                - generic "CI failing" [ref=f10e194]
+                - generic [ref=f10e196]: Pipeline Demo
+                - generic [ref=f10e197]: waiting 5d
+              - paragraph [ref=f10e198]: "Quick-add: paste images (renamed inline)"
+              - paragraph [ref=f10e199]: awaiting your review
+          - generic [ref=f10e200]:
+            - heading "In flight" [level=2] [ref=f10e201]
+            - generic [ref=f10e205]:
+              - 'button "MCP: expose merge-queue state to runners Pipeline Demo" [ref=f10e206] [cursor=pointer]':
+                - generic [ref=f10e207]: "MCP: expose merge-queue state to runners"
+                - generic [ref=f10e208]: Pipeline Demo
+              - generic [ref=f10e209]: claimed
+          - generic [ref=f10e210]:
+            - heading [level=2] [ref=f10e211]:
+              - text: Agents
+              - button "New managed agent" [ref=f10e218] [cursor=pointer]
+            - generic [ref=f10e219]:
+              - generic [ref=f10e220]:
+                - generic "auth needed" [ref=f10e221]:
+                  - generic [ref=f10e223]: auth-demo
+                  - generic [ref=f10e225]: never seen
+                  - button "Show log" [ref=f10e226] [cursor=pointer]
+                  - button "Start" [ref=f10e227] [cursor=pointer]
+                - paragraph [ref=f10e228]:
+                  - generic [ref=f10e229]: "SSH into the server and run: claude setup-token — then Start again"
+                  - button "Copy" [ref=f10e230] [cursor=pointer]
+              - generic "offline" [ref=f10e235]:
+                - generic [ref=f10e237]: presence-verifier
+                - generic [ref=f10e239]: seen 6d ago
+              - generic "stopped" [ref=f10e241]:
+                - generic [ref=f10e243]: runner-fresh
+                - generic [ref=f10e245]: seen 6d ago
+                - button "Show log" [ref=f10e246] [cursor=pointer]
+                - button "Start" [ref=f10e247] [cursor=pointer]
+              - generic "error" [ref=f10e249]:
+                - generic [ref=f10e251]: runner-local
+                - generic [ref=f10e253]: seen 6d ago
+                - button "Show log" [ref=f10e254] [cursor=pointer]
+                - button "Start" [ref=f10e255] [cursor=pointer]
+          - generic [ref=f10e256]:
+            - generic [ref=f10e257]: Queue
+            - generic [ref=f10e258]: 0 ready for agents
+            - generic [ref=f10e259]: 1 drafts waiting on you
+            - generic [ref=f10e260]: Agents are idle — write specs
+  - region "Notifications alt+T"

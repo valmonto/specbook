@@ -316,16 +316,27 @@ export class McpTools {
         ...meta('list_research'),
         inputSchema: {
           projectId: z.string().uuid().optional(),
+          // Omitted = the `researching` turn-queue, so the ambient runner is
+          // unchanged. Pass a status to browse the fuller set; `all` drops the
+          // status filter entirely (every status).
+          status: z.enum(['researching', 'needs_review', 'accepted', 'all']).optional(),
           limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
           cursor: z.string().optional(),
         },
-        handler: async (args, actor) =>
-          this.researchService.list(actor!, {
-            status: 'researching',
+        handler: async (args, actor) => {
+          const requested = args.status as
+            | 'researching'
+            | 'needs_review'
+            | 'accepted'
+            | 'all'
+            | undefined;
+          return this.researchService.list(actor!, {
+            status: requested === 'all' ? undefined : (requested ?? 'researching'),
             projectId: optStr(args.projectId),
             limit: (args.limit as number | undefined) ?? 20,
             cursor: optStr(args.cursor),
-          }),
+          });
+        },
       },
       {
         ...meta('get_research'),

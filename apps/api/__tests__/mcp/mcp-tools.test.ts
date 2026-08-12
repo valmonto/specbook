@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
@@ -69,5 +69,52 @@ describe('McpTools — attachment tools', () => {
   it('confirm_attachment delegates by id', async () => {
     await byName('confirm_attachment').handler({ id: TASK }, actor);
     expect(attachments.confirm).toHaveBeenCalledWith(actor, { id: TASK });
+  });
+});
+
+/**
+ * list_research is the research turn-QUEUE by default (status `researching`),
+ * which the ambient runner depends on. An explicit status lets an assistant
+ * browse the fuller set; `all` drops the filter. The handler owns this mapping.
+ */
+describe('McpTools — list_research status filter', () => {
+  const research = {
+    list: vi.fn().mockResolvedValue({ data: [], meta: { nextCursor: null } }),
+  };
+  const tools = new McpTools(
+    {} as OrgService,
+    {} as ProjectService,
+    {} as TaskService,
+    research as unknown as ResearchService,
+    {} as AttachmentsService,
+    {} as GithubAppService,
+    {} as AgentService,
+    new FakeLogger().as<PinoLogger>(),
+  );
+  const listResearch = tools.catalog().find((tool) => tool.name === 'list_research')!;
+  beforeEach(() => research.list.mockClear());
+
+  it('defaults to the `researching` queue when status is omitted', async () => {
+    await listResearch.handler({}, actor);
+    expect(research.list).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({ status: 'researching' }),
+    );
+  });
+
+  it('passes a specific status straight through', async () => {
+    await listResearch.handler({ status: 'needs_review' }, actor);
+    expect(research.list).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({ status: 'needs_review' }),
+    );
+  });
+
+  it('`all` drops the status filter (every status), keeping projectId', async () => {
+    await listResearch.handler({ status: 'all', projectId: TASK }, actor);
+    expect(research.list).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({ status: undefined, projectId: TASK }),
+    );
   });
 });
