@@ -5,6 +5,14 @@ import type { CutTicketsRequest, GetResearchResponse, Project } from '@pkg/contr
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -22,11 +30,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { useResearchProjectAreas } from '../hooks/use-research';
 
-type Proposal = { key: string; title: string; context: string; selected: boolean };
+type Proposal = { key: string; title: string; context: string; area: string; selected: boolean };
 
 let seq = 0;
-const blank = (): Proposal => ({ key: `p${seq++}`, title: '', context: '', selected: true });
+const blank = (area = ''): Proposal => ({
+  key: `p${seq++}`,
+  title: '',
+  context: '',
+  area,
+  selected: true,
+});
 
 /**
  * The create-tickets picker: editable, selectable proposals whose target
@@ -52,10 +67,20 @@ export function CutTicketsSheet({
   const { t } = useTranslation();
   const [proposals, setProposals] = useState<Proposal[]>([blank()]);
   const [target, setTarget] = useState<string>(research.projectId ?? '');
+  // A research doc is usually one feature: this top-level area pre-fills new
+  // rows and can be pushed onto every row at once. Each row still overrides.
+  const [defaultArea, setDefaultArea] = useState('');
+
+  // Area suggestions come from the SELECTED target project's distinct areas —
+  // free text either way (type a new label, or pick an existing one).
+  const { data: areaData } = useResearchProjectAreas(target || null);
+  const areaSuggestions = areaData?.areas ?? [];
 
   const update = (key: string, patch: Partial<Proposal>) =>
     setProposals((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const remove = (key: string) => setProposals((rows) => rows.filter((r) => r.key !== key));
+  const applyAreaToAll = () =>
+    setProposals((rows) => rows.map((r) => ({ ...r, area: defaultArea })));
 
   const ready = useMemo(
     () => proposals.filter((p) => p.selected && p.title.trim() !== ''),
@@ -71,11 +96,13 @@ export function CutTicketsSheet({
       proposals: ready.map((p) => ({
         title: p.title.trim(),
         ...(p.context.trim() ? { context: p.context.trim() } : {}),
+        ...(p.area.trim() ? { area: p.area.trim() } : {}),
       })),
     });
     if (ok) {
       onOpenChange(false);
       setProposals([blank()]);
+      setDefaultArea('');
     }
   };
 
@@ -104,6 +131,48 @@ export function CutTicketsSheet({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {t(k.research.cut.area)}
+            </label>
+            <div className="flex items-center gap-2">
+              <Combobox
+                items={areaSuggestions}
+                inputValue={defaultArea}
+                onInputValueChange={setDefaultArea}
+              >
+                <ComboboxInput
+                  placeholder={t(k.research.cut.areaPlaceholder)}
+                  aria-label={t(k.research.cut.area)}
+                  className="h-8 min-w-0 flex-1"
+                  showClear
+                />
+                <ComboboxContent>
+                  <ComboboxEmpty>{t(k.research.cut.noArea)}</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item: string) => (
+                      <ComboboxItem key={item} value={item}>
+                        {item}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={defaultArea.trim() === ''}
+                onClick={applyAreaToAll}
+              >
+                {t(k.research.cut.applyAreaToAll)}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t(k.research.cut.applyAreaToAllHint)}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -147,6 +216,28 @@ export function CutTicketsSheet({
                       rows={2}
                       className="min-h-0 resize-none text-sm"
                     />
+                    <Combobox
+                      items={areaSuggestions}
+                      inputValue={p.area}
+                      onInputValueChange={(value) => update(p.key, { area: value })}
+                    >
+                      <ComboboxInput
+                        placeholder={t(k.research.cut.areaPlaceholder)}
+                        aria-label={t(k.research.cut.area)}
+                        className="h-8 w-full"
+                        showClear
+                      />
+                      <ComboboxContent>
+                        <ComboboxEmpty>{t(k.research.cut.noArea)}</ComboboxEmpty>
+                        <ComboboxList>
+                          {(item: string) => (
+                            <ComboboxItem key={item} value={item}>
+                              {item}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                     <p className="text-[11px] text-muted-foreground">
                       {t(k.research.cut.fromChip, { title: research.title })}
                     </p>
@@ -163,7 +254,7 @@ export function CutTicketsSheet({
                 </div>
               </div>
             ))}
-            <Button variant="outline" size="sm" className="w-full" onClick={() => setProposals((r) => [...r, blank()])}>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setProposals((r) => [...r, blank(defaultArea)])}>
               <Plus className="size-3.5" />
               {t(k.research.cut.add)}
             </Button>

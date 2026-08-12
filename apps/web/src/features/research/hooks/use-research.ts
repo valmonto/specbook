@@ -10,6 +10,7 @@ import type {
   GetResearchResponse,
   ListProjectsResponse,
   ListResearchResponse,
+  ListTaskAreasResponse,
   ReopenResearchRequest,
   Research,
   UpdateResearchRequest,
@@ -110,6 +111,24 @@ export function useProjectOptions() {
   return useCachedRequest<ListProjectsResponse>({
     key: canList && prefix(user?.orgId) ? `${prefix(user?.orgId)}?projects` : null,
     fetcher: () => researchApi.listProjects({ skip: 0, limit: 100 }),
+  });
+}
+
+/**
+ * Distinct area labels for the cut-tickets target project — the sheet's
+ * per-ticket area autocomplete. Keyed by the SELECTED project, so switching the
+ * target re-fetches its own areas; null project = no suggestions to offer.
+ * Gated by `task:read` (the read the endpoint lives under).
+ */
+export function useResearchProjectAreas(projectId: string | null) {
+  const { user } = useAuth();
+  const canRead = useCan('task:read');
+  return useCachedRequest<ListTaskAreasResponse>({
+    key:
+      canRead && projectId && prefix(user?.orgId)
+        ? `${prefix(user?.orgId)}/areas?${projectId}`
+        : null,
+    fetcher: () => researchApi.listTaskAreas({ projectId: projectId! }),
   });
 }
 

@@ -187,6 +187,10 @@ export const CutTicketsRequestSchema = z
         z.object({
           title: z.string().min(1).max(500),
           context: z.string().max(100_000).optional(),
+          // The feature/flow the cut ticket belongs to — lands it pre-grouped
+          // on the board (Group-by-Area). Human-set; a research doc is usually
+          // one feature, so the sheet pre-fills it. Same 120 cap as task.area.
+          area: z.string().max(120).optional(),
         }),
       )
       .min(1)

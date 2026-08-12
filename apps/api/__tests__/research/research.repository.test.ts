@@ -29,10 +29,11 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
 
   // cutTickets and appendMessage are service logic; a real service over real
   // repositories does the org scoping (the logger is an inert stub).
+  const taskRepo = new TaskRepository(client);
   const service = new ResearchService(
     repo,
     new ProjectRepository(client),
-    new TaskRepository(client),
+    taskRepo,
     { info: () => {}, warn: () => {}, error: () => {} } as never,
   );
 
@@ -179,25 +180,40 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
     expect(byQuery.data).toHaveLength(2);
   });
 
-  it('cutTickets creates DRAFT tasks with lineage, defaulting the target to the research project', async () => {
+  it('cutTickets creates DRAFT tasks with lineage AND area, defaulting the target to the research project', async () => {
     const doc = await seed(orgA, ownerA, 'cuttable', projectA);
     const { taskIds } = await service.cutTickets(actorA(), {
       id: doc.id,
-      proposals: [{ title: 'first ticket' }, { title: 'second ticket', context: 'why' }],
+      proposals: [
+        { title: 'first ticket', area: 'Onboarding' },
+        { title: 'second ticket', context: 'why', area: 'Onboarding' },
+        { title: 'no-area ticket' },
+      ],
     });
-    expect(taskIds).toHaveLength(2);
+    expect(taskIds).toHaveLength(3);
 
     const rows = await client.db.select().from(task).where(eq(task.sourceResearchId, doc.id));
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     for (const row of rows) {
       expect(row.status).toBe('draft');
       expect(row.projectId).toBe(projectA); // defaulted to the research's project
-      expect(row.sourceResearchId).toBe(doc.id);
+      expect(row.sourceResearchId).toBe(doc.id); // existing lineage
       expect(row.createdBy).toBe(ownerA);
     }
 
+    // The given area persists alongside the lineage; an unset area stays null.
+    const areaByTitle = Object.fromEntries(rows.map((r) => [r.title, r.area]));
+    expect(areaByTitle['first ticket']).toBe('Onboarding');
+    expect(areaByTitle['second ticket']).toBe('Onboarding');
+    expect(areaByTitle['no-area ticket']).toBeNull();
+
+    // The area landed within the same tenant: the project's distinct-areas
+    // read (org-scoped) surfaces it for org A, and nothing for org B.
+    expect(await taskRepo.distinctAreas(orgA, projectA)).toEqual(['Onboarding']);
+    expect(await taskRepo.distinctAreas(orgB, projectA)).toEqual([]);
+
     // The reverse lineage count is queryable and org-scoped.
-    expect(await repo.countTasksCut(doc.id, orgA)).toBe(2);
+    expect(await repo.countTasksCut(doc.id, orgA)).toBe(3);
     expect(await repo.countTasksCut(doc.id, orgB)).toBe(0);
   });
 

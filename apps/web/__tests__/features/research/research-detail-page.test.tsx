@@ -16,6 +16,7 @@ import { installRadixDomShims, makeAction } from '../projects/helpers';
 const hooks = vi.hoisted(() => ({
   useResearch: vi.fn(),
   useProjectOptions: vi.fn(),
+  useResearchProjectAreas: vi.fn(),
   useAppendMessage: vi.fn(),
   useAcceptResearch: vi.fn(),
   useReopenResearch: vi.fn(),
@@ -75,6 +76,7 @@ beforeAll(() => installRadixDomShims());
 beforeEach(() => {
   hooks.useResearch.mockReturnValue({ data: makeResearch(), isLoading: false });
   hooks.useProjectOptions.mockReturnValue({ data: { data: [{ id: 'p1', name: 'SpecBook' }] } });
+  hooks.useResearchProjectAreas.mockReturnValue({ data: { areas: ['Onboarding', 'Login'] } });
   hooks.useAppendMessage.mockReturnValue(makeAction());
   hooks.useAcceptResearch.mockReturnValue(makeAction());
   hooks.useReopenResearch.mockReturnValue(makeAction());
