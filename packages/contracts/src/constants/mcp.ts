@@ -149,7 +149,7 @@ export const MCP_TOOLS = [
     scope: 'research:agent',
     needsOrgContext: true,
     description:
-      'The research feed: documents whose status is `researching` — an agent turn is awaited. Pull from here, read the conversation (get_research), then reply with append_research_message.',
+      'Research documents in this org. Defaults to the `researching` turn-queue (an agent turn is awaited — pull, read via get_research, reply with append_research_message). Pass `status` (researching | needs_review | accepted | all) and optional projectId to browse the fuller set.',
   },
   {
     name: 'get_research',

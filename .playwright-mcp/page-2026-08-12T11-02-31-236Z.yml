@@ -1,0 +1,257 @@
+- generic [ref=f11e2]:
+  - generic [ref=f11e3]:
+    - generic [ref=f11e6]:
+      - list [ref=f11e8]:
+        - listitem [ref=f11e9]:
+          - link "specbook Workspace" [ref=f11e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f11e14]:
+              - generic [ref=f11e15]: specbook
+              - generic [ref=f11e16]: Workspace
+      - generic [ref=f11e17]:
+        - generic [ref=f11e18]:
+          - generic [ref=f11e19]: Management
+          - list [ref=f11e21]:
+            - listitem [ref=f11e22]:
+              - link "Your move" [ref=f11e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f11e28]:
+              - link "Projects" [ref=f11e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f11e33]:
+              - link "Research" [ref=f11e34] [cursor=pointer]:
+                - /url: /research
+            - listitem [ref=f11e44]:
+              - link "Settings" [ref=f11e45] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f11e50]:
+          - generic [ref=f11e51]: Developer
+          - list [ref=f11e53]:
+            - listitem [ref=f11e54]:
+              - link "Components" [ref=f11e55] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f11e60]:
+              - link "Mobile" [ref=f11e61] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f11e65]:
+          - generic [ref=f11e66]: Platform
+          - list [ref=f11e68]:
+            - listitem [ref=f11e69]:
+              - link "Organizations" [ref=f11e70] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f11e76]:
+              - link "Permissions" [ref=f11e77] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f11e82]:
+              - link "API keys" [ref=f11e83] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f11e89]:
+        - listitem [ref=f11e90]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f11e91] [cursor=pointer]:
+            - generic [ref=f11e92]: DA
+            - generic [ref=f11e94]:
+              - generic [ref=f11e95]: Dev Admin
+              - generic [ref=f11e96]: admin@valmonto.com
+    - generic [ref=f11e100]:
+      - heading "Navigation" [level=2] [ref=f11e101]
+      - paragraph [ref=f11e102]: Search or jump to…
+    - main [ref=f11e103]:
+      - generic [ref=f11e104]:
+        - generic [ref=f11e105]:
+          - button "Toggle Sidebar" [ref=f11e106] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f11e108]:
+            - list [ref=f11e109]:
+              - listitem [ref=f11e110]:
+                - link "Projects" [disabled] [ref=f11e111]
+        - generic [ref=f11e112]:
+          - button "Search or jump to… ⌘K" [ref=f11e113] [cursor=pointer]:
+            - generic [ref=f11e117]: Search or jump to…
+            - generic [ref=f11e118]: ⌘K
+          - button "Valmonto" [ref=f11e119] [cursor=pointer]
+          - generic [ref=f11e122]:
+            - button "Notifications" [ref=f11e123] [cursor=pointer]
+            - generic [ref=f11e125]:
+              - button "Change language" [ref=f11e126] [cursor=pointer]
+              - button "Toggle theme" [ref=f11e128] [cursor=pointer]
+      - main [ref=f11e130]:
+        - generic [ref=f11e131]:
+          - link "Projects" [ref=f11e133] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f11e136]:
+            - generic [ref=f11e141]:
+              - button "Pipeline Demo" [ref=f11e142]
+              - generic [ref=f11e143]:
+                - button "valmonto/specbook" [ref=f11e144] [cursor=pointer]
+                - button "main" [ref=f11e149] [cursor=pointer]
+                - button "Manual" [ref=f11e150] [cursor=pointer]
+                - button "Working directory" [ref=f11e153] [cursor=pointer]
+            - button "New task" [ref=f11e158] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f11e160] [cursor=pointer]:
+            - generic [ref=f11e163]: Context document
+            - generic [ref=f11e164]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - button "Environments No environments yet. Add one to give this project a place to run." [ref=f11e166] [cursor=pointer]:
+            - generic [ref=f11e169]: Environments
+            - generic [ref=f11e170]: No environments yet. Add one to give this project a place to run.
+          - generic [ref=f11e200]:
+            - button [ref=f11e201] [cursor=pointer]
+            - button [active] [pressed] [ref=f11e202] [cursor=pointer]
+          - generic [ref=f11e223]:
+            - generic [ref=f11e224]:
+              - 'button "Attachments 3 Done: 2 In progress: 1 2 1 0" [expanded] [ref=f11e225] [cursor=pointer]':
+                - generic [ref=f11e228]: Attachments
+                - generic [ref=f11e229]: "3"
+                - generic [ref=f11e231]:
+                  - generic [ref=f11e232]:
+                    - 'generic "Done: 2" [ref=f11e233]'
+                    - 'generic "In progress: 1" [ref=f11e234]'
+                  - generic [ref=f11e235]:
+                    - generic "Done" [ref=f11e236]: "2"
+                    - generic "In progress" [ref=f11e238]: "1"
+                    - generic "Draft" [ref=f11e240]: "0"
+              - generic [ref=f11e242]:
+                - generic [ref=f11e244]:
+                  - 'button "Quick-add: paste images (renamed inline)" [ref=f11e245] [cursor=pointer]'
+                  - 'button "Quick-add: paste images (renamed inline)" [ref=f11e248] [cursor=pointer]'
+                  - generic [ref=f11e249]: Attachments
+                  - generic "PR open" [ref=f11e254]
+                  - generic "CI failing" [ref=f11e259]
+                  - generic [ref=f11e260]: 2/3
+                  - generic [ref=f11e264]: P9
+                  - generic [ref=f11e265]: 5d
+                  - button "Cancel task" [ref=f11e266] [cursor=pointer]
+                - generic [ref=f11e268]:
+                  - button "Attachment preview gallery" [ref=f11e269] [cursor=pointer]
+                  - button "Attachment preview gallery" [ref=f11e272] [cursor=pointer]
+                  - generic [ref=f11e273]: Attachments
+                  - generic "Merged" [ref=f11e278]: "#14"
+                  - generic "CI passing" [ref=f11e283]
+                  - generic [ref=f11e284]: 1/1
+                  - generic [ref=f11e288]: P10
+                  - generic [ref=f11e289]: 10d
+                - generic [ref=f11e291]:
+                  - button "Gallery fullscreen 92vw/92vh" [ref=f11e292] [cursor=pointer]
+                  - button "Gallery fullscreen 92vw/92vh" [ref=f11e295] [cursor=pointer]
+                  - generic [ref=f11e296]: Attachments
+                  - generic "Merged" [ref=f11e301]: "#13"
+                  - generic "CI passing" [ref=f11e306]
+                  - generic [ref=f11e307]: 1/1
+                  - generic [ref=f11e311]: P10
+                  - generic [ref=f11e312]: 10d
+            - generic [ref=f11e313]:
+              - 'button "Board 3 Done: 1 In progress: 2 1 2 0" [expanded] [ref=f11e314] [cursor=pointer]':
+                - generic [ref=f11e317]: Board
+                - generic [ref=f11e318]: "3"
+                - generic [ref=f11e320]:
+                  - generic [ref=f11e321]:
+                    - 'generic "Done: 1" [ref=f11e322]'
+                    - 'generic "In progress: 2" [ref=f11e323]'
+                  - generic [ref=f11e324]:
+                    - generic "Done" [ref=f11e325]: "1"
+                    - generic "In progress" [ref=f11e327]: "2"
+                    - generic "Draft" [ref=f11e329]: "0"
+              - generic [ref=f11e331]:
+                - generic [ref=f11e333]:
+                  - button "Webhook PR/CI status on cards" [ref=f11e334] [cursor=pointer]
+                  - button "Webhook PR/CI status on cards" [ref=f11e337] [cursor=pointer]
+                  - generic [ref=f11e338]: Board
+                  - generic "Merged" [ref=f11e343]
+                  - generic "CI passing" [ref=f11e348]
+                  - generic [ref=f11e349]: 1/1
+                  - generic [ref=f11e353]: P10
+                  - generic [ref=f11e354]: 45h
+                  - button "Cancel task" [ref=f11e355] [cursor=pointer]
+                - generic [ref=f11e357]:
+                  - button "Board keyboard navigation" [ref=f11e358] [cursor=pointer]
+                  - button "Board keyboard navigation" [ref=f11e361] [cursor=pointer]
+                  - generic [ref=f11e362]: Board
+                  - generic [ref=f11e367]: 0/1
+                  - generic [ref=f11e371]: P5
+                  - generic [ref=f11e372]: 6d
+                  - button "Cancel task" [ref=f11e373] [cursor=pointer]
+                - generic [ref=f11e375]:
+                  - 'button "Board revamp: pipeline strip replaces columns" [ref=f11e376] [cursor=pointer]'
+                  - 'button "Board revamp: pipeline strip replaces columns" [ref=f11e379] [cursor=pointer]'
+                  - generic [ref=f11e380]: Board
+                  - generic "Merged" [ref=f11e385]: "#12"
+                  - generic "CI passing" [ref=f11e390]
+                  - generic [ref=f11e391]: 3/3
+                  - generic [ref=f11e395]: P10
+                  - generic [ref=f11e396]: 10d
+            - generic [ref=f11e397]:
+              - 'button "Agents 2 In progress: 2 0 2 0" [expanded] [ref=f11e398] [cursor=pointer]':
+                - generic [ref=f11e401]: Agents
+                - generic [ref=f11e402]: "2"
+                - generic [ref=f11e404]:
+                  - 'generic "In progress: 2" [ref=f11e406]'
+                  - generic [ref=f11e407]:
+                    - generic "Done" [ref=f11e408]: "0"
+                    - generic "In progress" [ref=f11e410]: "2"
+                    - generic "Draft" [ref=f11e412]: "0"
+              - generic [ref=f11e414]:
+                - generic [ref=f11e416]:
+                  - 'button "Presence demo: agent visibly working" [ref=f11e417] [cursor=pointer]'
+                  - 'button "Presence demo: agent visibly working" [ref=f11e420] [cursor=pointer]'
+                  - generic [ref=f11e421]: Agents
+                  - generic [ref=f11e426]: 1/1
+                  - generic [ref=f11e430]: 6d
+                  - button "Cancel task" [ref=f11e431] [cursor=pointer]
+                - generic [ref=f11e433]:
+                  - 'button "MCP: expose merge-queue state to runners" [ref=f11e434] [cursor=pointer]'
+                  - 'button "MCP: expose merge-queue state to runners" [ref=f11e437] [cursor=pointer]'
+                  - generic [ref=f11e438]: Agents
+                  - generic [ref=f11e443]: 0/1
+                  - generic [ref=f11e447]: P8
+                  - generic [ref=f11e448]: 10d
+                  - button "Cancel task" [ref=f11e449] [cursor=pointer]
+            - generic [ref=f11e450]:
+              - 'button "Onboarding 2 In progress: 1 Draft: 1 0 1 1" [expanded] [ref=f11e451] [cursor=pointer]':
+                - generic [ref=f11e454]: Onboarding
+                - generic [ref=f11e455]: "2"
+                - generic [ref=f11e457]:
+                  - generic [ref=f11e458]:
+                    - 'generic "In progress: 1" [ref=f11e459]'
+                    - 'generic "Draft: 1" [ref=f11e460]'
+                  - generic [ref=f11e461]:
+                    - generic "Done" [ref=f11e462]: "0"
+                    - generic "In progress" [ref=f11e464]: "1"
+                    - generic "Draft" [ref=f11e466]: "1"
+              - generic [ref=f11e468]:
+                - generic [ref=f11e470]:
+                  - button "Design deployd enrollment flow" [ref=f11e471] [cursor=pointer]
+                  - button "Design deployd enrollment flow" [ref=f11e474] [cursor=pointer]
+                  - generic [ref=f11e475]: Onboarding
+                  - generic [ref=f11e480]: 10d
+                  - button "Cancel task" [ref=f11e481] [cursor=pointer]
+                - generic [ref=f11e483]:
+                  - button "Which staging domain scheme should previews use?" [ref=f11e484] [cursor=pointer]
+                  - button "Which staging domain scheme should previews use?" [ref=f11e487] [cursor=pointer]
+                  - generic [ref=f11e488]: Onboarding
+                  - generic [ref=f11e493]: 0/1
+                  - generic [ref=f11e497]: P7
+                  - generic [ref=f11e498]: 10d
+                  - button "Cancel task" [ref=f11e499] [cursor=pointer]
+            - generic [ref=f11e500]:
+              - 'button "2 In progress: 2 0 2 0" [expanded] [ref=f11e501] [cursor=pointer]':
+                - generic [ref=f11e504]: "2"
+                - generic [ref=f11e506]:
+                  - 'generic "In progress: 2" [ref=f11e508]'
+                  - generic [ref=f11e509]:
+                    - generic "Done" [ref=f11e510]: "0"
+                    - generic "In progress" [ref=f11e512]: "2"
+                    - generic "Draft" [ref=f11e514]: "0"
+              - generic [ref=f11e516]:
+                - generic [ref=f11e518]:
+                  - 'button "Managed-agent hello: add one comment and block for review" [ref=f11e519] [cursor=pointer]'
+                  - 'button "Managed-agent hello: add one comment and block for review" [ref=f11e522] [cursor=pointer]'
+                  - generic [ref=f11e523]: 2/2
+                  - generic [ref=f11e527]: 6d
+                  - button "Cancel task" [ref=f11e528] [cursor=pointer]
+                - generic [ref=f11e530]:
+                  - button "New-project dialog layout" [ref=f11e531] [cursor=pointer]
+                  - button "New-project dialog layout" [ref=f11e534] [cursor=pointer]
+                  - generic "CI failing" [ref=f11e535]
+                  - generic [ref=f11e536]: 1/1
+                  - generic [ref=f11e540]: P9
+                  - generic [ref=f11e541]: 10d
+                  - button "Cancel task" [ref=f11e542] [cursor=pointer]
+  - region "Notifications alt+T"

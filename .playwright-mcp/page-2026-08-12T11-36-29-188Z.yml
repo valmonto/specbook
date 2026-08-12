@@ -1,0 +1,281 @@
+- generic [ref=f38e2]:
+  - generic [ref=f38e3]:
+    - generic [ref=f38e6]:
+      - list [ref=f38e8]:
+        - listitem [ref=f38e9]:
+          - link "specbook Workspace" [ref=f38e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f38e14]:
+              - generic [ref=f38e15]: specbook
+              - generic [ref=f38e16]: Workspace
+      - generic [ref=f38e17]:
+        - generic [ref=f38e18]:
+          - generic [ref=f38e19]: Management
+          - list [ref=f38e21]:
+            - listitem [ref=f38e22]:
+              - link "Your move" [ref=f38e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f38e28]:
+              - link "Projects" [ref=f38e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f38e33]:
+              - link "Research" [ref=f38e34] [cursor=pointer]:
+                - /url: /research
+            - listitem [ref=f38e44]:
+              - link "Settings" [ref=f38e45] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f38e50]:
+          - generic [ref=f38e51]: Developer
+          - list [ref=f38e53]:
+            - listitem [ref=f38e54]:
+              - link "Components" [ref=f38e55] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f38e60]:
+              - link "Mobile" [ref=f38e61] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f38e65]:
+          - generic [ref=f38e66]: Platform
+          - list [ref=f38e68]:
+            - listitem [ref=f38e69]:
+              - link "Organizations" [ref=f38e70] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f38e76]:
+              - link "Permissions" [ref=f38e77] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f38e82]:
+              - link "API keys" [ref=f38e83] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f38e89]:
+        - listitem [ref=f38e90]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f38e91] [cursor=pointer]:
+            - generic [ref=f38e92]: DA
+            - generic [ref=f38e94]:
+              - generic [ref=f38e95]: Dev Admin
+              - generic [ref=f38e96]: admin@valmonto.com
+    - generic [ref=f38e100]:
+      - heading "Navigation" [level=2] [ref=f38e101]
+      - paragraph [ref=f38e102]: Search or jump to…
+    - main [ref=f38e103]:
+      - generic [ref=f38e104]:
+        - generic [ref=f38e105]:
+          - button "Toggle Sidebar" [ref=f38e106] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f38e108]:
+            - list [ref=f38e109]:
+              - listitem [ref=f38e110]:
+                - link "Projects" [disabled] [ref=f38e111]
+        - generic [ref=f38e112]:
+          - button "Search or jump to… ⌘K" [ref=f38e113] [cursor=pointer]:
+            - generic [ref=f38e117]: Search or jump to…
+            - generic [ref=f38e118]: ⌘K
+          - button "Valmonto" [ref=f38e119] [cursor=pointer]
+          - generic [ref=f38e122]:
+            - button "Notifications" [ref=f38e123] [cursor=pointer]
+            - generic [ref=f38e125]:
+              - button "Change language" [ref=f38e126] [cursor=pointer]
+              - button "Toggle theme" [ref=f38e128] [cursor=pointer]
+      - main [ref=f38e130]:
+        - generic [ref=f38e131]:
+          - link "Projects" [ref=f38e133] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f38e136]:
+            - generic [ref=f38e141]:
+              - button "Pipeline Demo" [ref=f38e142]
+              - generic [ref=f38e143]:
+                - button "valmonto/specbook" [ref=f38e144] [cursor=pointer]
+                - button "main" [ref=f38e149] [cursor=pointer]
+                - button "Manual" [ref=f38e150] [cursor=pointer]
+                - button "Working directory" [ref=f38e153] [cursor=pointer]
+            - button "New task" [ref=f38e158] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f38e160] [cursor=pointer]:
+            - generic [ref=f38e163]: Context document
+            - generic [ref=f38e164]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - button "Environments No environments yet. Add one to give this project a place to run." [ref=f38e166] [cursor=pointer]:
+            - generic [ref=f38e169]: Environments
+            - generic [ref=f38e170]: No environments yet. Add one to give this project a place to run.
+          - generic [ref=f38e199]:
+            - generic [ref=f38e200]: Group by
+            - generic [ref=f38e201]:
+              - button "Status" [ref=f38e202] [cursor=pointer]
+              - button "Area" [pressed] [ref=f38e203] [cursor=pointer]
+          - generic [ref=f38e224]:
+            - generic [ref=f38e225]:
+              - 'button "Attachments 3 Done: 2 In progress: 1 2 1 0" [expanded] [ref=f38e226] [cursor=pointer]':
+                - generic [ref=f38e229]: Attachments
+                - generic [ref=f38e230]: "3"
+                - generic [ref=f38e232]:
+                  - generic [ref=f38e233]:
+                    - 'generic "Done: 2" [ref=f38e234]'
+                    - 'generic "In progress: 1" [ref=f38e235]'
+                  - generic [ref=f38e236]:
+                    - generic "Done" [ref=f38e237]: "2"
+                    - generic "In progress" [ref=f38e239]: "1"
+                    - generic "Draft" [ref=f38e241]: "0"
+              - generic [ref=f38e243]:
+                - generic [ref=f38e245]:
+                  - 'button "Quick-add: paste images (renamed inline)" [ref=f38e246] [cursor=pointer]'
+                  - 'button "Quick-add: paste images (renamed inline)" [ref=f38e249] [cursor=pointer]'
+                  - generic [ref=f38e250]: Attachments
+                  - generic "PR open" [ref=f38e255]
+                  - generic "CI failing" [ref=f38e260]
+                  - generic [ref=f38e261]: 2/3
+                  - generic [ref=f38e265]: P9
+                  - generic [ref=f38e266]: 5d
+                  - button "Cancel task" [ref=f38e267] [cursor=pointer]
+                - generic [ref=f38e269]:
+                  - button "Attachment preview gallery" [ref=f38e270] [cursor=pointer]
+                  - button "Attachment preview gallery" [ref=f38e273] [cursor=pointer]
+                  - generic [ref=f38e274]: Attachments
+                  - generic "Merged" [ref=f38e279]: "#14"
+                  - generic "CI passing" [ref=f38e284]
+                  - generic [ref=f38e285]: 1/1
+                  - generic [ref=f38e289]: P10
+                  - generic [ref=f38e290]: 10d
+                - generic [ref=f38e292]:
+                  - button "Gallery fullscreen 92vw/92vh" [ref=f38e293] [cursor=pointer]
+                  - button "Gallery fullscreen 92vw/92vh" [ref=f38e296] [cursor=pointer]
+                  - generic [ref=f38e297]: Attachments
+                  - generic "Merged" [ref=f38e302]: "#13"
+                  - generic "CI passing" [ref=f38e307]
+                  - generic [ref=f38e308]: 1/1
+                  - generic [ref=f38e312]: P10
+                  - generic [ref=f38e313]: 10d
+            - generic [ref=f38e314]:
+              - 'button "Board 3 Done: 1 In progress: 2 1 2 0" [expanded] [ref=f38e315] [cursor=pointer]':
+                - generic [ref=f38e318]: Board
+                - generic [ref=f38e319]: "3"
+                - generic [ref=f38e321]:
+                  - generic [ref=f38e322]:
+                    - 'generic "Done: 1" [ref=f38e323]'
+                    - 'generic "In progress: 2" [ref=f38e324]'
+                  - generic [ref=f38e325]:
+                    - generic "Done" [ref=f38e326]: "1"
+                    - generic "In progress" [ref=f38e328]: "2"
+                    - generic "Draft" [ref=f38e330]: "0"
+              - generic [ref=f38e332]:
+                - generic [ref=f38e334]:
+                  - button "Webhook PR/CI status on cards" [ref=f38e335] [cursor=pointer]
+                  - button "Webhook PR/CI status on cards" [ref=f38e338] [cursor=pointer]
+                  - generic [ref=f38e339]: Board
+                  - generic "Merged" [ref=f38e344]
+                  - generic "CI passing" [ref=f38e349]
+                  - generic [ref=f38e350]: 1/1
+                  - generic [ref=f38e354]: P10
+                  - generic [ref=f38e355]: 46h
+                  - button "Cancel task" [ref=f38e356] [cursor=pointer]
+                - generic [ref=f38e358]:
+                  - button "Board keyboard navigation" [ref=f38e359] [cursor=pointer]
+                  - button "Board keyboard navigation" [ref=f38e362] [cursor=pointer]
+                  - generic [ref=f38e363]: Board
+                  - generic [ref=f38e368]: 0/1
+                  - generic [ref=f38e372]: P5
+                  - generic [ref=f38e373]: 6d
+                  - button "Cancel task" [ref=f38e374] [cursor=pointer]
+                - generic [ref=f38e376]:
+                  - 'button "Board revamp: pipeline strip replaces columns" [ref=f38e377] [cursor=pointer]'
+                  - 'button "Board revamp: pipeline strip replaces columns" [ref=f38e380] [cursor=pointer]'
+                  - generic [ref=f38e381]: Board
+                  - generic "Merged" [ref=f38e386]: "#12"
+                  - generic "CI passing" [ref=f38e391]
+                  - generic [ref=f38e392]: 3/3
+                  - generic [ref=f38e396]: P10
+                  - generic [ref=f38e397]: 10d
+            - generic [ref=f38e398]:
+              - 'button "Agents 2 In progress: 2 0 2 0" [expanded] [ref=f38e399] [cursor=pointer]':
+                - generic [ref=f38e402]: Agents
+                - generic [ref=f38e403]: "2"
+                - generic [ref=f38e405]:
+                  - 'generic "In progress: 2" [ref=f38e407]'
+                  - generic [ref=f38e408]:
+                    - generic "Done" [ref=f38e409]: "0"
+                    - generic "In progress" [ref=f38e411]: "2"
+                    - generic "Draft" [ref=f38e413]: "0"
+              - generic [ref=f38e415]:
+                - generic [ref=f38e417]:
+                  - 'button "Presence demo: agent visibly working" [ref=f38e418] [cursor=pointer]'
+                  - 'button "Presence demo: agent visibly working" [ref=f38e421] [cursor=pointer]'
+                  - generic [ref=f38e422]: Agents
+                  - generic [ref=f38e427]: 1/1
+                  - generic [ref=f38e431]: 6d
+                  - button "Cancel task" [ref=f38e432] [cursor=pointer]
+                - generic [ref=f38e434]:
+                  - 'button "MCP: expose merge-queue state to runners" [ref=f38e435] [cursor=pointer]'
+                  - 'button "MCP: expose merge-queue state to runners" [ref=f38e438] [cursor=pointer]'
+                  - generic [ref=f38e439]: Agents
+                  - generic [ref=f38e444]: 0/1
+                  - generic [ref=f38e448]: P8
+                  - generic [ref=f38e449]: 10d
+                  - button "Cancel task" [ref=f38e450] [cursor=pointer]
+            - generic [ref=f38e451]:
+              - 'button "Onboarding 2 In progress: 1 Draft: 1 0 1 1" [expanded] [ref=f38e452] [cursor=pointer]':
+                - generic [ref=f38e455]: Onboarding
+                - generic [ref=f38e456]: "2"
+                - generic [ref=f38e458]:
+                  - generic [ref=f38e459]:
+                    - 'generic "In progress: 1" [ref=f38e460]'
+                    - 'generic "Draft: 1" [ref=f38e461]'
+                  - generic [ref=f38e462]:
+                    - generic "Done" [ref=f38e463]: "0"
+                    - generic "In progress" [ref=f38e465]: "1"
+                    - generic "Draft" [ref=f38e467]: "1"
+              - generic [ref=f38e469]:
+                - generic [ref=f38e471]:
+                  - button "Design deployd enrollment flow" [ref=f38e472] [cursor=pointer]
+                  - button "Design deployd enrollment flow" [ref=f38e475] [cursor=pointer]
+                  - generic [ref=f38e476]: Onboarding
+                  - generic [ref=f38e481]: 10d
+                  - button "Cancel task" [ref=f38e482] [cursor=pointer]
+                - generic [ref=f38e484]:
+                  - button "Which staging domain scheme should previews use?" [ref=f38e485] [cursor=pointer]
+                  - button "Which staging domain scheme should previews use?" [ref=f38e488] [cursor=pointer]
+                  - generic [ref=f38e489]: Onboarding
+                  - generic [ref=f38e494]: 0/1
+                  - generic [ref=f38e498]: P7
+                  - generic [ref=f38e499]: 10d
+                  - button "Cancel task" [ref=f38e500] [cursor=pointer]
+            - generic [ref=f38e501]:
+              - 'button "Exam Prep 1 Draft: 1 0 0 1" [expanded] [active] [ref=f38e502] [cursor=pointer]':
+                - generic [ref=f38e505]: Exam Prep
+                - generic [ref=f38e506]: "1"
+                - generic [ref=f38e508]:
+                  - 'generic "Draft: 1" [ref=f38e510]'
+                  - generic [ref=f38e511]:
+                    - generic "Done" [ref=f38e512]: "0"
+                    - generic "In progress" [ref=f38e514]: "0"
+                    - generic "Draft" [ref=f38e516]: "1"
+              - generic [ref=f38e584]:
+                - button "English-first practice test flow" [ref=f38e585] [cursor=pointer]
+                - button "English-first practice test flow" [ref=f38e588] [cursor=pointer]
+                - generic [ref=f38e589]: Exam Prep
+                - link "from Driver-licence exam-prep apps — Lithuania market" [ref=f38e594] [cursor=pointer]:
+                  - /url: /research/019ff4fd-b824-7cab-9d3d-e45e85680bf0
+                  - generic [ref=f38e597]: from
+                  - generic [ref=f38e598]: ·
+                  - generic [ref=f38e599]: Driver-licence exam-prep apps — Lithuania market
+                - generic [ref=f38e600]: 1m
+                - button "Cancel task" [ref=f38e601] [cursor=pointer]
+            - generic [ref=f38e538]:
+              - 'button "No area 2 In progress: 2 0 2 0" [expanded] [ref=f38e539] [cursor=pointer]':
+                - generic [ref=f38e542]: No area
+                - generic [ref=f38e543]: "2"
+                - generic [ref=f38e545]:
+                  - 'generic "In progress: 2" [ref=f38e547]'
+                  - generic [ref=f38e548]:
+                    - generic "Done" [ref=f38e549]: "0"
+                    - generic "In progress" [ref=f38e551]: "2"
+                    - generic "Draft" [ref=f38e553]: "0"
+              - generic [ref=f38e555]:
+                - generic [ref=f38e557]:
+                  - 'button "Managed-agent hello: add one comment and block for review" [ref=f38e558] [cursor=pointer]'
+                  - 'button "Managed-agent hello: add one comment and block for review" [ref=f38e561] [cursor=pointer]'
+                  - generic [ref=f38e562]: 2/2
+                  - generic [ref=f38e566]: 6d
+                  - button "Cancel task" [ref=f38e567] [cursor=pointer]
+                - generic [ref=f38e569]:
+                  - button "New-project dialog layout" [ref=f38e570] [cursor=pointer]
+                  - button "New-project dialog layout" [ref=f38e573] [cursor=pointer]
+                  - generic "CI failing" [ref=f38e574]
+                  - generic [ref=f38e575]: 1/1
+                  - generic [ref=f38e579]: P9
+                  - generic [ref=f38e580]: 10d
+                  - button "Cancel task" [ref=f38e581] [cursor=pointer]
+  - region "Notifications alt+T"

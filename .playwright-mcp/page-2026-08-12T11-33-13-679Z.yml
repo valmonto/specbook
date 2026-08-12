@@ -1,0 +1,168 @@
+- generic [ref=f36e2]:
+  - generic [ref=f36e3]:
+    - generic [ref=f36e6]:
+      - list [ref=f36e8]:
+        - listitem [ref=f36e9]:
+          - link "specbook Workspace" [ref=f36e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f36e14]:
+              - generic [ref=f36e15]: specbook
+              - generic [ref=f36e16]: Workspace
+      - generic [ref=f36e17]:
+        - generic [ref=f36e18]:
+          - generic [ref=f36e19]: Management
+          - list [ref=f36e21]:
+            - listitem [ref=f36e22]:
+              - link "Your move" [ref=f36e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f36e28]:
+              - link "Projects" [ref=f36e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f36e33]:
+              - link "Research" [ref=f36e34] [cursor=pointer]:
+                - /url: /research
+            - listitem [ref=f36e44]:
+              - link "Settings" [ref=f36e45] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f36e50]:
+          - generic [ref=f36e51]: Developer
+          - list [ref=f36e53]:
+            - listitem [ref=f36e54]:
+              - link "Components" [ref=f36e55] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f36e60]:
+              - link "Mobile" [ref=f36e61] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f36e65]:
+          - generic [ref=f36e66]: Platform
+          - list [ref=f36e68]:
+            - listitem [ref=f36e69]:
+              - link "Organizations" [ref=f36e70] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f36e76]:
+              - link "Permissions" [ref=f36e77] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f36e82]:
+              - link "API keys" [ref=f36e83] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f36e89]:
+        - listitem [ref=f36e90]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f36e91] [cursor=pointer]:
+            - generic [ref=f36e92]: DA
+            - generic [ref=f36e94]:
+              - generic [ref=f36e95]: Dev Admin
+              - generic [ref=f36e96]: admin@valmonto.com
+    - generic [ref=f36e100]:
+      - heading "Navigation" [level=2] [ref=f36e101]
+      - paragraph [ref=f36e102]: Search or jump to…
+    - main [ref=f36e103]:
+      - generic [ref=f36e104]:
+        - generic [ref=f36e105]:
+          - button "Toggle Sidebar" [ref=f36e106] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f36e108]:
+            - list [ref=f36e109]:
+              - listitem [ref=f36e110]:
+                - link "Research" [disabled] [ref=f36e111]
+        - generic [ref=f36e112]:
+          - button "Search or jump to… ⌘K" [ref=f36e113] [cursor=pointer]:
+            - generic [ref=f36e117]: Search or jump to…
+            - generic [ref=f36e118]: ⌘K
+          - button "Valmonto" [ref=f36e119] [cursor=pointer]
+          - generic [ref=f36e122]:
+            - button "Notifications" [ref=f36e123] [cursor=pointer]
+            - generic [ref=f36e125]:
+              - button "Change language" [ref=f36e126] [cursor=pointer]
+              - button "Toggle theme" [ref=f36e128] [cursor=pointer]
+      - main [ref=f36e130]:
+        - generic [ref=f36e159]:
+          - generic [ref=f36e161]:
+            - generic [ref=f36e162]:
+              - button "Research" [ref=f36e163] [cursor=pointer]
+              - generic [ref=f36e166]: Driver-licence exam-prep apps — Lithuania market
+            - generic [ref=f36e168]:
+              - generic [ref=f36e169]:
+                - generic [ref=f36e170]: "Y"
+                - generic [ref=f36e171]:
+                  - generic [ref=f36e172]: You
+                  - generic [ref=f36e173]: Research driver licence exam prep apps in Lithuania market?
+              - generic [ref=f36e174]:
+                - generic [ref=f36e175]: A
+                - generic [ref=f36e176]:
+                  - generic [ref=f36e177]: Agent
+                  - generic [ref=f36e178]: "First draft is in the document. Short version: the market is real but consolidated — Regitra runs the €10 official exam and barely competes on prep, while one third-party incumbent (KETBILIETAI, 513k+ users, €5.40/week) owns practice, with a long tail of cheap/free apps (RoboKET, KETMokymas, App-Store clones). The opening is a modern, English/Polish/Spanish-first prep app aimed at the newly-eligible 2026 non-Lithuanian test-takers. Details, players, pricing and the gap are in the doc — challenge anything or tell me to go deeper on a segment."
+                  - generic [ref=f36e179]: Updated the document
+            - generic [ref=f36e185]:
+              - generic [ref=f36e186]:
+                - textbox "Ask a question, or challenge a finding…" [ref=f36e187]
+                - button "Send" [disabled]
+              - paragraph [ref=f36e188]: Each message dispatches an agent. You’ll see the answer and the document update — not the raw work.
+          - generic [ref=f36e190]:
+            - generic [ref=f36e191]:
+              - generic [ref=f36e192]: Document
+              - generic [ref=f36e193]: v1
+              - generic [ref=f36e194]:
+                - button "Accept" [ref=f36e195] [cursor=pointer]
+                - button "Create tickets" [ref=f36e196] [cursor=pointer]
+            - generic [ref=f36e197]:
+              - generic [ref=f36e198]:
+                - generic [ref=f36e199]: Needs review
+                - generic [ref=f36e201]: ·
+                - combobox "Change associated project" [ref=f36e202] [cursor=pointer]:
+                  - generic: No project
+              - article [ref=f36e203]:
+                - generic [ref=f36e204]:
+                  - heading "Recommendation" [level=2] [ref=f36e205]
+                  - paragraph [ref=f36e206]:
+                    - text: The market is
+                    - strong [ref=f36e207]: real but consolidated
+                    - text: ", and the interesting opening is a"
+                    - emphasis [ref=f36e208]: segment
+                    - text: ", not the whole thing. The official examiner ("
+                    - strong [ref=f36e209]: Regitra
+                    - text: ) charges €10 for the theory exam and does almost nothing to compete on
+                    - emphasis [ref=f36e210]: preparation
+                    - text: ; one third-party incumbent (
+                    - strong [ref=f36e211]: KETBILIETAI
+                    - text: ) owns practice at scale; and a long tail of cheap/free apps fights over the rest.
+                    - strong [ref=f36e212]: "The clearest gap: a modern, multilingual (English / Polish / Spanish) prep app aimed at the non-Lithuanian test-takers that the Jan 2026 rules just made eligible"
+                    - text: — a segment the Lithuanian-first incumbents under-serve.
+                  - heading "How the exam works (the thing prep is sold against)" [level=2] [ref=f36e213]
+                  - list [ref=f36e214]:
+                    - listitem [ref=f36e215]:
+                      - strong [ref=f36e216]: Regitra
+                      - text: (VĮ Regitra), a state enterprise, is the sole official examiner. Theory exam fee
+                      - strong [ref=f36e217]: €10
+                      - text: .
+                    - listitem [ref=f36e218]:
+                      - text: From
+                      - strong [ref=f36e219]: 1 Jan 2026
+                      - text: the theory exam can be taken in
+                      - strong [ref=f36e220]: Lithuanian, English, Polish and Spanish
+                      - text: — a real expansion of the addressable, non-native audience.
+                    - listitem [ref=f36e221]:
+                      - text: "Format:"
+                      - strong [ref=f36e222]: Category B = 30 questions
+                      - text: ", pass = ≤6 wrong; A / C / D categories have more (35–40). A passed theory test is valid"
+                      - strong [ref=f36e223]: 1 year
+                      - text: to complete the practical.
+                    - listitem [ref=f36e224]:
+                      - text: Driving schools train on the official
+                      - strong [ref=f36e225]: Road Traffic Rules (KET)
+                      - text: programme; the question bank is public knowledge, which is why third-party prep can legally exist.
+                  - heading "The players" [level=2] [ref=f36e226]
+                  - list [ref=f36e227]:
+                    - listitem [ref=f36e228]:
+                      - strong [ref=f36e229]: KETBILIETAI
+                      - text: — the incumbent. ~513k users, €5.40/week. Owns practice-test mindshare.
+                    - listitem [ref=f36e230]:
+                      - strong [ref=f36e231]: RoboKET, KETMokymas
+                      - text: — cheaper/free, thinner UX.
+                    - listitem [ref=f36e232]:
+                      - strong [ref=f36e233]: App-Store clones
+                      - text: — low quality, ad-driven, no localisation.
+                  - heading "The gap" [level=2] [ref=f36e234]
+                  - paragraph [ref=f36e235]:
+                    - text: Nobody serves the newly-eligible
+                    - strong [ref=f36e236]: non-Lithuanian
+                    - text: cohort with a modern, multilingual, exam-faithful prep experience. That is the wedge.
+  - region "Notifications alt+T"

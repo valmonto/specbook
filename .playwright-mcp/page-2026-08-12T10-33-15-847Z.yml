@@ -1,0 +1,113 @@
+- generic [active] [ref=f8e1]:
+  - generic [ref=f8e2]: "Today — Group by: Status (your board now)"
+  - generic [ref=f8e3]:
+    - generic [ref=f8e4]: ▦ SpecBook
+    - generic [ref=f8e5]:
+      - generic [ref=f8e6]:
+        - text: Draft
+        - generic [ref=f8e7]: "1"
+      - generic [ref=f8e8]: →
+      - generic [ref=f8e9]:
+        - text: Ready
+        - generic [ref=f8e10]: "0"
+      - generic [ref=f8e11]: →
+      - generic [ref=f8e12]:
+        - text: In progress
+        - generic [ref=f8e13]: "2"
+      - generic [ref=f8e14]: →
+      - generic [ref=f8e15]:
+        - text: Needs review
+        - generic [ref=f8e16]: "1"
+      - generic [ref=f8e17]: →
+      - generic [ref=f8e18]:
+        - text: Done
+        - generic [ref=f8e19]: "49"
+    - generic [ref=f8e20]:
+      - generic [ref=f8e21]: ›
+      - generic [ref=f8e22]: Build the OTP verification step
+      - generic [ref=f8e23]:
+        - generic [ref=f8e24]: ▤ 0/5
+        - generic [ref=f8e25]: 35m
+    - generic [ref=f8e26]:
+      - generic [ref=f8e27]: ›
+      - generic [ref=f8e28]: Email + password form
+      - generic [ref=f8e29]:
+        - generic [ref=f8e30]: ▤ 2/4
+        - generic [ref=f8e31]: 1h
+    - generic [ref=f8e32]: One flat list of the selected stage. No sense of which feature each task belongs to.
+  - generic [ref=f8e33]: New — flip Group by to Area (SAME board, same page)
+  - generic [ref=f8e34]:
+    - generic [ref=f8e35]: ▦ SpecBook
+    - generic [ref=f8e36]:
+      - generic [ref=f8e37]:
+        - text: Draft
+        - generic [ref=f8e38]: "6"
+      - generic [ref=f8e39]: →
+      - generic [ref=f8e40]:
+        - text: Ready
+        - generic [ref=f8e41]: "3"
+      - generic [ref=f8e42]: →
+      - generic [ref=f8e43]:
+        - text: In progress
+        - generic [ref=f8e44]: "2"
+      - generic [ref=f8e45]: →
+      - generic [ref=f8e46]:
+        - text: Done
+        - generic [ref=f8e47]: "49"
+      - generic [ref=f8e48]:
+        - text: Group by
+        - generic [ref=f8e49]:
+          - generic [ref=f8e50]: Status
+          - generic [ref=f8e51]: Area
+    - generic [ref=f8e52]:
+      - generic [ref=f8e53]: Onboarding
+      - generic [ref=f8e54]: 2 done · 1 in progress · 2 draft
+    - generic [ref=f8e61]:
+      - generic [ref=f8e62]: ›
+      - generic [ref=f8e63]: Onboarding
+      - generic [ref=f8e64]: Build the OTP verification step
+      - generic [ref=f8e65]:
+        - generic [ref=f8e66]: ▤ 0/5
+        - generic [ref=f8e67]: 35m
+    - generic [ref=f8e68]:
+      - generic [ref=f8e69]: ›
+      - generic [ref=f8e70]: Onboarding
+      - generic [ref=f8e71]: Welcome carousel + permissions primer
+      - generic [ref=f8e72]:
+        - generic [ref=f8e73]: ▤ 1/3
+        - generic [ref=f8e74]: 2h
+    - generic [ref=f8e75]:
+      - generic [ref=f8e76]: Login
+      - generic [ref=f8e77]: 1 done · 1 in progress · 1 draft
+    - generic [ref=f8e82]:
+      - generic [ref=f8e83]: ›
+      - generic [ref=f8e84]: Login
+      - generic [ref=f8e85]: Email + password form
+      - generic [ref=f8e86]:
+        - generic [ref=f8e87]: ▤ 2/4
+        - generic [ref=f8e88]: 1h
+    - generic [ref=f8e89]:
+      - generic [ref=f8e90]: ›
+      - generic [ref=f8e91]: Login
+      - generic [ref=f8e92]: Forgot-password flow
+      - generic [ref=f8e93]:
+        - generic [ref=f8e94]: ▤ 0/3
+        - generic [ref=f8e95]: 3h
+    - generic [ref=f8e96]:
+      - generic [ref=f8e97]: "Feature: Search"
+      - generic [ref=f8e98]: 0 done · 3 draft
+    - generic [ref=f8e103]:
+      - generic [ref=f8e104]: ›
+      - generic [ref=f8e105]: "Feature: Search"
+      - generic [ref=f8e106]: Search bar + results list
+      - generic [ref=f8e107]:
+        - generic [ref=f8e108]: ▤ 0/4
+        - generic [ref=f8e109]: 1d
+    - generic [ref=f8e110]: No area
+    - generic [ref=f8e112]:
+      - generic [ref=f8e113]: ›
+      - generic [ref=f8e114]: Test
+      - generic [ref=f8e115]:
+        - generic [ref=f8e116]: ▤ 0/1
+        - generic [ref=f8e117]: 10d
+  - generic [ref=f8e118]: "Same page, same rows. The only change: a Group by switch. On Area, the list gains feature section headers (each with a tiny done/in-progress/draft rollup — that's the \"map\"). On Status, it's exactly your board today. Not a second view."
