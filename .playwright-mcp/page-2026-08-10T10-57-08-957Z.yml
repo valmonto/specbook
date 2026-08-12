@@ -1,0 +1,171 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - heading [level=2]: Navigation
+        - paragraph: Search or jump to…
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - generic: Toggle Sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link [disabled]: Your move
+          - generic:
+            - button
+            - button:
+              - generic: Valmonto
+            - generic:
+              - button:
+                - generic: Notifications
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=1]: Your move
+                  - paragraph: Everything waiting on you — answers, reviews, and a queue that needs feeding.
+            - generic:
+              - button:
+                - generic:
+                  - generic: Blocked
+                  - generic: Pipeline Demo
+                  - generic: waiting 8d
+                - paragraph: Which staging domain scheme should previews use?
+                - paragraph:
+                  - generic: Should preview URLs be <app>.staging.valmonto.com (wildcard DNS, one cert) or per-app subdomains with individual certs? Wildcard needs the DNS record you own.
+              - button:
+                - generic:
+                  - generic: Blocked
+                  - generic: Pipeline Demo
+                  - generic: waiting 4d
+                - paragraph: Board keyboard navigation
+                - paragraph:
+                  - generic: "get_repo_token fails every time (\"Command failed with no output\" — 7 attempts over ~20 min, while heartbeat/list_tasks/add_comment all work), so I cannot push or open a PR. Two questions: 1. Can you fix the GitHub token minting (org GitHub connection / GITHUB_APP_* config on the API), or provide another sanctioned way to push? The finished, verified work sits on local branch feat/board-keyboard-nav (commit 988402e, based on origin/main 0670725) in the runner's clone of valmonto/specbook at /root/specbook-runner/runner-local/work/specbook. 2. Please confirm the target repo: the project record's repoUrl says valmonto/valmatic.git but its bound GitHub repo (githubRepoFullName) is valmonto/specbook. The your-move board only exists in specbook, so I implemented there — if valmatic was truly intended, tell me what \"board\" means in that repo. Work summary: j/k moves the selection (visible cursor ring, clamped, scrolls into view), a approves the selected needs_review task, m marks the selected approved task merged; muted while the detail sheet is open or focus is in a form control. 4 component tests added; pnpm verify exit 0; verified in real Chromium against an isolated dev stack (transitions landed in the DB through the real API)."
+              - button:
+                - generic:
+                  - generic: Blocked
+                  - generic: Pipeline Demo
+                  - generic: waiting 4d
+                - paragraph: "Managed-agent hello: add one comment and block for review"
+                - paragraph:
+                  - generic: Was the managed lifecycle proven?
+              - button:
+                - generic:
+                  - generic: Blocked
+                  - generic: Pipeline Demo
+                  - generic: waiting 4d
+                - paragraph: "Presence demo: agent visibly working"
+                - paragraph:
+                  - generic: "Presence verified in a real browser: logged into the live dev UI as owner and screenshotted the your-move agents strip showing \"runner-local — working on Presence demo: agent visibly working\" with the green working dot (screenshot attached as presence-strip.png; criterion ticked). This task has no repo work, so the needs_review gate (branch + PR) can't be satisfied — is this demo done, and can you close it? One infra note: attachment uploads were failing because the rustfs container was down (the docker daemon was off on this machine); I started docker and brought specbookrustfs back up with its existing volume, and uploads work again. get_repo_token is still broken (\"Command failed with no output\") — that's the blocker on the Board keyboard navigation task."
+              - button:
+                - generic:
+                  - generic: Needs review
+                  - generic: PR open
+                  - generic: CI failing
+                  - generic: Pipeline Demo
+                  - generic: waiting 3d
+                - paragraph: "Quick-add: paste images (renamed inline)"
+                - paragraph: awaiting your review
+            - generic:
+              - heading [level=2]: In flight
+              - generic:
+                - button:
+                  - generic: "MCP: expose merge-queue state to runners"
+                  - generic: Pipeline Demo
+                - generic: claimed
+            - generic:
+              - heading [level=2]:
+                - text: Agents
+                - button: New managed agent
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: auth-demo
+                    - generic: auth needed
+                    - generic: never seen
+                    - button: Show log
+                    - button: Start
+                  - paragraph:
+                    - generic: "SSH into the server and run: claude setup-token — then Start again"
+                    - button: Copy
+                - generic:
+                  - generic:
+                    - generic: presence-verifier
+                    - generic: offline
+                    - generic: seen 4d ago
+                - generic:
+                  - generic:
+                    - generic: runner-fresh
+                    - generic: stopped
+                    - generic: seen 4d ago
+                    - button: Show log
+                    - button: Start
+                - generic:
+                  - generic:
+                    - generic: runner-local
+                    - generic: error
+                    - generic: seen 4d ago
+                    - button: Show log
+                    - button: Start
+            - generic:
+              - generic: Queue
+              - generic: 0 ready for agents
+              - generic: 1 drafts waiting on you
+              - generic: Agents are idle — write specs
+    - region "Notifications alt+T"
+  - dialog "Sidebar" [ref=f110e219]:
+    - generic [ref=f110e220]:
+      - heading "Sidebar" [level=2]
+      - paragraph: Displays the mobile sidebar.
+    - generic [ref=f110e221]:
+      - list [ref=f110e223]:
+        - listitem [ref=f110e224]:
+          - link "specbook Workspace" [ref=f110e225] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f110e229]:
+              - generic [ref=f110e230]: specbook
+              - generic [ref=f110e231]: Workspace
+      - generic [ref=f110e232]:
+        - generic [ref=f110e233]:
+          - generic [ref=f110e234]: Management
+          - list [ref=f110e236]:
+            - listitem [ref=f110e237]:
+              - link "Your move" [ref=f110e238] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f110e243]:
+              - link "Projects" [ref=f110e244] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f110e248]:
+              - link "Settings" [ref=f110e249] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f110e254]:
+          - generic [ref=f110e255]: Developer
+          - list [ref=f110e257]:
+            - listitem [ref=f110e258]:
+              - link "Components" [ref=f110e259] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f110e264]:
+              - link "Mobile" [ref=f110e265] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f110e269]:
+          - generic [ref=f110e270]: Platform
+          - list [ref=f110e272]:
+            - listitem [ref=f110e273]:
+              - link "Organizations" [ref=f110e274] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f110e280]:
+              - link "Permissions" [ref=f110e281] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f110e286]:
+              - link "API keys" [ref=f110e287] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f110e293]:
+        - listitem [ref=f110e294]:
+          - button "DA Dev Admin admin@valmonto.com" [active] [ref=f110e295] [cursor=pointer]:
+            - generic [ref=f110e296]: DA
+            - generic [ref=f110e298]:
+              - generic [ref=f110e299]: Dev Admin
+              - generic [ref=f110e300]: admin@valmonto.com

@@ -1,0 +1,159 @@
+- generic [ref=f9e2]:
+  - generic [ref=f9e23]:
+    - generic [ref=f9e26]:
+      - list [ref=f9e28]:
+        - listitem [ref=f9e29]:
+          - link "specbook Workspace" [ref=f9e30] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f9e34]:
+              - generic [ref=f9e35]: specbook
+              - generic [ref=f9e36]: Workspace
+      - generic [ref=f9e37]:
+        - generic [ref=f9e38]:
+          - generic [ref=f9e39]: Management
+          - list [ref=f9e41]:
+            - listitem [ref=f9e42]:
+              - link "Your move" [ref=f9e43] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f9e48]:
+              - link "Projects" [ref=f9e49] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f9e53]:
+              - link "Settings" [ref=f9e54] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f9e59]:
+          - generic [ref=f9e60]: Developer
+          - list [ref=f9e62]:
+            - listitem [ref=f9e63]:
+              - link "Components" [ref=f9e64] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f9e69]:
+              - link "Mobile" [ref=f9e70] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f9e74]:
+          - generic [ref=f9e75]: Platform
+          - list [ref=f9e77]:
+            - listitem [ref=f9e78]:
+              - link "Organizations" [ref=f9e79] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f9e85]:
+              - link "Permissions" [ref=f9e86] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f9e91]:
+              - link "API keys" [ref=f9e92] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f9e98]:
+        - listitem [ref=f9e99]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f9e100] [cursor=pointer]:
+            - generic [ref=f9e101]: DA
+            - generic [ref=f9e103]:
+              - generic [ref=f9e104]: Dev Admin
+              - generic [ref=f9e105]: admin@valmonto.com
+    - generic [ref=f9e109]:
+      - heading "Navigation" [level=2] [ref=f9e110]
+      - paragraph [ref=f9e111]: Search or jump to…
+    - main [ref=f9e112]:
+      - generic [ref=f9e113]:
+        - generic [ref=f9e114]:
+          - button "Toggle Sidebar" [ref=f9e115] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f9e117]:
+            - list [ref=f9e118]:
+              - listitem [ref=f9e119]:
+                - link "Your move" [disabled] [ref=f9e120]
+        - generic [ref=f9e121]:
+          - button "Search or jump to… ⌘K" [ref=f9e122] [cursor=pointer]:
+            - generic [ref=f9e126]: Search or jump to…
+            - generic [ref=f9e127]: ⌘K
+          - button "Valmonto" [ref=f9e128] [cursor=pointer]
+          - generic [ref=f9e131]:
+            - button "Notifications" [ref=f9e132] [cursor=pointer]
+            - button "Change language" [ref=f9e134] [cursor=pointer]
+            - button "Toggle theme" [ref=f9e136] [cursor=pointer]
+      - main [ref=f9e138]:
+        - generic [ref=f9e139]:
+          - generic [ref=f9e146]:
+            - heading "Your move" [level=1] [ref=f9e147]
+            - paragraph [ref=f9e148]: Everything waiting on you — answers, reviews, and a queue that needs feeding.
+          - generic [ref=f9e149]:
+            - 'button "Needs review PR open CI failing Pipeline Demo waiting 4d Quick-add: paste images (renamed inline)" [ref=f9e150] [cursor=pointer]':
+              - generic [ref=f9e151]:
+                - generic [ref=f9e152]: Needs review
+                - generic [ref=f9e153]: PR open
+                - generic "CI failing" [ref=f9e158]
+                - generic [ref=f9e160]: Pipeline Demo
+                - generic [ref=f9e161]: waiting 4d
+              - paragraph [ref=f9e162]: "Quick-add: paste images (renamed inline)"
+            - button "Blocked Pipeline Demo waiting 4d Which staging domain scheme should previews use?" [ref=f9e163] [cursor=pointer]:
+              - generic [ref=f9e164]:
+                - generic [ref=f9e165]: Blocked
+                - generic [ref=f9e166]: Pipeline Demo
+                - generic [ref=f9e167]: waiting 4d
+              - paragraph [ref=f9e168]: Which staging domain scheme should previews use?
+            - button "Blocked Pipeline Demo waiting 3h Board keyboard navigation" [ref=f9e169] [cursor=pointer]:
+              - generic [ref=f9e170]:
+                - generic [ref=f9e171]: Blocked
+                - generic [ref=f9e172]: Pipeline Demo
+                - generic [ref=f9e173]: waiting 3h
+              - paragraph [ref=f9e174]: Board keyboard navigation
+            - 'button "Blocked Pipeline Demo waiting 3h Managed-agent hello: add one comment and block for review" [ref=f9e175] [cursor=pointer]':
+              - generic [ref=f9e176]:
+                - generic [ref=f9e177]: Blocked
+                - generic [ref=f9e178]: Pipeline Demo
+                - generic [ref=f9e179]: waiting 3h
+              - paragraph [ref=f9e180]: "Managed-agent hello: add one comment and block for review"
+            - 'button "Blocked Pipeline Demo waiting 3h Presence demo: agent visibly working" [ref=f9e181] [cursor=pointer]':
+              - generic [ref=f9e182]:
+                - generic [ref=f9e183]: Blocked
+                - generic [ref=f9e184]: Pipeline Demo
+                - generic [ref=f9e185]: waiting 3h
+              - paragraph [ref=f9e186]: "Presence demo: agent visibly working"
+          - generic [ref=f9e187]:
+            - heading "In flight" [level=2] [ref=f9e188]
+            - generic [ref=f9e192]:
+              - 'button "MCP: expose merge-queue state to runners Pipeline Demo" [ref=f9e193] [cursor=pointer]':
+                - generic [ref=f9e194]: "MCP: expose merge-queue state to runners"
+                - generic [ref=f9e195]: Pipeline Demo
+              - generic [ref=f9e196]: claimed
+          - generic [ref=f9e197]:
+            - heading [level=2] [ref=f9e198]:
+              - text: Agents
+              - button "New managed agent" [ref=f9e205] [cursor=pointer]
+            - generic [ref=f9e206]:
+              - generic [ref=f9e207]:
+                - generic "auth needed" [ref=f9e208]:
+                  - generic [ref=f9e210]: auth-demo
+                  - generic [ref=f9e212]: never seen
+                  - button "Show log" [ref=f9e213] [cursor=pointer]
+                  - button "Start" [ref=f9e214] [cursor=pointer]
+                - paragraph [ref=f9e215]:
+                  - generic [ref=f9e216]: "SSH into the server and run: claude setup-token — then Start again"
+                  - button "Copy" [ref=f9e217] [cursor=pointer]
+              - generic "offline" [ref=f9e222]:
+                - generic [ref=f9e224]: presence-verifier
+                - generic [ref=f9e226]: seen 6h ago
+              - generic "stopped" [ref=f9e228]:
+                - generic [ref=f9e230]: runner-fresh
+                - generic [ref=f9e232]: seen 3h ago
+                - button "Show log" [ref=f9e233] [cursor=pointer]
+                - button "Start" [ref=f9e234] [cursor=pointer]
+              - generic "error" [ref=f9e236]:
+                - generic [ref=f9e238]: runner-local
+                - generic [ref=f9e240]: seen 3h ago
+                - button "Show log" [ref=f9e241] [cursor=pointer]
+                - button "Start" [ref=f9e242] [cursor=pointer]
+            - generic [ref=f9e243]:
+              - paragraph [ref=f9e244]: "No runner servers yet — give a server the runner role in Settings → Servers, then prepare it:"
+              - generic [ref=f9e245]:
+                - paragraph [ref=f9e246]: Server preparation
+                - paragraph [ref=f9e247]: • node, npm and tmux installed on the box
+                - paragraph [ref=f9e248]: • ~16GB RAM per actively building agent (8GB works with swap)
+                - paragraph [ref=f9e249]:
+                  - generic [ref=f9e250]: "• one-time Anthropic auth over SSH:"
+                  - code [ref=f9e251]: claude setup-token
+                  - button "Copy" [ref=f9e252] [cursor=pointer]
+          - generic [ref=f9e256]:
+            - generic [ref=f9e257]: Queue
+            - generic [ref=f9e258]: 0 ready for agents
+            - generic [ref=f9e259]: 1 drafts waiting on you
+            - generic [ref=f9e260]: Agents are idle — write specs
+  - region "Notifications alt+T"

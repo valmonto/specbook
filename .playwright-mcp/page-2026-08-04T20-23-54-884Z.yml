@@ -1,0 +1,143 @@
+- generic [ref=f39e2]:
+  - generic [ref=f39e3]:
+    - generic [ref=f39e6]:
+      - list [ref=f39e8]:
+        - listitem [ref=f39e9]:
+          - link "specbook Workspace" [ref=f39e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f39e14]:
+              - generic [ref=f39e15]: specbook
+              - generic [ref=f39e16]: Workspace
+      - generic [ref=f39e17]:
+        - generic [ref=f39e18]:
+          - generic [ref=f39e19]: Management
+          - list [ref=f39e21]:
+            - listitem [ref=f39e22]:
+              - link "Your move" [ref=f39e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f39e28]:
+              - link "Projects" [ref=f39e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f39e33]:
+              - link "Settings" [ref=f39e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f39e39]:
+          - generic [ref=f39e40]: Developer
+          - list [ref=f39e42]:
+            - listitem [ref=f39e43]:
+              - link "Components" [ref=f39e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f39e49]:
+              - link "Mobile" [ref=f39e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f39e54]:
+          - generic [ref=f39e55]: Platform
+          - list [ref=f39e57]:
+            - listitem [ref=f39e58]:
+              - link "Organizations" [ref=f39e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f39e65]:
+              - link "Permissions" [ref=f39e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f39e71]:
+              - link "API keys" [ref=f39e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f39e78]:
+        - listitem [ref=f39e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f39e80] [cursor=pointer]:
+            - generic [ref=f39e81]: DA
+            - generic [ref=f39e83]:
+              - generic [ref=f39e84]: Dev Admin
+              - generic [ref=f39e85]: admin@valmonto.com
+    - generic [ref=f39e89]:
+      - heading "Navigation" [level=2] [ref=f39e90]
+      - paragraph [ref=f39e91]: Search or jump to…
+    - main [ref=f39e92]:
+      - generic [ref=f39e93]:
+        - generic [ref=f39e94]:
+          - button "Toggle Sidebar" [ref=f39e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f39e97]:
+            - list [ref=f39e98]:
+              - listitem [ref=f39e99]:
+                - link "Projects" [disabled] [ref=f39e100]
+        - generic [ref=f39e101]:
+          - button "Search or jump to… ⌘K" [ref=f39e102] [cursor=pointer]:
+            - generic [ref=f39e106]: Search or jump to…
+            - generic [ref=f39e107]: ⌘K
+          - button "Valmonto" [ref=f39e108] [cursor=pointer]
+          - generic [ref=f39e111]:
+            - button "Notifications" [ref=f39e112] [cursor=pointer]
+            - button "Change language" [ref=f39e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f39e116] [cursor=pointer]
+      - main [ref=f39e118]:
+        - generic [ref=f39e119]:
+          - link "Projects" [ref=f39e121] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f39e124]:
+            - generic [ref=f39e129]:
+              - button "Pipeline Demo" [ref=f39e130]
+              - generic [ref=f39e131]:
+                - button "valmonto/specbook" [ref=f39e132] [cursor=pointer]
+                - button "main" [ref=f39e137] [cursor=pointer]
+                - button "Manual" [ref=f39e138] [cursor=pointer]
+                - button "Working directory" [ref=f39e141] [cursor=pointer]
+            - button "New task" [ref=f39e146] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f39e148] [cursor=pointer]:
+            - generic [ref=f39e151]: Context document
+            - generic [ref=f39e152]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - generic [ref=f39e153]:
+            - button "Environments" [expanded] [ref=f39e206] [cursor=pointer]
+            - generic [ref=f39e207]:
+              - generic [ref=f39e210]:
+                - button "staging hetzner-dev Auto-deploy off Provisioned Resolving · 1s" [ref=f39e240] [cursor=pointer]:
+                  - generic [ref=f39e214]: staging
+                  - generic [ref=f39e215]: hetzner-dev
+                  - button "Auto-deploy off" [ref=f39e218]
+                  - generic [ref=f39e224]: Provisioned
+                  - button "Resolving · 1s" [ref=f39e241]
+                - button "Re-provision" [ref=f39e239] [cursor=pointer]
+                - button "Remove environment" [ref=f39e233] [cursor=pointer]
+              - button "Add environment" [ref=f39e235] [cursor=pointer]
+          - generic [ref=f39e159]:
+            - button "Draft 1" [ref=f39e160] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f39e161]: "1"
+            - generic [ref=f39e162]: →
+            - button "Ready 1" [ref=f39e163] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f39e164]: "1"
+            - generic [ref=f39e165]: →
+            - button "In progress 1" [ref=f39e166] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f39e167]: "1"
+            - generic [ref=f39e168]: →
+            - button "Blocked 1" [ref=f39e169] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f39e171]: "1"
+            - generic [ref=f39e172]: →
+            - button "Needs review 1" [pressed] [ref=f39e173] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f39e175]: "1"
+            - generic [ref=f39e176]: →
+            - button "Approved 0 /3" [ref=f39e177] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f39e178]: "0"
+              - generic [ref=f39e179]: /3
+            - generic [ref=f39e180]: →
+            - button "Changes requested 1" [ref=f39e181] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f39e182]: "1"
+            - generic [ref=f39e183]: →
+            - button "Done 4" [ref=f39e184] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f39e185]: "4"
+          - generic [ref=f39e188]:
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f39e189] [cursor=pointer]'
+            - 'button "Quick-add: paste images (renamed inline)" [ref=f39e192] [cursor=pointer]'
+            - generic "PR open" [ref=f39e193]
+            - generic "CI failing" [ref=f39e198]
+            - generic [ref=f39e199]: 2/3
+            - generic [ref=f39e203]: P9
+            - generic [ref=f39e204]: 3d
+            - button "Cancel task" [ref=f39e205] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -18,12 +18,13 @@ import {
   SecretsService,
   SshService,
   appendDeployLog,
-  renderRunnerMcpJson,
-  renderRunnerPrompt,
   scrubDeployText,
   type AgentLifecycleJobPayload,
   type SshTarget,
 } from '@pkg/server';
+// Managed-agent rendering is specbook-domain (the dispatch runbook), so it
+// lives here next to its only consumer rather than in the shared deploy engine.
+import { renderRunnerMcpJson, renderRunnerPrompt } from './runner-render';
 
 /**
  * Managed-agent lifecycle: start = ensure the box can host a runner (CLI,

@@ -1,0 +1,199 @@
+- generic [ref=f18e94]:
+  - generic [ref=f18e95]:
+    - generic [ref=f18e98]:
+      - list [ref=f18e100]:
+        - listitem [ref=f18e101]:
+          - link "specbook Workspace" [ref=f18e102] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f18e106]:
+              - generic [ref=f18e107]: specbook
+              - generic [ref=f18e108]: Workspace
+      - generic [ref=f18e109]:
+        - generic [ref=f18e110]:
+          - generic [ref=f18e111]: Management
+          - list [ref=f18e113]:
+            - listitem [ref=f18e114]:
+              - link "Your move" [ref=f18e115] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f18e120]:
+              - link "Projects" [ref=f18e121] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f18e125]:
+              - link "Settings" [ref=f18e126] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f18e131]:
+          - generic [ref=f18e132]: Developer
+          - list [ref=f18e134]:
+            - listitem [ref=f18e135]:
+              - link "Components" [ref=f18e136] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f18e141]:
+              - link "Mobile" [ref=f18e142] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f18e146]:
+          - generic [ref=f18e147]: Platform
+          - list [ref=f18e149]:
+            - listitem [ref=f18e150]:
+              - link "Organizations" [ref=f18e151] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f18e157]:
+              - link "Permissions" [ref=f18e158] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f18e163]:
+              - link "API keys" [ref=f18e164] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f18e170]:
+        - listitem [ref=f18e171]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f18e172] [cursor=pointer]:
+            - generic [ref=f18e173]: DA
+            - generic [ref=f18e175]:
+              - generic [ref=f18e176]: Dev Admin
+              - generic [ref=f18e177]: admin@valmonto.com
+    - generic [ref=f18e181]:
+      - heading "Navigation" [level=2] [ref=f18e182]
+      - paragraph [ref=f18e183]: Search or jump to…
+    - main [ref=f18e184]:
+      - generic [ref=f18e185]:
+        - generic [ref=f18e186]:
+          - button "Toggle Sidebar" [ref=f18e187] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f18e189]:
+            - list [ref=f18e190]:
+              - listitem [ref=f18e191]:
+                - link "Projects" [disabled] [ref=f18e192]
+        - generic [ref=f18e193]:
+          - button "Search or jump to… ⌘K" [ref=f18e194] [cursor=pointer]:
+            - generic [ref=f18e198]: Search or jump to…
+            - generic [ref=f18e199]: ⌘K
+          - button "Valmonto" [ref=f18e200] [cursor=pointer]
+          - generic [ref=f18e203]:
+            - button "Notifications" [ref=f18e204] [cursor=pointer]
+            - button "Change language" [ref=f18e206] [cursor=pointer]
+            - button "Toggle theme" [ref=f18e208] [cursor=pointer]
+      - main [ref=f18e2]:
+        - generic [ref=f18e3]:
+          - link "Projects" [ref=f18e5] [cursor=pointer]:
+            - /url: /projects
+          - generic [ref=f18e8]:
+            - generic [ref=f18e13]:
+              - button "Pipeline Demo" [ref=f18e14]
+              - generic [ref=f18e15]:
+                - button "valmonto/specbook" [ref=f18e16] [cursor=pointer]
+                - button "main" [ref=f18e21] [cursor=pointer]
+                - button "Full auto" [ref=f18e22] [cursor=pointer]
+                - generic [ref=f18e25]: Auto paused — default branch is red
+                - button "Working directory" [ref=f18e29] [cursor=pointer]
+            - button "New task" [ref=f18e34] [cursor=pointer]
+          - button "Context document What this product is, the stack, conventions, boundaries. Agents read this first." [ref=f18e36] [cursor=pointer]:
+            - generic [ref=f18e39]: Context document
+            - generic [ref=f18e40]: What this product is, the stack, conventions, boundaries. Agents read this first.
+          - button "Environments staging" [ref=f18e42] [cursor=pointer]:
+            - generic [ref=f18e45]: Environments
+            - generic [ref=f18e46]: staging
+          - generic [ref=f18e47]:
+            - button "Draft 1" [ref=f18e48] [cursor=pointer]:
+              - text: Draft
+              - generic [ref=f18e49]: "1"
+            - generic [ref=f18e50]: →
+            - button "Ready 0" [ref=f18e51] [cursor=pointer]:
+              - text: Ready
+              - generic [ref=f18e52]: "0"
+            - generic [ref=f18e53]: →
+            - button "In progress 1" [ref=f18e54] [cursor=pointer]:
+              - text: In progress
+              - generic [ref=f18e55]: "1"
+            - generic [ref=f18e56]: →
+            - button "Blocked 4" [ref=f18e57] [cursor=pointer]:
+              - text: Blocked
+              - generic [ref=f18e59]: "4"
+            - generic [ref=f18e60]: →
+            - button "Needs review 1" [pressed] [ref=f18e61] [cursor=pointer]:
+              - text: Needs review
+              - generic [ref=f18e63]: "1"
+            - generic [ref=f18e64]: →
+            - button "Approved 0 /3" [ref=f18e65] [cursor=pointer]:
+              - text: Approved
+              - generic [ref=f18e66]: "0"
+              - generic [ref=f18e67]: /3
+            - generic [ref=f18e68]: →
+            - button "Changes requested 1" [ref=f18e69] [cursor=pointer]:
+              - text: Changes requested
+              - generic [ref=f18e70]: "1"
+            - generic [ref=f18e71]: →
+            - button "Done 4" [ref=f18e72] [cursor=pointer]:
+              - text: Done
+              - generic [ref=f18e73]: "4"
+          - generic [ref=f18e75]:
+            - generic [ref=f18e76]:
+              - 'button "Quick-add: paste images (renamed inline)" [expanded] [active] [ref=f18e77] [cursor=pointer]'
+              - 'button "Quick-add: paste images (renamed inline)" [ref=f18e80]'
+              - generic "PR open" [ref=f18e81]
+              - generic "CI failing" [ref=f18e86]
+              - generic [ref=f18e87]: 2/3
+              - generic [ref=f18e91]: P9
+              - generic [ref=f18e92]: 5d
+              - button "Cancel task" [ref=f18e93] [cursor=pointer]
+            - generic [ref=f18e210]:
+              - generic [ref=f18e211]:
+                - heading "Agent summary" [level=4] [ref=f18e212]
+                - paragraph [ref=f18e216]: Clipboard paste and drag-drop now create pending attachments. One webkit e2e spec fails on the paste-event shim — needs a look.
+              - generic [ref=f18e217]:
+                - heading "Context" [level=4] [ref=f18e218]
+                - button "OPTIMISTIC-TEST value after blur." [ref=f18e219]
+              - generic [ref=f18e220]:
+                - heading "Out of scope" [level=4] [ref=f18e221]
+                - button "Out of scope" [ref=f18e222]
+              - generic [ref=f18e223]:
+                - heading "Acceptance criteria (2/3)" [level=4] [ref=f18e224]
+                - list [ref=f18e225]:
+                  - listitem [ref=f18e226]:
+                    - textbox [ref=f18e230]: Paste from clipboard attaches
+                    - button "Delete" [ref=f18e231] [cursor=pointer]
+                  - listitem [ref=f18e235]:
+                    - textbox [ref=f18e237]: New outcome via Enter
+                    - button "Delete" [ref=f18e238] [cursor=pointer]
+                  - listitem [ref=f18e242]:
+                    - textbox [ref=f18e246]: Drag-drop works on the whole dialog
+                    - button "Delete" [ref=f18e247] [cursor=pointer]
+                - button "Add criterion" [ref=f18e251] [cursor=pointer]
+              - generic [ref=f18e254]:
+                - generic [ref=f18e255]: feat/quick-add
+                - link "Open PR" [ref=f18e260] [cursor=pointer]:
+                  - /url: https://github.com/valmonto/specbook/compare/main...feat/quick-add
+              - generic [ref=f18e265]:
+                - button "Approve" [ref=f18e266] [cursor=pointer]
+                - button "Request changes" [ref=f18e267] [cursor=pointer]
+                - generic [ref=f18e268]: Merge blocked — CI failing
+              - generic [ref=f18e269]:
+                - heading "Attachments" [level=4] [ref=f18e270]
+                - button "Drag & drop files here, or click to add" [ref=f18e273] [cursor=pointer]
+              - generic [ref=f18e275]:
+                - heading "Activity" [level=4] [ref=f18e276]
+                - list [ref=f18e279]:
+                  - listitem [ref=f18e280]:
+                    - generic [ref=f18e285]:
+                      - generic [ref=f18e286]:
+                        - generic [ref=f18e287]: Agent
+                        - generic [ref=f18e288]: comment
+                        - generic "Aug 2, 2026, 9:50 AM" [ref=f18e289]: 5d
+                      - paragraph [ref=f18e290]: Clipboard paste and drag-drop now create pending attachments. One webkit e2e spec fails on the paste-event shim — needs a look.
+                  - listitem [ref=f18e291]:
+                    - generic [ref=f18e296]:
+                      - generic [ref=f18e297]:
+                        - generic [ref=f18e298]: You
+                        - generic [ref=f18e299]: comment
+                        - generic "Aug 2, 2026, 12:09 PM" [ref=f18e300]: 5d
+                      - paragraph [ref=f18e301]: Inline comment from the v2 row — works.
+                  - listitem [ref=f18e302]:
+                    - generic [ref=f18e307]:
+                      - generic [ref=f18e308]:
+                        - generic [ref=f18e309]: You
+                        - generic [ref=f18e310]: comment
+                        - generic "Aug 2, 2026, 4:08 PM" [ref=f18e311]: 5d
+                      - paragraph [ref=f18e312]: Composer check via Cmd+Enter
+                - generic [ref=f18e313]:
+                  - textbox "Write a comment…" [ref=f18e314]
+                  - button "Comment" [disabled]
+              - generic "Priority" [ref=f18e316]:
+                - text: P
+                - spinbutton "P" [ref=f18e317]: "9"
+  - region "Notifications alt+T"

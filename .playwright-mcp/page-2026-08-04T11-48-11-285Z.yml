@@ -1,0 +1,12 @@
+- generic [ref=f12e2]:
+  - heading "Unexpected Application Error!" [level=2] [ref=f12e202]
+  - heading "Cannot read properties of undefined (reading 'queued')" [level=3] [ref=f12e203]
+  - generic [ref=f12e204]: "TypeError: Cannot read properties of undefined (reading 'queued') at http://localhost:5173/src/features/projects/components/environments-section.tsx?t=1785842458795:40:45"
+  - paragraph [ref=f12e205]: 💿 Hey developer 👋
+  - paragraph [ref=f12e206]:
+    - text: You can provide a way better UX than this when your app throws errors by providing your own
+    - code [ref=f12e207]: ErrorBoundary
+    - text: or
+    - code [ref=f12e208]: errorElement
+    - text: prop on your route.
+  - region "Notifications alt+T"

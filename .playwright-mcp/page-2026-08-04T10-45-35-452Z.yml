@@ -1,0 +1,87 @@
+- generic [ref=f5e2]:
+  - generic [ref=f5e3]:
+    - generic [ref=f5e6]:
+      - list [ref=f5e8]:
+        - listitem [ref=f5e9]:
+          - link "specbook Workspace" [ref=f5e10] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f5e14]:
+              - generic [ref=f5e15]: specbook
+              - generic [ref=f5e16]: Workspace
+      - generic [ref=f5e17]:
+        - generic [ref=f5e18]:
+          - generic [ref=f5e19]: Management
+          - list [ref=f5e21]:
+            - listitem [ref=f5e22]:
+              - link "Your move" [ref=f5e23] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=f5e28]:
+              - link "Projects" [active] [ref=f5e29] [cursor=pointer]:
+                - /url: /projects
+            - listitem [ref=f5e33]:
+              - link "Settings" [ref=f5e34] [cursor=pointer]:
+                - /url: /settings
+        - generic [ref=f5e39]:
+          - generic [ref=f5e40]: Developer
+          - list [ref=f5e42]:
+            - listitem [ref=f5e43]:
+              - link "Components" [ref=f5e44] [cursor=pointer]:
+                - /url: /components
+            - listitem [ref=f5e49]:
+              - link "Mobile" [ref=f5e50] [cursor=pointer]:
+                - /url: /mobile
+        - generic [ref=f5e54]:
+          - generic [ref=f5e55]: Platform
+          - list [ref=f5e57]:
+            - listitem [ref=f5e58]:
+              - link "Organizations" [ref=f5e59] [cursor=pointer]:
+                - /url: /admin/orgs
+            - listitem [ref=f5e65]:
+              - link "Permissions" [ref=f5e66] [cursor=pointer]:
+                - /url: /admin/permissions
+            - listitem [ref=f5e71]:
+              - link "API keys" [ref=f5e72] [cursor=pointer]:
+                - /url: /admin/api-keys
+      - list [ref=f5e78]:
+        - listitem [ref=f5e79]:
+          - button "DA Dev Admin admin@valmonto.com" [ref=f5e80] [cursor=pointer]:
+            - generic [ref=f5e81]: DA
+            - generic [ref=f5e83]:
+              - generic [ref=f5e84]: Dev Admin
+              - generic [ref=f5e85]: admin@valmonto.com
+    - generic [ref=f5e89]:
+      - heading "Navigation" [level=2] [ref=f5e90]
+      - paragraph [ref=f5e91]: Search or jump to…
+    - main [ref=f5e92]:
+      - generic [ref=f5e93]:
+        - generic [ref=f5e94]:
+          - button "Toggle Sidebar" [ref=f5e95] [cursor=pointer]
+          - navigation "breadcrumb" [ref=f5e97]:
+            - list [ref=f5e98]:
+              - listitem [ref=f5e99]:
+                - link "Projects" [disabled] [ref=f5e168]
+        - generic [ref=f5e101]:
+          - button "Search or jump to… ⌘K" [ref=f5e102] [cursor=pointer]:
+            - generic [ref=f5e106]: Search or jump to…
+            - generic [ref=f5e107]: ⌘K
+          - button "Valmonto" [ref=f5e108] [cursor=pointer]
+          - generic [ref=f5e111]:
+            - button "Notifications" [ref=f5e112] [cursor=pointer]
+            - button "Change language" [ref=f5e114] [cursor=pointer]
+            - button "Toggle theme" [ref=f5e116] [cursor=pointer]
+      - main [ref=f5e118]:
+        - generic [ref=f5e169]:
+          - generic [ref=f5e170]:
+            - generic [ref=f5e175]:
+              - heading "Projects" [level=1] [ref=f5e176]
+              - paragraph [ref=f5e177]: Each project is a repo plus its constitution — the context document agents read before working.
+            - button "New project" [ref=f5e180] [cursor=pointer]
+          - link "Pipeline Demo Archive project github.com/valmonto/specbook" [ref=f5e182] [cursor=pointer]:
+            - /url: /projects/01990000-0000-7000-8000-000000000001
+            - generic [ref=f5e184]:
+              - generic [ref=f5e185]:
+                - paragraph [ref=f5e186]: Pipeline Demo
+                - button "Archive project" [ref=f5e187]
+              - paragraph [ref=f5e188]:
+                - generic [ref=f5e193]: github.com/valmonto/specbook
+  - region "Notifications alt+T"

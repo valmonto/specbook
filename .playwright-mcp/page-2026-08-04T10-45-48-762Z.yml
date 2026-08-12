@@ -1,0 +1,12 @@
+- generic [ref=f5e2]:
+  - heading "Unexpected Application Error!" [level=2] [ref=f5e202]
+  - heading "The requested module '/@fs/opt/specbook/packages/contracts/src/client/index.ts?t=1785838722344' does not provide an export named 'ENVIRONMENT_NAMES'" [level=3] [ref=f5e203]
+  - generic [ref=f5e204]: "SyntaxError: The requested module '/@fs/opt/specbook/packages/contracts/src/client/index.ts?t=1785838722344' does not provide an export named 'ENVIRONMENT_NAMES'"
+  - paragraph [ref=f5e205]: 💿 Hey developer 👋
+  - paragraph [ref=f5e206]:
+    - text: You can provide a way better UX than this when your app throws errors by providing your own
+    - code [ref=f5e207]: ErrorBoundary
+    - text: or
+    - code [ref=f5e208]: errorElement
+    - text: prop on your route.
+  - region "Notifications alt+T"
