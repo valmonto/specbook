@@ -15,6 +15,8 @@ import type {
   ListProjectsResponse,
   ListResearchRequest,
   ListResearchResponse,
+  ListTaskAreasRequest,
+  ListTaskAreasResponse,
   ReopenResearchRequest,
   ReopenResearchResponse,
   UpdateResearchRequest,
@@ -55,6 +57,11 @@ export const researchResource = (client: HttpClient) => ({
   // only read their names to steer research.
   listProjects: (dto: ListProjectsRequest): Promise<ListProjectsResponse> =>
     client.get('/api/projects', { params: dto }),
+  // The cut-tickets sheet autocompletes each ticket's area from the target
+  // project's existing areas. Read here (not through the projects feature) for
+  // the same boundary reason as listProjects above.
+  listTaskAreas: (dto: ListTaskAreasRequest): Promise<ListTaskAreasResponse> =>
+    client.get('/api/tasks/areas', { params: dto }),
 });
 
 /** Bound instance the feature uses internally. */

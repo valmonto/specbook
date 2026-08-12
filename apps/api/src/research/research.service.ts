@@ -226,6 +226,9 @@ export class ResearchService {
         projectId: targetProjectId,
         title: proposal.title,
         context: proposal.context,
+        // Area rides through to the draft task so it lands pre-grouped on the
+        // board. Blank/whitespace stays null (empty is not an area label).
+        area: proposal.area?.trim() || null,
         status: 'draft',
         sourceResearchId: found.id,
         createdBy: activeUser.userId,

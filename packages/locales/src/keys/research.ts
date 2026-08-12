@@ -84,6 +84,11 @@ export const research = {
     selectTickets: 'research.cut.selectTickets',
     empty: 'research.cut.empty',
     fromChip: 'research.cut.fromChip',
+    area: 'research.cut.area',
+    areaPlaceholder: 'research.cut.areaPlaceholder',
+    noArea: 'research.cut.noArea',
+    applyAreaToAll: 'research.cut.applyAreaToAll',
+    applyAreaToAllHint: 'research.cut.applyAreaToAllHint',
   },
 
   toasts: {
