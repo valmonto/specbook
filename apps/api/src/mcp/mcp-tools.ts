@@ -6,6 +6,7 @@ import { k } from '@pkg/locales';
 import { z, type ZodRawShape } from 'zod-v3';
 import {
   ATTACHMENT_KINDS,
+  ENVIRONMENT_NAMES,
   MCP_TOOLS,
   TASK_COMMENT_KINDS,
   TASK_STATUSES,
@@ -15,6 +16,7 @@ import {
 } from '@pkg/contracts';
 import { AgentService } from '../agents';
 import { AttachmentsService } from '../attachments/attachments.service';
+import { EnvironmentService } from '../environments';
 import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
 import { ProjectService } from '../tasks/project.service';
@@ -77,6 +79,7 @@ export class McpTools {
     private readonly attachmentsService: AttachmentsService,
     private readonly githubApp: GithubAppService,
     private readonly agentService: AgentService,
+    private readonly environmentService: EnvironmentService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -124,6 +127,30 @@ export class McpTools {
         ...meta('get_repo_token'),
         inputSchema: { projectId: z.string().uuid() },
         handler: async (args, actor) => this.mintRepoToken(actor!, str(args.projectId)),
+      },
+      {
+        ...meta('get_environment'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          name: z.enum(ENVIRONMENT_NAMES).optional(),
+        },
+        handler: async (args, actor) =>
+          this.environmentService.agentGetEnvironments(actor!, {
+            projectId: str(args.projectId),
+            name: optStr(args.name),
+          }),
+      },
+      {
+        ...meta('list_deployments'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
+        },
+        handler: async (args, actor) =>
+          this.environmentService.agentListDeployments(actor!, {
+            projectId: str(args.projectId),
+            limit: args.limit as number | undefined,
+          }),
       },
       {
         ...meta('list_tasks'),

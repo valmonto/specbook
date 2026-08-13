@@ -10,6 +10,7 @@ import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
 import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
+import type { EnvironmentService } from '@/environments';
 
 /**
  * The contracts descriptors are what the key-creation UI shows the human;
@@ -26,6 +27,7 @@ describe('MCP catalog ↔ @pkg/contracts descriptors', () => {
     {} as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,
+    {} as EnvironmentService,
     new FakeLogger().as<PinoLogger>(),
   );
   const catalog = tools.catalog();

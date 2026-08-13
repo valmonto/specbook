@@ -24,6 +24,38 @@ export type EnvironmentWithServer = ProjectEnvironment & {
   serverHost: string;
 };
 
+/** Non-secret diagnosis projection of an environment + its server's connection identity. */
+export interface EnvironmentDiagnostics {
+  name: string;
+  domain: string | null;
+  deployPath: string | null;
+  autoDeploy: boolean;
+  provisionStatus: string;
+  provisionError: string | null;
+  provisionedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  serverName: string;
+  serverHost: string;
+  serverSshUser: string;
+  serverPort: number;
+}
+
+/** Non-secret diagnosis projection of one deployment run (the `log` blob omitted). */
+export interface DeploymentDiagnostics {
+  id: string;
+  environmentName: string;
+  trigger: string;
+  status: string;
+  phase: string | null;
+  sha: string;
+  domain: string | null;
+  error: string | null;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+  createdAt: Date;
+}
+
 /**
  * Every read and write is org-scoped THROUGH the project join — an
  * environment is only reachable via a project the org owns.
@@ -117,6 +149,75 @@ export class EnvironmentRepository {
       .select()
       .from(deployment)
       .where(eq(deployment.environmentId, environmentId))
+      .orderBy(desc(deployment.createdAt))
+      .limit(limit);
+  }
+
+  /**
+   * Agent-court diagnosis read: a project's environments with the NON-SECRET
+   * columns only, joined to the display+connection identity of their server.
+   * The sealed columns (user_env_enc, private_key_enc, data_root_env_enc) and
+   * the platform_env map are never selected, so nothing secret can leave here.
+   * Org-scoped through the project join like every other read.
+   */
+  async findEnvironmentsForDiagnostics(
+    projectId: string,
+    orgId: string,
+    name?: string,
+  ): Promise<EnvironmentDiagnostics[]> {
+    const conds = [eq(projectEnvironment.projectId, projectId)];
+    if (name) conds.push(eq(projectEnvironment.name, name));
+    return this.dbClient.db
+      .select({
+        name: projectEnvironment.name,
+        domain: projectEnvironment.domain,
+        deployPath: projectEnvironment.deployPath,
+        autoDeploy: projectEnvironment.autoDeploy,
+        provisionStatus: projectEnvironment.provisionStatus,
+        provisionError: projectEnvironment.provisionError,
+        provisionedAt: projectEnvironment.provisionedAt,
+        createdAt: projectEnvironment.createdAt,
+        updatedAt: projectEnvironment.updatedAt,
+        serverName: server.name,
+        serverHost: server.host,
+        serverSshUser: server.sshUser,
+        serverPort: server.port,
+      })
+      .from(projectEnvironment)
+      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(server, eq(server.id, projectEnvironment.serverId))
+      .where(and(...conds))
+      .orderBy(asc(projectEnvironment.name));
+  }
+
+  /**
+   * Agent-court diagnosis read: recent deployment runs across ALL of a
+   * project's environments, newest first, with the NON-SECRET columns only
+   * (the scrubbed `log` blob is omitted). Org-scoped through the project join.
+   */
+  async recentDeploymentsForProject(
+    projectId: string,
+    orgId: string,
+    limit = 20,
+  ): Promise<DeploymentDiagnostics[]> {
+    return this.dbClient.db
+      .select({
+        id: deployment.id,
+        environmentName: projectEnvironment.name,
+        trigger: deployment.trigger,
+        status: deployment.status,
+        phase: deployment.phase,
+        sha: deployment.sha,
+        domain: deployment.domain,
+        error: deployment.error,
+        startedAt: deployment.startedAt,
+        finishedAt: deployment.finishedAt,
+        createdAt: deployment.createdAt,
+      })
+      .from(deployment)
+      .innerJoin(projectEnvironment, eq(projectEnvironment.id, deployment.environmentId))
+      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(desc(deployment.createdAt))
       .limit(limit);
   }

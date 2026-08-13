@@ -12,6 +12,7 @@ import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
 import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
+import type { EnvironmentService } from '@/environments';
 
 const ORG_A = '11111111-1111-4111-8111-111111111111';
 const ORG_B = '22222222-2222-4222-8222-222222222222';
@@ -60,6 +61,7 @@ describe('MCP get_repo_token', () => {
       {} as AttachmentsService,
       github as unknown as GithubAppService,
       {} as AgentService,
+      {} as EnvironmentService,
       new FakeLogger().as<PinoLogger>(),
     );
     handler = tools.catalog().find((tool) => tool.name === 'get_repo_token')!.handler;
