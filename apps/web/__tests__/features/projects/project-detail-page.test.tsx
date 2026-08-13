@@ -63,12 +63,14 @@ const project = {
   updatedAt: '2026-08-01T00:00:00.000Z',
 };
 
-function renderPage() {
+// The board groups by Area by default; `?group=status` switches to the
+// stage-filtered pipeline. Tests that exercise the pipeline pass `search`.
+function renderPage(search = '') {
   return render(
     <Routes>
       <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
     </Routes>,
-    { initialEntries: [`/projects/${project.id}`] },
+    { initialEntries: [`/projects/${project.id}${search}`] },
   );
 }
 
@@ -91,7 +93,7 @@ beforeEach(() => {
 });
 
 describe('ProjectDetailPage', () => {
-  it('lands on the first human gate and filters the list to it', () => {
+  it('lands on the first human gate and filters the list to it (Status mode)', () => {
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
       data: {
@@ -102,13 +104,40 @@ describe('ProjectDetailPage', () => {
         ],
       },
     });
-    renderPage();
+    renderPage('?group=status');
 
     expect(
       screen.getByRole('button', { name: /tasks\.status\.needs_review1/ }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Review me')).toBeInTheDocument();
     expect(screen.queryByText('Ready one')).not.toBeInTheDocument();
+  });
+
+  it('groups the board by Area by default, with "No area" present', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', title: 'Bill one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: null, title: 'Untagged one' }),
+        ],
+      },
+    });
+    renderPage();
+
+    // The Area toggle is the pressed one — no user action, no ?group param.
+    expect(
+      screen.getByRole('button', { name: 'tasks.groupByArea' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', { name: 'tasks.groupByStatus' }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    // Section headers: the named area and the untagged bucket, rows visible.
+    // ("Billing" appears twice in Area mode — section header + the row's chip.)
+    expect(screen.getAllByText('Billing').length).toBeGreaterThan(0);
+    expect(screen.getByText('tasks.noArea')).toBeInTheDocument();
+    expect(screen.getByText('Bill one')).toBeInTheDocument();
+    expect(screen.getByText('Untagged one')).toBeInTheDocument();
   });
 
   it('shows the dispatch-paused banner at the merge-debt cap', () => {
@@ -143,7 +172,8 @@ describe('ProjectDetailPage', () => {
         ],
       },
     });
-    renderPage();
+    // Status mode: no area-section header buttons to confuse the expanded count.
+    renderPage('?group=status');
 
     await userEvent.click(screen.getByText('Row A'));
     expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(1);
@@ -196,7 +226,7 @@ describe('ProjectDetailPage', () => {
       }),
     );
     hooks.useCreateTask.mockReturnValue(create);
-    renderPage();
+    renderPage('?group=status');
 
     await userEvent.click(screen.getByRole('button', { name: /tasks\.newTask/ }));
 
