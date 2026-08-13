@@ -100,6 +100,33 @@ healthy. A bad deploy is downtime until someone pushes a fix.
 **Cost:** ~1d for a blue/green or tagged-image rollback.
 **Value:** turns a bad deploy from an outage into a revert.
 
+### The nginx edge is unhardened
+
+The app layer is in good shape — `@nestjs/throttler` caps auth attempts
+(login/register 10/min, Redis-backed, returns 429), CORS is an explicit
+allowlist (`CORS_ORIGINS`), and `@fastify/helmet` sends HSTS/X-Frame/nosniff
+on API responses. The gap is entirely at the **nginx edge that serves the
+SPA**: no HTTP→HTTPS redirect (port 80 answers 200), no security headers on
+the static document (so the app's first paint, before any API call, has no
+HSTS/CSP/X-Frame), and `server_tokens` left on (version banner). Surfaced by
+an external assessment on 2026-08-10; every finding that landed on specbook
+was one of these edge items — the inflated "no rate limiting / open CORS /
+exposed datastore" findings did **not** apply (throttler and CORS are
+present; Postgres and Redis bind localhost only, API ports are edge-filtered).
+
+Two fronts, because specbook runs one nginx by hand and renders others:
+
+- **The specbook production box** — a hand-maintained nginx: add the redirect,
+  the header block, and `server_tokens off` to its site config; `apt upgrade
+  nginx` off 1.24.0. Pure ops, no repo change.
+- **Every environment specbook provisions** — the nginx template in
+  `packages/server/src/modules/deploy/render.ts`. Fixing it there hardens
+  the whole fleet at once (see [docs/FUTURE.md](docs/FUTURE.md) §1).
+
+**Cost:** ~1h for the box, ~2h for the rendered template + a golden test.
+**Value:** closes clickjacking, SSL-strip, and MIME-sniff exposure on the
+document itself, on both the live product and everything it deploys.
+
 ### No API documentation
 
 No OpenAPI or Swagger. Consumers read the controllers.
