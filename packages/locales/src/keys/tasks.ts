@@ -58,6 +58,15 @@ export const tasks = {
   groupBy: 'tasks.groupBy',
   groupByStatus: 'tasks.groupByStatus',
   groupByArea: 'tasks.groupByArea',
+  // Standalone board filter (status-bucket chips + title search) — composes
+  // with, and is separate from, the group-by control above.
+  filter: {
+    show: 'tasks.filter.show',
+    active: 'tasks.filter.active',
+    searchPlaceholder: 'tasks.filter.searchPlaceholder',
+    searchLabel: 'tasks.filter.searchLabel',
+    clear: 'tasks.filter.clear',
+  },
   acceptanceCriteria: 'tasks.acceptanceCriteria',
   criterionPlaceholder: 'tasks.criterionPlaceholder',
   addCriterion: 'tasks.addCriterion',

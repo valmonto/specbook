@@ -184,6 +184,52 @@ describe('ProjectDetailPage', () => {
     expect(expanded[0]).toHaveAccessibleName('Row B');
   });
 
+  it('the title filter narrows the board and SURVIVES a Status↔Area switch', async () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Keepme alpha' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Dropme beta' }),
+        ],
+      },
+    });
+    // Land in Area mode (default) with a title query already in the URL.
+    renderPage('?q=keepme');
+
+    // Area mode: only the matching row survives the filter.
+    expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('tasks.filter.searchLabel')).toHaveValue('keepme');
+
+    // Switch grouping to Status — the query rides along (URL param retained),
+    // so the same narrowing holds in the pipeline view.
+    await userEvent.click(screen.getByRole('button', { name: 'tasks.groupByStatus' }));
+
+    expect(screen.getByLabelText('tasks.filter.searchLabel')).toHaveValue('keepme');
+    expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
+  });
+
+  it('a status-bucket filter hides done/cancelled and the strip counts reflect it', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'in_progress', title: 'Live row' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', status: 'done', title: 'Done row' }),
+        ],
+      },
+    });
+    // Show only the "active" bucket, in Status mode to read the strip counts.
+    renderPage('?group=status&status=active');
+
+    // The done stage chip reads 0 (filtered out); in_progress reads 1.
+    expect(screen.getByRole('button', { name: /tasks\.status\.done0/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tasks\.status\.in_progress1/ })).toBeInTheDocument();
+    expect(screen.queryByText('Done row')).not.toBeInTheDocument();
+  });
+
   it('an archived project renders the read-only banner and hides "+ New task"', () => {
     hooks.useProject.mockReturnValue({
       data: { ...project, archivedAt: '2026-08-02T00:00:00.000Z' },
