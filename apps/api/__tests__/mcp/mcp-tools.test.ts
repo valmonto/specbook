@@ -73,6 +73,70 @@ describe('McpTools — attachment tools', () => {
 });
 
 /**
+ * update_task is the agent's spec-repair tool — a thin wrapper that must live
+ * in the agent court (tasks:agent + org context) and delegate to the SAME
+ * TaskService.agentUpdateSpec the guardrail lives in, mapping its optional
+ * args straight through.
+ */
+describe('McpTools — update_task', () => {
+  const taskService = {
+    agentUpdateSpec: vi.fn().mockResolvedValue({}),
+  };
+  const tools = new McpTools(
+    {} as OrgService,
+    {} as ProjectService,
+    taskService as unknown as TaskService,
+    {} as ResearchService,
+    {} as AttachmentsService,
+    {} as GithubAppService,
+    {} as AgentService,
+    new FakeLogger().as<PinoLogger>(),
+  );
+  const updateTask = tools.catalog().find((tool) => tool.name === 'update_task')!;
+  beforeEach(() => taskService.agentUpdateSpec.mockClear());
+
+  it('lives in the agent court (tasks:agent, org context required)', () => {
+    expect(updateTask).toBeDefined();
+    expect(updateTask.scope).toBe('tasks:agent');
+    expect(updateTask.needsOrgContext).toBe(true);
+  });
+
+  it('delegates the mapped spec fields to agentUpdateSpec', async () => {
+    await updateTask.handler(
+      {
+        id: TASK,
+        title: 'Fixed title',
+        context: 'Better context',
+        outOfScope: 'not this',
+        area: 'Billing',
+        acceptanceCriteria: ['a', 'b'],
+      },
+      actor,
+    );
+    expect(taskService.agentUpdateSpec).toHaveBeenCalledWith(actor, {
+      id: TASK,
+      title: 'Fixed title',
+      context: 'Better context',
+      outOfScope: 'not this',
+      area: 'Billing',
+      acceptanceCriteria: ['a', 'b'],
+    });
+  });
+
+  it('passes omitted fields through as undefined (a partial edit)', async () => {
+    await updateTask.handler({ id: TASK, title: 'Only the title' }, actor);
+    expect(taskService.agentUpdateSpec).toHaveBeenCalledWith(actor, {
+      id: TASK,
+      title: 'Only the title',
+      context: undefined,
+      outOfScope: undefined,
+      area: undefined,
+      acceptanceCriteria: undefined,
+    });
+  });
+});
+
+/**
  * list_research is the research turn-QUEUE by default (status `researching`),
  * which the ambient runner depends on. An explicit status lets an assistant
  * browse the fuller set; `all` drops the filter. The handler owns this mapping.

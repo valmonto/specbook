@@ -186,6 +186,57 @@ export class TaskService {
   }
 
   /**
+   * The agent's spec-repair door: an agent edits ONLY the captured spec
+   * fields (title, context, out-of-scope, area, acceptance criteria) of a
+   * task it may still shape — a draft it filed, or a task it has claimed and
+   * is working. Status, ownership, priority and the PR/branch links are out
+   * of reach here (those move through transition / update_task_links), so a
+   * spec fix can never smuggle a status change past the state machine. The
+   * requireTask read is org-scoped, so a foreign org's task is a NotFound.
+   */
+  async agentUpdateSpec(
+    activeUser: ActiveUser,
+    dto: {
+      id: string;
+      title?: string;
+      context?: string;
+      outOfScope?: string;
+      area?: string;
+      acceptanceCriteria?: string[];
+    },
+  ): Promise<TaskDto> {
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+
+    // Editable while the spec is still the agent's to shape: an undispatched
+    // draft, or a task this same agent has claimed and is working. Anything
+    // else (ready, needs_review, another agent's in_progress, a terminal
+    // task) is off-limits — refine before dispatch or after re-claim.
+    const editable =
+      current.status === 'draft' ||
+      (current.status === 'in_progress' && current.claimedBy === activeUser.userId);
+    if (!editable) {
+      throw new UnprocessableEntityException(k.tasks.errors.notEditable);
+    }
+
+    const patch: Partial<NewTask> = {};
+    if (dto.title !== undefined) patch.title = dto.title;
+    if (dto.context !== undefined) patch.context = dto.context;
+    if (dto.outOfScope !== undefined) patch.outOfScope = dto.outOfScope;
+    if (dto.area !== undefined) patch.area = dto.area;
+    if (dto.acceptanceCriteria !== undefined) {
+      // Full replacement, mirroring create(): a fresh checklist, all unticked.
+      patch.acceptanceCriteria = dto.acceptanceCriteria.map((text) => ({ text, done: false }));
+    }
+
+    const updated = await this.taskRepository.update(dto.id, activeUser.orgId, patch);
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    this.logger.info({ taskId: dto.id }, 'Task spec edited by agent');
+    return this.serialize(updated);
+  }
+
+  /**
    * The one door for status changes. Validates the actor's transition map,
    * enforces the two gates (dispatch, review), performs a compare-and-swap
    * so races lose cleanly, and records the accompanying comment.

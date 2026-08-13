@@ -576,6 +576,7 @@
   "tasks.errors.mergeConflict": "GitHub praneša, kad šakos sulieti negalima — atnaujink ją arba išspręsk konfliktus",
   "tasks.errors.mergeNoPr": "Šiai užduočiai nerasta šakos ar atviro pull request",
   "tasks.errors.mergeNotApproved": "Sulieti galima tik patvirtintas užduotis",
+  "tasks.errors.notEditable": "Redaguoti galima tik juodraštinę užduotį arba tavo pasiimtą vykdomą užduotį",
   "tasks.errors.notFound": "Užduotis nerasta",
   "tasks.errors.noteHumanOnly": "Pastabą agentui gali rašyti tik žmogus",
   "tasks.errors.noteNotInProgress": "Pastabos skirtos dirbančiam agentui — užduotis nevykdoma",

@@ -238,6 +238,7 @@ export const tasks = {
     repoProvisionNotGranted: 'tasks.errors.repoProvisionNotGranted',
     projectNotFound: 'tasks.errors.projectNotFound',
     notFound: 'tasks.errors.notFound',
+    notEditable: 'tasks.errors.notEditable',
     invalidTransition: 'tasks.errors.invalidTransition',
     mergeNotApproved: 'tasks.errors.mergeNotApproved',
     mergeCiFailing: 'tasks.errors.mergeCiFailing',

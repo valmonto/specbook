@@ -576,6 +576,7 @@
   "tasks.errors.mergeConflict": "GitHub reports the branch is not mergeable — update it or resolve conflicts",
   "tasks.errors.mergeNoPr": "No branch or open pull request found for this task",
   "tasks.errors.mergeNotApproved": "Only approved tasks can be merged",
+  "tasks.errors.notEditable": "Only a draft task, or an in-progress task you've claimed, can be edited",
   "tasks.errors.notFound": "Task not found",
   "tasks.errors.noteHumanOnly": "Only a human can write a note to the agent",
   "tasks.errors.noteNotInProgress": "Notes steer a working agent — the task is not in progress",

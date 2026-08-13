@@ -576,6 +576,7 @@
   "tasks.errors.mergeConflict": "GitHub indica que la rama no se puede fusionar — actualízala o resuelve los conflictos",
   "tasks.errors.mergeNoPr": "No se encontró rama ni pull request abierto para esta tarea",
   "tasks.errors.mergeNotApproved": "Solo se pueden fusionar tareas aprobadas",
+  "tasks.errors.notEditable": "Solo se puede editar una tarea en borrador o una tarea en progreso que hayas reclamado",
   "tasks.errors.notFound": "Tarea no encontrada",
   "tasks.errors.noteHumanOnly": "Solo un humano puede escribir una nota al agente",
   "tasks.errors.noteNotInProgress": "Las notas dirigen a un agente trabajando — la tarea no está en curso",
