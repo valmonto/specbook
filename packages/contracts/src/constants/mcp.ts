@@ -67,6 +67,20 @@ export const MCP_TOOLS = [
       "Mint a 1-hour GitHub token restricted to this project's bound repository (contents + pull requests) — clone/push with it, then let it expire. Requires the org's GitHub connection.",
   },
   {
+    name: 'get_environment',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "A project's deploy environment(s) for diagnosis — the target server (name/host/ssh_user/port), deploy_path, domain, auto_deploy, and provisioning state (provision_status + provision_error). Read-only; NEVER returns secrets. Pass `name` (staging|production) to narrow to one.",
+  },
+  {
+    name: 'list_deployments',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Recent deployment runs across a project's environments, NEWEST FIRST — each run's trigger, status, phase, sha, domain, surfaced error and timestamps. Read-only diagnosis; triggering a deploy stays human-only.",
+  },
+  {
     name: 'list_tasks',
     scope: 'tasks:agent',
     needsOrgContext: true,

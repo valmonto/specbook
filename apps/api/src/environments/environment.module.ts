@@ -8,5 +8,6 @@ import { EnvironmentRepository } from './environment.repository';
   imports: [SecretsModule],
   controllers: [EnvironmentController],
   providers: [EnvironmentService, EnvironmentRepository],
+  exports: [EnvironmentService],
 })
 export class EnvironmentModule {}

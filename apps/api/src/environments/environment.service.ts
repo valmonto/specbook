@@ -28,6 +28,35 @@ import { EnvironmentRepository, type EnvironmentWithServer } from './environment
 
 const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
 
+/** The secret-free shape the get_environment MCP tool returns. */
+export interface AgentEnvironmentView {
+  name: string;
+  domain: string | null;
+  deployPath: string | null;
+  autoDeploy: boolean;
+  provisionStatus: string;
+  provisionError: string | null;
+  provisionedAt: string | null;
+  server: { name: string; host: string; sshUser: string; port: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The secret-free shape the list_deployments MCP tool returns. */
+export interface AgentDeploymentView {
+  id: string;
+  environmentName: string;
+  trigger: string;
+  status: string;
+  phase: string | null;
+  sha: string;
+  domain: string | null;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+}
+
 /** Postgres 23505 on the (project, name) index, however deep the driver wraps it. */
 function isNameCollision(error: unknown): boolean {
   for (
@@ -217,6 +246,75 @@ export class EnvironmentService {
     });
     this.logger.info({ environmentId: dto.id, name: dto.name }, 'User env var deleted');
     return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /**
+   * Agent-court READ: a project's environment(s) for diagnosis. Org-scoped
+   * (the project must belong to the actor's org, else NotFound) and secret-free
+   * by construction — the repository never selects the sealed/platform columns,
+   * and this shape carries only connection + provisioning facts.
+   */
+  async agentGetEnvironments(
+    activeUser: ActiveUser,
+    dto: { projectId: string; name?: string },
+  ): Promise<{ data: AgentEnvironmentView[] }> {
+    await this.getProjectOrThrow(dto.projectId, activeUser.orgId);
+    const rows = await this.environmentRepository.findEnvironmentsForDiagnostics(
+      dto.projectId,
+      activeUser.orgId,
+      dto.name,
+    );
+    return {
+      data: rows.map((r) => ({
+        name: r.name,
+        domain: r.domain,
+        deployPath: r.deployPath,
+        autoDeploy: r.autoDeploy,
+        provisionStatus: r.provisionStatus,
+        provisionError: r.provisionError,
+        provisionedAt: r.provisionedAt?.toISOString() ?? null,
+        server: {
+          name: r.serverName,
+          host: r.serverHost,
+          sshUser: r.serverSshUser,
+          port: r.serverPort,
+        },
+        createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  /**
+   * Agent-court READ: recent deployment runs across a project's environments,
+   * newest first. Org-scoped (NotFound for a foreign project) and secret-free —
+   * the scrubbed `log` blob is not even selected.
+   */
+  async agentListDeployments(
+    activeUser: ActiveUser,
+    dto: { projectId: string; limit?: number },
+  ): Promise<{ data: AgentDeploymentView[] }> {
+    await this.getProjectOrThrow(dto.projectId, activeUser.orgId);
+    const rows = await this.environmentRepository.recentDeploymentsForProject(
+      dto.projectId,
+      activeUser.orgId,
+      dto.limit,
+    );
+    return {
+      data: rows.map((d) => ({
+        id: d.id,
+        environmentName: d.environmentName,
+        trigger: d.trigger,
+        status: d.status,
+        phase: d.phase,
+        sha: d.sha,
+        domain: d.domain,
+        error: d.error,
+        startedAt: d.startedAt?.toISOString() ?? null,
+        finishedAt: d.finishedAt?.toISOString() ?? null,
+        createdAt: d.createdAt.toISOString(),
+      })),
+    };
   }
 
   private async getById(

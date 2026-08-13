@@ -10,6 +10,7 @@ import type { ProjectService } from '@/tasks/project.service';
 import type { TaskService } from '@/tasks/task.service';
 import type { ResearchService } from '@/research/research.service';
 import type { AttachmentsService } from '@/attachments/attachments.service';
+import type { EnvironmentService } from '@/environments';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const TASK = '22222222-2222-4222-8222-222222222222';
@@ -34,6 +35,7 @@ describe('McpTools — attachment tools', () => {
     attachments as unknown as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,
+    {} as EnvironmentService,
     new FakeLogger().as<PinoLogger>(),
   );
   const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
@@ -90,6 +92,7 @@ describe('McpTools — update_task', () => {
     {} as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,
+    {} as EnvironmentService,
     new FakeLogger().as<PinoLogger>(),
   );
   const updateTask = tools.catalog().find((tool) => tool.name === 'update_task')!;
@@ -153,6 +156,7 @@ describe('McpTools — list_research status filter', () => {
     {} as AttachmentsService,
     {} as GithubAppService,
     {} as AgentService,
+    {} as EnvironmentService,
     new FakeLogger().as<PinoLogger>(),
   );
   const listResearch = tools.catalog().find((tool) => tool.name === 'list_research')!;
@@ -180,5 +184,67 @@ describe('McpTools — list_research status filter', () => {
       actor,
       expect.objectContaining({ status: undefined, projectId: TASK }),
     );
+  });
+});
+
+/**
+ * The deploy-diagnosis tools are read-only agent-court wrappers: they live
+ * behind tasks:agent + org context and delegate to the SAME EnvironmentService
+ * the REST surface uses, passing the actor (never a payload identity) through.
+ */
+describe('McpTools — deploy diagnosis (get_environment / list_deployments)', () => {
+  const PROJECT = '33333333-3333-4333-8333-333333333333';
+  const environment = {
+    agentGetEnvironments: vi.fn().mockResolvedValue({ data: [] }),
+    agentListDeployments: vi.fn().mockResolvedValue({ data: [] }),
+  };
+  const tools = new McpTools(
+    {} as OrgService,
+    {} as ProjectService,
+    {} as TaskService,
+    {} as ResearchService,
+    {} as AttachmentsService,
+    {} as GithubAppService,
+    {} as AgentService,
+    environment as unknown as EnvironmentService,
+    new FakeLogger().as<PinoLogger>(),
+  );
+  const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
+  beforeEach(() => {
+    environment.agentGetEnvironments.mockClear();
+    environment.agentListDeployments.mockClear();
+  });
+
+  it('both live in the agent court (tasks:agent, org context required)', () => {
+    for (const name of ['get_environment', 'list_deployments']) {
+      const tool = byName(name);
+      expect(tool).toBeDefined();
+      expect(tool.scope).toBe('tasks:agent');
+      expect(tool.needsOrgContext).toBe(true);
+    }
+  });
+
+  it('get_environment delegates projectId + optional name to the service, actor first', async () => {
+    await byName('get_environment').handler({ projectId: PROJECT, name: 'staging' }, actor);
+    expect(environment.agentGetEnvironments).toHaveBeenCalledWith(actor, {
+      projectId: PROJECT,
+      name: 'staging',
+    });
+  });
+
+  it('get_environment passes an omitted name through as undefined (all envs)', async () => {
+    await byName('get_environment').handler({ projectId: PROJECT }, actor);
+    expect(environment.agentGetEnvironments).toHaveBeenCalledWith(actor, {
+      projectId: PROJECT,
+      name: undefined,
+    });
+  });
+
+  it('list_deployments delegates projectId + optional limit to the service', async () => {
+    await byName('list_deployments').handler({ projectId: PROJECT, limit: 5 }, actor);
+    expect(environment.agentListDeployments).toHaveBeenCalledWith(actor, {
+      projectId: PROJECT,
+      limit: 5,
+    });
   });
 });
