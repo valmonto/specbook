@@ -171,6 +171,26 @@ export class McpTools {
           }),
       },
       {
+        ...meta('update_task'),
+        inputSchema: {
+          id: z.string().uuid(),
+          title: z.string().min(1).max(500).optional(),
+          context: z.string().optional(),
+          outOfScope: z.string().optional(),
+          area: z.string().max(120).optional(),
+          acceptanceCriteria: z.array(z.string().min(1)).max(50).optional(),
+        },
+        handler: async (args, actor) =>
+          this.taskService.agentUpdateSpec(actor!, {
+            id: str(args.id),
+            title: optStr(args.title),
+            context: optStr(args.context),
+            outOfScope: optStr(args.outOfScope),
+            area: optStr(args.area),
+            acceptanceCriteria: args.acceptanceCriteria as string[] | undefined,
+          }),
+      },
+      {
         ...meta('claim_task'),
         inputSchema: { id: z.string().uuid() },
         handler: async (args, actor) =>

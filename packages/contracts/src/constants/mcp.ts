@@ -88,6 +88,13 @@ export const MCP_TOOLS = [
       "File a task spec on the human's behalf. ALWAYS lands as a draft — only the human can dispatch it to ready (the dispatch gate), so use this to capture specs, not to queue work for yourself.",
   },
   {
+    name: 'update_task',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Edit a task's spec you captured — title, context, out-of-scope, area, acceptance criteria — on a DRAFT task, or an in_progress task you've claimed. Cannot change status, ownership, priority, or PR/branch links (use the transition / update_task_links tools). Org-scoped — the repair for a mistyped create_task.",
+  },
+  {
     name: 'claim_task',
     scope: 'tasks:agent',
     needsOrgContext: true,
