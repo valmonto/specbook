@@ -51,21 +51,15 @@ export const tasks = {
   taskContext: 'tasks.taskContext',
   taskContextHint: 'tasks.taskContextHint',
   outOfScope: 'tasks.outOfScope',
-  // Free-text feature/flow label + the board's group-by control.
+  // Free-text feature/flow label for the always-Area board.
   area: 'tasks.area',
   areaPlaceholder: 'tasks.areaPlaceholder',
   noArea: 'tasks.noArea',
-  groupBy: 'tasks.groupBy',
-  groupByStatus: 'tasks.groupByStatus',
-  groupByArea: 'tasks.groupByArea',
-  // Standalone board filter (status-bucket chips + title search) — composes
-  // with, and is separate from, the group-by control above.
+  // The board's title search — orthogonal to the pipeline strip's status
+  // filter (the strip is the one status control; see PipelineStrip).
   filter: {
-    show: 'tasks.filter.show',
-    active: 'tasks.filter.active',
     searchPlaceholder: 'tasks.filter.searchPlaceholder',
     searchLabel: 'tasks.filter.searchLabel',
-    clear: 'tasks.filter.clear',
   },
   acceptanceCriteria: 'tasks.acceptanceCriteria',
   criterionPlaceholder: 'tasks.criterionPlaceholder',
