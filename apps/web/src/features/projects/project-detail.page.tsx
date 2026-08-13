@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProjectContextSection, ProjectHeader } from './components/v2/project-header';
 import { GroupByControl, PipelineStrip, type GroupBy } from './components/v2/pipeline-strip';
+import { byRecency, groupTasksByArea } from './components/v2/group-tasks';
 import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import {
   useCreateTask,
@@ -42,11 +43,6 @@ const EMPTY_KEYS: Partial<Record<TaskStatus, string>> = {
   approved: k.tasks.v2.stageEmpty.approved,
   done: k.tasks.v2.stageEmpty.done,
 };
-
-// Newest first: most recent stage/area entry on top (same idiom everywhere).
-const byRecency = (a: Task, b: Task) =>
-  new Date(b.statusChangedAt ?? b.createdAt).getTime() -
-  new Date(a.statusChangedAt ?? a.createdAt).getTime();
 
 /** The three-bucket rollup an area section header carries at a glance. */
 interface Rollup {
@@ -119,9 +115,10 @@ export default function ProjectDetailV2Page() {
     stageParam && (TASK_STATUSES as readonly string[]).includes(stageParam)
       ? (stageParam as TaskStatus)
       : null;
-  // The grouping axis lives in the URL too (?group=area): Status is the
-  // default (no param), Area regroups the same list under feature sections.
-  const groupBy: GroupBy = searchParams.get('group') === 'area' ? 'area' : 'status';
+  // The grouping axis lives in the URL too: Area is the default (no param) —
+  // the board opens grouped under feature sections — and ?group=status switches
+  // back to the stage-filtered pipeline.
+  const groupBy: GroupBy = searchParams.get('group') === 'status' ? 'status' : 'area';
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // The just-created draft: its row mounts with the title already in edit mode.
@@ -138,7 +135,7 @@ export default function ProjectDetailV2Page() {
     setSearchParams(
       (prev) => {
         const params = new URLSearchParams(prev);
-        if (next === 'area') params.set('group', 'area');
+        if (next === 'status') params.set('group', 'status');
         else params.delete('group');
         return params;
       },
@@ -161,7 +158,17 @@ export default function ProjectDetailV2Page() {
     if (!project) return;
     const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
     if (res.e || !res.d) return;
-    setSearchParams({ stage: 'draft' }, { replace: true });
+    // Land on the draft stage, but keep the current grouping axis: in Status
+    // mode that reveals the draft column, in Area mode the fresh row already
+    // sits (expanded, title focused) in its area section.
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('stage', 'draft');
+        return params;
+      },
+      { replace: true },
+    );
     setExpandedId(res.d.id);
     setFreshId(res.d.id);
   };
@@ -177,24 +184,9 @@ export default function ProjectDetailV2Page() {
   // Newest first: most recent stage entry on top (done = latest merged first).
   const stageTasks = tasks.filter((task) => task.status === selected).sort(byRecency);
 
-  // Area mode: the SAME list, grouped under one section per area. Named areas
-  // first (busiest first, then alphabetical); the untagged "No area" group
-  // always sits last. Rows within a section keep the newest-first order.
-  const areaGroups = useMemo(() => {
-    const byArea = new Map<string, Task[]>();
-    for (const task of tasks) {
-      const key = task.area?.trim() ?? '';
-      const list = byArea.get(key) ?? [];
-      list.push(task);
-      byArea.set(key, list);
-    }
-    for (const list of byArea.values()) list.sort(byRecency);
-    const named = [...byArea.entries()]
-      .filter(([key]) => key !== '')
-      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
-    const untagged = byArea.get('');
-    return untagged ? [...named, ['', untagged] as const] : named;
-  }, [tasks]);
+  // Area mode: the SAME list, grouped under one section per area (see
+  // groupTasksByArea for the ordering — named first, "No area" last).
+  const areaGroups = useMemo(() => groupTasksByArea(tasks), [tasks]);
   const approvedCount = counts.approved ?? 0;
   const mergeCandidates = tasks.filter(
     (task) => task.status === 'approved' && task.ciState !== 'failing',

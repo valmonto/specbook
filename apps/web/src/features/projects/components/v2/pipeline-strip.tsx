@@ -32,9 +32,9 @@ const GATES: TaskStatus[] = ['blocked', 'needs_review', 'approved'];
 export type GroupBy = 'status' | 'area';
 
 /**
- * The segmented Status | Area control that sits by the pipeline strip. Status
- * keeps the stage-filtered list (today's default); Area regroups the SAME
- * list under collapsible feature sections. Persisted in the URL (?group=area).
+ * The segmented Status | Area control that sits by the pipeline strip. Area
+ * is the default — the SAME list under collapsible feature sections; Status
+ * keeps the stage-filtered pipeline. Persisted in the URL (?group=status).
  */
 export function GroupByControl({
   value,
