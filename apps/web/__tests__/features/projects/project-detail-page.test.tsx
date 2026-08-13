@@ -6,9 +6,11 @@ import { render, screen, waitFor } from '../../mocks/providers';
 import { installRadixDomShims, makeAction, makeTask } from './helpers';
 
 /**
- * The page-level contracts: smart default lands on the first human gate,
- * chips filter, exactly one row expands at a time, and "+ New task" creates
- * an Untitled draft that mounts in title-edit mode on the Draft stage.
+ * The page-level contracts after the status controls were consolidated: the
+ * board ALWAYS groups by area, the pipeline strip is the single status filter
+ * over it, the title search is orthogonal, and the merge-debt gate counts the
+ * full set regardless of the view filter. "+ New task" creates an Untitled
+ * draft that mounts in title-edit mode.
  */
 
 const hooks = vi.hoisted(() => ({
@@ -63,8 +65,7 @@ const project = {
   updatedAt: '2026-08-01T00:00:00.000Z',
 };
 
-// The board groups by Area by default; `?group=status` switches to the
-// stage-filtered pipeline. Tests that exercise the pipeline pass `search`.
+// The board always groups by area; ?stage= filters it and ?q= searches titles.
 function renderPage(search = '') {
   return render(
     <Routes>
@@ -93,27 +94,7 @@ beforeEach(() => {
 });
 
 describe('ProjectDetailPage', () => {
-  it('lands on the first human gate and filters the list to it (Status mode)', () => {
-    hooks.useProjectTasks.mockReturnValue({
-      isLoading: false,
-      data: {
-        data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'ready', title: 'Ready one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', status: 'needs_review', title: 'Review me' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000003', status: 'done', title: 'Done one' }),
-        ],
-      },
-    });
-    renderPage('?group=status');
-
-    expect(
-      screen.getByRole('button', { name: /tasks\.status\.needs_review1/ }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('Review me')).toBeInTheDocument();
-    expect(screen.queryByText('Ready one')).not.toBeInTheDocument();
-  });
-
-  it('groups the board by Area by default, with "No area" present', () => {
+  it('always groups the board by area and has no group-by toggle', () => {
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
       data: {
@@ -125,22 +106,123 @@ describe('ProjectDetailPage', () => {
     });
     renderPage();
 
-    // The Area toggle is the pressed one — no user action, no ?group param.
-    expect(
-      screen.getByRole('button', { name: 'tasks.groupByArea' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByRole('button', { name: 'tasks.groupByStatus' }),
-    ).toHaveAttribute('aria-pressed', 'false');
+    // The consolidated board dropped the Group by: Status | Area control.
+    expect(screen.queryByRole('button', { name: 'tasks.groupByStatus' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'tasks.groupByArea' })).not.toBeInTheDocument();
+
     // Section headers: the named area and the untagged bucket, rows visible.
-    // ("Billing" appears twice in Area mode — section header + the row's chip.)
+    // ("Billing" appears twice — section header + the row's area chip.)
     expect(screen.getAllByText('Billing').length).toBeGreaterThan(0);
     expect(screen.getByText('tasks.noArea')).toBeInTheDocument();
     expect(screen.getByText('Bill one')).toBeInTheDocument();
     expect(screen.getByText('Untagged one')).toBeInTheDocument();
+
+    // The strip renders as the status filter with nothing selected (all stages).
+    expect(screen.getByRole('button', { name: /tasks\.status\.draft/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
-  it('shows the dispatch-paused banner at the merge-debt cap', () => {
+  it('clicking a stage in the strip filters the area board to it', async () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Live one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+        ],
+      },
+    });
+    renderPage();
+
+    // All stages: both rows show.
+    expect(screen.getByText('Live one')).toBeInTheDocument();
+    expect(screen.getByText('Done one')).toBeInTheDocument();
+
+    // Filter to Done via the strip — the board narrows, the chip presses.
+    await userEvent.click(screen.getByRole('button', { name: /tasks\.status\.done/ }));
+
+    expect(screen.getByRole('button', { name: /tasks\.status\.done/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Done one')).toBeInTheDocument();
+    expect(screen.queryByText('Live one')).not.toBeInTheDocument();
+
+    // Clicking the selected stage again clears back to all stages.
+    await userEvent.click(screen.getByRole('button', { name: /tasks\.status\.done/ }));
+    expect(screen.getByRole('button', { name: /tasks\.status\.done/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByText('Live one')).toBeInTheDocument();
+  });
+
+  it('restores the stage filter from ?stage= (shareable link)', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Live one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+        ],
+      },
+    });
+    renderPage('?stage=done');
+
+    expect(screen.getByRole('button', { name: /tasks\.status\.done/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Done one')).toBeInTheDocument();
+    expect(screen.queryByText('Live one')).not.toBeInTheDocument();
+  });
+
+  it('area section rollups reflect the active stage filter, not the full list', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'done', title: 'Done A' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done B' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000003', area: 'Billing', status: 'in_progress', title: 'Live C' }),
+        ],
+      },
+    });
+    // Filter to in_progress: the Billing rollup should show only the 1 live task
+    // — no "done: 2" segment survives the filter.
+    renderPage('?stage=in_progress');
+
+    expect(screen.getByText('Live C')).toBeInTheDocument();
+    expect(screen.queryByText('Done A')).not.toBeInTheDocument();
+    expect(screen.getByTitle('tasks.status.in_progress: 1')).toBeInTheDocument();
+    expect(screen.queryByTitle('tasks.status.done: 2')).not.toBeInTheDocument();
+  });
+
+  it('the title search narrows the board and lives in the URL (?q=)', async () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Keepme alpha' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Dropme beta' }),
+        ],
+      },
+    });
+    // Restored from the URL: only the matching row survives, the box shows it.
+    renderPage('?q=keepme');
+
+    expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('tasks.filter.searchLabel')).toHaveValue('keepme');
+
+    // Typing is wired: narrowing further hides the last match too.
+    await userEvent.type(screen.getByLabelText('tasks.filter.searchLabel'), ' zzz');
+    expect(screen.queryByText('Keepme alpha')).not.toBeInTheDocument();
+  });
+
+  it('the merge-debt gate counts the FULL set even when a filter hides it', () => {
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
       data: {
@@ -154,80 +236,40 @@ describe('ProjectDetailPage', () => {
         ),
       },
     });
-    renderPage();
+    // Filter to a stage with zero tasks: the board is empty, yet the pause is a
+    // project fact — the banner and merge action must still show.
+    renderPage('?stage=draft');
 
+    expect(screen.queryByText('Approved 1')).not.toBeInTheDocument();
     expect(screen.getByText('tasks.v2.dispatchPaused')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /tasks\.actions\.mergeAllGreen/ }),
     ).toBeInTheDocument();
   });
 
-  it('expands one row at a time', async () => {
+  it('expands one row at a time within the area board', async () => {
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'done', title: 'Row A' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', status: 'done', title: 'Row B' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'done', title: 'Row A' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Row B' }),
         ],
       },
     });
-    // Status mode: no area-section header buttons to confuse the expanded count.
-    renderPage('?group=status');
+    renderPage();
 
+    // The chevron toggle carries the title as its accessible name AND
+    // aria-expanded (section headers name their area, not a title), so the
+    // expanded filter pins the one open row.
     await userEvent.click(screen.getByText('Row A'));
-    expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Row A', expanded: true })).toBeInTheDocument();
 
     await userEvent.click(screen.getByText('Row B'));
-    const expanded = screen.getAllByRole('button', { expanded: true });
-    expect(expanded).toHaveLength(1);
-    expect(expanded[0]).toHaveAccessibleName('Row B');
-  });
-
-  it('the title filter narrows the board and SURVIVES a Status↔Area switch', async () => {
-    hooks.useProjectTasks.mockReturnValue({
-      isLoading: false,
-      data: {
-        data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Keepme alpha' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Dropme beta' }),
-        ],
-      },
-    });
-    // Land in Area mode (default) with a title query already in the URL.
-    renderPage('?q=keepme');
-
-    // Area mode: only the matching row survives the filter.
-    expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
-    expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('tasks.filter.searchLabel')).toHaveValue('keepme');
-
-    // Switch grouping to Status — the query rides along (URL param retained),
-    // so the same narrowing holds in the pipeline view.
-    await userEvent.click(screen.getByRole('button', { name: 'tasks.groupByStatus' }));
-
-    expect(screen.getByLabelText('tasks.filter.searchLabel')).toHaveValue('keepme');
-    expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
-    expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
-  });
-
-  it('a status-bucket filter hides done/cancelled and the strip counts reflect it', () => {
-    hooks.useProjectTasks.mockReturnValue({
-      isLoading: false,
-      data: {
-        data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'in_progress', title: 'Live row' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', status: 'done', title: 'Done row' }),
-        ],
-      },
-    });
-    // Show only the "active" bucket, in Status mode to read the strip counts.
-    renderPage('?group=status&status=active');
-
-    // The done stage chip reads 0 (filtered out); in_progress reads 1.
-    expect(screen.getByRole('button', { name: /tasks\.status\.done0/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /tasks\.status\.in_progress1/ })).toBeInTheDocument();
-    expect(screen.queryByText('Done row')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Row B', expanded: true })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Row A', expanded: true }),
+    ).not.toBeInTheDocument();
   });
 
   it('an archived project renders the read-only banner and hides "+ New task"', () => {
@@ -248,7 +290,7 @@ describe('ProjectDetailPage', () => {
 
   it('"+ New task" creates an Untitled draft and lands on it in title-edit mode', async () => {
     const created = makeTask({
-      id: '11111111-0000-4000-8000-00000000fresh'.replace('fresh', '0009'),
+      id: '11111111-0000-4000-8000-000000000009',
       status: 'draft',
       title: 'tasks.v2.untitled',
       context: null,
@@ -272,7 +314,7 @@ describe('ProjectDetailPage', () => {
       }),
     );
     hooks.useCreateTask.mockReturnValue(create);
-    renderPage('?group=status');
+    renderPage();
 
     await userEvent.click(screen.getByRole('button', { name: /tasks\.newTask/ }));
 
@@ -280,13 +322,9 @@ describe('ProjectDetailPage', () => {
       projectId: project.id,
       title: 'tasks.v2.untitled',
     });
-    // Draft stage selected, and the fresh row's title is an editable input.
+    // The fresh row mounts with its title as an editable input.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /tasks\.status\.draft1/ })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      ),
+      expect(screen.getByDisplayValue('tasks.v2.untitled')).toBeInTheDocument(),
     );
-    expect(screen.getByDisplayValue('tasks.v2.untitled')).toBeInTheDocument();
   });
 });

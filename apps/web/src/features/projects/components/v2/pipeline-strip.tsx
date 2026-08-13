@@ -5,10 +5,11 @@ import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 
 /**
- * The pipeline as one row of stage chips — the v2 replacement for columns.
- * With a WIP-capped loop and one operator, a column never holds more than a
- * handful of cards; the strip answers "where is everything" in one glance
- * and leaves the width for the card evidence below.
+ * The pipeline as one row of stage chips — the v2 replacement for columns, and
+ * the board's single status control. It answers "where is everything" at a
+ * glance (the per-stage funnel counts) AND doubles as the status filter over
+ * the always-area board: clicking a stage narrows the board to it, clicking the
+ * selected stage again clears back to all stages (`selected === null`).
  *
  * The two human gates (needs_review, approved) carry an amber dot when
  * occupied; approved also shows the merge-debt cap, because hitting it
@@ -29,53 +30,10 @@ const ORDER: TaskStatus[] = [
 ];
 const GATES: TaskStatus[] = ['blocked', 'needs_review', 'approved'];
 
-export type GroupBy = 'status' | 'area';
-
-/**
- * The segmented Status | Area control that sits by the pipeline strip. Area
- * is the default — the SAME list under collapsible feature sections; Status
- * keeps the stage-filtered pipeline. Persisted in the URL (?group=status).
- */
-export function GroupByControl({
-  value,
-  onChange,
-}: {
-  value: GroupBy;
-  onChange: (group: GroupBy) => void;
-}) {
-  const { t } = useTranslation();
-  const options: Array<{ key: GroupBy; label: string }> = [
-    { key: 'status', label: t(k.tasks.groupByStatus) },
-    { key: 'area', label: t(k.tasks.groupByArea) },
-  ];
-  return (
-    <div className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-      <span>{t(k.tasks.groupBy)}</span>
-      <div className="inline-flex rounded-full border p-0.5">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            onClick={() => onChange(o.key)}
-            aria-pressed={value === o.key}
-            className={cn(
-              'rounded-full px-2.5 py-1 text-[13px] whitespace-nowrap transition-colors',
-              value === o.key
-                ? 'bg-primary/10 text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 interface Props {
   counts: Partial<Record<TaskStatus, number>>;
-  selected: TaskStatus;
+  /** The stage the board is filtered to, or null when all stages show. */
+  selected: TaskStatus | null;
   onSelect: (status: TaskStatus) => void;
 }
 

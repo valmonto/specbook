@@ -48,4 +48,22 @@ describe('PipelineStrip', () => {
     await userEvent.click(screen.getByRole('button', { name: /tasks\.status\.done/ }));
     expect(onSelect).toHaveBeenCalledWith('done');
   });
+
+  it('presses no stage when the board is on all-stages (selected null)', () => {
+    render(<PipelineStrip counts={{ ready: 2, done: 1 }} selected={null} onSelect={vi.fn()} />);
+
+    for (const stage of ['ready', 'done', 'draft']) {
+      expect(
+        screen.getByRole('button', { name: new RegExp(`tasks\\.status\\.${stage}`) }),
+      ).toHaveAttribute('aria-pressed', 'false');
+    }
+  });
+
+  it('reports a click on the already-selected stage (the page clears it)', async () => {
+    const onSelect = vi.fn();
+    render(<PipelineStrip counts={{ ready: 2 }} selected="ready" onSelect={onSelect} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /tasks\.status\.ready/ }));
+    expect(onSelect).toHaveBeenCalledWith('ready');
+  });
 });
