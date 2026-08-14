@@ -47,6 +47,14 @@ export const tasks = {
 
   // Task form
   newTask: 'tasks.newTask',
+  // Create-with-dependency: the split-button menu + its dialog.
+  newTaskWith: {
+    menu: 'tasks.newTaskWith.menu',
+    title: 'tasks.newTaskWith.title',
+    description: 'tasks.newTaskWith.description',
+    titleLabel: 'tasks.newTaskWith.titleLabel',
+    create: 'tasks.newTaskWith.create',
+  },
   taskTitle: 'tasks.taskTitle',
   taskContext: 'tasks.taskContext',
   taskContextHint: 'tasks.taskContextHint',

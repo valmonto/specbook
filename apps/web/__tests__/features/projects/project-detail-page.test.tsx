@@ -406,7 +406,7 @@ describe('ProjectDetailPage', () => {
     hooks.useCreateTask.mockReturnValue(create);
     renderPage();
 
-    await userEvent.click(screen.getByRole('button', { name: /tasks\.newTask/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'tasks.newTask' }));
 
     expect(create.execute).toHaveBeenCalledWith({
       projectId: project.id,
