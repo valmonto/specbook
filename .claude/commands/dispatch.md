@@ -69,6 +69,40 @@ stop on your own just because sweeps keep coming back empty.
   Leave `costUsdCents` unset on subscription billing. Claimant-only,
   values ADD — never re-report a running total.
 
+## Teardown per task (non-negotiable — the box leaks otherwise)
+
+A build boots a throwaway dev stack for its browser check and runs inside a git
+worktree. Both leak if not torn down: a 7-task run once left an orphaned Vite
+listener and 16 worktrees (~4 GB) behind, thrashing the 7.6 GB box. Guarantee
+teardown in three layers.
+
+1. **Dev stack — trap-based, not happy-path.** Boot the browser-check stack via
+   `scripts/dev-stack.sh` (api + vite on a throwaway port set + a throwaway
+   `sb_*` DB). It installs `trap cleanup EXIT INT TERM`, so the stack is killed
+   by its ports and the `sb_*` DB is dropped even on failure/interrupt. Never
+   leave a stack running past the check — pass your browser command to the
+   script (`scripts/dev-stack.sh <cmd>`) or ensure the trap fires.
+2. **Worktree — removed after finalize.** Once the task reaches `needs_review`,
+   its build worktree must be removed so `.claude/worktrees/` does not
+   accumulate: `git worktree remove --force <path>` then `git worktree prune`.
+   (Agent worktrees auto-remove only when UNCHANGED; a build always has commits,
+   so it persists until removed.)
+3. **Safety reaper — start-of-run / periodic broom.** Run
+   `node scripts/reap-build-leaks.mjs` to see orphaned build processes and
+   leftover worktrees; it is a **dry run by default (prints only)**. Add
+   `--apply` to actually kill + prune.
+
+   **GUARDRAIL — never kill the live site.** specbook.valmonto.com runs on THIS
+   box in dev/watch mode: api on `:3000` (child of `nest start --watch`) and web
+   on `vite :5173`, BOTH with cwd in the **main checkout** (`apps/{api,web}`);
+   object storage is docker on `:9000`. The reaper's ONLY kill criterion is a
+   process whose **cwd is strictly under `.claude/worktrees/`** — the live
+   processes are siblings of that root, never inside it, so they are always
+   kept. It prunes only worktrees that look orphaned (unlocked, no live process
+   inside). Prefer the dry run; reserve `--apply` for a deliberate cleanup, and
+   afterward confirm `curl -s -o /dev/null -w "%{http_code}" https://specbook.valmonto.com/`
+   still returns `200`.
+
 ## Protocol per research turn (non-negotiable)
 
 - `get_research` — read the living document AND the whole conversation; the
