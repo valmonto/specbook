@@ -43,7 +43,10 @@ beforeEach(() => {
   hooks.useAddComment.mockReturnValue(makeAction());
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
   hooks.useProjectAreas.mockReturnValue({ data: { areas: [] } });
-  hooks.useProjectTasks.mockReturnValue({ data: { data: [] } });
+  // One non-terminal candidate so the dependency picker (and its Add button) renders.
+  hooks.useProjectTasks.mockReturnValue({
+    data: { data: [makeTask({ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', status: 'ready' })] },
+  });
   hooks.useAddDependency.mockReturnValue(makeAction());
   hooks.useRemoveDependency.mockReturnValue(makeAction());
 });
