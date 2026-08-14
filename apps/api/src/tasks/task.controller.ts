@@ -10,6 +10,7 @@ import {
   GetTaskPrRequestSchema,
   ListTaskAreasRequestSchema,
   ListTasksRequestSchema,
+  MarkReadyRequestSchema,
   MergeTaskRequestSchema,
   RemoveTaskDependencyRequestSchema,
   TransitionTaskRequestSchema,
@@ -33,6 +34,8 @@ import {
   type ListTaskAreasResponse,
   type ListTasksRequest,
   type ListTasksResponse,
+  type MarkReadyRequest,
+  type MarkReadyResponse,
   type MergeTaskRequest,
   type MergeTaskResponse,
   type RemoveTaskDependencyRequest,
@@ -69,6 +72,20 @@ export class TaskController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<CreateTaskResponse> {
     return this.taskService.create(activeUser, dto);
+  }
+
+  // Bulk draft → ready for a scope (whole project, an Area/group, or a set of
+  // task ids), resolving transitive draft prerequisites server-side. Human-only
+  // by design: no MCP tool wraps it — `ready` is the human dispatch gate, and
+  // an agent must never bulk-promote its own queue. Static path, declared
+  // before ':id' so Nest matches it first.
+  @Post('mark-ready')
+  @Permissions('task:transition')
+  async markReady(
+    @ZodRequest(MarkReadyRequestSchema) dto: MarkReadyRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<MarkReadyResponse> {
+    return this.taskService.markReady(activeUser, dto);
   }
 
   // Static route before ':id' — Nest matches top-down. Distinct area labels

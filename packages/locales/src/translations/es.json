@@ -722,5 +722,17 @@
   "validation.maxLength": "Debe contener como máximo {{count}} caracter(es)",
   "validation.minLength": "Debe contener al menos {{count}} caracter(es)",
   "validation.passwordRequirements": "La contraseña debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas, números y caracteres especiales",
-  "validation.required": "Requerido"
+  "validation.required": "Requerido",
+  "tasks.markReady.all": "Marcar todo como listo",
+  "tasks.markReady.group": "Marcar todo este grupo como listo",
+  "tasks.markReady.projectMenu": "Acciones del proyecto",
+  "tasks.markReady.groupMenu": "Acciones del grupo",
+  "tasks.markReady.confirmAllTitle": "¿Marcar todos los borradores como listos?",
+  "tasks.markReady.confirmAllBody": "Esto marca {{count}} tarea(s) en borrador de este proyecto como listas para los agentes. Los requisitos previos en borrador de los que dependan también se marcan como listos.",
+  "tasks.markReady.confirmGroupTitle": "¿Marcar este grupo como listo?",
+  "tasks.markReady.confirmGroupBody": "Esto marca {{count}} tarea(s) en borrador de este grupo como listas. También pueden incluirse requisitos previos en borrador de otros grupos, para que nada quede bloqueado.",
+  "tasks.markReady.confirm": "Marcar listo",
+  "tasks.markReady.alsoPromoted": "También marcado como listo: {{titles}}",
+  "tasks.markReady.done": "{{count}} tarea(s) marcada(s) como listas",
+  "tasks.markReady.none": "No hay tareas en borrador para marcar como listas"
 }

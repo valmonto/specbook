@@ -200,6 +200,8 @@ export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);
 export const useDeleteTask = () =>
   useProjectsAction((dto: DeleteTaskRequest) => projectsApi.removeTask(dto));
 export const useTransitionTask = () => useProjectsAction(projectsApi.transitionTask);
+/** Bulk (and single-task) draft → ready; the response drives the confirm count and toast. */
+export const useMarkReady = () => useProjectsAction(projectsApi.markReady);
 export const useCreateManagedAgent = () => useProjectsAction(projectsApi.createManagedAgent);
 export const useStartAgent = () => useProjectsAction(projectsApi.startAgent);
 export const useStopAgent = () => useProjectsAction(projectsApi.stopAgent);

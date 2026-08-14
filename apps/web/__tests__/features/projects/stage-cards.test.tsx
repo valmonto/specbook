@@ -19,6 +19,7 @@ import { deferred, installRadixDomShims, makeAction, makeTask } from './helpers'
 
 const hooks = vi.hoisted(() => ({
   useTransitionTask: vi.fn(),
+  useMarkReady: vi.fn(),
   useMergeTask: vi.fn(),
   useUpdateTask: vi.fn(),
   useDeleteTask: vi.fn(),
@@ -45,6 +46,7 @@ beforeAll(() => installRadixDomShims());
 
 beforeEach(() => {
   hooks.useTransitionTask.mockReturnValue(makeAction());
+  hooks.useMarkReady.mockReturnValue(makeAction());
   hooks.useMergeTask.mockReturnValue(makeAction());
   hooks.useUpdateTask.mockReturnValue(makeAction());
   hooks.useDeleteTask.mockReturnValue(makeAction());
@@ -93,9 +95,12 @@ describe('row overflow menu', () => {
     expect(screen.getByRole('menuitem', { name: 'tasks.actions.cancelTask' })).toBeInTheDocument();
   });
 
-  it('enables Mark ready once the gate is satisfiable, and fires the transition', async () => {
-    const transition = makeAction();
-    hooks.useTransitionTask.mockReturnValue(transition);
+  it('enables Mark ready once the gate is satisfiable, and cascades via mark-ready', async () => {
+    // Dispatching a draft goes through the bulk mark-ready endpoint (scoped to
+    // this one task) so the backend can also promote its draft prerequisites —
+    // not a plain transition.
+    const markReady = makeAction();
+    hooks.useMarkReady.mockReturnValue(markReady);
     const task = makeTask({
       status: 'draft',
       context: 'ctx',
@@ -104,7 +109,9 @@ describe('row overflow menu', () => {
     render(<PlainCard task={task} expanded={false} onToggle={noop} />);
     await userEvent.click(screen.getByRole('button', { name: 'tasks.actions.cancelTask' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'tasks.actions.markReady' }));
-    expect(transition.execute).toHaveBeenCalledWith({ id: task.id, to: 'ready' });
+    expect(markReady.execute).toHaveBeenCalledWith({
+      scope: { kind: 'tasks', projectId: task.projectId, taskIds: [task.id] },
+    });
   });
 
   it('renders no menu on terminal tasks', () => {

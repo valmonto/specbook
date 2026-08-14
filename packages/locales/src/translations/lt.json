@@ -722,5 +722,17 @@
   "validation.maxLength": "Eilutėje turi būti ne daugiau kaip {{count}} simbolis (-iai)",
   "validation.minLength": "Eilutėje turi būti bent {{count}} simbolis (-iai)",
   "validation.passwordRequirements": "Slaptažodis turi būti bent 8 simbolių ir turėti didžiąją, mažąją raidę, skaičių ir specialųjį simbolį",
-  "validation.required": "Privaloma"
+  "validation.required": "Privaloma",
+  "tasks.markReady.all": "Žymėti visus kaip paruoštus",
+  "tasks.markReady.group": "Žymėti visą šią grupę kaip paruoštą",
+  "tasks.markReady.projectMenu": "Projekto veiksmai",
+  "tasks.markReady.groupMenu": "Grupės veiksmai",
+  "tasks.markReady.confirmAllTitle": "Žymėti visus juodraščius kaip paruoštus?",
+  "tasks.markReady.confirmAllBody": "Tai pažymi {{count}} šio projekto juodraštinę užduotį (-is) kaip paruoštas agentams. Juodraštinės išankstinės sąlygos, nuo kurių jos priklauso, taip pat pažymimos kaip paruoštos.",
+  "tasks.markReady.confirmGroupTitle": "Žymėti šią grupę kaip paruoštą?",
+  "tasks.markReady.confirmGroupBody": "Tai pažymi {{count}} šios grupės juodraštinę užduotį (-is) kaip paruoštas. Gali būti įtrauktos ir juodraštinės išankstinės sąlygos iš kitų grupių, kad niekas neliktų blokuota.",
+  "tasks.markReady.confirm": "Žymėti paruošta",
+  "tasks.markReady.alsoPromoted": "Taip pat pažymėta paruošta: {{titles}}",
+  "tasks.markReady.done": "Pažymėta {{count}} užduotis (-ys) kaip paruošta",
+  "tasks.markReady.none": "Nėra juodraštinių užduočių, kurias būtų galima pažymėti paruoštomis"
 }

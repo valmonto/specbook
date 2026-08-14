@@ -197,6 +197,23 @@ export const tasks = {
     },
   },
 
+  // Bulk "mark as ready" — the project cog, the per-group menu, and the toast
+  // the single-task action shows when it pulls in a prerequisite.
+  markReady: {
+    all: 'tasks.markReady.all',
+    group: 'tasks.markReady.group',
+    projectMenu: 'tasks.markReady.projectMenu',
+    groupMenu: 'tasks.markReady.groupMenu',
+    confirmAllTitle: 'tasks.markReady.confirmAllTitle',
+    confirmAllBody: 'tasks.markReady.confirmAllBody',
+    confirmGroupTitle: 'tasks.markReady.confirmGroupTitle',
+    confirmGroupBody: 'tasks.markReady.confirmGroupBody',
+    confirm: 'tasks.markReady.confirm',
+    alsoPromoted: 'tasks.markReady.alsoPromoted',
+    done: 'tasks.markReady.done',
+    none: 'tasks.markReady.none',
+  },
+
   // Detail
   detail: {
     claimedBy: 'tasks.detail.claimedBy',

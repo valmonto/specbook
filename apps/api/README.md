@@ -243,6 +243,19 @@ by merge debt: a project holding `MERGE_DEBT_CAP` (3) approved tasks
 stops feeding runners until the queue drains — enforced in the
 repository query, so no client can bypass it.
 
+**Bulk mark-ready** — `POST /tasks/mark-ready` (permission
+`task:transition`; deliberately no MCP tool — `ready` is the human
+dispatch gate, an agent must never bulk-promote its own queue) moves a
+scope's eligible `draft` tasks to `ready` in one call. The scope is the
+whole project, one Area/group, or an explicit set of task ids; the
+service also promotes those targets' **transitive draft prerequisites**
+(walking `task_dependency`, which `wouldCycle()` keeps acyclic) so a
+task is never left ready-but-stranded behind a draft it depends on.
+Non-draft tasks progress on their own and are left untouched; drafts
+failing the dispatch gate (no context / no criteria) are skipped. The
+`bulkPromoteDraftsToReady` write is org-scoped and status-guarded (a
+compare-and-swap on `draft`), proven by a two-tenant integration test.
+
 ## The data plane — provisioning environments
 
 Creating an environment on a server that holds the `data` role auto-enqueues

@@ -13,6 +13,7 @@ import { installRadixDomShims, makeAction, makeTask } from './helpers';
 const hooks = vi.hoisted(() => ({
   useUpdateTask: vi.fn(),
   useTransitionTask: vi.fn(),
+  useMarkReady: vi.fn(),
   useMergeTask: vi.fn(),
   useAddComment: vi.fn(),
   useTask: vi.fn(),
@@ -35,6 +36,7 @@ beforeAll(() => installRadixDomShims());
 beforeEach(() => {
   hooks.useUpdateTask.mockReturnValue(makeAction());
   hooks.useTransitionTask.mockReturnValue(makeAction());
+  hooks.useMarkReady.mockReturnValue(makeAction());
   hooks.useMergeTask.mockReturnValue(makeAction());
   hooks.useAddComment.mockReturnValue(makeAction());
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });

@@ -32,6 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
+  useMarkReady,
   useMergeTask,
   useProjectAreas,
   useTask,
@@ -42,6 +43,7 @@ import {
 import { AttachmentsSection } from './attachments-section';
 import { DependencyEditor } from './dependency-editor';
 import { useProjectReadOnly } from './v2/read-only-context';
+import { markSingleTaskReady } from './v2/mark-ready-menu';
 import { CostLine } from './github-state-badges';
 import { StatusBadge } from './status-badge';
 
@@ -858,12 +860,19 @@ function MovesFooter({
 }) {
   const { t } = useTranslation();
   const transition = useTransitionTask();
+  const markReady = useMarkReady();
   const update = useUpdateTask();
   const [priority, setPriority] = useState(String(task.priority));
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
   if (isTerminal(task)) return null;
 
   const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+    // Dispatching a draft cascades: mark-ready also promotes transitive draft
+    // prerequisites and toasts any it pulled in. No confirmation — direct action.
+    if (to === 'ready' && task.status === 'draft') {
+      await markSingleTaskReady(markReady, task, t);
+      return;
+    }
     const res = await transition.execute({ id: task.id, to });
     if (res.e) toast.error(t(res.e.message));
   };
@@ -887,7 +896,7 @@ function MovesFooter({
   if (task.status === 'changes_requested')
     moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
 
-  const busy = transition.isLoading || update.isLoading;
+  const busy = transition.isLoading || markReady.isLoading || update.isLoading;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-t pt-3">
@@ -896,7 +905,9 @@ function MovesFooter({
           key={m.labelKey}
           size="sm"
           variant={m.to === 'ready' ? 'default' : 'outline'}
-          disabled={transition.isLoading || (m.to === 'ready' && dispatchBlocked)}
+          disabled={
+            transition.isLoading || markReady.isLoading || (m.to === 'ready' && dispatchBlocked)
+          }
           title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
           onClick={() => void go(m.to)}
         >
