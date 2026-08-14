@@ -25,6 +25,13 @@ navigate, click, type, screenshot, accessibility snapshot). **UI work is not
 done until you have looked at it**: boot the stack, log in, drive the flow you
 built, and compare what renders against the spec.
 
+- **Debug artifacts go under `.debug/`, never the repo root.** Playwright MCP
+  is pointed at `.debug/playwright` (via `--output-dir` in `.mcp.json`), so
+  screenshots, `page-*.yml` snapshots and console logs land there. `.debug/`
+  and `.playwright-mcp/` are gitignored and ephemeral — do not `git add` them.
+  The **durable** evidence for a task is the **ticket attachment**, not a file
+  committed to the repo.
+
 - Dev logins come from the seed: `admin@valmonto.com` (platform admin),
   `member@valmonto.com`, … — password `ChangeMe123!` unless
   `SEED_INITIAL_PASSWORD` overrides it.
