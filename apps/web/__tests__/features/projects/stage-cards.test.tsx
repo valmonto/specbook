@@ -26,6 +26,12 @@ const hooks = vi.hoisted(() => ({
   useCheckCriterion: vi.fn(),
   useTask: vi.fn(),
   useTaskPr: vi.fn(),
+  // Pulled in by the shared <TaskDetail> body: the area combobox and the
+  // dependency editor.
+  useProjectAreas: vi.fn(),
+  useProjectTasks: vi.fn(),
+  useAddDependency: vi.fn(),
+  useRemoveDependency: vi.fn(),
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
@@ -46,6 +52,10 @@ beforeEach(() => {
   hooks.useCheckCriterion.mockReturnValue(makeAction());
   hooks.useTask.mockReturnValue({ data: undefined });
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
+  hooks.useProjectAreas.mockReturnValue({ data: { areas: [] } });
+  hooks.useProjectTasks.mockReturnValue({ data: { data: [] } });
+  hooks.useAddDependency.mockReturnValue(makeAction());
+  hooks.useRemoveDependency.mockReturnValue(makeAction());
 });
 
 const noop = () => {};
@@ -115,9 +125,12 @@ describe('criteria editor', () => {
       ],
     });
 
-  it('checkboxes are read-only indicators — ticking is the agent’s act', () => {
+  it('criteria checkboxes are read-only indicators — ticking is the agent’s act', () => {
     render(<PlainCard task={draftTask()} expanded onToggle={noop} />);
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    // The criteria section carries no interactive checkbox (the human-task
+    // toggle in the footer is a separate control).
+    const section = screen.getByText(/tasks\.acceptanceCriteria/).closest('div')!;
+    expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
   it('Enter on a non-empty row inserts a focused row below and blocks adding more', async () => {
@@ -157,6 +170,37 @@ describe('criteria editor', () => {
         ],
       }),
     );
+  });
+});
+
+describe('dependency editor on the board', () => {
+  it('renders the depends-on editor (add + remove) in the expanded row', () => {
+    const task = makeTask({ status: 'draft' });
+    hooks.useTask.mockReturnValue({
+      data: {
+        ...task,
+        dependencies: [
+          { id: 'dep-1', title: 'Upstream task', status: 'ready' as const },
+        ],
+        dependents: [],
+        comments: [],
+      },
+    });
+    hooks.useProjectTasks.mockReturnValue({
+      data: { data: [makeTask({ id: 'cand-1', title: 'Another task' })] },
+    });
+
+    render(<PlainCard task={task} expanded onToggle={noop} />);
+
+    // The section, its existing edge with a remove affordance, and the picker.
+    expect(screen.getByText('tasks.detail.dependencies')).toBeInTheDocument();
+    expect(screen.getByText('Upstream task')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'tasks.detail.removeDependency' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'tasks.detail.addDependency' }),
+    ).toBeInTheDocument();
   });
 });
 
