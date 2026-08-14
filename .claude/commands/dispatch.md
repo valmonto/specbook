@@ -85,11 +85,39 @@ stop on your own just because sweeps keep coming back empty.
   research — the human accepts or reopens; `researching` → `needs_review` is
   the only transition you make here.
 
+## Unclear spec — the three-bucket triage (do NOT default to blocking)
+
+Blocking is the right move for genuine ambiguity, but it is too conservative
+for an unattended run: it strands the task and its dependents until morning
+even when the answer was discoverable. So when a spec is unclear, sort it into
+one of three buckets and act accordingly:
+
+1. **Discoverable** — an existing pattern, convention, README, or the codebase
+   itself answers it. → Investigate and decide, then proceed normally. This is
+   just doing the homework; no flag, no block.
+2. **Reversible judgment call** — not directly answerable, but the decision is
+   safe to reverse: it is only a PR, with **no** data loss, **no** money /
+   security / destructive-migration / external-side-effect exposure. → Pick the
+   most defensible option and **document a flagged assumption**: call
+   `set_assumption` with `{ what, why, howToVerify }`, AND add an
+   "Assumptions & open questions" section to the PR body carrying the same
+   three. Then continue building. A flagged task keeps moving but is held out
+   of full-auto's auto-merge — the merge waits for a human who reviews the
+   assumption and clears the flag.
+3. **Irreversible / high-stakes / contradictory** — a money path, a security
+   posture, a destructive migration, an external side-effect, or a genuine spec
+   contradiction / infeasible ask. → Still hard-`block` with a precise
+   question. NEVER assume here.
+
+The "assumable" set is strictly bounded to bucket 2. When in doubt between 2
+and 3, treat it as 3 and block. Assumptions must be surfaced (the flag + the PR
+section), never buried in prose.
+
 ## Rejection and hard lines
 
-- Spec unclear, contradictory, or infeasible → do NOT guess: transition to
-  `blocked` with a precise question. That is rejection. Never abandon
-  silently.
+- Spec in bucket 3 (irreversible / high-stakes / contradictory / infeasible) →
+  do NOT guess: transition to `blocked` with a precise question. That is
+  rejection. Never abandon silently. (Buckets 1 and 2 above proceed instead.)
 - Never touch `draft` tasks. Never transition to `ready`, `approved` or
   `done` — the dispatch, review and merge gates are the human's, always.
 - An empty `available` queue can also mean the merge-debt gate: a project

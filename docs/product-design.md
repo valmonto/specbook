@@ -168,8 +168,13 @@ Grouped by whose move it is:
 
 - `draft` — spec being written. Agents must not pull it. This state
   protects half-written ideas from eager agents.
-- `blocked` — the agent hit ambiguity, posted a `question` comment, and
-  stopped. Human answers and flips back to `ready` (or `in_progress`).
+- `blocked` — the agent hit ambiguity it should NOT guess through, posted a
+  `question` comment, and stopped. Human answers and flips back to `ready`
+  (or `in_progress`). Reserved for the irreversible / high-stakes /
+  contradictory bucket (money, security, destructive migration, external
+  side-effect, genuine spec contradiction). Discoverable ambiguity is
+  investigated and decided; a reversible judgment call is decided under a
+  flagged **assumption** (below) instead of stranding the task overnight.
 - `needs_review` — the agent claims done. Human accepts or pushes back.
 - `approved` — the merge queue: review passed, code not yet on main.
   Merging happens server-side (the merge endpoint mints the downscoped
@@ -228,6 +233,17 @@ progression AND the project's agent queue until main is green, and
 approximates post-merge CI. The webhook worker drives progression; the api
 covers the CI-already-green orderings.
 
+**The assumption-flag safety valve.** An agent that shipped a task on a
+reversible judgment call records a machine-readable **assumption flag**
+(`{ what, why, howToVerify }`, set via the `set_assumption` MCP tool). Its
+presence holds the task out of full-auto's auto-merge even when CI is green:
+auto-review may still run (`needs_review → approved`), but the MERGE waits for
+a human, who reads the assumption and clears it (a human-only action, from the
+task detail; there is no MCP tool to clear). This trades throughput at build
+time for a human veto at review time — the nightly loop keeps building while
+anything resting on a guess waits for the morning. It is an additive hold: it
+weakens no review gate, and the circuit breaker still governs everything above.
+
 The breaker's automatic reset (a green default-branch run) assumes such
 runs exist. A repo whose default branch triggers no workflow — observed
 live on a template repo after its always-failing deploy workflow was
@@ -274,6 +290,7 @@ The agent-facing API. MVP set:
 | `update_status` | Guarded transitions (gates enforced server-side) |
 | `add_comment` | Typed: `progress`, `question`, summary `comment` |
 | `check_criterion` | Tick an acceptance-criteria box |
+| `set_assumption` | Flag a reversible judgment call (`{ what, why, howToVerify }`) — holds the task out of full-auto auto-merge until a human clears it |
 
 `ask_question` is `add_comment(kind: question)` + automatic flip to
 `blocked` — the async Q&A channel between agent and human that generic

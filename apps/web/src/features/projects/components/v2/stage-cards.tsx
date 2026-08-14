@@ -13,6 +13,7 @@ import {
   ListChecks,
   MoreHorizontal,
   Tag,
+  TriangleAlert,
   UserRound,
 } from 'lucide-react';
 import type { Task, TaskDependencyInfo, TaskStatus } from '@pkg/contracts';
@@ -140,6 +141,26 @@ function AreaChip({ task }: { task: Task }) {
     <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-muted-foreground">
       <Tag className="size-3 shrink-0" />
       <span className="max-w-[10rem] truncate">{task.area}</span>
+    </span>
+  );
+}
+
+/**
+ * The assumption flag: a quiet amber chip marking a task the agent shipped on a
+ * reversible judgment call. Its presence is why the task is held out of
+ * full-auto's auto-merge, so it reads as "needs a human look" on the row — the
+ * `what` sits in the tooltip; the full record is in the expanded detail.
+ */
+function AssumptionChip({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  if (!task.assumptionFlag) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-700 ring-1 ring-amber-500/20 ring-inset dark:text-amber-300"
+      title={task.assumptionFlag.what}
+    >
+      <TriangleAlert className="size-3 shrink-0" />
+      {t(k.tasks.assumption.chip)}
     </span>
   );
 }
@@ -450,6 +471,7 @@ function CardShell({
           </span>
         )}
         <AreaChip task={task} />
+        <AssumptionChip task={task} />
         <FromResearchChip task={task} />
         <DependencyIndicator task={task} />
         <PrChip task={task} />

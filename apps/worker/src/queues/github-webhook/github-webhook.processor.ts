@@ -504,6 +504,19 @@ export class GithubWebhookProcessor extends WorkerHost {
           this.logger.info({ taskId: t.id }, 'Auto: approved (CI green, mode=auto)');
         }
 
+        // The assumption-flag safety valve: a task shipped on a flagged
+        // assumption is NEVER auto-merged, even in full-auto. Auto-review may
+        // still run (the approve above), but the MERGE waits for a human who
+        // reads the assumption and clears the flag. Additive hold only — it
+        // leaves the task where the human can act on it and weakens no gate.
+        if (t.assumptionFlag) {
+          this.logger.info(
+            { taskId: t.id },
+            'Auto-merge held: task carries an assumption flag — routed to human review',
+          );
+          continue;
+        }
+
         // Resolve the PR: webhook-fed number, else by branch, else create it.
         let prNumber = t.prNumber;
         if (!prNumber && t.branch) {

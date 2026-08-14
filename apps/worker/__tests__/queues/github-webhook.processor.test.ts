@@ -221,6 +221,23 @@ describeIntegration('GithubWebhookProcessor', () => {
     expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 12);
   });
 
+  it('mode=auto: an assumption-flagged task auto-approves but is HELD from auto-merge', async () => {
+    await setMode('auto');
+    await client.db
+      .update(task)
+      .set({ assumptionFlag: { what: 'assumed X', why: 'defensible', howToVerify: 'run it' } })
+      .where(eq(task.id, taskA));
+
+    await processor.process(jobOf(ciGreen('flagged-1')));
+
+    const [a] = await client.db.select().from(task).where(eq(task.id, taskA));
+    // Auto-review still runs (needs_review → approved)…
+    expect(a?.status).toBe('approved');
+    // …but the merge waits for a human — the safety valve.
+    expect(a?.prState).not.toBe('merged');
+    expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+  });
+
   it('mode=auto_merge: green needs_review stays put; green APPROVED merges itself', async () => {
     await setMode('auto_merge');
     await processor.process(jobOf(ciGreen('am-1')));

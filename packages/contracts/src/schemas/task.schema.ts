@@ -36,6 +36,20 @@ export const AcceptanceCriterionSchema = z.object({
 
 export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
 
+// --- Assumption flag ---
+// A first-class, machine-readable record that the agent shipped this task on a
+// REVERSIBLE judgment call (an unclear-but-not-blocking spec) rather than
+// hard-blocking. Its mere presence holds the task out of full-auto's
+// auto-merge: the merge waits for a human who reads what was assumed, why it's
+// defensible, and how to verify — then clears the flag (a human-only action).
+export const AssumptionFlagSchema = z.object({
+  what: z.string().min(1).max(2000),
+  why: z.string().min(1).max(2000),
+  howToVerify: z.string().min(1).max(2000),
+});
+
+export type AssumptionFlag = z.infer<typeof AssumptionFlagSchema>;
+
 // --- Dependency summary (one edge's far end: the related task, id + title +
 // status). Embedded in the task detail AND, for the board's row indicators,
 // on the list read model. Defined before TaskSchema so the entity can carry it.
@@ -78,6 +92,9 @@ export const TaskSchema = z.object({
   costUsdCents: z.number().int().nullable(),
   statusChangedBy: z.string().uuid().nullable(),
   statusChangedAt: z.string().nullable(),
+  /** Set by the agent when it shipped on a reversible assumption; null = none.
+   *  Holds the task out of full-auto auto-merge until a human clears it. */
+  assumptionFlag: AssumptionFlagSchema.nullable(),
   /** Lineage: the research document this task was cut from; null = filed directly. */
   sourceResearchId: z.string().uuid().nullable(),
   /** Title of that research, resolved via an org-scoped join; null = no source. */
@@ -327,6 +344,29 @@ export const CheckCriterionResponseSchema = TaskSchema;
 
 export type CheckCriterionRequest = z.infer<typeof CheckCriterionRequestSchema>;
 export type CheckCriterionResponse = z.infer<typeof CheckCriterionResponseSchema>;
+
+// --- Assumption flag: agent sets (MCP, claimant-only), human clears (UI) ---
+// The three fields are the machine-readable record surfaced on the board, the
+// task detail, the PR body and the digest. Setting is the agent's proceed-flagged
+// path; clearing is the human's, after review.
+export const SetAssumptionRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    what: z.string().min(1).max(2000),
+    why: z.string().min(1).max(2000),
+    howToVerify: z.string().min(1).max(2000),
+  })
+  .strict();
+export const SetAssumptionResponseSchema = TaskSchema;
+
+export type SetAssumptionRequest = z.infer<typeof SetAssumptionRequestSchema>;
+export type SetAssumptionResponse = z.infer<typeof SetAssumptionResponseSchema>;
+
+export const ClearAssumptionRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const ClearAssumptionResponseSchema = TaskSchema;
+
+export type ClearAssumptionRequest = z.infer<typeof ClearAssumptionRequestSchema>;
+export type ClearAssumptionResponse = z.infer<typeof ClearAssumptionResponseSchema>;
 
 // --- Add Comment ---
 export const AddTaskCommentRequestSchema = z

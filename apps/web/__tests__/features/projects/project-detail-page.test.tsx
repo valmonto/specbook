@@ -24,6 +24,7 @@ const hooks = vi.hoisted(() => ({
   useProjectTasks: vi.fn(),
   useCreateTask: vi.fn(),
   useMergeTask: vi.fn(),
+  useClearAssumption: vi.fn(),
   useTransitionTask: vi.fn(),
   useMarkReady: vi.fn(),
   useUpdateTask: vi.fn(),
@@ -93,6 +94,7 @@ beforeEach(() => {
   hooks.useResumeProject.mockReturnValue(makeAction());
   hooks.useCreateTask.mockReturnValue(makeAction());
   hooks.useMergeTask.mockReturnValue(makeAction());
+  hooks.useClearAssumption.mockReturnValue(makeAction());
   hooks.useTransitionTask.mockReturnValue(makeAction());
   hooks.useMarkReady.mockReturnValue(makeAction());
   hooks.useUpdateTask.mockReturnValue(makeAction());

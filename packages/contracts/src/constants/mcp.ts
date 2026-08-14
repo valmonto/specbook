@@ -137,6 +137,13 @@ export const MCP_TOOLS = [
       'Tick (or untick) one acceptance criterion by index as you complete it — this is live progress reporting.',
   },
   {
+    name: 'set_assumption',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      'Flag a REVERSIBLE judgment call on a task you have claimed: record what you assumed, why it is the most defensible read, and how a human can verify it. Use this instead of blocking when the ambiguity is not discoverable but the call is safe to reverse (only a PR — no money, security, destructive migration, or external side-effect; those still hard-block). A flagged task keeps building but is held out of full-auto auto-merge — it waits for a human to review and clear the flag.',
+  },
+  {
     name: 'list_attachments',
     scope: 'tasks:agent',
     needsOrgContext: true,

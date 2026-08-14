@@ -22,6 +22,8 @@ import type {
   AddTaskDependencyResponse,
   CheckCriterionRequest,
   CheckCriterionResponse,
+  ClearAssumptionRequest,
+  ClearAssumptionResponse,
   CreateProjectRequest,
   CreateProjectResponse,
   CreateTaskRequest,
@@ -116,6 +118,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.get(`/api/tasks/${dto.id}/pr`),
   checkCriterion: (dto: CheckCriterionRequest): Promise<CheckCriterionResponse> =>
     client.patch(`/api/tasks/${dto.id}/criteria`, dto),
+  clearAssumption: (dto: ClearAssumptionRequest): Promise<ClearAssumptionResponse> =>
+    client.delete(`/api/tasks/${dto.id}/assumption`),
   addComment: (dto: AddTaskCommentRequest): Promise<AddTaskCommentResponse> =>
     client.post(`/api/tasks/${dto.id}/comments`, dto),
   addDependency: (dto: AddTaskDependencyRequest): Promise<AddTaskDependencyResponse> =>

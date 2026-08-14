@@ -217,6 +217,8 @@ export function useTaskPr(id: string | null) {
   });
 }
 export const useCheckCriterion = () => useProjectsAction(projectsApi.checkCriterion);
+/** Human-only: clear a task's assumption flag after reviewing it. */
+export const useClearAssumption = () => useProjectsAction(projectsApi.clearAssumption);
 export const useAddComment = () => useProjectsAction(projectsApi.addComment);
 export const useAddDependency = () => useProjectsAction(projectsApi.addDependency);
 export const useRemoveDependency = () => useProjectsAction(projectsApi.removeDependency);
