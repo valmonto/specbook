@@ -116,6 +116,26 @@ export const tasks = {
     pausedBudget: 'tasks.dashboard.pausedBudget',
   },
 
+  // Morning triage digest: per-project, read-only roll-up of what an
+  // unattended (overnight) run left in the human's court — one glance.
+  triage: {
+    title: 'tasks.triage.title',
+    window24h: 'tasks.triage.window24h',
+    // Summary chips in the panel header (count-bearing).
+    summaryMerged: 'tasks.triage.summaryMerged',
+    summaryReview: 'tasks.triage.summaryReview',
+    summaryBlocked: 'tasks.triage.summaryBlocked',
+    summaryChanges: 'tasks.triage.summaryChanges',
+    summaryAssumed: 'tasks.triage.summaryAssumed',
+    // Group headings.
+    merged: 'tasks.triage.merged',
+    needsReview: 'tasks.triage.needsReview',
+    blocked: 'tasks.triage.blocked',
+    changesRequested: 'tasks.triage.changesRequested',
+    assumed: 'tasks.triage.assumed',
+    assumedHint: 'tasks.triage.assumedHint',
+  },
+
   // Statuses
   prState: {
     open: 'tasks.prState.open',
