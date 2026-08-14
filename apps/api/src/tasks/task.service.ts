@@ -87,6 +87,14 @@ export class TaskService {
 
     this.logger.info({ taskId: created.id, title: created.title }, 'Task created');
 
+    // Wire any requested "depends on" edges through the SAME guarded path the
+    // add-dependency tool uses: each id is checked for existence, same-org,
+    // same-project, self and cycle before its edge is inserted. A bad id
+    // rejects the whole call (the fresh draft is left for the caller to fix).
+    for (const dependsOnTaskId of dto.dependsOn ?? []) {
+      await this.addDependency(activeUser, { id: created.id, dependsOnTaskId });
+    }
+
     return this.serialize(created);
   }
 
