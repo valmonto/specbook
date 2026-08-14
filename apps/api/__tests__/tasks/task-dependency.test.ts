@@ -167,4 +167,26 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
       service.create(as(ownerA, orgA), { projectId: projA, title: 'B', dependsOn: [foreign] }),
     ).rejects.toThrow();
   });
+
+  it('findEdgeSummaries returns both directions for the owner, and stays inside the org', async () => {
+    const a = await makeTask(projA, ownerA, 'A'); // prerequisite
+    const b = await makeTask(projA, ownerA, 'B'); // depends on A
+    await service.addDependency(as(ownerA, orgA), { id: b, dependsOnTaskId: a });
+
+    const { dependencies, dependents } = await repo.findEdgeSummaries(orgA, [a, b]);
+
+    // B's dependency edge points at A; A's dependent edge points at B.
+    expect(dependencies).toEqual([
+      { ownerTaskId: b, id: a, title: 'A', status: 'ready' },
+    ]);
+    expect(dependents).toEqual([
+      { ownerTaskId: a, id: b, title: 'B', status: 'ready' },
+    ]);
+
+    // A foreign org sees no edges for the same ids — the far task is joined to
+    // its project on org_id, so org B resolves nothing.
+    const foreign = await repo.findEdgeSummaries(orgB, [a, b]);
+    expect(foreign.dependencies).toEqual([]);
+    expect(foreign.dependents).toEqual([]);
+  });
 });

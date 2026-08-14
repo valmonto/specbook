@@ -189,6 +189,11 @@ export const tasks = {
     touches: 'tasks.v2.touches',
     // Lineage chip: the research document a ticket was cut from.
     fromResearch: 'tasks.v2.fromResearch',
+    // Collapsed-row dependency indicators (icon + count; tooltip lists which).
+    dependsOn: 'tasks.v2.dependsOn',
+    blocks: 'tasks.v2.blocks',
+    waitingOn: 'tasks.v2.waitingOn',
+    waitingHeading: 'tasks.v2.waitingHeading',
     ciGreenHint: 'tasks.v2.ciGreenHint',
     mergeBlockedCi: 'tasks.v2.mergeBlockedCi',
     prClosedHint: 'tasks.v2.prClosedHint',

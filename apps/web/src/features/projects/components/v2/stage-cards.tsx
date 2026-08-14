@@ -3,19 +3,30 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
   ChevronRight,
   FlaskConical,
   GitMerge,
+  Hourglass,
   Loader2,
   ListChecks,
   MoreHorizontal,
   Tag,
   UserRound,
 } from 'lucide-react';
-import type { Task, TaskStatus } from '@pkg/contracts';
+import type { Task, TaskDependencyInfo, TaskStatus } from '@pkg/contracts';
+import { TERMINAL_TASK_STATUSES } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { StatusBadge } from '../status-badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -129,6 +140,107 @@ function AreaChip({ task }: { task: Task }) {
     <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-muted-foreground">
       <Tag className="size-3 shrink-0" />
       <span className="max-w-[10rem] truncate">{task.area}</span>
+    </span>
+  );
+}
+
+const TERMINAL = new Set<string>(TERMINAL_TASK_STATUSES);
+
+/** One chip in the dependency indicator: an icon + count that reveals the
+ *  actual edges (status badge + title) in a tooltip on hover/focus. */
+function EdgeChip({
+  icon: Icon,
+  label,
+  heading,
+  edges,
+  muted,
+}: {
+  icon: typeof ArrowDownToLine;
+  label: string;
+  heading: string;
+  edges: TaskDependencyInfo[];
+  muted?: boolean;
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            tabIndex={0}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'inline-flex shrink-0 cursor-default items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] tabular-nums outline-none ring-1 ring-inset transition-colors',
+              muted
+                ? 'bg-muted text-muted-foreground/80 ring-transparent'
+                : 'text-muted-foreground ring-transparent hover:bg-muted focus-visible:bg-muted',
+            )}
+          >
+            <Icon className="size-3 shrink-0" />
+            {label}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p className="mb-1 font-medium">{heading}</p>
+          <ul className="space-y-1">
+            {edges.map((e) => (
+              <li key={e.id} className="flex items-center gap-1.5">
+                <StatusBadge status={e.status} className="shrink-0" />
+                <span className="truncate">{e.title}</span>
+              </li>
+            ))}
+          </ul>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/**
+ * The collapsed row's dependency indicator: glanceable sequencing without
+ * opening the detail. Renders ONLY when the task actually has edges, so
+ * dependency-free rows stay quiet.
+ * - "depends on N" — prerequisites; when some aren't terminal yet the chip
+ *   becomes a muted "waiting on M" (its blockers can't be picked up yet).
+ *   This is deliberately separate from the `blocked` STATUS (human-clarification).
+ * - "blocks N" — the reverse edge (tasks waiting on this one).
+ * Each chip's tooltip lists WHICH tasks, so the chain is traceable inline.
+ */
+function DependencyIndicator({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const dependencies = task.dependencies ?? [];
+  const dependents = task.dependents ?? [];
+  if (dependencies.length === 0 && dependents.length === 0) return null;
+
+  const unfinished = dependencies.filter((d) => !TERMINAL.has(d.status));
+  const waiting = unfinished.length > 0;
+
+  return (
+    <span className="hidden items-center gap-1.5 sm:inline-flex">
+      {dependencies.length > 0 &&
+        (waiting ? (
+          <EdgeChip
+            icon={Hourglass}
+            muted
+            label={t(k.tasks.v2.waitingOn, { n: unfinished.length })}
+            heading={t(k.tasks.v2.waitingHeading)}
+            edges={dependencies}
+          />
+        ) : (
+          <EdgeChip
+            icon={ArrowDownToLine}
+            label={t(k.tasks.v2.dependsOn, { n: dependencies.length })}
+            heading={t(k.tasks.detail.dependencies)}
+            edges={dependencies}
+          />
+        ))}
+      {dependents.length > 0 && (
+        <EdgeChip
+          icon={ArrowUpFromLine}
+          label={t(k.tasks.v2.blocks, { n: dependents.length })}
+          heading={t(k.tasks.detail.dependents)}
+          edges={dependents}
+        />
+      )}
     </span>
   );
 }
@@ -339,6 +451,7 @@ function CardShell({
         )}
         <AreaChip task={task} />
         <FromResearchChip task={task} />
+        <DependencyIndicator task={task} />
         <PrChip task={task} />
         <CiDot task={task} />
         {total > 0 && (
