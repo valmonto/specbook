@@ -22,6 +22,8 @@ const hooks = vi.hoisted(() => ({
   useProject: vi.fn(),
   useUpdateProject: vi.fn(),
   useProjectTasks: vi.fn(),
+  // Read by the morning-triage digest for the inline blocked question.
+  useBlockedQuestions: vi.fn(),
   useCreateTask: vi.fn(),
   useMergeTask: vi.fn(),
   useClearAssumption: vi.fn(),
@@ -105,6 +107,7 @@ beforeEach(() => {
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
   hooks.useUnarchiveProject.mockReturnValue(makeAction());
   hooks.useProjectAreas.mockReturnValue({ data: { areas: [] } });
+  hooks.useBlockedQuestions.mockReturnValue({ data: {} });
   hooks.useAddDependency.mockReturnValue(makeAction());
   hooks.useRemoveDependency.mockReturnValue(makeAction());
 });

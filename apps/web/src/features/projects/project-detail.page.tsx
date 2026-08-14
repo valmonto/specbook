@@ -17,6 +17,7 @@ import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import { GroupMarkReadyMenu, ProjectMarkReadyMenu } from './components/v2/mark-ready-menu';
 import { NewTaskMenu } from './components/v2/new-task-menu';
 import { isNonTerminal } from './components/dependency-editor';
+import { TriageDigest } from './components/triage-digest';
 import {
   useCreateTask,
   useMergeTask,
@@ -164,6 +165,17 @@ export default function ProjectDetailV2Page() {
       return next;
     });
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
+
+  // From a triage-digest row: reveal the task on the board — filter to its
+  // stage, clear any search, and expand it. Read-only navigation; no state
+  // change on the task itself.
+  const revealTask = (task: Task) => {
+    patchParams((params) => {
+      params.set('stage', task.status);
+      params.delete('q');
+    });
+    setExpandedId(task.id);
+  };
 
   // Drop the board's filters to show-all and clear any search, then land on the
   // fresh draft expanded with its title focused — so it's guaranteed visible in
@@ -319,6 +331,11 @@ export default function ProjectDetailV2Page() {
       <ProjectContextSection project={project} readOnly={readOnly} />
 
       <EnvironmentsSection projectId={project.id} />
+
+      {/* Morning triage: read-only, one-glance summary of what an unattended
+          run left in your court (merged / needs review / blocked / changes
+          requested / assumed). Hidden when there is nothing since last night. */}
+      {!tasksLoading && <TriageDigest tasks={tasks} onSelectTask={revealTask} />}
 
       {tasksLoading ? (
         <Skeleton className="h-64 w-full" />
