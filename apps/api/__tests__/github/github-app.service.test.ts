@@ -261,7 +261,13 @@ describe('GithubAppService', () => {
       '/app/installations/777/access_tokens',
       {
         repositories: ['specbook'],
-        permissions: { contents: 'write', pull_requests: 'write' },
+        permissions: {
+          contents: 'write',
+          pull_requests: 'write',
+          workflows: 'write',
+          actions: 'read',
+          checks: 'read',
+        },
       },
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Bearer /) }),
