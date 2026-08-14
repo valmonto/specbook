@@ -33,6 +33,10 @@ const hooks = vi.hoisted(() => ({
   useTaskPr: vi.fn(),
   useUnarchiveProject: vi.fn(),
   useResumeProject: vi.fn(),
+  // The expanded row mounts the shared <TaskDetail>, which reads these.
+  useProjectAreas: vi.fn(),
+  useAddDependency: vi.fn(),
+  useRemoveDependency: vi.fn(),
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
@@ -96,6 +100,9 @@ beforeEach(() => {
   hooks.useTask.mockReturnValue({ data: undefined });
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
   hooks.useUnarchiveProject.mockReturnValue(makeAction());
+  hooks.useProjectAreas.mockReturnValue({ data: { areas: [] } });
+  hooks.useAddDependency.mockReturnValue(makeAction());
+  hooks.useRemoveDependency.mockReturnValue(makeAction());
 });
 
 describe('ProjectDetailPage', () => {
