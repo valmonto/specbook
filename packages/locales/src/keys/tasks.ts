@@ -231,6 +231,8 @@ export const tasks = {
     removeDependency: 'tasks.detail.removeDependency',
     noDependencies: 'tasks.detail.noDependencies',
     dependencyPlaceholder: 'tasks.detail.dependencyPlaceholder',
+    dependencySearch: 'tasks.detail.dependencySearch',
+    dependencyEmpty: 'tasks.detail.dependencyEmpty',
     agent: 'tasks.detail.agent',
     you: 'tasks.detail.you',
     kind: {

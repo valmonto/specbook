@@ -542,6 +542,8 @@
   "tasks.detail.removeDependency": "Remove dependency",
   "tasks.detail.noDependencies": "No dependencies yet",
   "tasks.detail.dependencyPlaceholder": "Select a task…",
+  "tasks.detail.dependencySearch": "Search tasks…",
+  "tasks.detail.dependencyEmpty": "No eligible tasks",
   "tasks.detail.agent": "Agent",
   "tasks.detail.branch": "Branch",
   "tasks.detail.claimedAgo": "claimed {{when}}",

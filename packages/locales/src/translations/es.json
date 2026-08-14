@@ -542,6 +542,8 @@
   "tasks.detail.removeDependency": "Quitar dependencia",
   "tasks.detail.noDependencies": "Aún no hay dependencias",
   "tasks.detail.dependencyPlaceholder": "Selecciona una tarea…",
+  "tasks.detail.dependencySearch": "Buscar tareas…",
+  "tasks.detail.dependencyEmpty": "No hay tareas elegibles",
   "tasks.detail.agent": "Agente",
   "tasks.detail.branch": "Rama",
   "tasks.detail.claimedAgo": "reclamada {{when}}",

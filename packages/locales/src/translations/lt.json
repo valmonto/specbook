@@ -542,6 +542,8 @@
   "tasks.detail.removeDependency": "Pašalinti priklausomybę",
   "tasks.detail.noDependencies": "Priklausomybių dar nėra",
   "tasks.detail.dependencyPlaceholder": "Pasirinkite užduotį…",
+  "tasks.detail.dependencySearch": "Ieškoti užduočių…",
+  "tasks.detail.dependencyEmpty": "Nėra tinkamų užduočių",
   "tasks.detail.agent": "Agentas",
   "tasks.detail.branch": "Šaka",
   "tasks.detail.claimedAgo": "paimta {{when}}",
