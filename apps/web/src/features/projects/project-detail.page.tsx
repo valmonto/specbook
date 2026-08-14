@@ -28,9 +28,18 @@ import { useCan } from '@/shared/hooks/use-permissions';
 /**
  * The project view: the pipeline strip over an always-Area board. The strip is
  * the one status control — it shows the per-stage funnel counts AND filters the
- * area-grouped board to a stage (click again to clear). A title search sits
- * beside it. Rows expand in place to the full task detail (see v2/stage-cards).
+ * area-grouped board to a stage. A title search sits beside it. Rows expand in
+ * place to the full task detail (see v2/stage-cards).
+ *
+ * The board opens on Draft: with no `?stage` param the view lands on the Draft
+ * stage, the loop's inbox. Show-all stays reachable through an explicit `all`
+ * sentinel — deselecting the Draft chip (or any active stage) sets `?stage=all`
+ * rather than clearing the param, so "show everything" never collapses back
+ * into the Draft default. An explicit `?stage=<status>` still overrides.
  */
+// The URL sentinel for "no stage filter — show every stage". Kept distinct
+// from an absent param (which is the Draft default) so show-all is reachable.
+const SHOW_ALL = 'all';
 
 /** The three-bucket rollup an area section header carries at a glance. */
 interface Rollup {
@@ -96,15 +105,18 @@ export default function ProjectDetailV2Page() {
 
   // The two board controls live in the URL, so reloads and shared links restore
   // the same view:
-  // - ?stage=needs_review: the pipeline strip's status filter. Absent (or an
-  //   unknown value) means all stages — the board hides nothing by default.
+  // - ?stage=needs_review: the pipeline strip's status filter. A concrete status
+  //   filters to it; the `all` sentinel shows every stage; absent (or an unknown
+  //   value) falls back to the Draft default (`stage` = 'draft').
   // - ?q=: the title search. Orthogonal to the stage filter; the two compose.
   const [searchParams, setSearchParams] = useSearchParams();
   const stageParam = searchParams.get('stage');
   const stage: TaskStatus | null =
-    stageParam && (TASK_STATUSES as readonly string[]).includes(stageParam)
-      ? (stageParam as TaskStatus)
-      : null;
+    stageParam === SHOW_ALL
+      ? null
+      : stageParam && (TASK_STATUSES as readonly string[]).includes(stageParam)
+        ? (stageParam as TaskStatus)
+        : 'draft';
   const query = searchParams.get('q') ?? '';
   // One card expanded at a time — the accordion state the cards share.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -125,12 +137,13 @@ export default function ProjectDetailV2Page() {
       { replace: true },
     );
   };
-  // Clicking a stage filters to it; clicking the already-selected stage clears
-  // back to all stages. The strip IS the one status control now.
+  // Clicking a stage filters to it; clicking the already-selected stage
+  // deselects to the explicit show-all sentinel — never an absent param, which
+  // would snap back to the Draft default and strand show-all. The strip IS the
+  // one status control now.
   const setStage = (next: TaskStatus) => {
     patchParams((params) => {
-      if (stage === next) params.delete('stage');
-      else params.set('stage', next);
+      params.set('stage', stage === next ? SHOW_ALL : next);
     });
     setExpandedId(null);
   };
@@ -150,15 +163,16 @@ export default function ProjectDetailV2Page() {
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
 
   // Creation IS editing: make the draft immediately, land on it expanded with
-  // the title focused — no form, no dialog. Clear the board's filters first so
-  // the fresh (untitled, area-less) draft is guaranteed visible in its section
-  // rather than hidden behind a stage filter or a stale search.
+  // the title focused — no form, no dialog. Drop the board's filters to show-all
+  // and clear any search first, so the fresh (untitled, area-less) draft is
+  // guaranteed visible in its section rather than hidden behind a stage filter
+  // or a stale search.
   const newTask = async () => {
     if (!project) return;
     const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
     if (res.e || !res.d) return;
     patchParams((params) => {
-      params.delete('stage');
+      params.set('stage', SHOW_ALL);
       params.delete('q');
     });
     setExpandedId(res.d.id);
