@@ -77,6 +77,7 @@ describe('TaskService — the status protocol', () => {
       removeDependency: vi.fn().mockResolvedValue(true),
       findDependencyInfo: vi.fn().mockResolvedValue([]),
       findDependentInfo: vi.fn().mockResolvedValue([]),
+      findEdgeSummaries: vi.fn().mockResolvedValue({ dependencies: [], dependents: [] }),
       findProjectDependencyEdges: vi.fn().mockResolvedValue([]),
       findOrgMemberIds: vi.fn().mockResolvedValue([USER, AGENT]),
       hasUnackedNotes: vi.fn().mockResolvedValue(false),

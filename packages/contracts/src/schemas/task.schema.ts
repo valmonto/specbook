@@ -36,6 +36,17 @@ export const AcceptanceCriterionSchema = z.object({
 
 export type AcceptanceCriterion = z.infer<typeof AcceptanceCriterionSchema>;
 
+// --- Dependency summary (one edge's far end: the related task, id + title +
+// status). Embedded in the task detail AND, for the board's row indicators,
+// on the list read model. Defined before TaskSchema so the entity can carry it.
+export const TaskDependencyInfoSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  status: TaskStatusSchema,
+});
+
+export type TaskDependencyInfo = z.infer<typeof TaskDependencyInfoSchema>;
+
 // --- Task Entity ---
 export const TaskSchema = z.object({
   id: z.string().uuid(),
@@ -74,6 +85,14 @@ export const TaskSchema = z.object({
   createdBy: z.string().uuid(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  // Dependency edges, for the board's collapsed-row indicators. Populated on
+  // the list read path (both directions, org-scoped); omitted on plain write
+  // responses (create/update/transition) where no row is drawn — hence
+  // optional. `dependencies` = prerequisites this task waits on ("depends on
+  // N"); `dependents` = tasks that wait on this one ("blocks N"). The detail
+  // response re-declares them as required.
+  dependencies: z.array(TaskDependencyInfoSchema).optional(),
+  dependents: z.array(TaskDependencyInfoSchema).optional(),
 });
 
 export type Task = z.infer<typeof TaskSchema>;
@@ -92,15 +111,6 @@ export const TaskCommentSchema = z.object({
 });
 
 export type TaskComment = z.infer<typeof TaskCommentSchema>;
-
-// --- Dependency summary (embedded in task detail) ---
-export const TaskDependencyInfoSchema = z.object({
-  id: z.string().uuid(),
-  title: z.string(),
-  status: TaskStatusSchema,
-});
-
-export type TaskDependencyInfo = z.infer<typeof TaskDependencyInfoSchema>;
 
 // --- Create Task ---
 // Capture is frictionless: a draft can be a bare title. The dispatch gate

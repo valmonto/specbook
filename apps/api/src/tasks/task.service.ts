@@ -32,6 +32,7 @@ import {
   type Task as TaskDto,
   type TaskAuthorType,
   type TaskComment as TaskCommentDto,
+  type TaskDependencyInfo,
   type TaskStatus,
   type TransitionTaskRequest,
   type TransitionTaskResponse,
@@ -44,7 +45,7 @@ import { GithubAppService } from '@pkg/server';
 import { NotificationService } from '../notifications/notification.service';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
-import { TaskRepository, type TaskWithSource } from './task.repository';
+import { TaskRepository, type EdgeSummaryRow, type TaskWithSource } from './task.repository';
 
 const isTerminal = (status: TaskStatus): boolean =>
   (TERMINAL_TASK_STATUSES as readonly string[]).includes(status);
@@ -109,8 +110,31 @@ export class TaskService {
       available: dto.available,
     });
 
+    // The board's collapsed rows show dependency indicators, so the list read
+    // model carries each task's edges (both directions) — one extra org-scoped
+    // query for the whole page, grouped by owner here.
+    const { dependencies, dependents } = await this.taskRepository.findEdgeSummaries(
+      activeUser.orgId,
+      data.map((t) => t.id),
+    );
+    const byOwner = (rows: EdgeSummaryRow[]): Map<string, TaskDependencyInfo[]> => {
+      const map = new Map<string, TaskDependencyInfo[]>();
+      for (const r of rows) {
+        const list = map.get(r.ownerTaskId) ?? [];
+        list.push({ id: r.id, title: r.title, status: r.status as TaskStatus });
+        map.set(r.ownerTaskId, list);
+      }
+      return map;
+    };
+    const depMap = byOwner(dependencies);
+    const dependentMap = byOwner(dependents);
+
     return {
-      data: data.map((t) => this.serialize(t)),
+      data: data.map((t) => ({
+        ...this.serialize(t),
+        dependencies: depMap.get(t.id) ?? [],
+        dependents: dependentMap.get(t.id) ?? [],
+      })),
       meta: { total, skip: dto.skip, limit: dto.limit },
     };
   }

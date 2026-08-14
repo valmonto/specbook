@@ -38,6 +38,11 @@ export interface DependencyInfoRow {
   status: string;
 }
 
+/** One edge row keyed by the owner task it belongs to (list read model). */
+export interface EdgeSummaryRow extends DependencyInfoRow {
+  ownerTaskId: string;
+}
+
 /**
  * A task row carrying its lineage: the title of the research it was cut from,
  * resolved via an org-scoped LEFT JOIN. Null when the task was filed directly
@@ -379,6 +384,50 @@ export class TaskRepository {
       .select({ id: task.id, title: task.title, status: task.status })
       .from(task)
       .where(inArray(task.id, ids));
+  }
+
+  /**
+   * Edge summaries for a page of tasks, both directions at once — the board's
+   * collapsed-row dependency indicators. For each owner id: its `dependencies`
+   * (prerequisites it waits on) and its `dependents` (tasks that wait on it),
+   * each carrying the far task's id/title/status so the row can label a count,
+   * decide the "waiting" treatment, and list the chain in a tooltip.
+   *
+   * Org-scoped: the far task is joined to its project on `org_id`, so an owner
+   * id from another org resolves to zero edges. Dependencies are same-project
+   * by construction (the add path enforces it), so scoping the far end also
+   * scopes the near end.
+   */
+  async findEdgeSummaries(
+    orgId: string,
+    taskIds: string[],
+  ): Promise<{ dependencies: EdgeSummaryRow[]; dependents: EdgeSummaryRow[] }> {
+    if (taskIds.length === 0) return { dependencies: [], dependents: [] };
+    const [dependencies, dependents] = await Promise.all([
+      this.dbClient.db
+        .select({
+          ownerTaskId: taskDependency.taskId,
+          id: task.id,
+          title: task.title,
+          status: task.status,
+        })
+        .from(taskDependency)
+        .innerJoin(task, eq(task.id, taskDependency.dependsOnTaskId))
+        .innerJoin(project, and(eq(task.projectId, project.id), eq(project.orgId, orgId)))
+        .where(inArray(taskDependency.taskId, taskIds)),
+      this.dbClient.db
+        .select({
+          ownerTaskId: taskDependency.dependsOnTaskId,
+          id: task.id,
+          title: task.title,
+          status: task.status,
+        })
+        .from(taskDependency)
+        .innerJoin(task, eq(task.id, taskDependency.taskId))
+        .innerJoin(project, and(eq(task.projectId, project.id), eq(project.orgId, orgId)))
+        .where(inArray(taskDependency.dependsOnTaskId, taskIds)),
+    ]);
+    return { dependencies, dependents };
   }
 
   /** Member ids of an org — recipients for court-transition notifications. */
