@@ -312,6 +312,22 @@ export class McpTools {
           }),
       },
       {
+        ...meta('set_assumption'),
+        inputSchema: {
+          id: z.string().uuid(),
+          what: z.string().min(1).max(2000),
+          why: z.string().min(1).max(2000),
+          howToVerify: z.string().min(1).max(2000),
+        },
+        handler: async (args, actor) =>
+          this.taskService.setAssumption(actor!, 'agent', {
+            id: str(args.id),
+            what: str(args.what),
+            why: str(args.why),
+            howToVerify: str(args.howToVerify),
+          }),
+      },
+      {
         ...meta('list_attachments'),
         inputSchema: { taskId: z.string().uuid() },
         handler: async (args, actor) =>

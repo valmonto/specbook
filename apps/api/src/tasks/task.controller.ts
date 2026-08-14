@@ -4,6 +4,7 @@ import {
   AddTaskCommentRequestSchema,
   AddTaskDependencyRequestSchema,
   CheckCriterionRequestSchema,
+  ClearAssumptionRequestSchema,
   CreateTaskRequestSchema,
   DeleteTaskRequestSchema,
   GetTaskByIdRequestSchema,
@@ -22,6 +23,8 @@ import {
   type AddTaskDependencyResponse,
   type CheckCriterionRequest,
   type CheckCriterionResponse,
+  type ClearAssumptionRequest,
+  type ClearAssumptionResponse,
   type CreateTaskRequest,
   type CreateTaskResponse,
   type DeleteTaskRequest,
@@ -164,6 +167,17 @@ export class TaskController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<CheckCriterionResponse> {
     return this.taskService.checkCriterion(activeUser, dto);
+  }
+
+  // Clearing an assumption flag is the human's review-time veto — no MCP tool
+  // wraps it; the agent sets, the human clears. DELETE the flag on the task.
+  @Delete(':id/assumption')
+  @Permissions('task:update')
+  async clearAssumption(
+    @ZodRequest(ClearAssumptionRequestSchema) dto: ClearAssumptionRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ClearAssumptionResponse> {
+    return this.taskService.clearAssumption(activeUser, dto.id);
   }
 
   @Post(':id/comments')

@@ -77,6 +77,17 @@ export const tasks = {
   humanTask: 'tasks.humanTask',
   humanTaskToggle: 'tasks.humanTaskToggle',
 
+  // Assumption flag: a reversible judgment call the agent shipped on instead of
+  // hard-blocking. Chip on the board row; full record + Clear in the detail.
+  assumption: {
+    chip: 'tasks.assumption.chip',
+    heading: 'tasks.assumption.heading',
+    what: 'tasks.assumption.what',
+    why: 'tasks.assumption.why',
+    howToVerify: 'tasks.assumption.howToVerify',
+    clear: 'tasks.assumption.clear',
+  },
+
   // Agent-reported cost (task detail line).
   cost: {
     label: 'tasks.cost.label',
@@ -285,6 +296,7 @@ export const tasks = {
     dispatchGate: 'tasks.errors.dispatchGate',
     reviewGate: 'tasks.errors.reviewGate',
     costNotClaimant: 'tasks.errors.costNotClaimant',
+    assumptionNotClaimant: 'tasks.errors.assumptionNotClaimant',
     noteHumanOnly: 'tasks.errors.noteHumanOnly',
     noteNotInProgress: 'tasks.errors.noteNotInProgress',
     notesNotClaimant: 'tasks.errors.notesNotClaimant',

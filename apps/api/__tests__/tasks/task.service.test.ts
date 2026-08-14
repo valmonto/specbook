@@ -222,6 +222,63 @@ describe('TaskService — the status protocol', () => {
       expect(submitted.status).toBe('needs_review');
       expect(githubApp.mergePullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', 13);
     });
+
+    it('mode=auto: a green submission carrying an assumption flag auto-approves but is NOT auto-merged', async () => {
+      const flag = { what: 'used soft-delete', why: 'matches the module convention', howToVerify: 'check the repo query' };
+      projectRepo.findById!.mockResolvedValue(autoProject());
+      repo.findById!.mockResolvedValue(greenSubmission({ assumptionFlag: flag }));
+      // The transition write (→needs_review) and the auto-approve write both
+      // preserve the flag on the returned row.
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) =>
+        greenSubmission({ assumptionFlag: flag, ...patch }),
+      );
+
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+      // Auto-review still runs: needs_review → approved happens…
+      expect(repo.casUpdateStatus).toHaveBeenCalledWith(
+        TASK,
+        ORG,
+        'needs_review',
+        expect.objectContaining({ status: 'approved' }),
+      );
+      // …but the merge is held for a human — the safety valve.
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Assumption flag: agent sets (claimant), human clears ---
+
+  describe('assumption flag', () => {
+    const flag = { what: 'assumed X', why: 'most defensible read', howToVerify: 'run the flow' };
+
+    it('an agent sets the flag on a task it has claimed', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: AGENT }));
+      const result = await service.setAssumption(agent, 'agent', { id: TASK, ...flag });
+      expect(repo.update).toHaveBeenCalledWith(TASK, ORG, { assumptionFlag: flag });
+      expect(result.assumptionFlag).toEqual(flag);
+    });
+
+    it('an agent that does not hold the claim is refused', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: USER }));
+      await expect(service.setAssumption(agent, 'agent', { id: TASK, ...flag })).rejects.toMatchObject({
+        message: 'tasks.errors.assumptionNotClaimant',
+      });
+    });
+
+    it('a terminal task cannot be flagged', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'done', claimedBy: AGENT }));
+      await expect(service.setAssumption(agent, 'agent', { id: TASK, ...flag })).rejects.toMatchObject({
+        message: 'tasks.errors.terminalTask',
+      });
+    });
+
+    it('the human clears the flag (sets it null)', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'approved', assumptionFlag: flag }));
+      const result = await service.clearAssumption(human, TASK);
+      expect(repo.update).toHaveBeenCalledWith(TASK, ORG, { assumptionFlag: null });
+      expect(result.assumptionFlag).toBeNull();
+    });
   });
 
   // --- Mid-task notes: human-authored steering, gate-enforced ---

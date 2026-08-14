@@ -433,6 +433,17 @@ export class TaskService {
       this.logger.info({ taskId: current.id }, 'Auto: approved (CI green, mode=auto)');
     }
     if (status !== 'approved') return;
+    // The assumption-flag safety valve: a task shipped on a flagged assumption
+    // is NEVER auto-merged, even in full-auto. Auto-review may still run (the
+    // approve above), but the MERGE waits for a human who reads the assumption
+    // and clears the flag. Additive hold — it weakens no review gate.
+    if (current.assumptionFlag) {
+      this.logger.info(
+        { taskId: current.id },
+        'Auto-merge held: task carries an assumption flag — routed to human review',
+      );
+      return;
+    }
     await this.merge(activeUser, { id: current.id });
     this.logger.info({ taskId: current.id }, 'Auto: merged (task done)');
   }
@@ -628,6 +639,52 @@ export class TaskService {
       { taskId: dto.taskId, tokensIn: dto.tokensIn, tokensOut: dto.tokensOut, usdCents: dto.usdCents },
       'Cost reported',
     );
+    return this.serialize(updated);
+  }
+
+  /**
+   * The proceed-flagged path: an agent records a REVERSIBLE judgment call on a
+   * task it has claimed instead of hard-blocking. Claimant-only in the agent
+   * court (the assumption belongs to the session that made the call), and never
+   * on a terminal task. The flag's presence is what holds the task out of
+   * full-auto's auto-merge (see maybeAutoProgress / the webhook worker). The
+   * repository write is org-scoped, so a foreign org's task is a NotFound.
+   */
+  async setAssumption(
+    activeUser: ActiveUser,
+    actor: TaskAuthorType,
+    dto: { id: string; what: string; why: string; howToVerify: string },
+  ): Promise<TaskDto> {
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    if (isTerminal(current.status as TaskStatus)) {
+      throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
+    }
+    if (actor === 'agent' && current.claimedBy !== activeUser.userId) {
+      throw new UnprocessableEntityException(k.tasks.errors.assumptionNotClaimant);
+    }
+    const updated = await this.taskRepository.update(dto.id, activeUser.orgId, {
+      assumptionFlag: { what: dto.what, why: dto.why, howToVerify: dto.howToVerify },
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    this.logger.info({ taskId: dto.id }, 'Assumption flag set');
+    return this.serialize(updated);
+  }
+
+  /**
+   * Clearing is a HUMAN action — the review-time veto. Once cleared, the task
+   * is free to auto-merge again (or the human merges it directly). Org-scoped.
+   */
+  async clearAssumption(activeUser: ActiveUser, id: string): Promise<TaskDto> {
+    await this.requireTask(id, activeUser.orgId, { mutating: true });
+    const updated = await this.taskRepository.update(id, activeUser.orgId, {
+      assumptionFlag: null,
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    this.logger.info({ taskId: id }, 'Assumption flag cleared');
     return this.serialize(updated);
   }
 
@@ -861,6 +918,7 @@ export class TaskService {
       // title); other writes return a plain task, so default to null.
       sourceResearchId: t.sourceResearchId ?? null,
       sourceResearchTitle: t.sourceResearchTitle ?? null,
+      assumptionFlag: t.assumptionFlag ?? null,
       prState: t.prState as TaskDto['prState'],
       ciState: t.ciState as TaskDto['ciState'],
       ciFailureKind: t.ciFailureKind as TaskDto['ciFailureKind'],

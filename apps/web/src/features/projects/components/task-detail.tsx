@@ -13,6 +13,7 @@ import {
   Plus,
   RotateCcw,
   SendHorizontal,
+  TriangleAlert,
   User,
   UserRound,
   X,
@@ -32,6 +33,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
+  useClearAssumption,
   useMarkReady,
   useMergeTask,
   useProjectAreas,
@@ -980,6 +982,60 @@ export interface TaskDetailProps {
 }
 
 /**
+ * The assumption flag, surfaced prominently: what the agent assumed, why it's
+ * the most defensible read, and how to verify — the record that held this task
+ * out of full-auto's auto-merge. Clearing it is the human's review-time veto
+ * (hidden in read-only chrome); once cleared, the task is free to merge.
+ */
+function AssumptionSection({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const readOnly = useProjectReadOnly();
+  const clear = useClearAssumption();
+  const flag = task.assumptionFlag;
+  if (!flag) return null;
+  const clearFlag = async () => {
+    const res = await clear.execute({ id: task.id });
+    if (res.e) toast.error(t(res.e.message));
+  };
+  const rows: Array<[string, string]> = [
+    [t(k.tasks.assumption.what), flag.what],
+    [t(k.tasks.assumption.why), flag.why],
+    [t(k.tasks.assumption.howToVerify), flag.howToVerify],
+  ];
+  return (
+    <section className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className={cn(SECTION_HEADING, 'text-amber-700 dark:text-amber-300')}>
+          <TriangleAlert className="size-3.5" />
+          {t(k.tasks.assumption.heading)}
+        </h4>
+        {!readOnly && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            disabled={clear.isLoading}
+            onClick={() => void clearFlag()}
+          >
+            {t(k.tasks.assumption.clear)}
+          </Button>
+        )}
+      </div>
+      <dl className="space-y-1.5 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label} className="grid grid-cols-[7rem_1fr] gap-2">
+            <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              {label}
+            </dt>
+            <dd className="break-words whitespace-pre-wrap">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/**
  * The shared detail body. Both the board's expanded row and the "Your move"
  * slide-over render exactly this — the single source of truth for what a task
  * detail shows and lets you do.
@@ -989,6 +1045,7 @@ export function TaskDetail({ task, landInHeader = false, destructiveInMenu = fal
   return (
     <div className="grid grid-cols-1 gap-4">
       <StageHeadline task={task} />
+      <AssumptionSection task={task} />
       <InlineArea
         task={task}
         field="context"

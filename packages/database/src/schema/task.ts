@@ -24,6 +24,14 @@ export interface AcceptanceCriterion {
   done: boolean;
 }
 
+/** A reversible judgment call the agent shipped on instead of hard-blocking.
+ *  Shape mirrors AssumptionFlagSchema in @pkg/contracts. */
+export interface AssumptionFlag {
+  what: string;
+  why: string;
+  howToVerify: string;
+}
+
 /**
  * The unit of agent work, calibrated to one session / one PR.
  *
@@ -82,6 +90,12 @@ export const task = pgTable(
     costUsdCents: integer('cost_usd_cents'),
     statusChangedBy: uuid('status_changed_by').references(() => user.id, { onDelete: 'set null' }),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+    // A reversible judgment call the agent shipped on instead of hard-blocking:
+    // { what, why, howToVerify }. NULLABLE, additive — null = no assumption.
+    // Its presence holds the task out of full-auto's auto-merge (human review
+    // first); a human clears it from the task detail. Value set from
+    // @pkg/contracts (AssumptionFlagSchema).
+    assumptionFlag: jsonb('assumption_flag').$type<AssumptionFlag>(),
     // Lineage: the research document this task was cut from (a DRAFT proposal
     // accepted by the human). Nullable — most tasks are filed directly. Set
     // null on research delete so the task survives its origin.
