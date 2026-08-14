@@ -722,5 +722,17 @@
   "validation.maxLength": "String must contain at most {{count}} character(s)",
   "validation.minLength": "String must contain at least {{count}} character(s)",
   "validation.passwordRequirements": "Password must be at least 8 characters and include uppercase, lowercase, number, and special character",
-  "validation.required": "Required"
+  "validation.required": "Required",
+  "tasks.markReady.all": "Mark all as ready",
+  "tasks.markReady.group": "Mark all in this group as ready",
+  "tasks.markReady.projectMenu": "Project actions",
+  "tasks.markReady.groupMenu": "Group actions",
+  "tasks.markReady.confirmAllTitle": "Mark all drafts as ready?",
+  "tasks.markReady.confirmAllBody": "This marks {{count}} draft task(s) in this project ready for agents. Any draft prerequisites they depend on are marked ready too.",
+  "tasks.markReady.confirmGroupTitle": "Mark this group as ready?",
+  "tasks.markReady.confirmGroupBody": "This marks {{count}} draft task(s) in this group ready. Draft prerequisites in other groups may be pulled in too, so nothing is left stranded.",
+  "tasks.markReady.confirm": "Mark ready",
+  "tasks.markReady.alsoPromoted": "Also marked ready: {{titles}}",
+  "tasks.markReady.done": "Marked {{count}} task(s) ready",
+  "tasks.markReady.none": "No draft tasks to mark ready"
 }

@@ -222,6 +222,52 @@ export const TransitionTaskResponseSchema = TaskSchema;
 export type TransitionTaskRequest = z.infer<typeof TransitionTaskRequestSchema>;
 export type TransitionTaskResponse = z.infer<typeof TransitionTaskResponseSchema>;
 
+// --- Bulk mark-ready (human/UI-only; resolves transitive draft prerequisites) ---
+// One endpoint behind three UI surfaces: the project cog ("Mark all as ready"),
+// a per-Area group menu, and the single-task action. The scope names the target
+// draft set; the service also promotes those targets' transitive DRAFT
+// prerequisites so nothing is left ready-but-stranded. Human-only by design —
+// `ready` is the human dispatch gate, so no MCP tool wraps this.
+//
+// Scope is discriminated on `kind`; every variant carries `projectId` so the
+// dependency walk stays inside one project (edges are same-project by
+// construction) and the org guard has a project to join on.
+export const MarkReadyScopeSchema = z.discriminatedUnion('kind', [
+  // Every draft task in the project.
+  z.object({ kind: z.literal('project'), projectId: z.string().uuid() }).strict(),
+  // Every draft task in one Area/group; `area: null` is the "No area" group.
+  z
+    .object({
+      kind: z.literal('area'),
+      projectId: z.string().uuid(),
+      area: z.string().max(120).nullable(),
+    })
+    .strict(),
+  // An explicit set of task ids (the single-task action passes one).
+  z
+    .object({
+      kind: z.literal('tasks'),
+      projectId: z.string().uuid(),
+      taskIds: z.array(z.string().uuid()).min(1).max(500),
+    })
+    .strict(),
+]);
+
+export type MarkReadyScope = z.infer<typeof MarkReadyScopeSchema>;
+
+export const MarkReadyRequestSchema = z.object({ scope: MarkReadyScopeSchema }).strict();
+export const MarkReadyResponseSchema = z.object({
+  // Every task moved draft → ready by this call.
+  promoted: z.array(z.object({ id: z.string().uuid(), title: z.string() })),
+  // The subset pulled in as transitive draft prerequisites — not directly in
+  // the requested scope. The single-task toast lists these ("Also marked
+  // ready: A"); a group confirm warns they may come from other groups.
+  prerequisites: z.array(z.object({ id: z.string().uuid(), title: z.string() })),
+});
+
+export type MarkReadyRequest = z.infer<typeof MarkReadyRequestSchema>;
+export type MarkReadyResponse = z.infer<typeof MarkReadyResponseSchema>;
+
 // --- Claim (atomic ready→in_progress; loser of the race gets a 409) ---
 export const ClaimTaskRequestSchema = z.object({ id: z.string().uuid() }).strict();
 export const ClaimTaskResponseSchema = TaskSchema;

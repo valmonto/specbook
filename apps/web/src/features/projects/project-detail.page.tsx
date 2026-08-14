@@ -14,6 +14,7 @@ import { groupTasksByArea } from './components/v2/group-tasks';
 import { TaskSearch } from './components/v2/task-search';
 import { filterTasks } from './components/v2/filter-tasks';
 import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
+import { GroupMarkReadyMenu, ProjectMarkReadyMenu } from './components/v2/mark-ready-menu';
 import {
   useCreateTask,
   useMergeTask,
@@ -200,6 +201,9 @@ export default function ProjectDetailV2Page() {
   // set so a stage/search filter can never hide the pause or its merge
   // candidates.
   const approvedCount = tasks.filter((task) => task.status === 'approved').length;
+  // Drafts in the whole project — the count the cog's "Mark all as ready"
+  // confirm shows. Reads the full set, so a stage/search filter never skews it.
+  const draftCount = tasks.filter((task) => task.status === 'draft').length;
   const mergeCandidates = tasks.filter(
     (task) => task.status === 'approved' && task.ciState !== 'failing',
   );
@@ -263,10 +267,14 @@ export default function ProjectDetailV2Page() {
         readOnly={readOnly}
         actions={
           readOnly ? null : (
-            <Button onClick={() => void newTask()} disabled={create.isLoading}>
-              <Plus className="size-4 mr-1" />
-              {t(k.tasks.newTask)}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => void newTask()} disabled={create.isLoading}>
+                <Plus className="size-4 mr-1" />
+                {t(k.tasks.newTask)}
+              </Button>
+              {/* The project-wide bulk sweep — Mark all drafts ready. */}
+              <ProjectMarkReadyMenu projectId={project.id} draftCount={draftCount} />
+            </div>
           )
         }
       />
@@ -321,28 +329,39 @@ export default function ProjectDetailV2Page() {
                       key={key || '__no_area__'}
                       className="overflow-hidden rounded-xl border bg-card shadow-xs"
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggleArea(key)}
-                        aria-expanded={!collapsed}
-                        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
-                      >
-                        <ChevronRight
-                          className={cn(
-                            'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
-                            !collapsed && 'rotate-90',
-                          )}
-                        />
-                        <span className="truncate text-sm font-medium">
-                          {key || t(k.tasks.noArea)}
-                        </span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {groupTasks.length}
-                        </span>
-                        <span className="ml-auto shrink-0">
-                          <RollupBar roll={rollupOf(groupTasks)} />
-                        </span>
-                      </button>
+                      <div className="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/40">
+                        <button
+                          type="button"
+                          onClick={() => toggleArea(key)}
+                          aria-expanded={!collapsed}
+                          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                        >
+                          <ChevronRight
+                            className={cn(
+                              'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
+                              !collapsed && 'rotate-90',
+                            )}
+                          />
+                          <span className="truncate text-sm font-medium">
+                            {key || t(k.tasks.noArea)}
+                          </span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {groupTasks.length}
+                          </span>
+                          <span className="ml-auto shrink-0">
+                            <RollupBar roll={rollupOf(groupTasks)} />
+                          </span>
+                        </button>
+                        {/* Right-aligned per-group settings: Mark all in this
+                            group as ready (prereqs from other groups pulled in). */}
+                        {!readOnly && (
+                          <GroupMarkReadyMenu
+                            projectId={project.id}
+                            area={key || null}
+                            draftCount={groupTasks.filter((gt) => gt.status === 'draft').length}
+                          />
+                        )}
+                      </div>
                       {!collapsed && (
                         <div className="divide-y border-t">
                           {groupTasks.map((task: Task) => {

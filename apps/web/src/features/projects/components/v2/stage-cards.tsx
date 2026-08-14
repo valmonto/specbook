@@ -24,11 +24,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   useDeleteTask,
+  useMarkReady,
   useMergeTask,
   useTransitionTask,
   useUpdateTask,
 } from '../../hooks/use-projects';
 import { useProjectReadOnly } from './read-only-context';
+import { markSingleTaskReady } from './mark-ready-menu';
 import { TaskDetail, type TaskDetailProps } from '../task-detail';
 
 /**
@@ -164,14 +166,22 @@ function RowMenu({ task }: { task: Task }) {
   const readOnly = useProjectReadOnly();
   const { t } = useTranslation();
   const transition = useTransitionTask();
+  const markReady = useMarkReady();
   const deleteTask = useDeleteTask();
   if (readOnly || isTerminal(task)) return null;
 
   const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+    // Dispatching a draft is the cascade path: mark-ready also promotes the
+    // task's transitive draft prerequisites and reports any it pulled in, so a
+    // task is never left ready-but-stranded. Direct action, no confirmation.
+    if (to === 'ready' && task.status === 'draft') {
+      await markSingleTaskReady(markReady, task, t);
+      return;
+    }
     const res = await transition.execute({ id: task.id, to });
     if (res.e) toast.error(t(res.e.message));
   };
-  const busy = transition.isLoading || deleteTask.isLoading;
+  const busy = transition.isLoading || markReady.isLoading || deleteTask.isLoading;
   const dispatchBlocked =
     task.status === 'draft' && (!task.context?.trim() || task.acceptanceCriteria.length === 0);
 

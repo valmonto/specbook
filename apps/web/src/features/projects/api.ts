@@ -44,6 +44,8 @@ import type {
   ListProjectsResponse,
   ListTasksRequest,
   ListTasksResponse,
+  MarkReadyRequest,
+  MarkReadyResponse,
   RemoveTaskDependencyRequest,
   RemoveTaskDependencyResponse,
   ResumeProjectRequest,
@@ -106,6 +108,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.delete(`/api/tasks/${dto.id}`),
   transitionTask: (dto: TransitionTaskRequest): Promise<TransitionTaskResponse> =>
     client.post(`/api/tasks/${dto.id}/transition`, dto),
+  markReady: (dto: MarkReadyRequest): Promise<MarkReadyResponse> =>
+    client.post('/api/tasks/mark-ready', dto),
   mergeTask: (dto: MergeTaskRequest): Promise<MergeTaskResponse> =>
     client.post(`/api/tasks/${dto.id}/merge`, dto),
   getTaskPr: (dto: GetTaskPrRequest): Promise<GetTaskPrResponse> =>

@@ -25,6 +25,8 @@ import {
   type MergeTaskResponse,
   type ListTasksRequest,
   type ListTasksResponse,
+  type MarkReadyRequest,
+  type MarkReadyResponse,
   type RemoveTaskDependencyRequest,
   type ReportCostRequest,
   type Task as TaskDto,
@@ -680,6 +682,97 @@ export class TaskService {
     if (!removed) {
       throw new NotFoundException(k.tasks.errors.dependencyNotFound);
     }
+  }
+
+  /**
+   * Bulk draft → ready behind three UI surfaces (project cog, per-Area group
+   * menu, single-task action). Given a scope's target draft set, it also
+   * promotes those targets' transitive DRAFT prerequisites, so a promoted task
+   * is never left ready-but-stranded behind a draft it depends on (draft never
+   * advances on its own — it is the human's holding pen).
+   *
+   * Human/UI-only: `ready` is the human dispatch gate, so no MCP tool wraps
+   * this. Org comes from the session; the repository reads and the write are
+   * org-scoped, so a foreign project/task promotes nothing.
+   */
+  async markReady(activeUser: ActiveUser, dto: MarkReadyRequest): Promise<MarkReadyResponse> {
+    const { scope } = dto;
+    const proj = await this.projectRepository.findById(scope.projectId, activeUser.orgId);
+    if (!proj) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    if (proj.archivedAt) {
+      throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
+    }
+
+    const [rows, edges] = await Promise.all([
+      this.taskRepository.findProjectPromotionRows(activeUser.orgId, scope.projectId),
+      this.taskRepository.findProjectDependencyEdges(scope.projectId),
+    ]);
+
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const draftIds = new Set(rows.filter((r) => r.status === 'draft').map((r) => r.id));
+
+    // The directly-requested target drafts, per scope. Non-draft (and, for the
+    // `tasks` scope, foreign/other-project) ids are left untouched.
+    let targetIds: string[];
+    if (scope.kind === 'project') {
+      targetIds = [...draftIds];
+    } else if (scope.kind === 'area') {
+      targetIds = rows
+        .filter((r) => r.status === 'draft' && (r.area ?? null) === (scope.area ?? null))
+        .map((r) => r.id);
+    } else {
+      targetIds = scope.taskIds.filter((id) => draftIds.has(id));
+    }
+    const targetSet = new Set(targetIds);
+
+    // Walk transitive DRAFT prerequisites: from each target, follow depends-on
+    // edges through draft nodes only. A non-draft prerequisite progresses on
+    // its own and stops the chase — we never touch it (the queue gates
+    // claimability on prerequisites being `done`, not `ready`, so ordering is
+    // preserved). The graph is acyclic (wouldCycle rejects cycles at insert),
+    // so the walk terminates.
+    const dependsOn = new Map<string, string[]>();
+    for (const e of edges) {
+      const next = dependsOn.get(e.taskId) ?? [];
+      next.push(e.dependsOnTaskId);
+      dependsOn.set(e.taskId, next);
+    }
+    const reachableDrafts = new Set<string>();
+    const stack = [...targetSet];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      if (reachableDrafts.has(node) || !draftIds.has(node)) continue;
+      reachableDrafts.add(node);
+      for (const prereq of dependsOn.get(node) ?? []) stack.push(prereq);
+    }
+
+    // Promote only drafts that clear the dispatch gate (non-empty context + at
+    // least one criterion). A half-specified draft is left in draft rather than
+    // dispatched — the same bar the single-task transition enforces.
+    const promoteIds = [...reachableDrafts].filter((id) => byId.get(id)?.dispatchable);
+
+    const promoted = await this.taskRepository.bulkPromoteDraftsToReady(
+      activeUser.orgId,
+      promoteIds,
+      activeUser.userId,
+    );
+
+    // Prerequisites pulled in = promoted rows not directly in the requested scope.
+    const prerequisites = promoted.filter((p) => !targetSet.has(p.id));
+
+    this.logger.info(
+      {
+        projectId: scope.projectId,
+        kind: scope.kind,
+        promoted: promoted.length,
+        prerequisites: prerequisites.length,
+      },
+      'Bulk mark-ready',
+    );
+
+    return { promoted, prerequisites };
   }
 
   async delete(activeUser: ActiveUser, id: string): Promise<void> {

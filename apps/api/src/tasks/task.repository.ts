@@ -390,6 +390,66 @@ export class TaskRepository {
     return rows.map((r) => r.userId);
   }
 
+  /**
+   * Every task in a project, lean, for the bulk mark-ready resolver: the fields
+   * the transitive-prerequisite walk and the dispatch gate need, nothing heavy
+   * (context/criteria collapse to a `dispatchable` boolean in SQL). Org-scoped:
+   * the project is joined on the owning org, so a foreign project id yields
+   * nothing and the resolver promotes zero tasks.
+   */
+  async findProjectPromotionRows(
+    orgId: string,
+    projectId: string,
+  ): Promise<Array<{ id: string; status: string; area: string | null; title: string; dispatchable: boolean }>> {
+    const rows = await this.dbClient.db
+      .select({
+        id: task.id,
+        status: task.status,
+        area: task.area,
+        title: task.title,
+        // The dispatch gate, computed in SQL: non-empty context AND at least one
+        // acceptance criterion — the same bar the single-task draft→ready
+        // transition enforces before a task may be dispatched.
+        dispatchable: sql<boolean>`(
+          length(btrim(coalesce(${task.context}, ''))) > 0
+          AND jsonb_array_length(${task.acceptanceCriteria}) > 0
+        )`,
+      })
+      .from(task)
+      .innerJoin(project, eq(task.projectId, project.id))
+      .where(and(eq(project.orgId, orgId), eq(task.projectId, projectId)));
+    return rows.map((r) => ({ ...r, dispatchable: Boolean(r.dispatchable) }));
+  }
+
+  /**
+   * Bulk draft → ready, org-scoped and status-guarded: only rows still in
+   * `draft`, still inside the caller's org (the membership subquery), and named
+   * in `ids` move. The `status = 'draft'` predicate is a compare-and-swap — a
+   * task another actor advanced in the meantime updates zero rows rather than
+   * being yanked back. Returns the rows it actually promoted, so a foreign org
+   * (or an already-advanced task) promotes nothing.
+   */
+  async bulkPromoteDraftsToReady(
+    orgId: string,
+    ids: string[],
+    statusChangedBy: string,
+  ): Promise<Array<{ id: string; title: string }>> {
+    if (ids.length === 0) return [];
+    return this.dbClient.db
+      .update(task)
+      .set({
+        status: 'ready',
+        claimedBy: null,
+        claimedAt: null,
+        statusChangedBy,
+        statusChangedAt: new Date(),
+      })
+      .where(
+        and(inArray(task.id, ids), eq(task.status, 'draft'), this.orgGuard(orgId)),
+      )
+      .returning({ id: task.id, title: task.title });
+  }
+
   /** All edges within one project — small enough to walk in memory for cycle checks. */
   async findProjectDependencyEdges(
     projectId: string,
