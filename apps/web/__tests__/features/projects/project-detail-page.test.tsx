@@ -11,6 +11,11 @@ import { installRadixDomShims, makeAction, makeTask } from './helpers';
  * over it, the title search is orthogonal, and the merge-debt gate counts the
  * full set regardless of the view filter. "+ New task" creates an Untitled
  * draft that mounts in title-edit mode.
+ *
+ * The board defaults to the Draft stage: with no `?stage` the view opens on
+ * Draft. Show-all is reachable through the explicit `?stage=all` sentinel —
+ * deselecting the Draft chip lands there, never back on the Draft default. The
+ * older "all stages" fixtures below therefore open at `?stage=all` explicitly.
  */
 
 const hooks = vi.hoisted(() => ({
@@ -94,6 +99,80 @@ beforeEach(() => {
 });
 
 describe('ProjectDetailPage', () => {
+  it('defaults to the Draft stage when the URL has no ?stage', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+        ],
+      },
+    });
+    renderPage();
+
+    // Fresh open lands on Draft: the chip is pressed and the board shows only
+    // draft tasks — the other stages are filtered out.
+    expect(screen.getByRole('button', { name: /tasks\.status\.draft/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByText('Draft one')).toBeInTheDocument();
+    expect(screen.queryByText('Done one')).not.toBeInTheDocument();
+  });
+
+  it('?stage=all is the reachable show-all: every stage shows, no chip pressed', () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+        ],
+      },
+    });
+    renderPage('?stage=all');
+
+    // The all sentinel hides nothing and presses no chip — not even Draft.
+    expect(screen.getByRole('button', { name: /tasks\.status\.draft/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByText('Draft one')).toBeInTheDocument();
+    expect(screen.getByText('Done one')).toBeInTheDocument();
+  });
+
+  it('deselecting the Draft chip lands on show-all, not back on the default', async () => {
+    hooks.useProjectTasks.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
+          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+        ],
+      },
+    });
+    renderPage();
+
+    // Default: Draft selected, non-draft hidden.
+    expect(screen.getByRole('button', { name: /tasks\.status\.draft/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.queryByText('Done one')).not.toBeInTheDocument();
+
+    // Click the active Draft chip → deselect → show-all (all stages), which
+    // must NOT snap back to the Draft default.
+    await userEvent.click(screen.getByRole('button', { name: /tasks\.status\.draft/ }));
+
+    expect(screen.getByRole('button', { name: /tasks\.status\.draft/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(screen.getByText('Draft one')).toBeInTheDocument();
+    expect(screen.getByText('Done one')).toBeInTheDocument();
+  });
+
   it('always groups the board by area and has no group-by toggle', () => {
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
@@ -104,7 +183,8 @@ describe('ProjectDetailPage', () => {
         ],
       },
     });
-    renderPage();
+    // Open at show-all so the grouping (not the Draft default) is under test.
+    renderPage('?stage=all');
 
     // The consolidated board dropped the Group by: Status | Area control.
     expect(screen.queryByRole('button', { name: 'tasks.groupByStatus' })).not.toBeInTheDocument();
@@ -134,7 +214,7 @@ describe('ProjectDetailPage', () => {
         ],
       },
     });
-    renderPage();
+    renderPage('?stage=all');
 
     // All stages: both rows show.
     expect(screen.getByText('Live one')).toBeInTheDocument();
@@ -211,7 +291,8 @@ describe('ProjectDetailPage', () => {
       },
     });
     // Restored from the URL: only the matching row survives, the box shows it.
-    renderPage('?q=keepme');
+    // At show-all so the search (not the Draft default) is what narrows.
+    renderPage('?stage=all&q=keepme');
 
     expect(screen.getByText('Keepme alpha')).toBeInTheDocument();
     expect(screen.queryByText('Dropme beta')).not.toBeInTheDocument();
@@ -257,7 +338,7 @@ describe('ProjectDetailPage', () => {
         ],
       },
     });
-    renderPage();
+    renderPage('?stage=all');
 
     // The chevron toggle carries the title as its accessible name AND
     // aria-expanded (section headers name their area, not a title), so the
