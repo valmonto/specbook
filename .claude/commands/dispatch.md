@@ -157,3 +157,14 @@ section), never buried in prose.
 - An empty `available` queue can also mean the merge-debt gate: a project
   holding 3 `approved` (merged-pending) tasks stops feeding the queue until
   the human merges. Nothing for you to do there — just wait.
+
+
+## The merge / human-court gate — the one carve-out
+
+The rule above ("never transition to ready/approved/done; the dispatch, review and merge
+gates are the human's") holds for the **autonomous** loop choosing its own work. It does
+**not** forbid following a **direct, explicit owner instruction**: if the human tells you
+in-conversation to merge or close a specific PR on their own repo, execute it (the repo
+token can merge) — the gate prevents *unsupervised self-merging*, not obeying an order.
+Still never fabricate the specbook task `approved`/`done` transition yourself — the API
+enforces that (agent→`done` = `invalidTransition`); the PR merging is what advances the task.
