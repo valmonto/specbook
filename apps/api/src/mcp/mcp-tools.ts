@@ -185,6 +185,7 @@ export class McpTools {
           area: z.string().max(120).optional(),
           acceptanceCriteria: z.array(z.string().min(1)).max(50).optional(),
           priority: z.number().int().min(0).max(1000).optional(),
+          dependsOn: z.array(z.string().uuid()).max(50).optional(),
         },
         handler: async (args, actor) =>
           this.taskService.create(actor!, {
@@ -195,6 +196,7 @@ export class McpTools {
             area: optStr(args.area),
             acceptanceCriteria: args.acceptanceCriteria as string[] | undefined,
             priority: args.priority as number | undefined,
+            dependsOn: args.dependsOn as string[] | undefined,
           }),
       },
       {
@@ -357,6 +359,34 @@ export class McpTools {
             kind: (args.kind as (typeof TASK_COMMENT_KINDS)[number] | undefined) ?? 'comment',
             body: str(args.body),
           }),
+      },
+      {
+        ...meta('add_dependency'),
+        inputSchema: {
+          id: z.string().uuid(),
+          dependsOnTaskId: z.string().uuid(),
+        },
+        handler: async (args, actor) => {
+          await this.taskService.addDependency(actor!, {
+            id: str(args.id),
+            dependsOnTaskId: str(args.dependsOnTaskId),
+          });
+          return {};
+        },
+      },
+      {
+        ...meta('remove_dependency'),
+        inputSchema: {
+          id: z.string().uuid(),
+          dependsOnTaskId: z.string().uuid(),
+        },
+        handler: async (args, actor) => {
+          await this.taskService.removeDependency(actor!, {
+            id: str(args.id),
+            dependsOnTaskId: str(args.dependsOnTaskId),
+          });
+          return {};
+        },
       },
       // --- Research court: the async agent conversation ---
       {

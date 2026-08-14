@@ -57,6 +57,7 @@ function agoShort(iso: string): string {
   return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 }
 import { AttachmentsSection } from './attachments-section';
+import { DependencyEditor } from './dependency-editor';
 import { CiStateDot, CostLine, PrStateBadge } from './github-state-badges';
 import { TaskEditForm } from './task-edit-form';
 import { StatusBadge } from './status-badge';
@@ -322,25 +323,11 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                 </section>
               )}
 
-              {/* Dependencies */}
-              {(task.dependencies.length > 0 || task.dependents.length > 0) && (
-                <section className="grid gap-3 sm:grid-cols-2">
-                  {task.dependencies.length > 0 && (
-                    <div>
-                      <h4 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        {t(k.tasks.detail.dependencies)}
-                      </h4>
-                      <ul className="space-y-1">
-                        {task.dependencies.map((d) => (
-                          <li key={d.id} className="flex items-center gap-2 text-sm">
-                            <StatusBadge status={d.status} />
-                            <span className="truncate">{d.title}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {task.dependents.length > 0 && (
+              {/* Dependencies — the editor renders even with no edges yet;
+                  dependents stay read-only (edit the edge from the other end). */}
+              <section className="grid gap-3 sm:grid-cols-2">
+                <DependencyEditor task={task} />
+                {task.dependents.length > 0 && (
                     <div>
                       <h4 className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                         {t(k.tasks.detail.dependents)}
@@ -356,7 +343,6 @@ export function TaskDetailSheet({ taskId, onOpenChange }: Props) {
                     </div>
                   )}
                 </section>
-              )}
 
               {/* Transitions — the human's legal moves */}
               <section className="space-y-2">

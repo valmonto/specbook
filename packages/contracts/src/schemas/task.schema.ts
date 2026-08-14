@@ -116,6 +116,10 @@ export const CreateTaskRequestSchema = z
     acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(50).optional(),
     priority: z.number().int().min(0).max(1000).optional(),
     isHumanTask: z.boolean().optional(),
+    // "Depends on" edges to wire at creation: ids of prerequisite tasks in the
+    // same project. Each is added through the guarded add-dependency path, so
+    // existence, same-project, self and cycle checks all apply.
+    dependsOn: z.array(z.string().uuid()).max(50).optional(),
   })
   .strict();
 

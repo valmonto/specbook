@@ -301,4 +301,42 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     const { data } = await queue();
     expect(data.map((t) => t.title)).toEqual(['gated-ready']);
   });
+
+  it('a dependency chain (B dependsOn A) holds B out of the queue until A is done — even with headroom to run both', async () => {
+    // maxParallel high enough that parallelism cannot be the thing gating B:
+    // the ONLY reason B stays out is its unfinished dependency.
+    await client.db.update(project).set({ maxParallel: 5 }).where(eq(project.id, gatedProject));
+    const a = await makeTask(gatedProject, ownerA, 'ready', 'A');
+    const b = await makeTask(gatedProject, ownerA, 'ready', 'B');
+    await repo.addDependency(b, a); // B depends on A
+
+    // Both are ready, but only A is served — B waits on its prerequisite.
+    let { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['A']);
+
+    // A short of terminal-success (in_progress) still does not release B.
+    await client.db.update(task).set({ status: 'in_progress' }).where(eq(task.id, a));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title)).toEqual([]);
+
+    // A reaches terminal-success (done): B becomes claimable.
+    await client.db.update(task).set({ status: 'done' }).where(eq(task.id, a));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title)).toEqual(['B']);
+  });
+
+  it('a blocked or changes_requested sibling never strands independent ready work', async () => {
+    await makeTask(gatedProject, ownerA, 'ready', 'X');
+    const y = await makeTask(gatedProject, ownerA, 'blocked', 'Y');
+
+    // Y is blocked (not served), but X — independent — is untouched.
+    let { data } = await queue();
+    expect(data.map((t) => t.title)).toEqual(['X']);
+
+    // Y flips to changes_requested: it re-enters the feed itself, and X is
+    // STILL served. A sibling's state never removes independent work.
+    await client.db.update(task).set({ status: 'changes_requested' }).where(eq(task.id, y));
+    ({ data } = await queue());
+    expect(data.map((t) => t.title).sort()).toEqual(['X', 'Y']);
+  });
 });

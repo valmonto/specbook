@@ -164,6 +164,20 @@ export const MCP_TOOLS = [
     description:
       "Write to the task's work log. kind 'progress' for narration mid-flight, 'comment' for everything else (questions go through update_status → blocked).",
   },
+  {
+    name: 'add_dependency',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Add a 'depends on' edge: the task waits until the prerequisite reaches a terminal-success state (done) before it becomes claimable. Both tasks must be in the same project (and your org). Rejected if it would create a cycle or point a task at itself.",
+  },
+  {
+    name: 'remove_dependency',
+    scope: 'tasks:agent',
+    needsOrgContext: true,
+    description:
+      "Remove a 'depends on' edge between two tasks in your org — the dependent stops waiting on that prerequisite.",
+  },
   // --- Research court: the agent conversation surface ---
   {
     name: 'list_research',
