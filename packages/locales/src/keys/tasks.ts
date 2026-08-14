@@ -241,6 +241,37 @@ export const tasks = {
     },
   },
 
+  // Plan mode: the draft-only dependency planner canvas (Board ⇄ Plan toggle).
+  plan: {
+    board: 'tasks.plan.board',
+    plan: 'tasks.plan.plan',
+    tidy: 'tasks.plan.tidy',
+    newTicket: 'tasks.plan.newTicket',
+    note: 'tasks.plan.note',
+    empty: 'tasks.plan.empty',
+    noArea: 'tasks.plan.noArea',
+    editTitle: 'tasks.plan.editTitle',
+    openEditor: 'tasks.plan.openEditor',
+    promote: 'tasks.plan.promote',
+    deleteDraft: 'tasks.plan.deleteDraft',
+    cardMenu: 'tasks.plan.cardMenu',
+    linkHandle: 'tasks.plan.linkHandle',
+    removeDependency: 'tasks.plan.removeDependency',
+    clear: 'tasks.plan.clear',
+    waiting: 'tasks.plan.waiting',
+    clearLegend: 'tasks.plan.clearLegend',
+    waitingLegend: 'tasks.plan.waitingLegend',
+    linkLegend: 'tasks.plan.linkLegend',
+    hint: 'tasks.plan.hint',
+    // Promote-with-cascade confirm.
+    promoteChainTitle: 'tasks.plan.promoteChainTitle',
+    promoteChainBody: 'tasks.plan.promoteChainBody',
+    // Inline rejection feedback for illegal links.
+    rejectSelf: 'tasks.plan.rejectSelf',
+    rejectDuplicate: 'tasks.plan.rejectDuplicate',
+    rejectCycle: 'tasks.plan.rejectCycle',
+  },
+
   // Bulk "mark as ready" — the project cog, the per-group menu, and the toast
   // the single-task action shows when it pulls in a prerequisite.
   markReady: {
