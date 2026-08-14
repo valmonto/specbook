@@ -45,7 +45,6 @@ import { DependencyEditor } from './dependency-editor';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { markSingleTaskReady } from './v2/mark-ready-menu';
 import { CostLine } from './github-state-badges';
-import { StatusBadge } from './status-badge';
 
 /**
  * The ONE task-detail body, shared by the project board's expanded row and the
@@ -415,32 +414,16 @@ function WorkLinks({ task }: { task: Task }) {
 }
 
 /**
- * Dependencies: the "depends on" editor (add/remove edges) plus the read-only
- * dependents (edit that edge from the other end). Waits for the full task read
- * so the editor has the real edge list.
+ * Dependencies: the full relationship section — the "Depends on" editor
+ * (add/remove your own edges) and the read-only "Blocks" list (the reverse
+ * edge, edited from the other end). Both live in {@link DependencyEditor} so
+ * the two render as one coherent block. Waits for the full task read so the
+ * editor has the real edge list.
  */
 function DependenciesSection({ taskId }: { taskId: string }) {
-  const { t } = useTranslation();
   const { data } = useTask(taskId);
   if (!data) return null;
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <DependencyEditor task={data} />
-      {data.dependents.length > 0 && (
-        <div>
-          <h4 className={cn(SECTION_HEADING, 'mb-1')}>{t(k.tasks.detail.dependents)}</h4>
-          <ul className="space-y-1">
-            {data.dependents.map((d) => (
-              <li key={d.id} className="flex items-center gap-2 text-sm">
-                <StatusBadge status={d.status} />
-                <span className="truncate">{d.title}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
+  return <DependencyEditor task={data} />;
 }
 
 const kindStyles: Record<string, string> = {

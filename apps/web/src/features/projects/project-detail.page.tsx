@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, GitMerge, Pause, Plus } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, GitMerge, Pause } from 'lucide-react';
 import { MERGE_DEBT_CAP, TASK_STATUSES, type Task, type TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
@@ -15,6 +15,8 @@ import { TaskSearch } from './components/v2/task-search';
 import { filterTasks } from './components/v2/filter-tasks';
 import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import { GroupMarkReadyMenu, ProjectMarkReadyMenu } from './components/v2/mark-ready-menu';
+import { NewTaskMenu } from './components/v2/new-task-menu';
+import { isNonTerminal } from './components/dependency-editor';
 import {
   useCreateTask,
   useMergeTask,
@@ -163,24 +165,56 @@ export default function ProjectDetailV2Page() {
     });
   const toggleExpanded = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
 
-  // Creation IS editing: make the draft immediately, land on it expanded with
-  // the title focused — no form, no dialog. Drop the board's filters to show-all
-  // and clear any search first, so the fresh (untitled, area-less) draft is
-  // guaranteed visible in its section rather than hidden behind a stage filter
-  // or a stale search.
-  const newTask = async () => {
-    if (!project) return;
-    const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
-    if (res.e || !res.d) return;
+  // Drop the board's filters to show-all and clear any search, then land on the
+  // fresh draft expanded with its title focused — so it's guaranteed visible in
+  // its section rather than hidden behind a stage filter or a stale search.
+  const landOnNew = (id: string) => {
     patchParams((params) => {
       params.set('stage', SHOW_ALL);
       params.delete('q');
     });
-    setExpandedId(res.d.id);
-    setFreshId(res.d.id);
+    setExpandedId(id);
+    setFreshId(id);
+  };
+
+  // Creation IS editing: make the draft immediately, land on it — no form, no
+  // dialog.
+  const newTask = async () => {
+    if (!project) return;
+    const res = await create.execute({ projectId: project.id, title: t(k.tasks.v2.untitled) });
+    if (res.e || !res.d) return;
+    landOnNew(res.d.id);
+  };
+
+  // The other create path: born with a "depends on" edge, set up front from the
+  // New-task dialog. Falls back to the untitled placeholder when the field is
+  // left blank, matching the instant path. Resolves true so the dialog knows to
+  // close only on success.
+  const createWithDependency = async ({
+    title,
+    dependsOn,
+  }: {
+    title: string;
+    dependsOn: string;
+  }): Promise<boolean> => {
+    if (!project) return false;
+    const res = await create.execute({
+      projectId: project.id,
+      title: title || t(k.tasks.v2.untitled),
+      dependsOn: [dependsOn],
+    });
+    if (res.e || !res.d) return false;
+    landOnNew(res.d.id);
+    return true;
   };
 
   const tasks = useMemo(() => tasksData?.data ?? [], [tasksData]);
+  // Eligible "depends on" prerequisites for a brand-new task: any non-terminal
+  // task in the project (no self/linked exclusions — the task doesn't exist yet).
+  const dependencyCandidates = useMemo(
+    () => tasks.filter((task) => isNonTerminal(task.status)),
+    [tasks],
+  );
   // The search narrows the FULL set; the strip's funnel counts read this set,
   // so search shrinks the funnel but selecting a stage never zeroes the others.
   const searchFiltered = useMemo(() => filterTasks(tasks, { query }), [tasks, query]);
@@ -268,10 +302,13 @@ export default function ProjectDetailV2Page() {
         actions={
           readOnly ? null : (
             <div className="flex items-center gap-2">
-              <Button onClick={() => void newTask()} disabled={create.isLoading}>
-                <Plus className="size-4 mr-1" />
-                {t(k.tasks.newTask)}
-              </Button>
+              <NewTaskMenu
+                candidates={dependencyCandidates}
+                disabled={create.isLoading}
+                onNewTask={() => void newTask()}
+                onCreateWithDependency={createWithDependency}
+                createError={create.error?.message}
+              />
               {/* The project-wide bulk sweep — Mark all drafts ready. */}
               <ProjectMarkReadyMenu projectId={project.id} draftCount={draftCount} />
             </div>
