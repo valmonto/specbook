@@ -68,8 +68,16 @@ pnpm dev
 ## Verify it
 
 ```bash
-pnpm verify                   # typecheck + lint + test
+pnpm verify                   # typecheck + lint + test — the authoritative gate
+pnpm verify:affected          # local fast check — only changed workspaces + dependents
 ```
 
 With `DATABASE_URL` set, the repository integration suites run too — the same
-gate CI applies to every PR.
+gate CI applies to every PR. That full `pnpm verify` is what clears a merge.
+
+`pnpm verify:affected` is a local fast-feedback tool: it scopes typecheck/lint/
+test to the workspaces changed since `origin/main` plus everything downstream,
+and skips the database when no DB-backed suite is affected (a web-only change
+runs in ~≤1 min instead of ~5–7). It is not a gate — CI's full verify still
+runs on the PR. Escalate to the full `pnpm verify` (with a database) locally
+when a shared package (`@pkg/contracts`/`database`/`server`/`locales`) changes.
