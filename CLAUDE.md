@@ -36,7 +36,31 @@ built, and compare what renders against the spec.
 ## Definition of done
 
 ```bash
-pnpm verify        # typecheck + lint + test — must exit 0
+pnpm verify        # typecheck + lint + test — must exit 0 (authoritative gate)
+pnpm verify:affected   # local fast check — only workspaces changed since main + dependents
+```
+
+**`pnpm verify` is the authoritative gate.** CI (`verify.yml`) runs the full
+verify — every package typechecked + linted + tested against Postgres — on
+every PR, and that run is what clears a merge. It must exit 0.
+
+**`pnpm verify:affected` is a local fast-feedback tool, not a gate.** It runs
+typecheck/lint/test only for the workspaces that changed since `origin/main`
+plus everything downstream of them (`scripts/verify/affected.mjs`), and skips
+the database when no DB-backed suite (api/worker/testing) is in scope. A
+leaf `apps/web`-only change runs just web in ~≤1 min; the full suite would be
+~5–7 min. Use it to iterate quickly — CI's full verify still catches anything
+scoping misses, so nothing merges unverified. (It resolves the affected graph
+from `git diff` rather than pnpm's `--filter "...[main]"`, which returns nothing
+inside a linked git worktree — where build agents run.)
+
+**Escalate to the full `pnpm verify` locally when a shared package changes.** A
+change to `@pkg/contracts`/`database`/`server`/`locales` fans out to api/worker
+(so `verify:affected` reports the DB is needed and warns) — run the full gate
+with a database for real confidence before pushing:
+
+```bash
+DATABASE_URL=postgresql://valmatic:valmatic@127.0.0.1:5432/valmatic_test pnpm verify
 ```
 
 Done also means the documentation still tells the truth: **if a change
