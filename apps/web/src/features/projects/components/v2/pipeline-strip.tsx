@@ -35,9 +35,15 @@ interface Props {
   /** The stage the board is filtered to, or null when all stages show. */
   selected: TaskStatus | null;
   onSelect: (status: TaskStatus) => void;
+  /**
+   * Plan mode locks the strip to the Draft stage: the Draft chip reads as the
+   * active scope and every other stage is visibly disabled (Plan mode only
+   * ever operates on drafts), so the strip stops being a filter here.
+   */
+  locked?: boolean;
 }
 
-export function PipelineStrip({ counts, selected, onSelect }: Props) {
+export function PipelineStrip({ counts, selected, onSelect, locked = false }: Props) {
   const { t } = useTranslation();
   const stages = ORDER.filter((s) => ALWAYS.includes(s) || (counts[s] ?? 0) > 0);
 
@@ -46,19 +52,25 @@ export function PipelineStrip({ counts, selected, onSelect }: Props) {
       {stages.map((status, i) => {
         const n = counts[status] ?? 0;
         const isGate = GATES.includes(status) && n > 0;
+        // Locked (Plan mode): Draft is the fixed scope; the rest are inert.
+        const active = locked ? status === 'draft' : selected === status;
+        const disabled = locked && status !== 'draft';
         return (
           <Fragment key={status}>
             {i > 0 && <span className="hidden text-xs text-muted-foreground/40 sm:inline">→</span>}
             <button
               type="button"
-              onClick={() => onSelect(status)}
-              aria-pressed={selected === status}
+              onClick={() => !locked && onSelect(status)}
+              disabled={disabled}
+              aria-pressed={active}
+              aria-disabled={disabled}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors',
-                selected === status
+                active
                   ? 'border-primary/60 bg-primary/10 text-foreground'
                   : 'text-muted-foreground hover:border-muted-foreground/40',
-                n === 0 && selected !== status && 'opacity-50',
+                n === 0 && !active && 'opacity-50',
+                disabled && 'pointer-events-none opacity-30',
               )}
             >
               {isGate && <span className="size-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_2px_rgba(217,153,34,0.35)]" />}

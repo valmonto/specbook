@@ -16,6 +16,8 @@ import { filterTasks } from './components/v2/filter-tasks';
 import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import { GroupMarkReadyMenu, ProjectMarkReadyMenu } from './components/v2/mark-ready-menu';
 import { NewTaskMenu } from './components/v2/new-task-menu';
+import { PlanMode } from './components/plan/plan-mode';
+import { ViewToggle, type BoardView } from './components/plan/view-toggle';
 import { isNonTerminal } from './components/dependency-editor';
 import { TriageDigest } from './components/triage-digest';
 import {
@@ -114,6 +116,9 @@ export default function ProjectDetailV2Page() {
   //   value) falls back to the Draft default (`stage` = 'draft').
   // - ?q=: the title search. Orthogonal to the stage filter; the two compose.
   const [searchParams, setSearchParams] = useSearchParams();
+  // Board (default) or Plan (the draft-only dependency planner). Kept in the
+  // URL so a reload / shared link restores the same surface.
+  const view: BoardView = searchParams.get('view') === 'plan' ? 'plan' : 'board';
   const stageParam = searchParams.get('stage');
   const stage: TaskStatus | null =
     stageParam === SHOW_ALL
@@ -150,6 +155,25 @@ export default function ProjectDetailV2Page() {
       params.set('stage', stage === next ? SHOW_ALL : next);
     });
     setExpandedId(null);
+  };
+  // The Board ⇄ Plan toggle. Plan is a URL param so it survives reloads; Board
+  // (the default) just drops it. Leaving Plan keeps the current stage filter.
+  const setView = (next: BoardView) => {
+    patchParams((params) => {
+      if (next === 'plan') params.set('view', 'plan');
+      else params.delete('view');
+    });
+    setExpandedId(null);
+  };
+  // From a Plan-mode card's "Open full editor": jump back to the board with
+  // that draft's row expanded to the shared full task detail.
+  const openTaskEditor = (task: Task) => {
+    patchParams((params) => {
+      params.delete('view');
+      params.set('stage', task.status);
+      params.delete('q');
+    });
+    setExpandedId(task.id);
   };
   const setQuery = (next: string) => {
     patchParams((params) => {
@@ -341,11 +365,21 @@ export default function ProjectDetailV2Page() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <>
-          {/* One control row: the pipeline strip (funnel + status filter) on
-              the left, the title search on the right. */}
+          {/* One control row: the Board ⇄ Plan toggle + pipeline strip (funnel
+              + status filter) on the left, the title search on the right. In
+              Plan mode the strip locks to Draft and the search is hidden (the
+              canvas is its own surface). */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <PipelineStrip counts={counts} selected={stage} onSelect={setStage} />
-            <TaskSearch query={query} onQueryChange={setQuery} />
+            <div className="flex flex-wrap items-center gap-3">
+              <ViewToggle view={view} onChange={setView} />
+              <PipelineStrip
+                counts={counts}
+                selected={view === 'plan' ? 'draft' : stage}
+                onSelect={setStage}
+                locked={view === 'plan'}
+              />
+            </div>
+            {view === 'board' && <TaskSearch query={query} onQueryChange={setQuery} />}
           </div>
 
           {/* The merge-debt gate, visible where it jams. */}
@@ -367,8 +401,18 @@ export default function ProjectDetailV2Page() {
             </div>
           )}
 
-          {/* The board: always one collapsible section per feature area, each
-              with its status rollup; rows wear their area as a chip. */}
+          {/* Plan mode swaps the whole board surface for the draft-only
+              dependency planner; Board mode stays exactly as it was. */}
+          {view === 'plan' ? (
+            <PlanMode
+              projectId={project.id}
+              tasks={tasks}
+              readOnly={readOnly}
+              onOpenEditor={openTaskEditor}
+            />
+          ) : (
+          /* The board: always one collapsible section per feature area, each
+              with its status rollup; rows wear their area as a chip. */
           <ShowAreaChipContext.Provider value={true}>
             {areaGroups.length === 0 ? (
               <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
@@ -438,6 +482,7 @@ export default function ProjectDetailV2Page() {
               </div>
             )}
           </ShowAreaChipContext.Provider>
+          )}
         </>
       )}
 
