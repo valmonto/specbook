@@ -151,8 +151,11 @@ export class GithubAppService {
 
   /**
    * A 1-hour agent credential: restricted at MINT TIME to one repository and
-   * to { contents, pull_requests } write — GitHub enforces the boundary, so a
-   * leaked token is one repo for one hour, nothing more. Never cached, never
+   * to { contents, pull_requests, workflows } write plus { actions, checks }
+   * read — GitHub enforces the boundary, so a leaked token is one repo for one
+   * hour, nothing more. `workflows` is what lets an agent create/update
+   * `.github/workflows/*` (without it GitHub 403s those paths); the read
+   * scopes let an agent see CI status instead of guessing. Never cached, never
    * persisted. Null means GitHub refused the restriction (404/422) — the repo
    * was dropped from the installation's grant since the project bound it.
    */
@@ -167,7 +170,13 @@ export class GithubAppService {
         `/app/installations/${installationId}/access_tokens`,
         {
           repositories: [shortName],
-          permissions: { contents: 'write', pull_requests: 'write' },
+          permissions: {
+            contents: 'write',
+            pull_requests: 'write',
+            workflows: 'write',
+            actions: 'read',
+            checks: 'read',
+          },
         },
         { headers: { Authorization: `Bearer ${this.appJwt()}` } },
       );
@@ -240,6 +249,11 @@ export class GithubAppService {
    * so this can only ever create history, never rewrite it. Callers must
    * run it BEFORE applyProtectionRuleset — the PRs-only rule would block
    * the direct initial push.
+   *
+   * `workflows` write is required alongside `contents`: the template tree
+   * includes `.github/workflows/*`, and GitHub refuses to push workflow
+   * files under a token that lacks the scope — which would drop CI from
+   * every freshly provisioned repo.
    */
   async populateFromTemplate(
     installationId: number,
@@ -247,7 +261,10 @@ export class GithubAppService {
     repoFullName: string,
     defaultBranch = 'main',
   ): Promise<void> {
-    const token = await this.installationToken(installationId, { contents: 'write' });
+    const token = await this.installationToken(installationId, {
+      contents: 'write',
+      workflows: 'write',
+    });
 
     // Emptiness guard: GitHub answers 409 for a repo with no commits.
     try {
