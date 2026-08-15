@@ -787,6 +787,7 @@
   "tasks.plan.clearLegend": "Libre: listo para promover",
   "tasks.plan.waitingLegend": "A la espera de un prerrequisito",
   "tasks.plan.linkLegend": "enlace de prerrequisito",
+  "tasks.plan.legendTitle": "Leyenda",
   "tasks.plan.hint": "Arrastra el conector para enlazar · pasa sobre una línea para eliminar · engranaje para editar o promover",
   "tasks.plan.promoteChainTitle": "¿Promover también sus prerrequisitos?",
   "tasks.plan.promoteChainBody": "Este ticket aún espera {{count}} prerrequisito(s) en borrador. Al promoverlo también se marcará lista esa cadena de prerrequisitos, para que nada quede varado.",

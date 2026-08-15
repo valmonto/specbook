@@ -23,6 +23,7 @@ import {
 import type { Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
+import { useIsMobile } from '@/shared/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,6 +110,7 @@ export function PlanCanvasV2({
   registerTidy,
 }: PlanCanvasV2Props) {
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const addDependency = useAddDependency();
   const removeDependency = useRemoveDependency();
   const updateTask = useUpdateTask();
@@ -116,7 +118,9 @@ export function PlanCanvasV2({
   const markReady = useMarkReady();
 
   const signature = useMemo(() => signatureOf(draftTasks), [draftTasks]);
-  const layout = useMemo(() => layoutV2(draftTasks), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phones get the compact layout (tighter columns, fits-to-width by default);
+  // switching pointer class re-tidies, which is the desired feel here.
+  const layout = useMemo(() => layoutV2(draftTasks, { compact: isMobile }), [signature, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
   const edgePairs = useMemo(() => draftEdges(draftTasks), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
   const laneByArea = useMemo(() => {
     const m = new Map<string, V2LaneRect>();
@@ -478,7 +482,8 @@ export function PlanCanvasV2({
                     d={path}
                     fill="none"
                     stroke="transparent"
-                    strokeWidth={16}
+                    // Fatter, easier-to-tap hit line on touch.
+                    strokeWidth={isMobile ? 28 : 16}
                     className="pointer-events-auto cursor-pointer"
                     onMouseEnter={() => setHoveredEdge(key)}
                     onMouseLeave={() => setHoveredEdge((cur) => (cur === key ? null : cur))}
@@ -519,7 +524,8 @@ export function PlanCanvasV2({
             if (!from || !to) return null;
             const key = `${b}>${d}`;
             const mid = edgeMid(edgePoints(from, to, cardHeight(b), cardHeight(d)));
-            const show = hoveredEdge === key;
+            // Touch has no hover, so the ✕ stays visible (and larger) on phones.
+            const show = hoveredEdge === key || isMobile;
             return (
               <button
                 key={`x:${key}`}
@@ -529,13 +535,14 @@ export function PlanCanvasV2({
                 onMouseEnter={() => setHoveredEdge(key)}
                 onMouseLeave={() => setHoveredEdge((cur) => (cur === key ? null : cur))}
                 onClick={() => removeDep(b, d)}
-                style={{ left: mid.x, top: mid.y }}
+                style={{ left: mid.x, top: mid.y, touchAction: 'none' }}
                 className={cn(
                   'absolute z-30 grid size-[22px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-card text-destructive shadow-sm transition-opacity',
+                  isMobile && 'size-[32px]',
                   show ? 'opacity-100' : 'pointer-events-none opacity-0',
                 )}
               >
-                <X className="size-3" />
+                <X className={cn('size-3', isMobile && 'size-4')} />
               </button>
             );
           })}
@@ -555,6 +562,7 @@ export function PlanCanvasV2({
               ref={setNodeRef(task.id)}
               task={task}
               pos={pos}
+              isMobile={isMobile}
               waiting={waiting}
               blockers={blockers}
               unlocks={unlocks}
@@ -614,6 +622,7 @@ export function PlanCanvasV2({
 interface TaskCardProps {
   task: Task;
   pos: V2Point;
+  isMobile: boolean;
   waiting: boolean;
   blockers: number;
   unlocks: number;
@@ -638,6 +647,7 @@ const TaskCard = ({
   ref,
   task,
   pos,
+  isMobile,
   waiting,
   blockers,
   unlocks,
@@ -674,6 +684,9 @@ const TaskCard = ({
         width: V2_NODE_W,
         borderLeftColor: flashing ? 'var(--destructive)' : waiting ? '#c07d16' : '#0a97d6',
         transition: dragging ? 'none' : 'left .28s cubic-bezier(.22,.61,.36,1), top .28s cubic-bezier(.22,.61,.36,1), box-shadow .15s',
+        // Never let a touch-drag of a card scroll the canvas underneath it;
+        // one-finger drags on empty space still pan (native scroll).
+        touchAction: 'none',
       }}
       className={cn(
         'group/card absolute rounded-xl border border-l-[4px] bg-card px-3 py-2.5 shadow-sm select-none',
@@ -708,9 +721,12 @@ const TaskCard = ({
                 data-cog
                 aria-label={t(k.tasks.plan.cardMenu)}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="-mr-1 grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                className={cn(
+                  '-mr-1 grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground',
+                  isMobile && 'size-9',
+                )}
               >
-                <MoreVertical className="size-4" />
+                <MoreVertical className={cn('size-4', isMobile && 'size-5')} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -782,11 +798,16 @@ const TaskCard = ({
           data-handle
           title={t(k.tasks.plan.linkHandle)}
           onPointerDown={onHandlePointerDown}
-          className="absolute top-1/2 -right-[9px] grid size-[18px] -translate-y-1/2 cursor-crosshair place-items-center rounded-full border-2 bg-background transition-transform hover:scale-125"
-          style={{ borderColor: waiting ? '#c07d16' : '#0a97d6' }}
+          className={cn(
+            'absolute top-1/2 grid -translate-y-1/2 cursor-crosshair place-items-center rounded-full border-2 bg-background transition-transform hover:scale-125',
+            // A comfortably-tappable target on touch; the desktop dot is unchanged.
+            isMobile ? '-right-[16px] size-[32px]' : '-right-[9px] size-[18px]',
+          )}
+          // touch-action:none so grabbing the handle drags a link, not the page.
+          style={{ borderColor: waiting ? '#c07d16' : '#0a97d6', touchAction: 'none' }}
         >
           <span
-            className="size-1.5 rounded-full"
+            className={cn('rounded-full', isMobile ? 'size-2.5' : 'size-1.5')}
             style={{ background: waiting ? '#c07d16' : '#0a97d6' }}
           />
         </div>

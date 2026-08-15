@@ -38,16 +38,20 @@ export function ViewToggle({
             type="button"
             role="tab"
             aria-selected={active}
+            aria-label={label}
+            title={label}
             onClick={() => onChange(value)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] font-medium transition-colors',
+              // Icon-only on phones (labels would overflow the header beside the
+              // pipeline strip); full pills with a ≥40px tap target from sm up.
+              'inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] font-medium transition-colors sm:min-h-0',
               active
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon className={cn('size-4', active && 'text-primary')} />
-            {label}
+            <span className="hidden sm:inline">{label}</span>
           </button>
         );
       })}

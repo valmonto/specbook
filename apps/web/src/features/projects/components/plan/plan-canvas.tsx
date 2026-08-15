@@ -508,15 +508,23 @@ export function PlanCanvas({
         nodesConnectable={!readOnly}
         nodesDraggable={!readOnly}
         elementsSelectable
-        minZoom={0.25}
+        // Touch: one-finger drag pans the pane, two-finger pinch zooms; React
+        // Flow already preventDefaults inside the pane so the page never
+        // scroll-jacks. A generous connectionRadius makes finger-linking forgiving.
+        panOnDrag
+        zoomOnPinch
+        panOnScroll={false}
+        connectionRadius={38}
+        minZoom={0.2}
         maxZoom={1.75}
         fitView
-        fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
+        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         proOptions={{ hideAttribution: true }}
         className="bg-muted/20"
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} />
-        <Controls showInteractive={false} className="!shadow-sm" />
+        {/* plan-controls: enlarged to finger size on touch (see index.css). */}
+        <Controls showInteractive={false} className="plan-controls !shadow-sm" />
       </ReactFlow>
 
       <AlertDialog

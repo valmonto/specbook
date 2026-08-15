@@ -787,6 +787,7 @@
   "tasks.plan.clearLegend": "Clear — ready to promote",
   "tasks.plan.waitingLegend": "Waiting on a prerequisite",
   "tasks.plan.linkLegend": "prerequisite link",
+  "tasks.plan.legendTitle": "Legend",
   "tasks.plan.hint": "Drag the handle to link · hover a line to remove · cog to edit or promote",
   "tasks.plan.promoteChainTitle": "Promote its prerequisites too?",
   "tasks.plan.promoteChainBody": "This ticket still waits on {{count}} draft prerequisite(s). Promoting it marks that prerequisite chain ready too, so nothing is left stranded.",
