@@ -15,6 +15,7 @@ import {
   Background,
   BackgroundVariant,
   BaseEdge,
+  Controls,
   EdgeLabelRenderer,
   getBezierPath,
   Handle,
@@ -138,7 +139,7 @@ const TaskNode = memo(function TaskNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        'group/card relative w-[232px] rounded-xl border border-l-[4px] bg-card px-3 py-2.5 shadow-sm transition-shadow',
+        'group/card relative w-[252px] rounded-xl border border-l-[4px] bg-card px-3.5 py-3 shadow-sm transition-shadow',
         selected && 'ring-2 ring-primary/50',
         flashing && 'animate-pulse ring-2 ring-destructive',
       )}
@@ -222,7 +223,7 @@ const TaskNode = memo(function TaskNode({ data, selected }: NodeProps) {
         />
       ) : (
         <div
-          className={cn('text-[13px] leading-snug font-medium', editable && 'cursor-text')}
+          className={cn('text-sm leading-snug font-medium', editable && 'cursor-text')}
           onDoubleClick={startEdit}
         >
           {task.title}
@@ -362,17 +363,21 @@ export function PlanCanvas({
   const [flashNodes, setFlashNodes] = useState<Set<string>>(new Set());
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-tidy: any structural change to the draft graph re-lays-out the canvas.
+  // Auto-tidy: any structural change to the draft graph re-lays-out the canvas
+  // AND refits the viewport, so the content stays centred and filling the frame
+  // (never marooned in a corner) after every add/remove/promote/create.
   useEffect(() => {
     setNodes(graph.nodes);
     setEdges(graph.edges);
-  }, [graph, setNodes, setEdges]);
+    const raf = requestAnimationFrame(() => void fitView({ duration: 300, padding: 0.18, maxZoom: 1 }));
+    return () => cancelAnimationFrame(raf);
+  }, [graph, setNodes, setEdges, fitView]);
 
   useEffect(() => {
     registerTidy(() => {
       setNodes(graph.nodes);
       setEdges(graph.edges);
-      requestAnimationFrame(() => void fitView({ duration: 320, padding: 0.2 }));
+      requestAnimationFrame(() => void fitView({ duration: 320, padding: 0.18, maxZoom: 1 }));
     });
   }, [graph, registerTidy, setNodes, setEdges, fitView]);
 
@@ -503,14 +508,15 @@ export function PlanCanvas({
         nodesConnectable={!readOnly}
         nodesDraggable={!readOnly}
         elementsSelectable
-        minZoom={0.3}
+        minZoom={0.25}
         maxZoom={1.75}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{ padding: 0.18, maxZoom: 1 }}
         proOptions={{ hideAttribution: true }}
         className="bg-muted/20"
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} />
+        <Controls showInteractive={false} className="!shadow-sm" />
       </ReactFlow>
 
       <AlertDialog

@@ -17,6 +17,7 @@ import { cardFor, ShowAreaChipContext } from './components/v2/stage-cards';
 import { GroupMarkReadyMenu, ProjectMarkReadyMenu } from './components/v2/mark-ready-menu';
 import { NewTaskMenu } from './components/v2/new-task-menu';
 import { PlanMode } from './components/plan/plan-mode';
+import { PlanModeV2 } from './components/plan/plan-mode-v2';
 import { ViewToggle, type BoardView } from './components/plan/view-toggle';
 import { isNonTerminal } from './components/dependency-editor';
 import { TriageDigest } from './components/triage-digest';
@@ -118,7 +119,10 @@ export default function ProjectDetailV2Page() {
   const [searchParams, setSearchParams] = useSearchParams();
   // Board (default) or Plan (the draft-only dependency planner). Kept in the
   // URL so a reload / shared link restores the same surface.
-  const view: BoardView = searchParams.get('view') === 'plan' ? 'plan' : 'board';
+  const viewParam = searchParams.get('view');
+  const view: BoardView =
+    viewParam === 'plan' ? 'plan' : viewParam === 'plan2' ? 'plan2' : 'board';
+  const isPlan = view === 'plan' || view === 'plan2';
   const stageParam = searchParams.get('stage');
   const stage: TaskStatus | null =
     stageParam === SHOW_ALL
@@ -160,7 +164,7 @@ export default function ProjectDetailV2Page() {
   // (the default) just drops it. Leaving Plan keeps the current stage filter.
   const setView = (next: BoardView) => {
     patchParams((params) => {
-      if (next === 'plan') params.set('view', 'plan');
+      if (next === 'plan' || next === 'plan2') params.set('view', next);
       else params.delete('view');
     });
     setExpandedId(null);
@@ -374,9 +378,9 @@ export default function ProjectDetailV2Page() {
               <ViewToggle view={view} onChange={setView} />
               <PipelineStrip
                 counts={counts}
-                selected={view === 'plan' ? 'draft' : stage}
+                selected={isPlan ? 'draft' : stage}
                 onSelect={setStage}
-                locked={view === 'plan'}
+                locked={isPlan}
               />
             </div>
             {view === 'board' && <TaskSearch query={query} onQueryChange={setQuery} />}
@@ -405,6 +409,13 @@ export default function ProjectDetailV2Page() {
               dependency planner; Board mode stays exactly as it was. */}
           {view === 'plan' ? (
             <PlanMode
+              projectId={project.id}
+              tasks={tasks}
+              readOnly={readOnly}
+              onOpenEditor={openTaskEditor}
+            />
+          ) : view === 'plan2' ? (
+            <PlanModeV2
               projectId={project.id}
               tasks={tasks}
               readOnly={readOnly}

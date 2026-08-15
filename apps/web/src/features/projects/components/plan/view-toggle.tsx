@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
-import { LayoutList, Workflow } from 'lucide-react';
+import { LayoutList, Waypoints, Workflow } from 'lucide-react';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 
-export type BoardView = 'board' | 'plan';
+export type BoardView = 'board' | 'plan' | 'plan2';
 
 /**
- * The Board ⇄ Plan segmented toggle in the project board header. Board is the
- * default; Plan switches the surface to the draft-only dependency planner.
+ * The Board | Plan v1 | Plan v2 segmented toggle in the project board header.
+ * Board is the default; the two Plan tabs are an A/B of the draft-only
+ * dependency planner — v1 is the React Flow + dagre canvas, v2 is the
+ * hand-rolled pointer/SVG canvas ported from the preferred mockup.
  */
 export function ViewToggle({
   view,
@@ -19,10 +21,15 @@ export function ViewToggle({
   const { t } = useTranslation();
   const options: Array<{ value: BoardView; label: string; icon: typeof LayoutList }> = [
     { value: 'board', label: t(k.tasks.plan.board), icon: LayoutList },
-    { value: 'plan', label: t(k.tasks.plan.plan), icon: Workflow },
+    { value: 'plan', label: t(k.tasks.plan.planV1), icon: Workflow },
+    { value: 'plan2', label: t(k.tasks.plan.planV2), icon: Waypoints },
   ];
   return (
-    <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="tablist" aria-label={t(k.tasks.plan.plan)}>
+    <div
+      className="inline-flex rounded-lg border bg-muted/40 p-0.5"
+      role="tablist"
+      aria-label={t(k.tasks.plan.plan)}
+    >
       {options.map(({ value, label, icon: Icon }) => {
         const active = view === value;
         return (
