@@ -151,15 +151,17 @@ export class GithubAppService {
 
   /**
    * A 1-hour agent credential: restricted at MINT TIME to one repository and
-   * to { contents, pull_requests, workflows } write — GitHub enforces the
-   * boundary, so a leaked token is one repo for one hour, nothing more.
-   * `workflows` is what lets an agent create/update `.github/workflows/*`
-   * (without it GitHub 403s those paths). Every requested scope must be one
-   * the installation actually holds, or GitHub 422s the whole mint (returns
-   * null here) — so this set stays to what the App is granted. Never cached,
-   * never persisted. Null also means GitHub refused the restriction (404/422)
-   * — the repo was dropped from the installation's grant since the project
-   * bound it.
+   * to { contents, pull_requests, workflows } write plus { actions, checks }
+   * read — GitHub enforces the boundary, so a leaked token is one repo for one
+   * hour, nothing more. `workflows` is what lets an agent create/update
+   * `.github/workflows/*` (without it GitHub 403s those paths); `actions` +
+   * `checks` read let an agent SEE CI status (`/actions/runs`,
+   * `/commits/{sha}/check-runs`) instead of guessing. Every requested scope
+   * must be one the installation actually holds, or GitHub 422s the whole mint
+   * (returns null here) — so this set stays to what the App is granted (the App
+   * holds Actions + Checks read). Never cached, never persisted. Null also
+   * means GitHub refused the restriction (404/422) — the repo was dropped from
+   * the installation's grant since the project bound it.
    */
   async mintRepoToken(
     installationId: number,
@@ -176,6 +178,8 @@ export class GithubAppService {
             contents: 'write',
             pull_requests: 'write',
             workflows: 'write',
+            actions: 'read',
+            checks: 'read',
           },
         },
         { headers: { Authorization: `Bearer ${this.appJwt()}` } },

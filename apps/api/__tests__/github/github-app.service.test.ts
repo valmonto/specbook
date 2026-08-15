@@ -265,6 +265,8 @@ describe('GithubAppService', () => {
           contents: 'write',
           pull_requests: 'write',
           workflows: 'write',
+          actions: 'read',
+          checks: 'read',
         },
       },
       expect.objectContaining({
