@@ -9,6 +9,8 @@ Config (edit here, it's versioned):
 - CADENCE: 300 seconds between sweeps
 - CAP: 3 concurrent claimed tasks
 - MODE: loop (run `/dispatch once` for a single sweep)
+- BUILD_TIMEOUT_SEC: 1200 — hard per-build timeout (see "Build-dispatch liveness")
+- BUILD_HEARTBEAT_SEC: 60 — build liveness/heartbeat interval
 
 You are the specbook agent runner. Unless invoked with `once`, loop forever:
 sweep → wait CADENCE (run `sleep 300` in Bash — do not busy-poll) → sweep
@@ -30,7 +32,9 @@ stop on your own just because sweeps keep coming back empty.
 4. Queue empty or ACTIVE >= CAP → say one short line, wait, next sweep.
    Otherwise claim up to `CAP - ACTIVE` tasks. One: work inline. Several:
    one subagent per task, isolated git worktrees, per-slot ports
-   (api 3001/3002/3003, vite 5174/5175/5176).
+   (api 3001/3002/3003, vite 5174/5175/5176). Wrap every dispatched build in
+   the liveness envelope (see "Build-dispatch liveness") so a stalled build
+   heartbeats, then hard-times-out, instead of hanging silently.
 5. `list_research` — research in `researching` is awaiting an agent turn. For
    each, perform the turn (protocol below). These are cheap next to a build
    task; the CAP above governs tasks, not turns.
@@ -102,6 +106,42 @@ teardown in three layers.
    inside). Prefer the dry run; reserve `--apply` for a deliberate cleanup, and
    afterward confirm `curl -s -o /dev/null -w "%{http_code}" https://specbook.valmonto.com/`
    still returns `200`.
+
+## Build-dispatch liveness (heartbeat + hard timeout — no silent hangs)
+
+A dispatched build must never stall invisibly. One once ran 34+ minutes with a
+stale 113-byte output, no progress and no timeout — noticed only by manually
+stat-ing the file. `scripts/build-liveness.mjs` is the envelope that makes that
+impossible: it wraps a build command with a periodic heartbeat and a hard
+per-build timeout, and emits a structured `start → heartbeat* → end` event
+stream whose `end.reason` is exactly one of `success | fail | timeout`.
+
+    node scripts/build-liveness.mjs [--label <taskId>] -- <build command…>
+    # e.g.  node scripts/build-liveness.mjs --label 01a0-… -- scripts/dev-stack.sh <check>
+
+- **Heartbeat.** While the build runs it emits a `heartbeat` event every
+  `BUILD_HEARTBEAT_SEC` (default 60) — the bounded liveness signal the
+  orchestrator/board can observe.
+- **Hard timeout.** A build that exceeds `BUILD_TIMEOUT_SEC` (default 1200 =
+  20 min) is auto-terminated (SIGTERM to the process group, then SIGKILL after
+  `BUILD_KILL_GRACE_SEC`, default 10). The wrapper emits `end.reason=timeout`
+  and exits `124` (GNU `timeout` convention) instead of hanging forever.
+- **On timeout, return the task to a safe state.** A `timeout` end means the
+  build is dead: transition the task off `in_progress` (release back so the
+  claim frees, or record a failure with the timeout reason) so the queue is
+  never stuck on a dead build. Never leave a timed-out claim sitting.
+- **Config** lives in the block at the top of this file (`BUILD_TIMEOUT_SEC`,
+  `BUILD_HEARTBEAT_SEC`); the wrapper reads them from the environment, so
+  `BUILD_TIMEOUT_SEC=600 node scripts/build-liveness.mjs -- …` overrides per run.
+  Invariant: the timeout must exceed the heartbeat interval.
+- **Lifecycle hook (`start / heartbeat / end`).** Every event is one JSON line
+  on stdout; set `BUILD_LIFECYCLE_HOOK=<cmd>` and it is ALSO invoked once per
+  event with the event JSON in `$BUILD_EVENT` (fire-and-forget, never blocks the
+  build). This is the shared seam the follow-ups consume — keep-claim-alive
+  stamps the MCP claim on each `heartbeat`; per-build resource-teardown reaps on
+  `end`. The pure decision core (`resolveConfig`, `evaluateLiveness`,
+  `classifyEnd`) is unit-tested in
+  `packages/server/__tests__/scripts/build-liveness.test.ts`.
 
 ## Protocol per research turn (non-negotiable)
 
