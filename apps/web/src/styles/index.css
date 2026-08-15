@@ -95,28 +95,6 @@
   @apply after:pointer-events-none after:absolute after:start-0 after:bottom-0 after:hidden after:h-32 after:w-full after:rounded-b-2xl after:bg-[linear-gradient(180deg,transparent_10%,var(--background)_70%)] md:after:block;
 }
 
-/* Plan v1 (React Flow) on phones: finger-size the zoom/fit Controls and widen
-   the node link handles so panning, zooming and connecting are all comfortable.
-   Gated on the app's mobile breakpoint (matches useIsMobile) OR a coarse pointer,
-   so it fires on real phones and on any narrow viewport; desktop keeps React
-   Flow's compact defaults. */
-@media (max-width: 767px), (pointer: coarse) {
-  .plan-controls .react-flow__controls-button {
-    width: 40px;
-    height: 40px;
-  }
-  .plan-controls .react-flow__controls-button svg {
-    width: 18px;
-    height: 18px;
-    max-width: 18px;
-    max-height: 18px;
-  }
-  .react-flow__handle {
-    width: 16px;
-    height: 16px;
-  }
-}
-
 /* styles.css */
 .CollapsibleContent {
   overflow: hidden;

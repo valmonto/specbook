@@ -1,15 +1,14 @@
 import { useTranslation } from 'react-i18next';
-import { LayoutList, Waypoints, Workflow } from 'lucide-react';
+import { LayoutList, Waypoints } from 'lucide-react';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 
-export type BoardView = 'board' | 'plan' | 'plan2';
+export type BoardView = 'board' | 'plan';
 
 /**
- * The Board | Plan v1 | Plan v2 segmented toggle in the project board header.
- * Board is the default; the two Plan tabs are an A/B of the draft-only
- * dependency planner — v1 is the React Flow + dagre canvas, v2 is the
- * hand-rolled pointer/SVG canvas ported from the preferred mockup.
+ * The Board | Plan segmented toggle in the project board header. Board is the
+ * default; Plan is the draft-only dependency planner (the hand-rolled
+ * pointer/SVG canvas), reached at `?view=plan`.
  */
 export function ViewToggle({
   view,
@@ -21,8 +20,7 @@ export function ViewToggle({
   const { t } = useTranslation();
   const options: Array<{ value: BoardView; label: string; icon: typeof LayoutList }> = [
     { value: 'board', label: t(k.tasks.plan.board), icon: LayoutList },
-    { value: 'plan', label: t(k.tasks.plan.planV1), icon: Workflow },
-    { value: 'plan2', label: t(k.tasks.plan.planV2), icon: Waypoints },
+    { value: 'plan', label: t(k.tasks.plan.plan), icon: Waypoints },
   ];
   return (
     <div

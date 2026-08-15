@@ -141,12 +141,6 @@ catalog:
   recharts: 3.8.1
   framer-motion: 12.40.0
 
-  # Dependency-planner canvas (Plan mode): React Flow for nodes/edges/handles,
-  # dagre for the depth×lane auto-layout.
-  '@xyflow/react': 12.11.3
-  dagre: 0.8.5
-  '@types/dagre': 0.7.54
-
   # Markdown rendering (research living document) — react-markdown renders to
   # React nodes (no dangerouslySetInnerHTML, no raw HTML) so the surface is safe
   # by construction; remark-gfm adds tables/strikethrough/autolinks.

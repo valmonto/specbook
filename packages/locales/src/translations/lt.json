@@ -768,8 +768,6 @@
   "tasks.markReady.none": "Nėra juodraštinių užduočių, kurias būtų galima pažymėti paruoštomis",
   "tasks.plan.board": "Lenta",
   "tasks.plan.plan": "Planas",
-  "tasks.plan.planV1": "Planas v1",
-  "tasks.plan.planV2": "Planas v2",
   "tasks.plan.tidy": "Sutvarkyti",
   "tasks.plan.newTicket": "Naujas bilietas",
   "tasks.plan.note": "Planuojami tik juodraščiai — sujunkite, kas ką blokuoja, tada perkelkite bilietą į Paruošta ir jis atsiras lentoje.",
