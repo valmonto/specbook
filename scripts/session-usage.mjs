@@ -28,21 +28,36 @@
  * (runner restarted mid-task) and the figures are whole-session totals —
  * an over-attribution, flagged so the runner can say so.
  *
+ * SUBAGENT (dispatched build) transcripts. A dispatched build runs as a
+ * Claude Code SUBAGENT inside its own git worktree, and Claude Code writes its
+ * transcript NOT under the worktree's own encoded path but as a nested
+ * sidechain file of the PARENT (runner) session:
+ *   <projects>/<enc(project root)>/<parentSessionId>/subagents/agent-<id>.jsonl
+ * So measuring the claimant runner's own transcript misses every subagent
+ * token — that is the 0/0 under-count this script now closes. When we are
+ * ourselves a subagent (CLAUDE_CODE_CHILD_SESSION is set), we resolve OUR OWN
+ * sidechain file, keyed by the parent session id (CLAUDE_CODE_SESSION_ID) and
+ * our subagent id (the worktree basename, `agent-<id>`). The required flow is
+ * therefore: the dispatched subagent runs `baseline`/`report` in its own
+ * transcript and reports its own measured cost (see .claude/commands/dispatch.md).
+ * Inline builds keep measuring the runner's main transcript, unchanged.
+ *
  * Env overrides (testing): CLAUDE_PROJECTS_DIR, SESSION_USAGE_WORKDIR.
+ * Subagent context comes from CLAUDE_CODE_CHILD_SESSION + CLAUDE_CODE_SESSION_ID
+ * (set by Claude Code); tests drive the same knobs.
  */
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 const workdir = process.env.SESSION_USAGE_WORKDIR ?? process.cwd();
 const projectsDir = process.env.CLAUDE_PROJECTS_DIR ?? join(homedir(), '.claude', 'projects');
 
-/** Claude Code encodes the workdir path into a directory name: / and . → - */
-const encodedWorkdir = () => workdir.replace(/[/.]/g, '-');
+/** Claude Code encodes a directory path into a projects dir name: / and . → - */
+const encodePath = (p) => p.replace(/[/.]/g, '-');
 
-const newestTranscript = () => {
-  const dir = join(projectsDir, encodedWorkdir());
+const newestJsonl = (dir) => {
   if (!existsSync(dir)) return null;
   const files = readdirSync(dir)
     .filter((f) => f.endsWith('.jsonl'))
@@ -50,6 +65,41 @@ const newestTranscript = () => {
     .sort((a, b) => b.mtime - a.mtime);
   return files[0]?.path ?? null;
 };
+
+/** Main-session transcript: newest top-level jsonl under the workdir's own dir. */
+const mainTranscript = () => newestJsonl(join(projectsDir, encodePath(workdir)));
+
+/**
+ * Our own subagent sidechain transcript, or null when we are not a subagent /
+ * it cannot be identified unambiguously. The parent session folder can sit
+ * under any project-encoded dir (the runner's project root, not our worktree),
+ * so we scan for the one holding this session's subagents/. We take our own
+ * file by name (agent-<worktree basename>.jsonl); if that is absent we accept a
+ * lone sidechain, but REFUSE to guess among several — an unresolved subagent
+ * must surface as "no transcript", never a silent mis-attribution.
+ */
+const subagentTranscript = () => {
+  if (!process.env.CLAUDE_CODE_CHILD_SESSION) return null;
+  const sessionId = process.env.CLAUDE_CODE_SESSION_ID;
+  if (!sessionId || !existsSync(projectsDir)) return null;
+  for (const entry of readdirSync(projectsDir)) {
+    const subagentsDir = join(projectsDir, entry, sessionId, 'subagents');
+    if (!existsSync(subagentsDir)) continue;
+    const own = join(subagentsDir, `${basename(workdir)}.jsonl`);
+    if (existsSync(own)) return own;
+    const jsonls = readdirSync(subagentsDir).filter((f) => f.endsWith('.jsonl'));
+    if (jsonls.length === 1) return join(subagentsDir, jsonls[0]);
+    return null; // several siblings, none ours by name — do not guess
+  }
+  return null;
+};
+
+/**
+ * A subagent measures its own sidechain; everyone else the main transcript.
+ * The CLAUDE_CODE_CHILD_SESSION gate is load-bearing: a RUNNER session's folder
+ * also contains a subagents/ dir (its children's), and must never read those.
+ */
+const resolveTranscript = () => subagentTranscript() ?? mainTranscript();
 
 const sumTranscript = async (path) => {
   // Last write per message.id wins; repeats carry identical usage anyway.
@@ -87,9 +137,12 @@ const main = async () => {
     process.exit(2);
   }
 
-  const transcript = newestTranscript();
+  const transcript = resolveTranscript();
   if (!transcript) {
-    console.error(`no transcript found under ${join(projectsDir, encodedWorkdir())}`);
+    const where = process.env.CLAUDE_CODE_CHILD_SESSION
+      ? `subagent sidechain for session ${process.env.CLAUDE_CODE_SESSION_ID ?? '(unset)'} under ${projectsDir}`
+      : join(projectsDir, encodePath(workdir));
+    console.error(`no transcript found: ${where}`);
     process.exit(1);
   }
   const totals = await sumTranscript(transcript);
