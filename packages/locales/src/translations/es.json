@@ -773,8 +773,6 @@
   "tasks.plan.note": "Solo se planifican borradores: conecta qué bloquea a qué y luego promueve un ticket a Listo para que pase al tablero.",
   "tasks.plan.empty": "No hay borradores: crea algunos para empezar a planificar.",
   "tasks.plan.noArea": "sin área",
-  "tasks.plan.editTitle": "Editar título",
-  "tasks.plan.openEditor": "Abrir editor completo",
   "tasks.plan.promote": "Promover a Listo",
   "tasks.plan.deleteDraft": "Eliminar borrador",
   "tasks.plan.cardMenu": "Acciones del ticket",

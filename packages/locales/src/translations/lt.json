@@ -773,8 +773,6 @@
   "tasks.plan.note": "Planuojami tik juodraščiai — sujunkite, kas ką blokuoja, tada perkelkite bilietą į Paruošta ir jis atsiras lentoje.",
   "tasks.plan.empty": "Nėra juodraštinių bilietų — sukurkite kelis, kad pradėtumėte planuoti.",
   "tasks.plan.noArea": "be srities",
-  "tasks.plan.editTitle": "Redaguoti pavadinimą",
-  "tasks.plan.openEditor": "Atverti pilną redaktorių",
   "tasks.plan.promote": "Perkelti į Paruošta",
   "tasks.plan.deleteDraft": "Ištrinti juodraštį",
   "tasks.plan.cardMenu": "Bilieto veiksmai",
