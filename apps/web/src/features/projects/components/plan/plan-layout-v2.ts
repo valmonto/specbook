@@ -15,16 +15,32 @@ import { draftEdges, isWaiting, laneColor } from './plan-layout';
 
 // Card + grid geometry (translated from the mockup, kept in canvas pixels — the
 // v2 canvas has no zoom, so layout units are screen units).
+//
+// Card width is FIXED (same on desktop and phone) so the title wraps to a bound
+// height (see the `line-clamp` in plan-canvas-v2) rather than the card growing
+// wide enough to run off a phone. 236px sits comfortably inside a 390px viewport
+// with room for the lane inset, so on mobile we scroll for DEPTH, never width.
 export const V2_NODE_W = 236;
-/** Estimated card height used only as an edge-anchor fallback before measuring. */
+/** Estimated card height used only as a first-paint fallback before measuring. */
 export const V2_CARD_H = 92;
-const V2_COL_W = 288;
-const V2_ROW_H = 120;
 export const V2_LANE_X = 20;
 const V2_CARD_PAD_X = 32;
 export const V2_LANE_TOP_PAD = 40;
-const V2_LANE_BOT_PAD = 22;
+const V2_LANE_BOT_PAD = 24;
 const V2_LANE_GAP = 22;
+
+// Column PITCH is derived from the card width + a gutter, so a depth column can
+// never horizontally overlap the next (the old fixed 288/256 pitch on "compact"
+// dipped below card width once the card grew). Desktop pitch stays 236+52 = 288
+// (== the old desktop value, so desktop is visually unchanged); phone keeps a
+// generous 44px gutter instead of the old cramped one.
+const V2_COL_GAP = 52;
+const V2_COL_GAP_COMPACT = 44;
+// Vertical GAP between two stacked cards in a lane. Stacking uses each card's
+// MEASURED height + this gap (never a fixed row height), so a tall 3-line card
+// can never overlap the card beneath it. Phones get extra breathing room.
+const V2_CARD_GAP = 28;
+const V2_CARD_GAP_COMPACT = 34;
 
 export interface V2Point {
   x: number;
@@ -90,23 +106,39 @@ export const unlocksOf = (edges: Array<[string, string]>, id: string): string[] 
  */
 export interface V2LayoutOpts {
   /**
-   * Phone layout: tighter columns and no wide minimum canvas so a shallow graph
-   * fits the viewport width by default (deeper graphs still scroll). Desktop
-   * (the default) keeps the roomier column pitch and the 900px min-width floor.
+   * Phone layout: a slightly tighter column gutter, bigger inter-card gaps and
+   * no wide minimum canvas so a shallow graph fits the viewport width by default
+   * (deeper graphs still scroll horizontally for DEPTH). Desktop (the default)
+   * keeps the roomier pitch and the 900px min-width floor.
    */
   compact?: boolean;
+  /**
+   * Measured card heights by task id (from the rendered DOM). Cards stack using
+   * these real heights + a consistent gap so two cards can NEVER vertically
+   * overlap regardless of how many lines their titles wrap to. Ids missing from
+   * the map fall back to {@link V2_CARD_H} — the estimate used for the very first
+   * paint, before the measure pass has run.
+   */
+  heights?: Record<string, number>;
 }
 
 export function layoutV2(tasks: Task[], opts: V2LayoutOpts = {}): V2Layout {
-  const colW = opts.compact ? 256 : V2_COL_W;
-  const minW = opts.compact ? 320 : 900;
-  const minH = opts.compact ? 320 : 420;
+  const compact = opts.compact ?? false;
+  const heights = opts.heights ?? {};
+  const colGap = compact ? V2_COL_GAP_COMPACT : V2_COL_GAP;
+  const cardGap = compact ? V2_CARD_GAP_COMPACT : V2_CARD_GAP;
+  const colW = V2_NODE_W + colGap; // pitch ≥ card width + gutter → no H-overlap
+  const minW = compact ? 320 : 900;
+  const minH = compact ? 320 : 420;
+  const hOf = (id: string): number => heights[id] ?? V2_CARD_H;
+
   const ids = tasks.map((t) => t.id);
   const edges = draftEdges(tasks);
   const depth = longestPathDepths(ids, edges);
   const groups = groupTasksByArea(tasks); // busiest-first, no-area last
   const maxLayer = Math.max(0, ...[...depth.values()]);
-  const contentW = V2_LANE_X + V2_CARD_PAD_X + (maxLayer + 1) * colW + 14;
+  // The last column's card plus a right inset must fit inside the lane.
+  const contentW = V2_LANE_X + V2_CARD_PAD_X + maxLayer * colW + V2_NODE_W + V2_CARD_PAD_X;
   const laneW = contentW - V2_LANE_X * 2;
 
   const positions: Record<string, V2Point> = {};
@@ -119,17 +151,23 @@ export function layoutV2(tasks: Task[], opts: V2LayoutOpts = {}): V2Layout {
       const d = depth.get(task.id) ?? 0;
       (perLayer.get(d) ?? perLayer.set(d, []).get(d)!).push(task);
     }
-    const maxStack = Math.max(1, ...[...perLayer.values()].map((c) => c.length));
-    const height = V2_LANE_TOP_PAD + maxStack * V2_ROW_H + V2_LANE_BOT_PAD;
 
+    // Stack each depth column top-to-bottom using measured heights + a gap. The
+    // lane is as tall as its tallest column stack, so no card ever spills out.
+    let contentBottom = V2_LANE_TOP_PAD; // relative to the lane top
     for (const [layer, list] of perLayer) {
-      list.forEach((task, i) => {
+      let cy = V2_LANE_TOP_PAD;
+      list.forEach((task) => {
         positions[task.id] = {
           x: V2_LANE_X + V2_CARD_PAD_X + layer * colW,
-          y: y + V2_LANE_TOP_PAD + i * V2_ROW_H,
+          y: y + cy,
         };
+        cy += hOf(task.id);
+        contentBottom = Math.max(contentBottom, cy);
+        cy += cardGap; // gap before the next card in this column
       });
     }
+    const height = contentBottom + V2_LANE_BOT_PAD;
 
     lanes.push({
       area,
