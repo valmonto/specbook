@@ -144,6 +144,13 @@ export function PlanCanvas({
   // into the layout, re-seat the cards BEFORE paint so the corrected, collision-
   // free positions are what the user first sees (no one-frame overlap flash).
   useLayoutEffect(() => setPositions(layout.positions), [layout]);
+  // The tidy layout, readable from the window-level drag-end handler without
+  // re-binding it every render — used to snap a card back when a drop would
+  // overlap another card.
+  const layoutRef = useRef(layout);
+  useEffect(() => {
+    layoutRef.current = layout;
+  }, [layout]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -317,9 +324,33 @@ export function PlanCanvas({
     });
   }, []);
   const onDragUp = useCallback(() => {
+    const drag = dragRef.current;
     dragRef.current = null;
     setDraggingId(null);
     window.removeEventListener('pointermove', onDragMove);
+    if (!drag) return;
+    const id = drag.id;
+    // Collision detection: a card may be nudged freely, but a drop that leaves
+    // it overlapping another card snaps it back to its tidy layout slot — so the
+    // board can never end up with cards stacked on top of each other.
+    setPositions((prev) => {
+      const me = prev[id];
+      if (!me) return prev;
+      const hOf = (nid: string) => nodeRefs.current.get(nid)?.offsetHeight ?? CARD_H;
+      const mh = hOf(id);
+      const overlaps = Object.entries(prev).some(([oid, op]) => {
+        if (oid === id) return false;
+        return (
+          me.x < op.x + PLAN_NODE_W &&
+          me.x + PLAN_NODE_W > op.x &&
+          me.y < op.y + hOf(oid) &&
+          me.y + mh > op.y
+        );
+      });
+      if (!overlaps) return prev;
+      const tidy = layoutRef.current.positions[id];
+      return tidy ? { ...prev, [id]: tidy } : prev;
+    });
   }, [onDragMove]);
 
   // Refs the window-level drag handler reads without being re-bound each render.

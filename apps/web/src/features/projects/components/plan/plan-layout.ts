@@ -32,16 +32,15 @@ const LANE_BOT_PAD = 24;
 const LANE_GAP = 22;
 
 // Column PITCH is derived from the card width + a gutter, so a depth column can
-// never horizontally overlap the next. Desktop pitch stays 236+52 = 288 (the
-// original value, so desktop is visually unchanged); phone keeps a generous 44px
-// gutter.
+// never horizontally overlap the next. The gutter is the SAME on desktop and
+// phone so the spacing between cards reads identically at every viewport
+// (pitch = 236 + 52 = 288). Only the lane CONTAINER padding differs on mobile.
 const COL_GAP = 52;
-const COL_GAP_COMPACT = 44;
 // Vertical GAP between two stacked cards in a lane. Stacking uses each card's
 // MEASURED height + this gap (never a fixed row height), so a tall 3-line card
-// can never overlap the card beneath it. Phones get extra breathing room.
-const CARD_GAP = 28;
-const CARD_GAP_COMPACT = 40;
+// can never overlap the card beneath it. Same value everywhere for a consistent
+// rhythm between mobile and web.
+const CARD_GAP = 32;
 
 // Mobile makes the lane CONTAINERS read as substantial boxes rather than thin
 // bands: more top/bottom padding, a taller minimum lane height, and the wider
@@ -178,8 +177,10 @@ export interface PlanLayoutOpts {
 export function buildPlanLayout(tasks: Task[], opts: PlanLayoutOpts = {}): PlanLayout {
   const compact = opts.compact ?? false;
   const heights = opts.heights ?? {};
-  const colGap = compact ? COL_GAP_COMPACT : COL_GAP;
-  const cardGap = compact ? CARD_GAP_COMPACT : CARD_GAP;
+  // Gaps between/among cards are identical on mobile and web (consistent
+  // rhythm); only the lane container padding grows on mobile.
+  const colGap = COL_GAP;
+  const cardGap = CARD_GAP;
   const laneTopPad = compact ? MOBILE_LANE_TOP_PAD : LANE_TOP_PAD;
   const laneBotPad = compact ? MOBILE_LANE_BOT_PAD : LANE_BOT_PAD;
   const minLaneH = compact ? MOBILE_MIN_LANE_H : 0;
