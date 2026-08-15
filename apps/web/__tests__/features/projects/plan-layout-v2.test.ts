@@ -88,6 +88,60 @@ describe('layoutV2', () => {
   });
 });
 
+describe('layoutV2 collision-free invariants', () => {
+  const overlaps1D = (a: number, ah: number, b: number, bh: number): boolean =>
+    a < b + bh && b < a + ah;
+
+  it('(a) never vertically overlaps two stacked cards, given variable heights', () => {
+    // Three depth-0 roots in one lane → one column → they stack vertically. Feed
+    // wildly different measured heights (a 1-line, a 3-line and a 2-line title).
+    const tasks = [task('a', [], 'web'), task('b', [], 'web'), task('c', [], 'web')];
+    const heights: Record<string, number> = { a: 200, b: 58, c: 132 };
+    const { positions } = layoutV2(tasks, { heights });
+    const ids = ['a', 'b', 'c'];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const p = positions[ids[i]!]!;
+        const q = positions[ids[j]!]!;
+        expect(p.x).toBe(q.x); // same column
+        expect(overlaps1D(p.y, heights[ids[i]!]!, q.y, heights[ids[j]!]!)).toBe(false);
+      }
+    }
+  });
+
+  it('(b) separates adjacent depth columns by at least the card width', () => {
+    const desk = layoutV2([task('a', [], 'web'), task('b', ['a'], 'web')]);
+    const phone = layoutV2([task('a', [], 'web'), task('b', ['a'], 'web')], { compact: true });
+    for (const { positions } of [desk, phone]) {
+      // depth-1 x minus depth-0 x is the column pitch; it must clear a card.
+      expect(positions.b!.x - positions.a!.x).toBeGreaterThan(V2_NODE_W);
+    }
+  });
+
+  it('(c) sizes each lane tall enough to contain its whole card stack', () => {
+    const tasks = [task('a', [], 'web'), task('b', [], 'web')];
+    const heights: Record<string, number> = { a: 180, b: 120 };
+    const { positions, lanes } = layoutV2(tasks, { heights });
+    const lane = lanes.find((l) => l.area === 'web')!;
+    for (const id of ['a', 'b']) {
+      const p = positions[id]!;
+      expect(p.y).toBeGreaterThanOrEqual(lane.top);
+      expect(p.y + heights[id]!).toBeLessThanOrEqual(lane.top + lane.height);
+    }
+  });
+
+  it('keeps every card inside its lane on the x axis, including the deepest', () => {
+    const tasks = [task('a', [], 'web'), task('b', ['a'], 'web'), task('c', ['b'], 'web')];
+    const { positions, lanes } = layoutV2(tasks);
+    const lane = lanes.find((l) => l.area === 'web')!;
+    for (const id of ['a', 'b', 'c']) {
+      const p = positions[id]!;
+      expect(p.x).toBeGreaterThanOrEqual(lane.left);
+      expect(p.x + V2_NODE_W).toBeLessThanOrEqual(lane.left + lane.width);
+    }
+  });
+});
+
 describe('clampToLane', () => {
   const rect: V2LaneRect = {
     area: 'web',

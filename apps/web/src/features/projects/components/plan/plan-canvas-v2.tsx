@@ -118,9 +118,16 @@ export function PlanCanvasV2({
   const markReady = useMarkReady();
 
   const signature = useMemo(() => signatureOf(draftTasks), [draftTasks]);
-  // Phones get the compact layout (tighter columns, fits-to-width by default);
-  // switching pointer class re-tidies, which is the desired feel here.
-  const layout = useMemo(() => layoutV2(draftTasks, { compact: isMobile }), [signature, isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Measured card heights (see the layout effect below) feed straight back into
+  // the layout so cards stack by their REAL height and can never overlap. Kept
+  // above the layout memo because the memo now reads it.
+  const [heights, setHeights] = useState<Record<string, number>>({});
+  // Phones get the compact layout (tighter gutter, roomier gaps, fits-to-width
+  // by default); switching pointer class re-tidies, which is the desired feel.
+  const layout = useMemo(
+    () => layoutV2(draftTasks, { compact: isMobile, heights }),
+    [signature, isMobile, heights], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const edgePairs = useMemo(() => draftEdges(draftTasks), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
   const laneByArea = useMemo(() => {
     const m = new Map<string, V2LaneRect>();
@@ -132,7 +139,10 @@ export function PlanCanvasV2({
   // change recomputes it and re-tidies (positions reset). A manual drag mutates
   // this until the next structural change re-tidies — exactly the mockup's feel.
   const [positions, setPositions] = useState<Record<string, V2Point>>(layout.positions);
-  useEffect(() => setPositions(layout.positions), [layout]);
+  // useLayoutEffect (not useEffect): once the measure pass feeds real heights
+  // into the layout, re-seat the cards BEFORE paint so the corrected, collision-
+  // free positions are what the user first sees (no one-frame overlap flash).
+  useLayoutEffect(() => setPositions(layout.positions), [layout]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -142,7 +152,6 @@ export function PlanCanvasV2({
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [flash, setFlash] = useState<FlashState>({ nodes: new Set(), edges: new Set() });
-  const [heights, setHeights] = useState<Record<string, number>>({});
   const [promoteTarget, setPromoteTarget] = useState<{ task: Task; count: number } | null>(null);
 
   const cvsRef = useRef<HTMLDivElement | null>(null);
@@ -771,7 +780,15 @@ const TaskCard = ({
         />
       ) : (
         <div
-          className={cn('text-[13px] leading-snug font-medium', editable && 'cursor-text')}
+          // Wrap + clamp to 3 lines with an ellipsis so a long title (or an
+          // unbroken token like `systemRole=ADMIN`) never clips or spills past
+          // the card's fixed width — it wraps, and the card grows to fit (bounded
+          // at 3 lines), which the layout then stacks around by measured height.
+          className={cn(
+            'text-[13px] leading-snug font-medium break-words hyphens-auto line-clamp-3 [overflow-wrap:anywhere]',
+            editable && 'cursor-text',
+          )}
+          title={task.title}
           onDoubleClick={() => editable && onStartEdit()}
         >
           {task.title}
