@@ -52,10 +52,15 @@ stop on your own just because sweeps keep coming back empty.
   `node scripts/session-usage.mjs baseline <taskId>`. Never estimate
   tokens — your own transcript is the ground truth and estimates are off
   by orders of magnitude.
-- Branch from fresh main. Implement. UI work is not done until driven in a
-  real browser (playwright) with screenshots.
-- `pnpm verify` must pass. Push the branch. `update_task_links` with the
-  GitHub compare URL. Tick criteria honestly — only what is actually done.
+- Branch from fresh main. Implement. Match effort to the change — scope the
+  local check to the change type (see "Fast lane" below). UI-visibility /
+  new-surface work is not done until driven in a real browser (playwright)
+  with screenshots; a logic/config/backend-only change skips the browser pass.
+- The scoped local check must pass: `pnpm verify:affected` for a web-only /
+  leaf change, escalated to the full `pnpm verify` (with a database) when a
+  shared package changes — see "Fast lane" below. Push the branch.
+  `update_task_links` with the GitHub compare URL. Tick criteria honestly —
+  only what is actually done.
 - Upload verification screenshots to the ticket
   (`create_attachment_upload` + `confirm_attachment`).
 - `needs_review` with an honest summary: what changed, how verified,
@@ -68,6 +73,40 @@ stop on your own just because sweeps keep coming back empty.
   say so in the summary — the figure is whole-session, an over-attribution.
   Leave `costUsdCents` unset on subscription billing. Claimant-only,
   values ADD — never re-report a running total.
+
+## Fast lane — scope the local check to the change (the runner default)
+
+A full worktree build (fresh install + the whole ~500-test `pnpm verify` +
+a dual-viewport Playwright pass) is ~30–40 min — far too much for a one-line
+tweak. Match effort to the change. **This scopes only the LOCAL check; CI runs
+the full `pnpm verify` against Postgres on every PR and is the authoritative
+gate that clears a merge — so scoping the local check loses no real coverage.**
+
+**Local verify — pick the scope by what changed:**
+
+| Change type | Local check | Database |
+| --- | --- | --- |
+| Web-only / leaf (`apps/web`, `apps/mobile`, `apps/e2e`) | `pnpm verify:affected` — web typecheck + lint + component tests, no DB/integration suites | skipped |
+| Backend-only (`apps/api`, `apps/worker`) | `pnpm verify:affected` — includes the DB-backed suites | run it with `DATABASE_URL` set |
+| **Shared package** (`@pkg/contracts`, `database`, `server`, `locales`) | **escalate to the full `pnpm verify`** — it fans out to api/worker/web; `verify:affected` warns the DB is needed | run it with `DATABASE_URL` set |
+| Root-wide (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig*`) | full `pnpm verify` (`verify:affected` already fans out to all workspaces) | run it with `DATABASE_URL` set |
+
+`pnpm verify:affected` (`scripts/verify/affected.mjs`) is the runner default: it
+resolves the workspaces changed since `origin/main` plus their transitive
+dependents, and skips Postgres when no DB-backed suite (api/worker/testing) is
+in scope. It works inside a linked build worktree, where pnpm's own
+`--filter "...[main]"` change detection returns nothing. A trivial web-only
+change clears it in well under 2 min (≈30 s), versus ~5–7 min for the full
+suite. It is **not** a gate — the escalate-on-shared-package row above is
+non-negotiable: never let a `@pkg/*` shared-package change push on
+`verify:affected` alone. See CLAUDE.md "Definition of done" for the same split.
+
+**Browser pass — required only when the change is visible.** Run the Playwright
+pass (and attach screenshots) only for a **UI-visibility or new-surface**
+change: new/changed screens, components, copy, layout, or interaction. **Skip
+it for logic/config/backend-only, tooling, and doc changes** — there is nothing
+to look at, so a screenshot proves nothing. When you do skip it, say so in the
+`needs_review` summary and why (e.g. "backend-only, no UI surface touched").
 
 ## Teardown per task (non-negotiable — the box leaks otherwise)
 
