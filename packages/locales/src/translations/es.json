@@ -768,8 +768,6 @@
   "tasks.markReady.none": "No hay tareas en borrador para marcar como listas",
   "tasks.plan.board": "Tablero",
   "tasks.plan.plan": "Plan",
-  "tasks.plan.planV1": "Plan v1",
-  "tasks.plan.planV2": "Plan v2",
   "tasks.plan.tidy": "Ordenar",
   "tasks.plan.newTicket": "Nuevo ticket",
   "tasks.plan.note": "Solo se planifican borradores: conecta qué bloquea a qué y luego promueve un ticket a Listo para que pase al tablero.",

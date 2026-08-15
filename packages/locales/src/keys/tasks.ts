@@ -245,8 +245,6 @@ export const tasks = {
   plan: {
     board: 'tasks.plan.board',
     plan: 'tasks.plan.plan',
-    planV1: 'tasks.plan.planV1',
-    planV2: 'tasks.plan.planV2',
     tidy: 'tasks.plan.tidy',
     newTicket: 'tasks.plan.newTicket',
     note: 'tasks.plan.note',

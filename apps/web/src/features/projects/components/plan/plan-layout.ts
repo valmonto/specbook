@@ -1,58 +1,96 @@
-import dagre from 'dagre';
-import type { Edge, Node } from '@xyflow/react';
 import type { Task } from '@pkg/contracts';
 import { TERMINAL_TASK_STATUSES } from '@pkg/contracts';
 import { groupTasksByArea } from '../v2/group-tasks';
 
 /**
- * The Plan-mode canvas layout — the pure, testable core (no React, no DOM).
- * Draft tickets lay out as a grid where the x axis is dependency DEPTH and each
- * horizontal band is an AREA lane. dagre computes the depth ranks (rankdir LR,
- * so a prerequisite sits left of what it unlocks); we then bucket the ranked
- * nodes into per-area lanes and stack same-depth siblings vertically. The lane
- * is a React Flow parent node and every ticket is its child (extent:'parent'),
- * which is what clamps a card inside its own lane.
+ * Plan — the pure, browserless layout core for the hand-rolled dependency canvas
+ * (no React Flow, no dagre). It ports the reference mockup's engine: a
+ * depth × lane grid where x is dependency DEPTH (longest-path layering, so a
+ * prerequisite sits left of what it unlocks) and each horizontal band is an
+ * AREA lane. Same-depth siblings stack vertically inside their lane. Everything
+ * here is a plain function of the draft task set so it can be unit-tested; the
+ * component ({@link ./plan-canvas}) owns the DOM, pointer events and SVG, and
+ * calls back into these helpers.
  */
 
 const TERMINAL = new Set<string>(TERMINAL_TASK_STATUSES);
 
-// Card + grid geometry. NODE_H is a layout estimate; the DOM card auto-sizes.
-export const PLAN_NODE_W = 256;
-const NODE_H = 104;
-const COL_W = 300;
-const ROW_H = 152;
-const LANE_PAD_TOP = 48;
-const LANE_PAD_BOTTOM = 24;
-const LANE_PAD_X = 24;
-const LANE_GAP = 28;
-const CANVAS_PAD_X = 28;
+// Card + grid geometry (translated from the mockup, kept in canvas pixels — the
+// canvas has no zoom, so layout units are screen units).
+//
+// Card width is FIXED (same on desktop and phone) so the title wraps to a bound
+// height (see the `line-clamp` in plan-canvas) rather than the card growing wide
+// enough to run off a phone. 236px sits comfortably inside a 390px viewport with
+// room for the lane inset, so on mobile we scroll for DEPTH, never width.
+export const PLAN_NODE_W = 236;
+/** Estimated card height used only as a first-paint fallback before measuring. */
+export const CARD_H = 92;
+const LANE_X = 20;
+const CARD_PAD_X = 32;
+const LANE_TOP_PAD = 40;
+const LANE_BOT_PAD = 24;
+const LANE_GAP = 22;
 
-// When many tickets share one depth column (the common "nothing linked yet"
-// case, where every card is a depth-0 root), a single tall stack looks marooned
-// in a wide, empty canvas. Instead we wrap same-depth siblings into a small grid
-// so a lane reads full and intentional. Depth-0 gets the most spread; deeper
-// columns keep a tight single file so the left→right dependency flow stays
-// legible. GRID_COLS_ROOTLESS is the fill width when there are no edges at all.
-const GRID_COLS_ROOTLESS = 4;
-const GRID_COLS_WITH_EDGES = 2;
+// Column PITCH is derived from the card width + a gutter, so a depth column can
+// never horizontally overlap the next. Desktop pitch stays 236+52 = 288 (the
+// original value, so desktop is visually unchanged); phone keeps a generous 44px
+// gutter.
+const COL_GAP = 52;
+const COL_GAP_COMPACT = 44;
+// Vertical GAP between two stacked cards in a lane. Stacking uses each card's
+// MEASURED height + this gap (never a fixed row height), so a tall 3-line card
+// can never overlap the card beneath it. Phones get extra breathing room.
+const CARD_GAP = 28;
+const CARD_GAP_COMPACT = 40;
 
-/** Columns to spread a given depth's siblings across (1 = a single file). */
-function wrapColsFor(depth: number, hasEdges: boolean, siblings: number): number {
-  if (depth > 0) return 1;
-  const cap = hasEdges ? GRID_COLS_WITH_EDGES : GRID_COLS_ROOTLESS;
-  return Math.max(1, Math.min(cap, siblings));
+// Mobile makes the lane CONTAINERS read as substantial boxes rather than thin
+// bands: more top/bottom padding, a taller minimum lane height, and the wider
+// inter-card gap above. All gated on `compact` — desktop lane sizing is
+// untouched. None of these move a card relative to the one beneath it beyond the
+// (larger) gap, so the measured-height stacking stays collision-free.
+const MOBILE_LANE_TOP_PAD = 56;
+const MOBILE_LANE_BOT_PAD = 40;
+const MOBILE_MIN_LANE_H = 208;
+
+export interface PlanPoint {
+  x: number;
+  y: number;
 }
 
-/** '' is the untagged "no area" bucket — kept distinct from a named area. */
-export const areaKeyOf = (task: Task): string => task.area?.trim() ?? '';
+export interface LaneRect {
+  area: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  count: number;
+  color: { stroke: string; tint: string; dot: string };
+}
+
+export interface PlanLayout {
+  positions: Record<string, PlanPoint>;
+  lanes: LaneRect[];
+  width: number;
+  height: number;
+}
 
 /** A ticket waits while any of its prerequisites is not yet done/cancelled. */
 export const isWaiting = (task: Task): boolean =>
   (task.dependencies ?? []).some((d) => !TERMINAL.has(d.status));
 
-/** Draft prerequisites still on the canvas — the promote-cascade offer reads this. */
-export const draftPrereqsOf = (task: Task): string[] =>
-  (task.dependencies ?? []).filter((d) => d.status === 'draft').map((d) => d.id);
+/** The dependency edges among the given draft tasks, as [prerequisite, dependent]. */
+export function draftEdges(tasks: Task[]): Array<[string, string]> {
+  const ids = new Set(tasks.map((t) => t.id));
+  const edges: Array<[string, string]> = [];
+  for (const task of tasks) {
+    for (const dep of task.dependencies ?? []) {
+      // Only edges whose BOTH ends are on the canvas are drawn; a draft may
+      // depend on an already-ready/done task that isn't shown here.
+      if (ids.has(dep.id)) edges.push([dep.id, task.id]);
+    }
+  }
+  return edges;
+}
 
 // A small, stable lane palette. Known area names map to fixed hues (matching
 // the concept); anything else hashes into the same set so colours stay stable.
@@ -77,185 +115,186 @@ export function laneColor(area: string): { stroke: string; tint: string; dot: st
   return PALETTE[h % PALETTE.length]!;
 }
 
-/** The dependency edges among the given draft tasks, as [prerequisite, dependent]. */
-export function draftEdges(tasks: Task[]): Array<[string, string]> {
-  const ids = new Set(tasks.map((t) => t.id));
-  const edges: Array<[string, string]> = [];
-  for (const task of tasks) {
-    for (const dep of task.dependencies ?? []) {
-      // Only edges whose BOTH ends are on the canvas are drawn; a draft may
-      // depend on an already-ready/done task that isn't shown here.
-      if (ids.has(dep.id)) edges.push([dep.id, task.id]);
-    }
-  }
-  return edges;
+/**
+ * Longest-path depth per node: 0 for a root with no on-canvas prerequisite,
+ * otherwise one more than its deepest prerequisite. Memoised, and the memo is
+ * seeded to 0 before recursing so a (server-rejected, but defensively handled)
+ * cycle can't loop forever.
+ */
+export function longestPathDepths(
+  ids: string[],
+  edges: Array<[string, string]>,
+): Map<string, number> {
+  const blockers = new Map<string, string[]>();
+  for (const [b, d] of edges) (blockers.get(d) ?? blockers.set(d, []).get(d)!).push(b);
+  const memo = new Map<string, number>();
+  const calc = (id: string): number => {
+    const seen = memo.get(id);
+    if (seen !== undefined) return seen;
+    memo.set(id, 0); // cycle guard
+    let m = 0;
+    for (const b of blockers.get(id) ?? []) m = Math.max(m, calc(b) + 1);
+    memo.set(id, m);
+    return m;
+  };
+  for (const id of ids) calc(id);
+  return memo;
 }
 
-/** dagre depth rank per node (0 = a root with no on-canvas prerequisite). */
-function computeDepths(ids: string[], edges: Array<[string, string]>): Map<string, number> {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'LR', ranksep: 80, nodesep: 24, marginx: 0, marginy: 0 });
-  g.setDefaultEdgeLabel(() => ({}));
-  for (const id of ids) g.setNode(id, { width: PLAN_NODE_W, height: NODE_H });
-  for (const [src, tgt] of edges) if (src !== tgt) g.setEdge(src, tgt);
-  dagre.layout(g);
-  // Map dagre's x coordinate (which grows with rank under LR) to a 0-based column.
-  const xs = [...new Set(ids.map((id) => Math.round(g.node(id).x)))].sort((a, b) => a - b);
-  const col = new Map<number, number>();
-  xs.forEach((x, i) => col.set(x, i));
-  const depth = new Map<string, number>();
-  for (const id of ids) depth.set(id, col.get(Math.round(g.node(id).x)) ?? 0);
-  return depth;
-}
+/** Prerequisites of a node (the ids it depends on) within the given edge set. */
+export const blockersOf = (edges: Array<[string, string]>, id: string): string[] =>
+  edges.filter(([, d]) => d === id).map(([b]) => b);
 
-export interface PlanLaneData {
-  kind: 'lane';
-  area: string;
-  count: number;
-  stroke: string;
-  tint: string;
-  dot: string;
-}
-
-export interface PlanTaskData {
-  kind: 'task';
-  task: Task;
-  waiting: boolean;
-  stroke: string;
-}
-
-export interface PlanGraph {
-  nodes: Node[];
-  edges: Edge[];
-  width: number;
-  height: number;
-}
+/** Nodes this one unlocks (its dependents) within the given edge set. */
+export const unlocksOf = (edges: Array<[string, string]>, id: string): string[] =>
+  edges.filter(([b]) => b === id).map(([, d]) => d);
 
 /**
- * Build the React Flow node/edge graph for a set of draft tasks: one lane
- * (parent) node per area and one child node per ticket, positioned by
- * depth × lane. Parent nodes precede their children in the array, as React
- * Flow requires.
+ * Build the depth × lane layout for a set of draft tasks: absolute card
+ * positions, one labelled lane rectangle per area, and the overall canvas size.
+ * Re-run on every structural change to keep the board tidy (the Tidy button and
+ * the auto-tidy both call this).
  */
-export function buildPlanGraph(tasks: Task[]): PlanGraph {
+export interface PlanLayoutOpts {
+  /**
+   * Phone layout: a slightly tighter column gutter, bigger inter-card gaps, more
+   * lane padding and a taller minimum lane height so the lane containers read as
+   * substantial boxes and a shallow graph fits the viewport width by default
+   * (deeper graphs still scroll horizontally for DEPTH). Desktop (the default)
+   * keeps the roomier pitch, the compact lane sizing and the 900px min-width
+   * floor.
+   */
+  compact?: boolean;
+  /**
+   * Measured card heights by task id (from the rendered DOM). Cards stack using
+   * these real heights + a consistent gap so two cards can NEVER vertically
+   * overlap regardless of how many lines their titles wrap to. Ids missing from
+   * the map fall back to {@link CARD_H} — the estimate used for the very first
+   * paint, before the measure pass has run.
+   */
+  heights?: Record<string, number>;
+}
+
+export function buildPlanLayout(tasks: Task[], opts: PlanLayoutOpts = {}): PlanLayout {
+  const compact = opts.compact ?? false;
+  const heights = opts.heights ?? {};
+  const colGap = compact ? COL_GAP_COMPACT : COL_GAP;
+  const cardGap = compact ? CARD_GAP_COMPACT : CARD_GAP;
+  const laneTopPad = compact ? MOBILE_LANE_TOP_PAD : LANE_TOP_PAD;
+  const laneBotPad = compact ? MOBILE_LANE_BOT_PAD : LANE_BOT_PAD;
+  const minLaneH = compact ? MOBILE_MIN_LANE_H : 0;
+  const colW = PLAN_NODE_W + colGap; // pitch ≥ card width + gutter → no H-overlap
+  const minW = compact ? 320 : 900;
+  const minH = compact ? 320 : 420;
+  const hOf = (id: string): number => heights[id] ?? CARD_H;
+
+  const ids = tasks.map((t) => t.id);
   const edges = draftEdges(tasks);
-  const depth = computeDepths(
-    tasks.map((t) => t.id),
-    edges,
-  );
-  const groups = groupTasksByArea(tasks); // [areaKey, tasks] busiest-first, no-area last
-  const maxDepth = Math.max(0, ...[...depth.values()]);
-  const hasEdges = edges.length > 0;
+  const depth = longestPathDepths(ids, edges);
+  const groups = groupTasksByArea(tasks); // busiest-first, no-area last
+  const maxLayer = Math.max(0, ...[...depth.values()]);
+  // The last column's card plus a right inset must fit inside the lane.
+  const contentW = LANE_X + CARD_PAD_X + maxLayer * colW + PLAN_NODE_W + CARD_PAD_X;
+  const laneW = contentW - LANE_X * 2;
 
-  // How wide (in grid slots) is each depth column? Depth 0 may wrap into several
-  // slots to fill the canvas; deeper columns stay a single file. We size each
-  // depth by the widest lane's stack at that depth, so every lane can wrap into
-  // the same slot grid and stay aligned left→right.
-  const stackAtDepth = new Map<number, number>();
-  for (const [area, groupTasks] of groups) {
-    void area;
-    const perCol = new Map<number, number>();
-    for (const task of groupTasks) {
-      const d = depth.get(task.id) ?? 0;
-      perCol.set(d, (perCol.get(d) ?? 0) + 1);
-    }
-    for (const [d, n] of perCol) stackAtDepth.set(d, Math.max(stackAtDepth.get(d) ?? 0, n));
-  }
-  const wrapCols = new Map<number, number>();
-  const slotStart = new Map<number, number>();
-  let slotCursor = 0;
-  for (let d = 0; d <= maxDepth; d++) {
-    const cols = wrapColsFor(d, hasEdges, stackAtDepth.get(d) ?? 1);
-    wrapCols.set(d, cols);
-    slotStart.set(d, slotCursor);
-    slotCursor += cols;
-  }
-  const totalSlots = Math.max(1, slotCursor);
-
-  const contentW = CANVAS_PAD_X + LANE_PAD_X + totalSlots * COL_W + LANE_PAD_X;
-  const laneW = contentW - CANVAS_PAD_X * 2;
-
-  const laneNodes: Node[] = [];
-  const taskNodes: Node[] = [];
-  let y = CANVAS_PAD_X;
+  const positions: Record<string, PlanPoint> = {};
+  const lanes: LaneRect[] = [];
+  let y = LANE_GAP;
 
   for (const [area, groupTasks] of groups) {
-    // Bucket this lane's tickets by depth column.
-    const perCol = new Map<number, Task[]>();
+    const perLayer = new Map<number, Task[]>();
     for (const task of groupTasks) {
       const d = depth.get(task.id) ?? 0;
-      (perCol.get(d) ?? perCol.set(d, []).get(d)!).push(task);
+      (perLayer.get(d) ?? perLayer.set(d, []).get(d)!).push(task);
     }
-    // Each depth wraps into wrapCols[d] columns → its own row count; the lane is
-    // as tall as its deepest-stacked (most-wrapped) column.
-    const maxRows = Math.max(
-      1,
-      ...[...perCol].map(([d, list]) => Math.ceil(list.length / (wrapCols.get(d) ?? 1))),
-    );
-    const laneHeight = LANE_PAD_TOP + maxRows * ROW_H + LANE_PAD_BOTTOM;
-    const color = laneColor(area);
-    const laneId = `lane:${area}`;
 
-    laneNodes.push({
-      id: laneId,
-      type: 'lane',
-      position: { x: CANVAS_PAD_X, y },
-      draggable: false,
-      selectable: false,
-      focusable: false,
-      data: {
-        kind: 'lane',
-        area,
-        count: groupTasks.length,
-        stroke: color.stroke,
-        tint: color.tint,
-        dot: color.dot,
-      } satisfies PlanLaneData,
-      style: { width: laneW, height: laneHeight, zIndex: 0 },
-    });
-
-    for (const [d, colTasks] of perCol) {
-      const cols = wrapCols.get(d) ?? 1;
-      const start = slotStart.get(d) ?? 0;
-      colTasks.forEach((task, i) => {
-        const subCol = i % cols;
-        const row = Math.floor(i / cols);
-        taskNodes.push({
-          id: task.id,
-          type: 'task',
-          parentId: laneId,
-          extent: 'parent',
-          position: {
-            x: LANE_PAD_X + (start + subCol) * COL_W,
-            y: LANE_PAD_TOP + row * ROW_H,
-          },
-          data: {
-            kind: 'task',
-            task,
-            waiting: isWaiting(task),
-            stroke: color.stroke,
-          } satisfies PlanTaskData,
-        });
+    // Stack each depth column top-to-bottom using measured heights + a gap. The
+    // lane is as tall as its tallest column stack (never below the mobile floor),
+    // so no card ever spills out.
+    let contentBottom = laneTopPad; // relative to the lane top
+    for (const [layer, list] of perLayer) {
+      let cy = laneTopPad;
+      list.forEach((task) => {
+        positions[task.id] = {
+          x: LANE_X + CARD_PAD_X + layer * colW,
+          y: y + cy,
+        };
+        cy += hOf(task.id);
+        contentBottom = Math.max(contentBottom, cy);
+        cy += cardGap; // gap before the next card in this column
       });
     }
+    const height = Math.max(minLaneH, contentBottom + laneBotPad);
 
-    y += laneHeight + LANE_GAP;
+    lanes.push({
+      area,
+      left: LANE_X,
+      top: y,
+      width: laneW,
+      height,
+      count: groupTasks.length,
+      color: laneColor(area),
+    });
+    y += height + LANE_GAP;
   }
 
-  const rfEdges: Edge[] = edges.map(([src, tgt]) => ({
-    id: `${src}->${tgt}`,
-    source: src,
-    target: tgt,
-    type: 'dep',
-    data: { prerequisite: src, dependent: tgt },
-  }));
+  return { positions, lanes, width: Math.max(contentW, minW), height: Math.max(y, minH) };
+}
 
+/** Clamp a dragged card so it can be nudged but never leaves its own lane. */
+export function clampToLane(
+  rect: LaneRect,
+  x: number,
+  y: number,
+  cardH: number,
+): PlanPoint {
   return {
-    nodes: [...laneNodes, ...taskNodes],
-    edges: rfEdges,
-    width: Math.max(contentW, 640),
-    height: Math.max(y, 360),
+    x: Math.max(rect.left + 12, Math.min(rect.left + rect.width - PLAN_NODE_W - 12, x)),
+    y: Math.max(rect.top + LANE_TOP_PAD - 8, Math.min(rect.top + rect.height - cardH - 10, y)),
   };
+}
+
+export interface EdgePts {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  c1x: number;
+  c1y: number;
+  c2x: number;
+  c2y: number;
+}
+
+/** Cubic-bezier control points from a source card's right edge to a target's left. */
+export function edgePoints(
+  from: PlanPoint,
+  to: PlanPoint,
+  fromH: number = CARD_H,
+  toH: number = CARD_H,
+): EdgePts {
+  const x1 = from.x + PLAN_NODE_W;
+  const y1 = from.y + fromH / 2;
+  const x2 = to.x;
+  const y2 = to.y + toH / 2;
+  const dx = Math.max(46, Math.abs(x2 - x1) * 0.45);
+  return { x1, y1, x2, y2, c1x: x1 + dx, c1y: y1, c2x: x2 - dx, c2y: y2 };
+}
+
+export const edgePath = (p: EdgePts): string =>
+  `M ${p.x1} ${p.y1} C ${p.c1x} ${p.c1y}, ${p.c2x} ${p.c2y}, ${p.x2} ${p.y2}`;
+
+/** The point on a cubic bezier at t = 0.5 — where the delete ✕ sits. */
+export const edgeMid = (p: EdgePts): PlanPoint => ({
+  x: 0.125 * p.x1 + 0.375 * p.c1x + 0.375 * p.c2x + 0.125 * p.x2,
+  y: 0.125 * p.y1 + 0.375 * p.c1y + 0.375 * p.c2y + 0.125 * p.y2,
+});
+
+/** Bezier from a fixed source point to a free pointer (the live drag link). */
+export function tempLinkPath(from: PlanPoint, fromH: number, px: number, py: number): string {
+  const x1 = from.x + PLAN_NODE_W;
+  const y1 = from.y + fromH / 2;
+  const dx = Math.max(40, Math.abs(px - x1) * 0.45);
+  return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${px - dx} ${py}, ${px} ${py}`;
 }
 
 /**

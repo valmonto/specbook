@@ -768,8 +768,6 @@
   "tasks.markReady.none": "No draft tasks to mark ready",
   "tasks.plan.board": "Board",
   "tasks.plan.plan": "Plan",
-  "tasks.plan.planV1": "Plan v1",
-  "tasks.plan.planV2": "Plan v2",
   "tasks.plan.tidy": "Tidy",
   "tasks.plan.newTicket": "New ticket",
   "tasks.plan.note": "Planning drafts only — wire what-blocks-what, then promote a ticket to Ready and it graduates to the board.",
