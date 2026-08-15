@@ -9,6 +9,8 @@ Config (edit here, it's versioned):
 - CADENCE: 300 seconds between sweeps
 - CAP: 3 concurrent claimed tasks
 - MODE: loop (run `/dispatch once` for a single sweep)
+- BUILD_TIMEOUT_SEC: 1200 — hard per-build timeout (see "Build-dispatch liveness")
+- BUILD_HEARTBEAT_SEC: 60 — build liveness/heartbeat interval
 
 You are the specbook agent runner. Unless invoked with `once`, loop forever:
 sweep → wait CADENCE (run `sleep 300` in Bash — do not busy-poll) → sweep
@@ -30,7 +32,9 @@ stop on your own just because sweeps keep coming back empty.
 4. Queue empty or ACTIVE >= CAP → say one short line, wait, next sweep.
    Otherwise claim up to `CAP - ACTIVE` tasks. One: work inline. Several:
    one subagent per task, isolated git worktrees, per-slot ports
-   (api 3001/3002/3003, vite 5174/5175/5176).
+   (api 3001/3002/3003, vite 5174/5175/5176). Wrap every dispatched build in
+   the liveness envelope (see "Build-dispatch liveness") so a stalled build
+   heartbeats, then hard-times-out, instead of hanging silently.
 5. `list_research` — research in `researching` is awaiting an agent turn. For
    each, perform the turn (protocol below). These are cheap next to a build
    task; the CAP above governs tasks, not turns.
@@ -60,10 +64,15 @@ stop on your own just because sweeps keep coming back empty.
   own transcript; the subagent then carries its measured cost on its own
   `needs_review`. Inline builds (the runner working a task in its own session)
   measure the runner's transcript, unchanged.
-- Branch from fresh main. Implement. UI work is not done until driven in a
-  real browser (playwright) with screenshots.
-- `pnpm verify` must pass. Push the branch. `update_task_links` with the
-  GitHub compare URL. Tick criteria honestly — only what is actually done.
+- Branch from fresh main. Implement. Match effort to the change — scope the
+  local check to the change type (see "Fast lane" below). UI-visibility /
+  new-surface work is not done until driven in a real browser (playwright)
+  with screenshots; a logic/config/backend-only change skips the browser pass.
+- The scoped local check must pass: `pnpm verify:affected` for a web-only /
+  leaf change, escalated to the full `pnpm verify` (with a database) when a
+  shared package changes — see "Fast lane" below. Push the branch.
+  `update_task_links` with the GitHub compare URL. Tick criteria honestly —
+  only what is actually done.
 - Upload verification screenshots to the ticket
   (`create_attachment_upload` + `confirm_attachment`).
 - `needs_review` with an honest summary: what changed, how verified,
@@ -76,6 +85,40 @@ stop on your own just because sweeps keep coming back empty.
   say so in the summary — the figure is whole-session, an over-attribution.
   Leave `costUsdCents` unset on subscription billing. Claimant-only,
   values ADD — never re-report a running total.
+
+## Fast lane — scope the local check to the change (the runner default)
+
+A full worktree build (fresh install + the whole ~500-test `pnpm verify` +
+a dual-viewport Playwright pass) is ~30–40 min — far too much for a one-line
+tweak. Match effort to the change. **This scopes only the LOCAL check; CI runs
+the full `pnpm verify` against Postgres on every PR and is the authoritative
+gate that clears a merge — so scoping the local check loses no real coverage.**
+
+**Local verify — pick the scope by what changed:**
+
+| Change type | Local check | Database |
+| --- | --- | --- |
+| Web-only / leaf (`apps/web`, `apps/mobile`, `apps/e2e`) | `pnpm verify:affected` — web typecheck + lint + component tests, no DB/integration suites | skipped |
+| Backend-only (`apps/api`, `apps/worker`) | `pnpm verify:affected` — includes the DB-backed suites | run it with `DATABASE_URL` set |
+| **Shared package** (`@pkg/contracts`, `database`, `server`, `locales`) | **escalate to the full `pnpm verify`** — it fans out to api/worker/web; `verify:affected` warns the DB is needed | run it with `DATABASE_URL` set |
+| Root-wide (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig*`) | full `pnpm verify` (`verify:affected` already fans out to all workspaces) | run it with `DATABASE_URL` set |
+
+`pnpm verify:affected` (`scripts/verify/affected.mjs`) is the runner default: it
+resolves the workspaces changed since `origin/main` plus their transitive
+dependents, and skips Postgres when no DB-backed suite (api/worker/testing) is
+in scope. It works inside a linked build worktree, where pnpm's own
+`--filter "...[main]"` change detection returns nothing. A trivial web-only
+change clears it in well under 2 min (≈30 s), versus ~5–7 min for the full
+suite. It is **not** a gate — the escalate-on-shared-package row above is
+non-negotiable: never let a `@pkg/*` shared-package change push on
+`verify:affected` alone. See CLAUDE.md "Definition of done" for the same split.
+
+**Browser pass — required only when the change is visible.** Run the Playwright
+pass (and attach screenshots) only for a **UI-visibility or new-surface**
+change: new/changed screens, components, copy, layout, or interaction. **Skip
+it for logic/config/backend-only, tooling, and doc changes** — there is nothing
+to look at, so a screenshot proves nothing. When you do skip it, say so in the
+`needs_review` summary and why (e.g. "backend-only, no UI surface touched").
 
 ## Teardown per task (non-negotiable — the box leaks otherwise)
 
@@ -110,6 +153,42 @@ teardown in three layers.
    inside). Prefer the dry run; reserve `--apply` for a deliberate cleanup, and
    afterward confirm `curl -s -o /dev/null -w "%{http_code}" https://specbook.valmonto.com/`
    still returns `200`.
+
+## Build-dispatch liveness (heartbeat + hard timeout — no silent hangs)
+
+A dispatched build must never stall invisibly. One once ran 34+ minutes with a
+stale 113-byte output, no progress and no timeout — noticed only by manually
+stat-ing the file. `scripts/build-liveness.mjs` is the envelope that makes that
+impossible: it wraps a build command with a periodic heartbeat and a hard
+per-build timeout, and emits a structured `start → heartbeat* → end` event
+stream whose `end.reason` is exactly one of `success | fail | timeout`.
+
+    node scripts/build-liveness.mjs [--label <taskId>] -- <build command…>
+    # e.g.  node scripts/build-liveness.mjs --label 01a0-… -- scripts/dev-stack.sh <check>
+
+- **Heartbeat.** While the build runs it emits a `heartbeat` event every
+  `BUILD_HEARTBEAT_SEC` (default 60) — the bounded liveness signal the
+  orchestrator/board can observe.
+- **Hard timeout.** A build that exceeds `BUILD_TIMEOUT_SEC` (default 1200 =
+  20 min) is auto-terminated (SIGTERM to the process group, then SIGKILL after
+  `BUILD_KILL_GRACE_SEC`, default 10). The wrapper emits `end.reason=timeout`
+  and exits `124` (GNU `timeout` convention) instead of hanging forever.
+- **On timeout, return the task to a safe state.** A `timeout` end means the
+  build is dead: transition the task off `in_progress` (release back so the
+  claim frees, or record a failure with the timeout reason) so the queue is
+  never stuck on a dead build. Never leave a timed-out claim sitting.
+- **Config** lives in the block at the top of this file (`BUILD_TIMEOUT_SEC`,
+  `BUILD_HEARTBEAT_SEC`); the wrapper reads them from the environment, so
+  `BUILD_TIMEOUT_SEC=600 node scripts/build-liveness.mjs -- …` overrides per run.
+  Invariant: the timeout must exceed the heartbeat interval.
+- **Lifecycle hook (`start / heartbeat / end`).** Every event is one JSON line
+  on stdout; set `BUILD_LIFECYCLE_HOOK=<cmd>` and it is ALSO invoked once per
+  event with the event JSON in `$BUILD_EVENT` (fire-and-forget, never blocks the
+  build). This is the shared seam the follow-ups consume — keep-claim-alive
+  stamps the MCP claim on each `heartbeat`; per-build resource-teardown reaps on
+  `end`. The pure decision core (`resolveConfig`, `evaluateLiveness`,
+  `classifyEnd`) is unit-tested in
+  `packages/server/__tests__/scripts/build-liveness.test.ts`.
 
 ## Protocol per research turn (non-negotiable)
 
