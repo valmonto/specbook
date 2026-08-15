@@ -88,13 +88,25 @@ export const unlocksOf = (edges: Array<[string, string]>, id: string): string[] 
  * Re-run on every structural change to keep the board tidy (the Tidy button and
  * the auto-tidy both call this).
  */
-export function layoutV2(tasks: Task[]): V2Layout {
+export interface V2LayoutOpts {
+  /**
+   * Phone layout: tighter columns and no wide minimum canvas so a shallow graph
+   * fits the viewport width by default (deeper graphs still scroll). Desktop
+   * (the default) keeps the roomier column pitch and the 900px min-width floor.
+   */
+  compact?: boolean;
+}
+
+export function layoutV2(tasks: Task[], opts: V2LayoutOpts = {}): V2Layout {
+  const colW = opts.compact ? 256 : V2_COL_W;
+  const minW = opts.compact ? 320 : 900;
+  const minH = opts.compact ? 320 : 420;
   const ids = tasks.map((t) => t.id);
   const edges = draftEdges(tasks);
   const depth = longestPathDepths(ids, edges);
   const groups = groupTasksByArea(tasks); // busiest-first, no-area last
   const maxLayer = Math.max(0, ...[...depth.values()]);
-  const contentW = V2_LANE_X + V2_CARD_PAD_X + (maxLayer + 1) * V2_COL_W + 14;
+  const contentW = V2_LANE_X + V2_CARD_PAD_X + (maxLayer + 1) * colW + 14;
   const laneW = contentW - V2_LANE_X * 2;
 
   const positions: Record<string, V2Point> = {};
@@ -113,7 +125,7 @@ export function layoutV2(tasks: Task[]): V2Layout {
     for (const [layer, list] of perLayer) {
       list.forEach((task, i) => {
         positions[task.id] = {
-          x: V2_LANE_X + V2_CARD_PAD_X + layer * V2_COL_W,
+          x: V2_LANE_X + V2_CARD_PAD_X + layer * colW,
           y: y + V2_LANE_TOP_PAD + i * V2_ROW_H,
         };
       });
@@ -131,7 +143,7 @@ export function layoutV2(tasks: Task[]): V2Layout {
     y += height + V2_LANE_GAP;
   }
 
-  return { positions, lanes, width: Math.max(contentW, 900), height: Math.max(y, 420) };
+  return { positions, lanes, width: Math.max(contentW, minW), height: Math.max(y, minH) };
 }
 
 /** Clamp a dragged card so it can be nudged but never leaves its own lane. */

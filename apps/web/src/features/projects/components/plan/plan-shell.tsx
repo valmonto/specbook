@@ -1,11 +1,34 @@
 import { useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ListTree, Plus, Waypoints, Wand2 } from 'lucide-react';
+import { Info, ListTree, Plus, Waypoints, Wand2 } from 'lucide-react';
 import type { Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCreateTask } from '../../hooks/use-projects';
+
+/** The three colour/edge legend items — shared by the desktop row and the
+ *  mobile info popover so the two never drift. */
+function LegendItems() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2.5 rounded-sm bg-sky-500" />
+        {t(k.tasks.plan.clearLegend)}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2.5 rounded-sm bg-amber-500" />
+        {t(k.tasks.plan.waitingLegend)}
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2.5 rounded-sm bg-primary" />
+        {t(k.tasks.plan.linkLegend)}
+      </span>
+    </>
+  );
+}
 
 /**
  * The chrome shared by both Plan tabs (v1 React Flow, v2 hand-rolled canvas):
@@ -46,14 +69,28 @@ export function PlanShell({
       {/* Plan note + tools: a quiet banner explaining the mode, Tidy + New. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
         <Waypoints className="size-4 shrink-0 text-primary" />
-        <span className="min-w-0 flex-1">{t(k.tasks.plan.note)}</span>
+        {/* Full-width on phones so Tidy/New wrap onto their own line rather than
+            crushing the note into a tall sliver; shares the row from sm up. */}
+        <span className="min-w-0 flex-1 basis-[calc(100%-2rem)] sm:basis-auto">
+          {t(k.tasks.plan.note)}
+        </span>
         {!readOnly && (
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => tidyRef.current?.()}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-10 sm:h-8"
+              onClick={() => tidyRef.current?.()}
+            >
               <Wand2 className="size-4 mr-1" />
               {t(k.tasks.plan.tidy)}
             </Button>
-            <Button size="sm" disabled={create.isLoading} onClick={() => void newTicket()}>
+            <Button
+              size="sm"
+              className="h-10 sm:h-8"
+              disabled={create.isLoading}
+              onClick={() => void newTicket()}
+            >
               <Plus className="size-4 mr-1" />
               {t(k.tasks.plan.newTicket)}
             </Button>
@@ -84,20 +121,31 @@ export function PlanShell({
         )}
       </div>
 
-      {/* Legend: what the card colours and the edges mean. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-4 py-2 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-sky-500" />
-          {t(k.tasks.plan.clearLegend)}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-amber-500" />
-          {t(k.tasks.plan.waitingLegend)}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2.5 rounded-sm bg-primary" />
-          {t(k.tasks.plan.linkLegend)}
-        </span>
+      {/* Legend: what the card colours and the edges mean. On phones it would
+          crowd the footer, so it collapses into an info popover; the inline row
+          returns from sm up (with the interaction hint on the right). */}
+      <div className="flex items-center gap-x-4 gap-y-1 border-t px-4 py-2 text-[11px] text-muted-foreground">
+        <div className="hidden flex-wrap items-center gap-x-4 gap-y-1 sm:flex">
+          <LegendItems />
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={t(k.tasks.plan.legendTitle)}
+              className="inline-flex min-h-[40px] items-center gap-1.5 text-muted-foreground sm:hidden"
+            >
+              <Info className="size-4" />
+              {t(k.tasks.plan.legendTitle)}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 text-xs text-muted-foreground">
+            <div className="flex flex-col gap-2">
+              <LegendItems />
+              <p className="border-t pt-2">{t(k.tasks.plan.hint)}</p>
+            </div>
+          </PopoverContent>
+        </Popover>
         <span className="ml-auto hidden sm:inline">{t(k.tasks.plan.hint)}</span>
       </div>
     </div>

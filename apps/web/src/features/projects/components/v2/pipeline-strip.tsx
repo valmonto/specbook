@@ -48,7 +48,9 @@ export function PipelineStrip({ counts, selected, onSelect, locked = false }: Pr
   const stages = ORDER.filter((s) => ALWAYS.includes(s) || (counts[s] ?? 0) > 0);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+    // On phones the strip is one horizontally-scrollable row (so a locked Plan
+    // strip of inert chips never stacks into several lines); it wraps from sm up.
+    <div className="no-scrollbar flex flex-nowrap items-center gap-x-1.5 gap-y-2 overflow-x-auto sm:flex-wrap sm:overflow-x-visible">
       {stages.map((status, i) => {
         const n = counts[status] ?? 0;
         const isGate = GATES.includes(status) && n > 0;
@@ -65,7 +67,7 @@ export function PipelineStrip({ counts, selected, onSelect, locked = false }: Pr
               aria-pressed={active}
               aria-disabled={disabled}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors',
+                'inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors sm:min-h-0 sm:shrink',
                 active
                   ? 'border-primary/60 bg-primary/10 text-foreground'
                   : 'text-muted-foreground hover:border-muted-foreground/40',

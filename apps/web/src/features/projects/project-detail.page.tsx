@@ -374,14 +374,18 @@ export default function ProjectDetailV2Page() {
               Plan mode the strip locks to Draft and the search is hidden (the
               canvas is its own surface). */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
               <ViewToggle view={view} onChange={setView} />
-              <PipelineStrip
-                counts={counts}
-                selected={isPlan ? 'draft' : stage}
-                onSelect={setStage}
-                locked={isPlan}
-              />
+              {/* min-w-0 lets the strip's own overflow-x-auto engage on phones
+                  instead of forcing the row wider than the viewport. */}
+              <div className="min-w-0 flex-1 sm:flex-none">
+                <PipelineStrip
+                  counts={counts}
+                  selected={isPlan ? 'draft' : stage}
+                  onSelect={setStage}
+                  locked={isPlan}
+                />
+              </div>
             </div>
             {view === 'board' && <TaskSearch query={query} onQueryChange={setQuery} />}
           </div>

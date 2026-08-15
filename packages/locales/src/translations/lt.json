@@ -787,6 +787,7 @@
   "tasks.plan.clearLegend": "Laisvas — paruoštas perkelti",
   "tasks.plan.waitingLegend": "Laukia būtinos sąlygos",
   "tasks.plan.linkLegend": "būtinos sąlygos ryšys",
+  "tasks.plan.legendTitle": "Legenda",
   "tasks.plan.hint": "Vilkite rankenėlę, kad sujungtumėte · užveskite ant linijos, kad pašalintumėte · krumpliaratis redaguoti ar perkelti",
   "tasks.plan.promoteChainTitle": "Perkelti ir jo būtinas sąlygas?",
   "tasks.plan.promoteChainBody": "Šis bilietas vis dar laukia {{count}} juodraštinės (-ių) būtinos (-ų) sąlygos (-ų). Jį perkėlus, ta būtinų sąlygų grandinė taip pat bus pažymėta paruošta, kad niekas neliktų įstrigę.",

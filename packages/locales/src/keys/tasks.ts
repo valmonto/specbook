@@ -264,6 +264,7 @@ export const tasks = {
     clearLegend: 'tasks.plan.clearLegend',
     waitingLegend: 'tasks.plan.waitingLegend',
     linkLegend: 'tasks.plan.linkLegend',
+    legendTitle: 'tasks.plan.legendTitle',
     hint: 'tasks.plan.hint',
     // Promote-with-cascade confirm.
     promoteChainTitle: 'tasks.plan.promoteChainTitle',
