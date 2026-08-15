@@ -15,7 +15,6 @@ import {
   Check,
   Lock,
   MoreVertical,
-  PanelRightOpen,
   Pencil,
   Trash2,
   X,
@@ -771,13 +770,9 @@ const TaskCard = ({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={() => setTimeout(onStartEdit, 0)}>
-                <Pencil className="size-4" />
-                {t(k.tasks.plan.editTitle)}
-              </DropdownMenuItem>
               <DropdownMenuItem onSelect={onOpenEditor}>
-                <PanelRightOpen className="size-4" />
-                {t(k.tasks.plan.openEditor)}
+                <Pencil className="size-4" />
+                {t(k.common.actions.edit)}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-sky-700 focus:text-sky-700 dark:text-sky-300 dark:focus:text-sky-300"

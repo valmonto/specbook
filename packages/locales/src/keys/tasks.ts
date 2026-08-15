@@ -250,8 +250,6 @@ export const tasks = {
     note: 'tasks.plan.note',
     empty: 'tasks.plan.empty',
     noArea: 'tasks.plan.noArea',
-    editTitle: 'tasks.plan.editTitle',
-    openEditor: 'tasks.plan.openEditor',
     promote: 'tasks.plan.promote',
     deleteDraft: 'tasks.plan.deleteDraft',
     cardMenu: 'tasks.plan.cardMenu',
