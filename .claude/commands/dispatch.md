@@ -212,6 +212,40 @@ stream whose `end.reason` is exactly one of `success | fail | timeout`.
   discriminators (`shouldAct`, `classifyTarget`, `classifyDb`) in
   `packages/server/__tests__/scripts/teardown-build.test.ts`.
 
+## Keep the claim alive through a long build (stale-claim ≠ live build)
+
+The agent-sweep worker releases an `in_progress` task back to `ready` when the
+claimant's most-recent agent `last_seen_at` goes silent past `STALE_CLAIM_AFTER_MS`
+(30 min — `packages/contracts/src/constants/agent.ts`). A legitimate ~50-minute
+build makes no MCP calls while it compiles/tests, so its agent looks dead and the
+claim gets yanked mid-work (this fired once this session). `scripts/keep-claim-alive.mjs`
+closes that gap by consuming the lifecycle hook above: on each `start`/`heartbeat`
+event it calls the MCP `heartbeat` tool, which stamps `agent.last_seen_at = now`
+for the presenting key — exactly what an ordinary MCP call would do, on the build's
+cadence instead of silence. Wire it by exporting the hook + credentials around the
+build-liveness invocation:
+
+    BUILD_LIFECYCLE_HOOK='node scripts/keep-claim-alive.mjs' \
+    SPECBOOK_API_KEY=<runner's tasks:agent key> \
+    SPECBOOK_MCP_URL=https://specbook.valmonto.com/api/mcp \
+    node scripts/build-liveness.mjs --label <taskId> -- <build command…>
+
+- **Use the runner's OWN `tasks:agent`-scoped key** so the stamp lands on the
+  claimant's agent row (identity is the Bearer key, resolved server-side — never a
+  payload). `SPECBOOK_MCP_URL` may be replaced by `SPECBOOK_BASE_URL` (`/api/mcp`
+  is appended); with neither set it falls back to the prod endpoint. No key → the
+  hook silently no-ops (nothing to stamp with).
+- **The safety net is preserved, not weakened.** The hook stamps ONLY on
+  `start`/`heartbeat`, NEVER on `end`/`timeout`. So a genuinely dead runner — its
+  build-liveness process gone, emitting no more heartbeats — stops being stamped
+  and the existing 30-min sweep still releases it. The threshold is unchanged. Two
+  complementary nets stay intact: build-liveness's hard per-build timeout ends a
+  hung BUILD; the stale-claim sweep releases a dead RUNNER; this hook only keeps a
+  LIVE build's claim fresh in between. Best-effort like every lifecycle hook — a
+  network error or missing key is logged and swallowed, never failing the build.
+  Pure core + a mock-endpoint CLI test in
+  `packages/server/__tests__/scripts/keep-claim-alive.test.ts`.
+
 ## Protocol per research turn (non-negotiable)
 
 - `get_research` — read the living document AND the whole conversation; the
