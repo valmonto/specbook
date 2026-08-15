@@ -55,7 +55,15 @@ stop on your own just because sweeps keep coming back empty.
 - Right after claiming, snapshot your measured usage:
   `node scripts/session-usage.mjs baseline <taskId>`. Never estimate
   tokens — your own transcript is the ground truth and estimates are off
-  by orders of magnitude.
+  by orders of magnitude. **A dispatched build runs as a SUBAGENT, so it must
+  run this baseline (and the `report` below) ITSELF, inside its own worktree
+  session — not the runner.** A subagent's tokens are written to a separate
+  sidechain transcript that the runner's transcript never sees, so a runner
+  measuring on the subagent's behalf reports 0/0. The script auto-detects
+  subagent context (`CLAUDE_CODE_CHILD_SESSION`) and resolves the subagent's
+  own transcript; the subagent then carries its measured cost on its own
+  `needs_review`. Inline builds (the runner working a task in its own session)
+  measure the runner's transcript, unchanged.
 - Branch from fresh main. Implement. Match effort to the change — scope the
   local check to the change type (see "Fast lane" below). UI-visibility /
   new-surface work is not done until driven in a real browser (playwright)

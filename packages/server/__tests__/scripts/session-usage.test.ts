@@ -25,6 +25,9 @@ describe('session-usage.mjs', () => {
     ...process.env,
     SESSION_USAGE_WORKDIR: workdir,
     CLAUDE_PROJECTS_DIR: projects,
+    // Force main-session mode: the suite itself may run inside a subagent (whose
+    // ambient CLAUDE_CODE_CHILD_SESSION would otherwise divert resolution).
+    CLAUDE_CODE_CHILD_SESSION: '',
   };
   const run = async (...args: string[]) => {
     const { stdout } = await exec('node', [SCRIPT, ...args], { env });
@@ -107,5 +110,101 @@ describe('session-usage.mjs', () => {
 
     const report = await run('report', 'task-2');
     expect(report).toEqual({ tokensIn: 3, tokensOut: 30, baseline: 'missing' });
+  });
+});
+
+/**
+ * Subagent (dispatched build) attribution — the 0/0 bug. A dispatched build
+ * runs as a Claude Code subagent inside a git worktree; its tokens land in a
+ * nested sidechain transcript of the PARENT session
+ * (<projects>/<enc>/<parentSessionId>/subagents/agent-<id>.jsonl), which the
+ * runner's own transcript never sees. When we ARE that subagent
+ * (CLAUDE_CODE_CHILD_SESSION set), the script must resolve our own sidechain.
+ */
+describe('session-usage.mjs — subagent sidechain resolution', () => {
+  const projects = mkdtempSync(join(tmpdir(), 'su-sub-projects-'));
+  const SESSION = 'parent-session-xyz';
+  // The worktree the subagent runs in; its basename is the subagent id.
+  const workdir = '/opt/specbook/.claude/worktrees/agent-abc123';
+  // The sidechain lives under the RUNNER's project-encoded dir, not the worktree.
+  const subagentsDir = join(projects, '-opt-specbook', SESSION, 'subagents');
+  mkdirSync(subagentsDir, { recursive: true });
+  const ownTranscript = join(subagentsDir, 'agent-abc123.jsonl');
+
+  const subEnv = {
+    ...process.env,
+    SESSION_USAGE_WORKDIR: workdir,
+    CLAUDE_PROJECTS_DIR: projects,
+    CLAUDE_CODE_CHILD_SESSION: '1',
+    CLAUDE_CODE_SESSION_ID: SESSION,
+  };
+  const runSub = async (...args: string[]) => {
+    const { stdout } = await exec('node', [SCRIPT, ...args], { env: subEnv });
+    return JSON.parse(stdout.trim()) as Record<string, unknown>;
+  };
+  const usageLine = (id: string, usage: Record<string, number>): string =>
+    JSON.stringify({ type: 'assistant', isSidechain: true, agentId: 'abc123', message: { id, usage } }) + '\n';
+
+  afterAll(() => rmSync(projects, { recursive: true, force: true }));
+
+  it('measures the subagent OWN sidechain, not the (absent) worktree-encoded path', async () => {
+    writeFileSync(
+      ownTranscript,
+      usageLine('sa_1', {
+        input_tokens: 4,
+        output_tokens: 40,
+        cache_creation_input_tokens: 400,
+        cache_read_input_tokens: 4_000,
+      }),
+    );
+    const totals = await runSub();
+    expect(totals).toMatchObject({
+      transcript: ownTranscript,
+      input: 4,
+      output: 40,
+      cacheCreation: 400,
+      cacheRead: 4_000,
+    });
+  });
+
+  it('reports a non-zero measured cost for a dispatched build (baseline → report delta)', async () => {
+    await runSub('baseline', 'sub-task');
+    appendFileSync(
+      ownTranscript,
+      usageLine('sa_2', {
+        input_tokens: 6,
+        output_tokens: 60,
+        cache_creation_input_tokens: 600,
+        cache_read_input_tokens: 6_000,
+      }),
+    );
+    const report = await runSub('report', 'sub-task');
+    expect(report).toEqual({ tokensIn: 6 + 600 + 6_000, tokensOut: 60, baseline: 'ok' });
+    // The whole point: never the silent 0/0.
+    expect(report.tokensIn).toBeGreaterThan(0);
+  });
+
+  it('prefers OUR sidechain by name when siblings exist, never a sibling', async () => {
+    writeFileSync(
+      join(subagentsDir, 'agent-sibling.jsonl'),
+      usageLine('sib_1', { input_tokens: 9_999, output_tokens: 9_999 }),
+    );
+    const totals = await runSub();
+    expect(totals.transcript).toBe(ownTranscript);
+    expect(totals.output).not.toBe(9_999);
+  });
+
+  it('refuses to guess (fails loudly) when several siblings exist and none is ours', async () => {
+    const orphanProjects = mkdtempSync(join(tmpdir(), 'su-orphan-'));
+    const dir = join(orphanProjects, '-opt-specbook', SESSION, 'subagents');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'agent-one.jsonl'), usageLine('o1', { input_tokens: 1, output_tokens: 1 }));
+    writeFileSync(join(dir, 'agent-two.jsonl'), usageLine('o2', { input_tokens: 2, output_tokens: 2 }));
+    await expect(
+      exec('node', [SCRIPT], {
+        env: { ...subEnv, CLAUDE_PROJECTS_DIR: orphanProjects },
+      }),
+    ).rejects.toMatchObject({ code: 1 });
+    rmSync(orphanProjects, { recursive: true, force: true });
   });
 });
