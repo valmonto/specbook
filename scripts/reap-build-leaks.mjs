@@ -98,8 +98,9 @@ function repoRoot() {
   return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 }
 
-/** Read /proc for every pid we can, returning {pid, cwd, cmd}. Linux-only. */
-function scanProcs() {
+/** Read /proc for every pid we can, returning {pid, cwd, cmd}. Linux-only.
+ * Exported so the per-build teardown reuses the exact same /proc scan. */
+export function scanProcs() {
   const out = [];
   let pids;
   try {
@@ -125,8 +126,9 @@ function scanProcs() {
   return out;
 }
 
-/** pids to never signal: this reaper and its ancestor shells. */
-function selfAncestry() {
+/** pids to never signal: this process and its ancestor shells. Exported so the
+ * per-build teardown shares the same self-protection. */
+export function selfAncestry() {
   const skip = new Set();
   let pid = process.pid;
   for (let i = 0; i < 64 && pid > 1; i++) {

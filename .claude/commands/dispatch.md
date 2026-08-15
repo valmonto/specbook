@@ -117,20 +117,39 @@ to look at, so a screenshot proves nothing. When you do skip it, say so in the
 A build boots a throwaway dev stack for its browser check and runs inside a git
 worktree. Both leak if not torn down: a 7-task run once left an orphaned Vite
 listener and 16 worktrees (~4 GB) behind, thrashing the 7.6 GB box. Guarantee
-teardown in three layers.
+teardown in four layers.
 
-1. **Dev stack — trap-based, not happy-path.** Boot the browser-check stack via
+1. **Automatic — wired into the build lifecycle (`end` event).** Point the
+   liveness envelope's hook at `scripts/teardown-build.mjs` so every build
+   self-cleans on end (success, fail, OR timeout), no manual step required:
+
+       BUILD_LIFECYCLE_HOOK="node scripts/teardown-build.mjs --worktree <that build's worktree> --db <its sb_* DB>" \
+         node scripts/build-liveness.mjs --label <taskId> -- <build command…>
+
+   On the `end` event (only — it no-ops on `start`/`heartbeat`) it, for THAT
+   build's worktree: kills dev-stack procs whose cwd is under it, force-removes
+   the worktree (even with leftover untracked files like a copied `.env`) and
+   prunes, and drops each `--db` throwaway DB — refusing any name outside the
+   `sb_` namespace. It reuses the reaper's exact cwd discriminator, so the live
+   site (`:3000`/`:5173`, main-checkout cwd), the rustfs docker (`:9000`), and a
+   CONCURRENT build's worktree are never touched. Pass the same `SB_DB` you gave
+   `dev-stack.sh` as `--db` so its DB is reaped even if the stack was SIGKILLed
+   before its own trap could drop it. It **refuses to remove the worktree it is
+   running inside** (no self-delete) — so the parent runner still removes the
+   CURRENT build's worktree (layer 3); this hook reaps finished/OTHER builds.
+2. **Dev stack — trap-based, not happy-path.** Boot the browser-check stack via
    `scripts/dev-stack.sh` (api + vite on a throwaway port set + a throwaway
    `sb_*` DB). It installs `trap cleanup EXIT INT TERM`, so the stack is killed
    by its ports and the `sb_*` DB is dropped even on failure/interrupt. Never
    leave a stack running past the check — pass your browser command to the
    script (`scripts/dev-stack.sh <cmd>`) or ensure the trap fires.
-2. **Worktree — removed after finalize.** Once the task reaches `needs_review`,
+3. **Worktree — removed after finalize.** Once the task reaches `needs_review`,
    its build worktree must be removed so `.claude/worktrees/` does not
    accumulate: `git worktree remove --force <path>` then `git worktree prune`.
    (Agent worktrees auto-remove only when UNCHANGED; a build always has commits,
-   so it persists until removed.)
-3. **Safety reaper — start-of-run / periodic broom.** Run
+   so it persists until removed.) This is the parent runner's removal of the
+   CURRENT build's worktree — the one layer 1's hook refuses to self-delete.
+4. **Safety reaper — start-of-run / periodic broom.** Run
    `node scripts/reap-build-leaks.mjs` to see orphaned build processes and
    leftover worktrees; it is a **dry run by default (prints only)**. Add
    `--apply` to actually kill + prune.
@@ -177,10 +196,13 @@ stream whose `end.reason` is exactly one of `success | fail | timeout`.
   on stdout; set `BUILD_LIFECYCLE_HOOK=<cmd>` and it is ALSO invoked once per
   event with the event JSON in `$BUILD_EVENT` (fire-and-forget, never blocks the
   build). This is the shared seam the follow-ups consume — keep-claim-alive
-  stamps the MCP claim on each `heartbeat`; per-build resource-teardown reaps on
-  `end`. The pure decision core (`resolveConfig`, `evaluateLiveness`,
-  `classifyEnd`) is unit-tested in
-  `packages/server/__tests__/scripts/build-liveness.test.ts`.
+  stamps the MCP claim on each `heartbeat`; per-build resource-teardown
+  (`scripts/teardown-build.mjs`, wired as layer 1 of "Teardown per task" above)
+  reaps the build's worktree + dev stack on `end`. The pure decision core
+  (`resolveConfig`, `evaluateLiveness`, `classifyEnd`) is unit-tested in
+  `packages/server/__tests__/scripts/build-liveness.test.ts`; the teardown's
+  discriminators (`shouldAct`, `classifyTarget`, `classifyDb`) in
+  `packages/server/__tests__/scripts/teardown-build.test.ts`.
 
 ## Protocol per research turn (non-negotiable)
 
