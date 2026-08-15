@@ -17,15 +17,31 @@ import { groupTasksByArea } from '../v2/group-tasks';
 const TERMINAL = new Set<string>(TERMINAL_TASK_STATUSES);
 
 // Card + grid geometry. NODE_H is a layout estimate; the DOM card auto-sizes.
-export const PLAN_NODE_W = 232;
-const NODE_H = 96;
+export const PLAN_NODE_W = 256;
+const NODE_H = 104;
 const COL_W = 300;
-const ROW_H = 132;
-const LANE_PAD_TOP = 44;
-const LANE_PAD_BOTTOM = 20;
-const LANE_PAD_X = 20;
-const LANE_GAP = 26;
+const ROW_H = 152;
+const LANE_PAD_TOP = 48;
+const LANE_PAD_BOTTOM = 24;
+const LANE_PAD_X = 24;
+const LANE_GAP = 28;
 const CANVAS_PAD_X = 28;
+
+// When many tickets share one depth column (the common "nothing linked yet"
+// case, where every card is a depth-0 root), a single tall stack looks marooned
+// in a wide, empty canvas. Instead we wrap same-depth siblings into a small grid
+// so a lane reads full and intentional. Depth-0 gets the most spread; deeper
+// columns keep a tight single file so the left→right dependency flow stays
+// legible. GRID_COLS_ROOTLESS is the fill width when there are no edges at all.
+const GRID_COLS_ROOTLESS = 4;
+const GRID_COLS_WITH_EDGES = 2;
+
+/** Columns to spread a given depth's siblings across (1 = a single file). */
+function wrapColsFor(depth: number, hasEdges: boolean, siblings: number): number {
+  if (depth > 0) return 1;
+  const cap = hasEdges ? GRID_COLS_WITH_EDGES : GRID_COLS_ROOTLESS;
+  return Math.max(1, Math.min(cap, siblings));
+}
 
 /** '' is the untagged "no area" bucket — kept distinct from a named area. */
 export const areaKeyOf = (task: Task): string => task.area?.trim() ?? '';
@@ -129,7 +145,34 @@ export function buildPlanGraph(tasks: Task[]): PlanGraph {
   );
   const groups = groupTasksByArea(tasks); // [areaKey, tasks] busiest-first, no-area last
   const maxDepth = Math.max(0, ...[...depth.values()]);
-  const contentW = CANVAS_PAD_X + LANE_PAD_X + (maxDepth + 1) * COL_W + LANE_PAD_X;
+  const hasEdges = edges.length > 0;
+
+  // How wide (in grid slots) is each depth column? Depth 0 may wrap into several
+  // slots to fill the canvas; deeper columns stay a single file. We size each
+  // depth by the widest lane's stack at that depth, so every lane can wrap into
+  // the same slot grid and stay aligned left→right.
+  const stackAtDepth = new Map<number, number>();
+  for (const [area, groupTasks] of groups) {
+    void area;
+    const perCol = new Map<number, number>();
+    for (const task of groupTasks) {
+      const d = depth.get(task.id) ?? 0;
+      perCol.set(d, (perCol.get(d) ?? 0) + 1);
+    }
+    for (const [d, n] of perCol) stackAtDepth.set(d, Math.max(stackAtDepth.get(d) ?? 0, n));
+  }
+  const wrapCols = new Map<number, number>();
+  const slotStart = new Map<number, number>();
+  let slotCursor = 0;
+  for (let d = 0; d <= maxDepth; d++) {
+    const cols = wrapColsFor(d, hasEdges, stackAtDepth.get(d) ?? 1);
+    wrapCols.set(d, cols);
+    slotStart.set(d, slotCursor);
+    slotCursor += cols;
+  }
+  const totalSlots = Math.max(1, slotCursor);
+
+  const contentW = CANVAS_PAD_X + LANE_PAD_X + totalSlots * COL_W + LANE_PAD_X;
   const laneW = contentW - CANVAS_PAD_X * 2;
 
   const laneNodes: Node[] = [];
@@ -137,14 +180,19 @@ export function buildPlanGraph(tasks: Task[]): PlanGraph {
   let y = CANVAS_PAD_X;
 
   for (const [area, groupTasks] of groups) {
-    // Bucket this lane's tickets by depth column, stack siblings vertically.
+    // Bucket this lane's tickets by depth column.
     const perCol = new Map<number, Task[]>();
     for (const task of groupTasks) {
       const d = depth.get(task.id) ?? 0;
       (perCol.get(d) ?? perCol.set(d, []).get(d)!).push(task);
     }
-    const maxStack = Math.max(1, ...[...perCol.values()].map((c) => c.length));
-    const laneHeight = LANE_PAD_TOP + maxStack * ROW_H + LANE_PAD_BOTTOM;
+    // Each depth wraps into wrapCols[d] columns → its own row count; the lane is
+    // as tall as its deepest-stacked (most-wrapped) column.
+    const maxRows = Math.max(
+      1,
+      ...[...perCol].map(([d, list]) => Math.ceil(list.length / (wrapCols.get(d) ?? 1))),
+    );
+    const laneHeight = LANE_PAD_TOP + maxRows * ROW_H + LANE_PAD_BOTTOM;
     const color = laneColor(area);
     const laneId = `lane:${area}`;
 
@@ -166,16 +214,20 @@ export function buildPlanGraph(tasks: Task[]): PlanGraph {
       style: { width: laneW, height: laneHeight, zIndex: 0 },
     });
 
-    for (const [col, colTasks] of perCol) {
+    for (const [d, colTasks] of perCol) {
+      const cols = wrapCols.get(d) ?? 1;
+      const start = slotStart.get(d) ?? 0;
       colTasks.forEach((task, i) => {
+        const subCol = i % cols;
+        const row = Math.floor(i / cols);
         taskNodes.push({
           id: task.id,
           type: 'task',
           parentId: laneId,
           extent: 'parent',
           position: {
-            x: LANE_PAD_X + col * COL_W,
-            y: LANE_PAD_TOP + i * ROW_H,
+            x: LANE_PAD_X + (start + subCol) * COL_W,
+            y: LANE_PAD_TOP + row * ROW_H,
           },
           data: {
             kind: 'task',
