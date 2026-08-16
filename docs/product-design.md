@@ -79,6 +79,22 @@ always pulls the next legal task without being told the order. Nesting
 cannot express this — "build the API" and "build the UI" are not
 parent/child, they are sequenced — dependencies can.
 
+**"No unfinished dependencies" means every prerequisite is `done`, and only
+`done`.** `done` is the sole *satisfying* status (the single source is
+`DEPENDENCY_SATISFYING_STATUSES` in `@pkg/contracts`); a prerequisite that was
+killed never delivered its groundwork, so a `cancelled` dependency does **not**
+count as satisfied. To keep that from ever stranding a live task, **cancelling
+a task detaches it from its non-terminal dependents**: when a task moves to
+`cancelled`, every task that depends on it and is not itself terminal
+(`done`/`cancelled`) has that edge deleted and gets a `comment` recording that
+its dependency was cancelled and the edge removed automatically. So no active
+task is ever left waiting on a killed one, and the board shows no dead
+"tombstone" edge. Terminal dependents keep their edge — their history is
+settled and no queue decision rides on it. (The satisfying-status rule is the
+belt to that suspenders: should an edge linger — e.g. a `done →
+changes_requested` reopen that predates the detach — the dependent blocks
+rather than silently sailing through.)
+
 ### Comment
 
 The work log, typed:
@@ -207,7 +223,9 @@ Grouped by whose move it is:
   round-2 spec delta; recording fresh links over the merged round-1 PR
   auto-logs it to the activity thread and resets the live GitHub state
   for the new PR. Agents can never resurrect their own shipped work.
-- `cancelled` — terminal for everyone.
+- `cancelled` — terminal for everyone. Cancelling also **detaches the task
+  from its non-terminal dependents** (deletes those edges and comments on each),
+  so no live task is left depending on a killed one — see *Task dependency*.
 
 **Progress is not a status.** There is no `50%` or `almost_done`. Coarse
 status answers whose move it is; fine progress lives in ticked acceptance

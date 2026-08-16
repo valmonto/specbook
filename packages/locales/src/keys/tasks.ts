@@ -190,6 +190,14 @@ export const tasks = {
     confirm: 'tasks.actions.confirm',
   },
 
+  // Confirm dialog shown before cancelling a task that other live tasks depend on
+  cancelConfirm: {
+    title: 'tasks.cancelConfirm.title',
+    body: 'tasks.cancelConfirm.body',
+    confirm: 'tasks.cancelConfirm.confirm',
+    keep: 'tasks.cancelConfirm.keep',
+  },
+
   // Project automation modes
   mode: {
     label: 'tasks.mode.label',

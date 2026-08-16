@@ -22,7 +22,12 @@ import {
   type Task,
   type TaskComment,
 } from '@pkg/database';
-import { MERGE_DEBT_CAP, type TaskStatus } from '@pkg/contracts';
+import {
+  DEPENDENCY_SATISFYING_STATUSES,
+  MERGE_DEBT_CAP,
+  TERMINAL_TASK_STATUSES,
+  type TaskStatus,
+} from '@pkg/contracts';
 
 export interface ListTasksFilter {
   skip: number;
@@ -65,15 +70,23 @@ export class TaskRepository {
   }
 
   /**
-   * The agent queue predicate: no dependency still in a non-terminal status.
-   * Terminal (done/cancelled) unblocks — a cancelled prerequisite should not
-   * strand its dependents forever; removing the edge is the human's call.
+   * The agent queue predicate: every prerequisite is SATISFIED. Only `done`
+   * satisfies (DEPENDENCY_SATISFYING_STATUSES) — a killed prerequisite never
+   * delivered its groundwork, so a `cancelled` dependency does NOT unblock and
+   * is not silently treated as satisfied. The cancel path detaches the edge
+   * from every non-terminal dependent, so in normal flow no live task waits on
+   * a cancelled one; this predicate is the belt to that suspenders (a lingering
+   * edge blocks rather than sails through). Single source: @pkg/contracts.
    */
   private noUnfinishedDependencies() {
+    const satisfying = sql.join(
+      DEPENDENCY_SATISFYING_STATUSES.map((s) => sql`${s}`),
+      sql`, `,
+    );
     return sql`NOT EXISTS (
       SELECT 1 FROM task_dependency d
       JOIN task dep ON dep.id = d.depends_on_task_id
-      WHERE d.task_id = ${task.id} AND dep.status NOT IN ('done', 'cancelled')
+      WHERE d.task_id = ${task.id} AND dep.status NOT IN (${satisfying})
     )`;
   }
 
@@ -360,6 +373,51 @@ export class TaskRepository {
       .returning({ taskId: taskDependency.taskId });
 
     return result.length > 0;
+  }
+
+  /**
+   * The NON-terminal dependents of a task (tasks that depend on it and are not
+   * done/cancelled) — the set the cancel path must detach so no live task is
+   * left waiting on a killed prerequisite. Org-scoped: the dependent is joined
+   * to its project on `org_id`, so a task id from another org resolves to none.
+   */
+  async findNonTerminalDependents(
+    dependsOnTaskId: string,
+    orgId: string,
+  ): Promise<DependencyInfoRow[]> {
+    const terminal = sql.join(
+      TERMINAL_TASK_STATUSES.map((s) => sql`${s}`),
+      sql`, `,
+    );
+    return this.dbClient.db
+      .select({ id: task.id, title: task.title, status: task.status })
+      .from(taskDependency)
+      .innerJoin(task, eq(task.id, taskDependency.taskId))
+      .innerJoin(project, and(eq(task.projectId, project.id), eq(project.orgId, orgId)))
+      .where(
+        and(
+          eq(taskDependency.dependsOnTaskId, dependsOnTaskId),
+          sql`${task.status} NOT IN (${terminal})`,
+        ),
+      );
+  }
+
+  /**
+   * Delete the dependency edges pointing at `dependsOnTaskId` from the given
+   * dependent tasks — the detach half of the cancel path. The dependent ids
+   * come from an org-scoped read (findNonTerminalDependents), so this delete
+   * stays inside the tenant by construction.
+   */
+  async detachDependents(dependsOnTaskId: string, dependentTaskIds: string[]): Promise<void> {
+    if (dependentTaskIds.length === 0) return;
+    await this.dbClient.db
+      .delete(taskDependency)
+      .where(
+        and(
+          eq(taskDependency.dependsOnTaskId, dependsOnTaskId),
+          inArray(taskDependency.taskId, dependentTaskIds),
+        ),
+      );
   }
 
   async findDependencyInfo(taskId: string): Promise<DependencyInfoRow[]> {

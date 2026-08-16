@@ -168,6 +168,50 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
     ).rejects.toThrow();
   });
 
+  it('cancelling a prerequisite detaches its non-terminal dependents and comments on each', async () => {
+    const a = await makeTask(projA, ownerA, 'A'); // prerequisite, ready
+    const b = await makeTask(projA, ownerA, 'B'); // depends on A, ready (live)
+    const c = await makeTask(projA, ownerA, 'C'); // depends on A, then made done
+    await service.addDependency(as(ownerA, orgA), { id: b, dependsOnTaskId: a });
+    await service.addDependency(as(ownerA, orgA), { id: c, dependsOnTaskId: a });
+    // C is a TERMINAL dependent — its edge must be left intact (settled history).
+    await client.db.update(task).set({ status: 'done' }).where(eq(task.id, c));
+
+    await service.transition(as(ownerA, orgA), 'user', { id: a, to: 'cancelled' });
+
+    // The live dependent's edge is gone; the done dependent keeps its edge.
+    const edges = await client.db.select().from(taskDependency);
+    expect(edges.map((e) => e.taskId).sort()).toEqual([c]);
+
+    // B carries a comment naming the cancelled dependency.
+    const comments = await repo.findComments(b);
+    expect(
+      comments.some(
+        (cm) => cm.body.includes('A') && cm.body.toLowerCase().includes('cancel'),
+      ),
+    ).toBe(true);
+
+    // B no longer waits on anything, so it rejoins the queue (A/C are terminal).
+    expect(await availableTitles(orgA)).toEqual(['B']);
+  });
+
+  it('a done prerequisite satisfies the queue; a lingering cancelled one never silently does', async () => {
+    // done → satisfies: the dependent enters the queue.
+    const a = await makeTask(projA, ownerA, 'A');
+    const b = await makeTask(projA, ownerA, 'B');
+    await service.addDependency(as(ownerA, orgA), { id: b, dependsOnTaskId: a });
+    await client.db.update(task).set({ status: 'done' }).where(eq(task.id, a));
+    expect(await availableTitles(orgA)).toContain('B');
+
+    // A lingering cancelled edge (e.g. surviving a done→changes_requested reopen)
+    // must BLOCK, not silently satisfy — only `done` counts as satisfying.
+    const c = await makeTask(projA, ownerA, 'C');
+    const d = await makeTask(projA, ownerA, 'D'); // ready, depends on C
+    await client.db.insert(taskDependency).values({ taskId: d, dependsOnTaskId: c });
+    await client.db.update(task).set({ status: 'cancelled' }).where(eq(task.id, c));
+    expect(await availableTitles(orgA)).not.toContain('D');
+  });
+
   it('findEdgeSummaries returns both directions for the owner, and stays inside the org', async () => {
     const a = await makeTask(projA, ownerA, 'A'); // prerequisite
     const b = await makeTask(projA, ownerA, 'B'); // depends on A

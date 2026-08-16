@@ -95,8 +95,27 @@ export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
 /** Statuses that count as "the human's move" — the daily dashboard filter. */
 export const HUMAN_COURT_STATUSES = ['blocked', 'needs_review', 'approved'] as const;
 
-/** Terminal statuses: no transitions out, excluded from dependency blocking. */
+/** Terminal statuses: no transitions out. A terminal task is never a live
+ *  dependent, so cancelling a prerequisite leaves its terminal dependents
+ *  untouched (their history stays intact) — see DEPENDENCY_SATISFYING_STATUSES
+ *  for how a *non*-terminal dependent is handled. */
 export const TERMINAL_TASK_STATUSES = ['done', 'cancelled'] as const;
+
+/**
+ * Dependency statuses that SATISFY a prerequisite — a dependent may enter the
+ * agent queue only once every prerequisite it waits on is in this set. `done`
+ * = the prerequisite shipped, which is the only thing that satisfies.
+ *
+ * `cancelled` is deliberately NOT here: a killed prerequisite never delivered
+ * anything, so treating it as satisfied is a foot-gun (a dependent would sail
+ * into the queue as if its groundwork were done). The cancel path DETACHES the
+ * edge from every non-terminal dependent, so in normal operation no active
+ * task is left depending on a cancelled one; this set is the belt to that
+ * suspenders — should an edge linger (e.g. a `done → changes_requested` reopen
+ * that predates the detach), the dependent BLOCKS rather than silently
+ * proceeding. Single source: the queue predicate in @pkg/api reads from here.
+ */
+export const DEPENDENCY_SATISFYING_STATUSES = ['done'] as const;
 
 /**
  * Merge debt cap: when a project holds this many `approved` (merged-pending)
