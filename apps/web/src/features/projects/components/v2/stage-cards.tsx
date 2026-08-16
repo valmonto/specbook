@@ -44,6 +44,7 @@ import {
 import { useProjectReadOnly } from './read-only-context';
 import { markSingleTaskReady } from './mark-ready-menu';
 import { TaskDetail, type TaskDetailProps } from '../task-detail';
+import { CancelTaskDialog, liveDependents } from '../cancel-task-dialog';
 
 /**
  * The v2 task rows: an accordion where the EXPANDED ROW IS the task detail.
@@ -301,6 +302,7 @@ function RowMenu({ task }: { task: Task }) {
   const transition = useTransitionTask();
   const markReady = useMarkReady();
   const deleteTask = useDeleteTask();
+  const [confirmCancel, setConfirmCancel] = useState(false);
   if (readOnly || isTerminal(task)) return null;
 
   const go = async (to: 'ready' | 'draft' | 'cancelled') => {
@@ -313,6 +315,14 @@ function RowMenu({ task }: { task: Task }) {
     }
     const res = await transition.execute({ id: task.id, to });
     if (res.e) toast.error(t(res.e.message));
+  };
+
+  // Cancelling a task with LIVE dependents severs those edges — warn and list
+  // them first; with none, cancel outright.
+  const cancelDependents = liveDependents(task);
+  const requestCancel = () => {
+    if (cancelDependents.length > 0) setConfirmCancel(true);
+    else void go('cancelled');
   };
   const busy = transition.isLoading || markReady.isLoading || deleteTask.isLoading;
   const dispatchBlocked =
@@ -333,43 +343,55 @@ function RowMenu({ task }: { task: Task }) {
     moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-          aria-label={t(k.tasks.actions.cancelTask)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {moves.map((m) => (
-          <DropdownMenuItem
-            key={m.labelKey}
-            disabled={busy || m.disabled}
-            title={m.hint}
-            onClick={() => void go(m.to)}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+            aria-label={t(k.tasks.actions.cancelTask)}
+            onClick={(e) => e.stopPropagation()}
           >
-            {t(m.labelKey)}
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {moves.map((m) => (
+            <DropdownMenuItem
+              key={m.labelKey}
+              disabled={busy || m.disabled}
+              title={m.hint}
+              onClick={() => void go(m.to)}
+            >
+              {t(m.labelKey)}
+            </DropdownMenuItem>
+          ))}
+          {task.status === 'draft' && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              disabled={busy}
+              onClick={() => void deleteTask.execute({ id: task.id })}
+            >
+              {t(k.tasks.actions.deleteDraft)}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem disabled={busy} onClick={requestCancel}>
+            {t(k.tasks.actions.cancelTask)}
           </DropdownMenuItem>
-        ))}
-        {task.status === 'draft' && (
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            disabled={busy}
-            onClick={() => void deleteTask.execute({ id: task.id })}
-          >
-            {t(k.tasks.actions.deleteDraft)}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem disabled={busy} onClick={() => void go('cancelled')}>
-          {t(k.tasks.actions.cancelTask)}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CancelTaskDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        dependents={cancelDependents}
+        isLoading={transition.isLoading}
+        onConfirm={() => {
+          setConfirmCancel(false);
+          void go('cancelled');
+        }}
+      />
+    </>
   );
 }
 

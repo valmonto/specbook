@@ -360,6 +360,14 @@ export class TaskService {
       });
     }
 
+    // Cancelling severs live edges: a cancelled prerequisite delivered nothing,
+    // so every non-terminal dependent is detached and told why. This guarantees
+    // no active task is left waiting on a killed task (the "silently satisfied"
+    // foot-gun), and no dangling tombstone edge remains on the board.
+    if (dto.to === 'cancelled') {
+      await this.detachCancelledDependents(activeUser, actor, updated);
+    }
+
     this.logger.info({ taskId: dto.id, from, to: dto.to, actor }, 'Task transitioned');
 
     // The loop's throughput is bounded by how fast the human notices their
@@ -405,6 +413,45 @@ export class TaskService {
     }
 
     return this.serialize(updated);
+  }
+
+  /**
+   * The cancel fan-out: detach the just-cancelled task from each of its
+   * non-terminal dependents and record a comment on each so the reason is on
+   * the activity log. Terminal dependents (done/cancelled) keep their edge —
+   * their history is settled and no queue decision rides on it. Org-scoped: the
+   * dependent set comes from an org-scoped read, so a foreign task is untouched.
+   */
+  private async detachCancelledDependents(
+    activeUser: ActiveUser,
+    actor: TaskAuthorType,
+    cancelled: Task,
+  ): Promise<void> {
+    const dependents = await this.taskRepository.findNonTerminalDependents(
+      cancelled.id,
+      activeUser.orgId,
+    );
+    if (dependents.length === 0) return;
+
+    await this.taskRepository.detachDependents(
+      cancelled.id,
+      dependents.map((d) => d.id),
+    );
+
+    for (const dependent of dependents) {
+      await this.taskRepository.createComment({
+        taskId: dependent.id,
+        authorId: activeUser.userId,
+        authorType: actor,
+        kind: 'comment',
+        body: `Dependency "${cancelled.title}" was cancelled — the dependency was removed automatically.`,
+      });
+    }
+
+    this.logger.info(
+      { taskId: cancelled.id, detached: dependents.length },
+      'Cancelled task detached from its non-terminal dependents',
+    );
   }
 
   /**

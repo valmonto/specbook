@@ -43,6 +43,7 @@ import {
   useUpdateTask,
 } from '../hooks/use-projects';
 import { AttachmentsSection } from './attachments-section';
+import { CancelTaskDialog, liveDependents } from './cancel-task-dialog';
 import { DependencyEditor } from './dependency-editor';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { markSingleTaskReady } from './v2/mark-ready-menu';
@@ -848,6 +849,7 @@ function MovesFooter({
   const markReady = useMarkReady();
   const update = useUpdateTask();
   const [priority, setPriority] = useState(String(task.priority));
+  const [confirmCancel, setConfirmCancel] = useState(false);
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
   if (isTerminal(task)) return null;
 
@@ -860,6 +862,14 @@ function MovesFooter({
     }
     const res = await transition.execute({ id: task.id, to });
     if (res.e) toast.error(t(res.e.message));
+  };
+
+  // Cancelling a task other LIVE tasks depend on severs those edges server-side.
+  // Warn first, listing the affected dependents; with none, cancel outright.
+  const cancelDependents = liveDependents(task);
+  const requestCancel = () => {
+    if (cancelDependents.length > 0) setConfirmCancel(true);
+    else void go('cancelled');
   };
 
   const savePriority = async () => {
@@ -884,6 +894,7 @@ function MovesFooter({
   const busy = transition.isLoading || markReady.isLoading || update.isLoading;
 
   return (
+    <>
     <div className="flex flex-wrap items-center gap-2 border-t pt-3">
       {moves.map((m) => (
         <Button
@@ -915,7 +926,7 @@ function MovesFooter({
           variant="outline"
           className="text-destructive"
           disabled={busy}
-          onClick={() => void go('cancelled')}
+          onClick={requestCancel}
         >
           {t(k.tasks.actions.deleteDraft)}
         </Button>
@@ -926,7 +937,7 @@ function MovesFooter({
           variant="ghost"
           className="text-muted-foreground"
           disabled={busy}
-          onClick={() => void go('cancelled')}
+          onClick={requestCancel}
         >
           {t(k.tasks.actions.cancelTask)}
         </Button>
@@ -963,6 +974,17 @@ function MovesFooter({
         />
       </label>
     </div>
+    <CancelTaskDialog
+      open={confirmCancel}
+      onOpenChange={setConfirmCancel}
+      dependents={cancelDependents}
+      isLoading={transition.isLoading}
+      onConfirm={() => {
+        setConfirmCancel(false);
+        void go('cancelled');
+      }}
+    />
+    </>
   );
 }
 
