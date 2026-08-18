@@ -23,8 +23,10 @@ import {
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
+  resolveDeployDir,
   scrubDeployText,
   seedEnvDefaults,
+  generateSeedPassword,
   DEPLOYMENT_QUEUE,
   GithubAppService,
   InjectLogger,
@@ -208,7 +210,7 @@ export class DeploymentProcessor extends WorkerHost {
     await this.update(row.id, { status: 'deploying', domain: env.domain ?? null, phase: 'render' });
     sink.line('== render: .env + compose + proxy ==');
     const publicPort = derivePublicPort(unit);
-    const dir = env.deployPath?.replace(/\/+$/, '') || `apps/${unit}`;
+    const dir = resolveDeployDir(env.deployPath, unit);
     const userEnv = env.userEnvEnc
       ? (JSON.parse(this.secrets.open(env.userEnvEnc)) as Record<string, string>)
       : {};
@@ -294,7 +296,10 @@ export class DeploymentProcessor extends WorkerHost {
           platformEnv,
           userEnvNames,
           domain: env.domain ?? null,
-          generate: generateSecret,
+          // The seed login must satisfy the app's password policy (upper +
+          // lower + digit + special); the alphanumeric generateSecret would
+          // fail it. generateSecret still wires the URL-embedded secrets.
+          generate: generateSeedPassword,
         }),
       );
       await this.dbClient.db

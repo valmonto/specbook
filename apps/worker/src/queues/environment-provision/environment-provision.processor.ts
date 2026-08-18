@@ -13,6 +13,7 @@ import {
 } from '@pkg/database';
 import {
   dataPlaneUnitName,
+  resolveDeployDir,
   InjectLogger,
   PinoLogger,
   SecretsService,
@@ -92,6 +93,12 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
       const platformEnv = (env.platformEnv ?? {}) as Record<string, string>;
       const unitPassword = this.passwordFromUrl(platformEnv.DATABASE_URL, unit) ?? generatePassword();
       await this.ssh.exec(target, 'data-plane-provision-unit', [unit], unitPassword + '\n');
+
+      // Make the deploy directory exist and be writable by the SSH user NOW,
+      // so the first deploy's render phase never hits deployPathNotWritable.
+      // Same resolver the deploy slice uses, so both agree on the path.
+      const deployDir = resolveDeployDir(env.deployPath, unit);
+      await this.ssh.exec(target, 'ensure-deploy-path', [deployDir, srv.sshUser]);
 
       // The wiring the deploy slice renders: container-DNS on the
       // specbook-data network — nothing is published on host ports.

@@ -13,6 +13,37 @@ while IFS= read -r dir; do
 done
 echo "ensure-dirs: ok"
 `,
+  /**
+   * v1: guarantee the environment's deploy directory exists and is OWNED by
+   * the SSH deploy user, so the very first deploy's render phase can write
+   * .env/compose.yml/nginx.conf into it. Run at provision time — the fix for
+   * the `deployPathNotWritable` trap, where an operator points deployPath at
+   * an absolute, root-owned location (e.g. /srv/<app>) the deploy user cannot
+   * mkdir into, and every first deploy fails until someone chowns it by hand.
+   *
+   * $1 = directory, $2 = deploy user. A path under the deploy user's HOME (the
+   * default `apps/<unit>`) is made and already owned by them — no privilege
+   * used. Only an absolute path under a root-owned parent needs the one-time
+   * sudo mkdir + chown; that assumes passwordless sudo for the deploy user on
+   * a managed app server, the SAME standing the docker ops already require.
+   */
+  'ensure-deploy-path': `#!/usr/bin/env bash
+set -euo pipefail
+dir="\${1:?usage: ensure-deploy-path <dir> <user>}"
+user="\${2:?usage: ensure-deploy-path <dir> <user>}"
+[[ "$user" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo "invalid user" >&2; exit 1; }
+# Prefer the unprivileged path: a HOME-relative or already-writable dir needs
+# nothing more, and re-provisioning an existing dir is a no-op.
+if ! mkdir -p -- "$dir" 2>/dev/null; then
+  sudo mkdir -p -- "$dir"
+fi
+# Hand ownership over only when it isn't already the deploy user's (a dir the
+# user just created already is, so this skips sudo in the common case).
+if [ "$(stat -c '%U' -- "$dir")" != "$user" ]; then
+  sudo chown "$user" -- "$dir"
+fi
+echo "ensure-deploy-path: ok"
+`,
   /** v1: probe $1 until it answers 2xx or attempts run out (read-only). */
   'health-check': `#!/usr/bin/env bash
 set -euo pipefail

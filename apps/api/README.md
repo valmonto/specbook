@@ -265,11 +265,16 @@ network, one shared Postgres (`specbook-postgres`, persistent volume, root
 password generated once and sealed onto the server row — write-only like all
 sealed columns), a per-environment Postgres role+database named
 `<project>_<env>` (strictly `[a-z][a-z0-9_]*`, derived server-side), and a
-dedicated `specbook-redis-<unit>` container. Nothing is published on host
-ports — apps reach the plane by container DNS on the shared network, which is
-the contract the deploy slice consumes. Deleting an environment enqueues a
-best-effort teardown from a pre-delete snapshot; a dead server never blocks
-deletion.
+dedicated `specbook-redis-<unit>` container. It also creates the
+environment's **deploy directory** and hands ownership to the server's SSH
+user (`ensure-deploy-path`), so the first deploy's render phase can write
+into an absolute path (e.g. `/srv/<app>`) without hitting
+`deployPathNotWritable` — the default `apps/<unit>` under the user's HOME
+needs nothing privileged, an absolute root-owned parent takes a one-time
+`sudo mkdir`+`chown`. Nothing is published on host ports — apps reach the
+plane by container DNS on the shared network, which is the contract the
+deploy slice consumes. Deleting an environment enqueues a best-effort
+teardown from a pre-delete snapshot; a dead server never blocks deletion.
 
 **Deploying** builds on the same plane: `POST …/environments/:id/deploy`
 (human-only — no MCP tool) records a `deployment` row and the worker runs the
@@ -327,7 +332,11 @@ First deploys are **self-seeding**: the valmatic template refuses to boot in
 production without `SEED_INITIAL_EMAIL` / `SEED_INITIAL_PASSWORD`, so the
 worker generates them alongside the IAM secrets when no layer defines them —
 email `admin@<environment domain>` (falling back to `admin@staging.local`),
-password random. They persist in platform_env, readable by design (same
+password random but policy-compliant: it is generated to always include
+lowercase, uppercase, a digit and a special character (the template enforces
+that policy on the seed too, so a bare-alphanumeric password would be
+rejected and leave the box un-loginable). They persist in platform_env,
+readable by design (same
 tradeoff class as the database password above): that credential pair IS the
 login the human uses to enter the fresh staging. Setting either as a user
 secret before the first deploy wins — the generated value is only minted
