@@ -269,6 +269,7 @@ function EnvironmentRow({
             ))}
           <AutoDeployChip env={env} projectId={projectId} canManage={canManage} />
           <span
+            onClick={(e) => e.stopPropagation()}
             className={cn(
               'inline-flex items-center rounded-md px-2 py-0.5 text-xs',
               provisionStyles[env.provisionStatus],
@@ -285,8 +286,8 @@ function EnvironmentRow({
                   : undefined
               }
               onClick={(e) => {
-                if (!latest.log && !deployInFlight) return;
                 e.stopPropagation();
+                if (!latest.log && !deployInFlight) return;
                 setShowLog((s) => !s);
               }}
               className={cn(
@@ -305,8 +306,8 @@ function EnvironmentRow({
               role={latest.log ? 'button' : undefined}
               title={latest.log ? t(showLog ? k.environments.hideLog : k.environments.showLog) : undefined}
               onClick={(e) => {
-                if (!latest.log) return;
                 e.stopPropagation();
+                if (!latest.log) return;
                 setShowLog((s) => !s);
               }}
               className={cn('text-xs text-muted-foreground', latest.log && 'cursor-pointer hover:text-foreground')}
@@ -323,6 +324,7 @@ function EnvironmentRow({
             href={env.publicUrl}
             target="_blank"
             rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
           >
             <ExternalLink className="size-3" />
@@ -335,7 +337,10 @@ function EnvironmentRow({
             variant="ghost"
             className="h-7 gap-1 px-2 text-xs text-muted-foreground"
             disabled={deploy.isLoading}
-            onClick={runDeploy}
+            onClick={(e) => {
+              e.stopPropagation();
+              runDeploy();
+            }}
           >
             <Rocket className="size-3" />
             {t(k.environments.deployAction)}
@@ -347,7 +352,10 @@ function EnvironmentRow({
             variant="ghost"
             className="h-7 gap-1 px-2 text-xs text-muted-foreground"
             disabled={provision.isLoading}
-            onClick={runProvision}
+            onClick={(e) => {
+              e.stopPropagation();
+              runProvision();
+            }}
           >
             <RefreshCw className="size-3" />
             {t(
@@ -363,7 +371,10 @@ function EnvironmentRow({
             variant="ghost"
             aria-label={t(k.environments.removeEnvironment)}
             className="size-7 text-muted-foreground"
-            onClick={() => setConfirmingRemove(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setConfirmingRemove(true);
+            }}
           >
             <Trash2 className="size-3.5" />
           </Button>
