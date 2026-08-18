@@ -13,4 +13,6 @@ export * from './ssh';
 export * from './deploy/render';
 export * from './deploy/auto-deploy';
 export * from './deploy/deploy-log';
+export * from './deploy/deploy-path';
 export * from './deploy/seed-env';
+export * from './deploy/seed-password';

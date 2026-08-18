@@ -57,4 +57,28 @@ describe('seedEnvDefaults', () => {
     expect(out).toContain('SEED_INITIAL_EMAIL=me@real.example');
     expect(out).not.toContain('admin@staging.local');
   });
+
+  // Precedence contract for the seed-cred override path (a Secret with the
+  // same name as a platform variable). It holds at BOTH layers the worker
+  // stacks, so a user's SEED_INITIAL_PASSWORD Secret always wins:
+  it('a same-named Secret overrides the platform seed value, at both layers', () => {
+    // Layer 1 — seed skips the name entirely when the user secret defines it,
+    // so no platform value is ever generated to compete.
+    const added = seedEnvDefaults({
+      platformEnv: {},
+      userEnvNames: ['SEED_INITIAL_PASSWORD'],
+      domain: null,
+      generate,
+    });
+    expect(added).not.toHaveProperty('SEED_INITIAL_PASSWORD');
+
+    // Layer 2 — even against an ALREADY-persisted platform value, the render
+    // order [platform, user, …] lets the user Secret override it in the .env.
+    const out = renderDeployEnv([
+      { SEED_INITIAL_PASSWORD: 'platform-generated' },
+      { SEED_INITIAL_PASSWORD: 'operator-secret' },
+    ]);
+    expect(out).toContain('SEED_INITIAL_PASSWORD=operator-secret');
+    expect(out).not.toContain('platform-generated');
+  });
 });
