@@ -18,6 +18,15 @@ import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from '@/components/ui/combobox';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -84,6 +93,15 @@ export default function ProjectCreatePage() {
     () => repos.find((r) => String(r.id) === repoChoice) ?? null,
     [repos, repoChoice],
   );
+
+  // The repo picker is a searchable typeahead over the already-loaded list.
+  // A repo is a plain list item (filtered by fullName); the two actions —
+  // "Create new repository" and "Enter URL manually" — are pinned sentinels
+  // that live outside the filtered collection, so they never filter away.
+  type RepoItem = (typeof repos)[number];
+  type RepoOption = RepoItem | typeof CREATE_NEW | typeof MANUAL;
+  const repoValue: RepoOption =
+    creating ? CREATE_NEW : repoChoice === MANUAL ? MANUAL : (pickedRepo ?? MANUAL);
 
   // Branches load live once an existing repo is picked; its default wins
   // unless the user picks another.
@@ -204,30 +222,54 @@ export default function ProjectCreatePage() {
       {/* Repository */}
       <section className="grid gap-2">
         <h4 className={SECTION}>{t(k.tasks.repository)}</h4>
-        <Select value={repoChoice} onValueChange={pickRepo}>
-          <SelectTrigger className="max-w-md">
-            <SelectValue placeholder={t(k.tasks.repoPickerPlaceholder)} />
-          </SelectTrigger>
-          <SelectContent>
-            {canCreateRepo && (
-              <SelectItem value={CREATE_NEW}>
-                <span className="flex items-center gap-1.5">
+        <Combobox<RepoOption>
+          items={repos}
+          value={repoValue}
+          onValueChange={(value) => {
+            if (value === CREATE_NEW) pickRepo(CREATE_NEW);
+            else if (value === MANUAL) pickRepo(MANUAL);
+            else if (value) pickRepo(String(value.id));
+          }}
+          itemToStringLabel={(value) =>
+            value === CREATE_NEW
+              ? t(k.tasks.repoCreateNew)
+              : value === MANUAL
+                ? t(k.tasks.repoManualUrl)
+                : value.fullName
+          }
+        >
+          <ComboboxInput
+            className="max-w-md"
+            placeholder={t(k.tasks.repoPickerPlaceholder)}
+            aria-label={t(k.tasks.repository)}
+          />
+          <ComboboxContent>
+            <ComboboxList>
+              {/* Pinned action — always visible, never filtered. */}
+              {canCreateRepo && (
+                <ComboboxItem value={CREATE_NEW} className="gap-1.5">
                   <Sparkles className="size-3 text-muted-foreground" />
                   {t(k.tasks.repoCreateNew)}
-                </span>
-              </SelectItem>
-            )}
-            {repos.map((repo) => (
-              <SelectItem key={repo.id} value={String(repo.id)}>
-                <span className="flex items-center gap-1.5">
-                  <code className="font-mono text-xs">{repo.fullName}</code>
-                  {repo.private && <Lock className="size-3 text-muted-foreground" />}
-                </span>
-              </SelectItem>
-            ))}
-            <SelectItem value={MANUAL}>{t(k.tasks.repoManualUrl)}</SelectItem>
-          </SelectContent>
-        </Select>
+                </ComboboxItem>
+              )}
+              {/* The filtered repo list (match on fullName). */}
+              <ComboboxCollection>
+                {(repo: RepoItem) => (
+                  <ComboboxItem key={repo.id} value={repo} className="gap-1.5">
+                    <code className="font-mono text-xs">{repo.fullName}</code>
+                    {repo.private && <Lock className="size-3 text-muted-foreground" />}
+                  </ComboboxItem>
+                )}
+              </ComboboxCollection>
+              {/* No repo matches the query — the pinned actions stay above/below. */}
+              <ComboboxEmpty>{t(k.common.command.noResults)}</ComboboxEmpty>
+              {/* Pinned action — always visible, never filtered. */}
+              <ComboboxItem value={MANUAL} className="gap-1.5">
+                {t(k.tasks.repoManualUrl)}
+              </ComboboxItem>
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
 
         {repoChoice === MANUAL && (
           <input
