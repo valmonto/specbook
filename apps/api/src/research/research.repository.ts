@@ -6,6 +6,7 @@ import {
   research,
   researchMessage,
   task,
+  user,
   eq,
   and,
   count,
@@ -15,6 +16,7 @@ import {
   ilike,
   isNull,
   sql,
+  getTableColumns,
   type NewResearch,
   type NewResearchMessage,
   type Research,
@@ -37,6 +39,9 @@ export interface ListResearchFilter {
   status?: ResearchStatus;
   q?: string;
 }
+
+/** A list-feed row: the research columns plus the joined author identity. */
+export type ResearchListRow = Research & { createdByName: string; createdByEmail: string };
 
 export interface ListMessagesFilter {
   /** The last message id a page returned (messages page ascending). */
@@ -77,7 +82,7 @@ export class ResearchRepository {
   async list(
     orgId: string,
     filter: ListResearchFilter,
-  ): Promise<{ data: Research[]; nextCursor: ResearchCursor | null }> {
+  ): Promise<{ data: ResearchListRow[]; nextCursor: ResearchCursor | null }> {
     const conditions = [eq(research.orgId, orgId)];
     if (filter.projectId) conditions.push(eq(research.projectId, filter.projectId));
     if (filter.scope === 'org') conditions.push(isNull(research.projectId));
@@ -90,9 +95,18 @@ export class ResearchRepository {
       );
     }
 
+    // Join the author's identity for the card's "by {name}" chip. `created_by`
+    // is a non-null FK with onDelete: 'restrict', so the author always exists —
+    // an inner join adds no rows and drops none. Tenancy is unchanged: the WHERE
+    // still pins org_id on `research`; the join only reaches a user by primary key.
     const rows = await this.dbClient.db
-      .select()
+      .select({
+        ...getTableColumns(research),
+        createdByName: user.name,
+        createdByEmail: user.email,
+      })
       .from(research)
+      .innerJoin(user, eq(user.id, research.createdBy))
       .where(and(...conditions))
       .orderBy(desc(research.updatedAt), desc(research.id))
       .limit(filter.limit + 1);

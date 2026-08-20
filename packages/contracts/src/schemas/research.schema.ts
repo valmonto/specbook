@@ -50,6 +50,14 @@ export const ResearchSchema = z.object({
   /** Bumped every time the agent publishes a new draft. */
   version: z.number().int(),
   createdBy: z.string().uuid(),
+  /**
+   * The author's display name / email, joined from `user` on `created_by`.
+   * Populated on the list feed (where cards show "by {name}"); optional so the
+   * single-document GET and the write endpoints, which serialize a bare
+   * research row without the join, stay schema-valid.
+   */
+  createdByName: z.string().optional(),
+  createdByEmail: z.string().optional(),
   acceptedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),

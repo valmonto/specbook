@@ -101,7 +101,11 @@ export class ResearchService {
       q: dto.q,
     });
     return {
-      data: data.map((r) => this.serialize(r)),
+      data: data.map((r) => ({
+        ...this.serialize(r),
+        createdByName: r.createdByName,
+        createdByEmail: r.createdByEmail,
+      })),
       meta: { nextCursor: nextCursor ? this.encodeCursor(nextCursor) : null },
     };
   }

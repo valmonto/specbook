@@ -4,34 +4,13 @@ import { ChevronRight, ShieldX } from 'lucide-react';
 import type { OrganizationUserRole, OrgUser } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
+import { initials, tintFor } from '@/shared/lib/avatar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { useUser, useUsers } from '../hooks/use-users';
 import { UserDetail } from './user-detail';
 import { UserDetailSkeleton } from './user-detail-skeleton';
 import { UserListSkeleton } from './user-list-skeleton';
-
-// Two-letter initials from a name (falls back to the email's first char).
-function initials(name: string, email: string) {
-  const [first, last] = name.trim().split(/\s+/);
-  if (first) return (last ? `${first[0]}${last[0]}` : first.slice(0, 2)).toUpperCase();
-  return (email[0] ?? 'U').toUpperCase();
-}
-
-// Deterministic avatar tint from the id so each person keeps a stable color.
-const avatarTints = [
-  'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300',
-  'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300',
-  'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-  'bg-rose-500/15 text-rose-600 dark:text-rose-300',
-  'bg-sky-500/15 text-sky-600 dark:text-sky-300',
-  'bg-violet-500/15 text-violet-600 dark:text-violet-300',
-];
-function tintFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return avatarTints[h % avatarTints.length];
-}
 
 // Role pills — owner stands out (indigo), the rest stay muted.
 const roleStyles: Record<OrganizationUserRole, string> = {
