@@ -35,6 +35,9 @@ export interface ListTasksFilter {
   projectId?: string;
   status?: TaskStatus;
   available?: boolean;
+  /** "My tasks": restrict to rows assigned to this user id (resolved from the
+   *  session, never the payload). Org scoping still rides on the project join. */
+  assigneeId?: string;
 }
 
 export interface DependencyInfoRow {
@@ -183,6 +186,7 @@ export class TaskRepository {
     const conditions = [eq(project.orgId, orgId)];
     if (filter.projectId) conditions.push(eq(task.projectId, filter.projectId));
     if (filter.status) conditions.push(eq(task.status, filter.status));
+    if (filter.assigneeId) conditions.push(eq(task.assignee, filter.assigneeId));
     if (filter.available) {
       // changes_requested is fed alongside ready: review rejections and
       // done-task reopens both carry their spec delta as the latest human

@@ -861,4 +861,116 @@ describe('TaskService — the status protocol', () => {
       }),
     );
   });
+
+  // --- The human worker lane: an assignee is an executor, never a reviewer ---
+
+  describe('human worker lane', () => {
+    // The intern acts as a plain user (actor 'user'), identified as the task's
+    // assignee. AGENT is reused as that member's user id.
+    const member: ActiveUser = { userId: AGENT, orgId: ORG, orgRole: 'MEMBER', systemRole: 'USER' };
+    const humanTask = (over: Record<string, unknown> = {}) =>
+      taskInState({ isHumanTask: true, assignee: AGENT, ...over });
+
+    it('the assignee may submit their in-progress human task for review with a linked PR', async () => {
+      repo.findById!.mockResolvedValue(
+        humanTask({ status: 'in_progress', claimedBy: AGENT, branch: 'feat/x', prUrl: 'https://gh/pr/1' }),
+      );
+      const res = await service.transition(member, 'user', { id: TASK, to: 'needs_review' });
+      expect(res.status).toBe('needs_review');
+      // The owner reviews — a human task never auto-merges, even were CI green.
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('the assignee cannot request review without a linked PR (the human review gate)', async () => {
+      repo.findById!.mockResolvedValue(
+        humanTask({ status: 'in_progress', claimedBy: AGENT, prUrl: null }),
+      );
+      await expect(
+        service.transition(member, 'user', { id: TASK, to: 'needs_review' }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('the assignee cannot approve their own human task (not in their transition map)', async () => {
+      repo.findById!.mockResolvedValue(humanTask({ status: 'needs_review', prUrl: 'https://gh/pr/1' }));
+      await expect(
+        service.transition(member, 'user', { id: TASK, to: 'approved' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('the owner approves a green human task WITHOUT it auto-merging (owner merges the intern’s PR)', async () => {
+      projectRepo.findById!.mockResolvedValue({
+        id: PROJECT,
+        orgId: ORG,
+        mode: 'auto',
+        autoPausedAt: null,
+        githubRepoFullName: 'valmonto/specbook',
+        defaultBranch: 'main',
+      });
+      const green = humanTask({
+        status: 'needs_review',
+        branch: 'feat/x',
+        prUrl: 'https://gh/pr/1',
+        prNumber: 1,
+        ciState: 'passing',
+      });
+      repo.findById!.mockResolvedValue(green);
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) => ({ ...green, ...patch }));
+
+      const res = await service.transition(human, 'user', { id: TASK, to: 'approved' });
+      expect(res.status).toBe('approved');
+      // The isHumanTask gate holds it out of auto-merge despite mode=auto + green.
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('a non-member assignee is rejected at create and update', async () => {
+      // findOrgMemberIds returns [USER, AGENT]; OTHER is not a member.
+      await expect(
+        service.create(human, { projectId: PROJECT, title: 'T', assignee: OTHER }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      repo.findById!.mockResolvedValue(humanTask({ status: 'ready' }));
+      await expect(
+        service.update(human, { id: TASK, assignee: OTHER }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  // --- Sync PR (pull-on-click): merged → done, closed → flagged ---
+
+  describe('syncPr', () => {
+    beforeEach(() => {
+      projectRepo.findById!.mockResolvedValue({
+        id: PROJECT,
+        orgId: ORG,
+        mode: 'manual',
+        autoPausedAt: null,
+        githubRepoFullName: 'valmonto/specbook',
+        defaultBranch: 'main',
+      });
+    });
+
+    it('a merged PR advances the task to done and records a sync comment', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review', prNumber: 7, branch: 'feat/x' }));
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ number: 7, state: 'merged' });
+      const res = await service.syncPr(human, { id: TASK });
+      expect(res.status).toBe('done');
+      expect(res.prState).toBe('merged');
+      expect(repo.createComment).toHaveBeenCalled();
+    });
+
+    it('a closed-unmerged PR is flagged, NOT completed', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review', prNumber: 8, branch: 'feat/x' }));
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ number: 8, state: 'closed' });
+      const res = await service.syncPr(human, { id: TASK });
+      expect(res.status).not.toBe('done');
+      expect(res.prState).toBe('closed');
+      expect(repo.createComment).toHaveBeenCalled();
+    });
+
+    it('refuses to sync a task with no linked branch or PR', async () => {
+      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', prNumber: null, branch: null }));
+      await expect(service.syncPr(human, { id: TASK })).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+    });
+  });
 });

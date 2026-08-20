@@ -17,6 +17,11 @@ export const projectsRoutes: RouteObject[] = [
     lazy: () => import('./projects.page').then((m) => ({ Component: m.default })),
   },
   {
+    // The human worker lane inbox: tasks assigned to the current user.
+    path: 'my-tasks',
+    lazy: () => import('./my-tasks.page').then((m) => ({ Component: m.default })),
+  },
+  {
     path: 'projects/create',
     lazy: () => import('./project-create.page').then((m) => ({ Component: m.default })),
   },

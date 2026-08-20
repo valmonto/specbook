@@ -25,6 +25,7 @@ import {
   FolderKanban,
   KeyRound,
   Inbox,
+  ClipboardList,
   Telescope,
 } from 'lucide-react';
 
@@ -38,6 +39,7 @@ const navGroups = [
     labelKey: k.common.nav.management,
     items: [
       { titleKey: k.tasks.dashboard.title, url: '/', icon: Inbox },
+      { titleKey: k.tasks.myTasks, url: '/my-tasks', icon: ClipboardList },
       { titleKey: k.tasks.projects, url: '/projects', icon: FolderKanban },
       { titleKey: k.research.title, url: '/research', icon: Telescope },
       { titleKey: k.common.nav.settings, url: '/settings', icon: Settings },

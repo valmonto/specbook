@@ -7,10 +7,13 @@ import {
   ExternalLink,
   GitBranch,
   GitMerge,
+  ListPlus,
   Loader2,
   MessageCircleQuestion,
   MessageSquare,
+  Play,
   Plus,
+  RefreshCw,
   RotateCcw,
   SendHorizontal,
   TriangleAlert,
@@ -18,7 +21,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import type { AcceptanceCriterion, Task } from '@pkg/contracts';
+import type { AcceptanceCriterion, Task, TaskStatus } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,20 +37,25 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   useAddComment,
   useClearAssumption,
+  useCreateTask,
   useMarkReady,
   useMergeTask,
+  useOrgMembers,
   useProjectAreas,
+  useSyncTaskPr,
   useTask,
   useTaskPr,
   useTransitionTask,
   useUpdateTask,
 } from '../hooks/use-projects';
+import { useAuth } from '@/shared/auth/auth-context';
+import { useCan } from '@/shared/hooks/use-permissions';
 import { AttachmentsSection } from './attachments-section';
 import { CancelTaskDialog, liveDependents } from './cancel-task-dialog';
 import { DependencyEditor } from './dependency-editor';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { markSingleTaskReady } from './v2/mark-ready-menu';
-import { CostLine } from './github-state-badges';
+import { CostLine, CiStateDot, PrStateBadge } from './github-state-badges';
 
 /**
  * The ONE task-detail body, shared by the project board's expanded row and the
@@ -417,6 +425,195 @@ function WorkLinks({ task }: { task: Task }) {
 }
 
 /**
+ * The human worker lane assignee row: owners/admins (who can list users) get a
+ * dropdown to assign the task to a member; everyone else sees a read-only label
+ * ("assigned to you" / a name when resolvable). Only rendered on human tasks —
+ * agent tasks have no assignee. Assignment is a plain task:update, so a member
+ * gains no review power from it.
+ */
+function AssigneeRow({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const update = useUpdateTask();
+  const readOnly = useProjectReadOnly();
+  const canListUsers = useCan('user:list');
+  const { data: members } = useOrgMembers();
+  if (!task.isHumanTask) return null;
+
+  const editable = !isTerminal(task) && !readOnly && canListUsers;
+  const nameOf = (id: string | null): string => {
+    if (!id) return t(k.tasks.unassigned);
+    const m = members?.data.find((u) => u.id === id);
+    if (m) return m.displayName || m.name;
+    if (id === user?.id) return t(k.tasks.detail.you);
+    return t(k.tasks.assignee);
+  };
+
+  const save = async (value: string) => {
+    const res = await update.execute({ id: task.id, assignee: value || null });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className={SECTION_HEADING}>
+        <UserRound className="size-3.5" />
+        {t(k.tasks.assignee)}
+      </span>
+      {editable ? (
+        <select
+          value={task.assignee ?? ''}
+          disabled={update.isLoading}
+          onChange={(e) => void save(e.target.value)}
+          className="rounded-md bg-muted/50 px-2 py-1 text-xs outline-none hover:bg-muted/70 focus:bg-muted/70"
+        >
+          <option value="">{t(k.tasks.assignPlaceholder)}</option>
+          {members?.data.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.displayName || m.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="font-medium text-foreground">{nameOf(task.assignee)}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Pull-on-click PR sync (human worker lane). Reflects the linked PR's live
+ * state from GitHub onto the task: merged → done, closed → flagged, open →
+ * refreshed. CI shows "unknown" when the token can't read checks. Only on human
+ * tasks (agent tasks are webhook-fed). Safe for the member assignee — the
+ * GitHub call is a read.
+ */
+function PrSyncRow({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const sync = useSyncTaskPr();
+  const readOnly = useProjectReadOnly();
+  if (!task.isHumanTask || (!task.branch && !task.prUrl)) return null;
+
+  const doSync = async () => {
+    const res = await sync.execute({ id: task.id });
+    if (res.e) {
+      toast.error(t(res.e.message));
+      return;
+    }
+    const state = res.d?.prState;
+    toast.success(
+      state === 'merged'
+        ? t(k.tasks.sync.merged)
+        : state === 'closed'
+          ? t(k.tasks.sync.closed)
+          : t(k.tasks.sync.open),
+    );
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      {task.prState && <PrStateBadge task={task} />}
+      {task.prState && !task.ciState ? (
+        <span className="text-muted-foreground">{t(k.tasks.detail.ciUnknown)}</span>
+      ) : (
+        <CiStateDot task={task} />
+      )}
+      <span className="text-muted-foreground tabular-nums">
+        {task.prSyncedAt ? t(k.tasks.detail.syncedAgo, { when: ago(task.prSyncedAt) }) : t(k.tasks.detail.neverSynced)}
+      </span>
+      {readOnly ? null : (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          disabled={sync.isLoading}
+          onClick={() => void doSync()}
+        >
+          <RefreshCw className={cn('size-3.5 mr-1', sync.isLoading && 'animate-spin')} />
+          {t(k.tasks.actions.sync)}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The assignee's executor moves on their own human task: start work, and
+ * request the owner's review (which the server refuses without a linked PR).
+ * These are the human mirror of the agent's ready→in_progress→needs_review —
+ * an assignee can never approve/merge (state machine + permissions both block).
+ */
+function AssigneeActions({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const transition = useTransitionTask();
+  if (!task.isHumanTask || task.assignee !== user?.id) return null;
+
+  const move = async (to: TaskStatus, comment?: string) => {
+    const res = await transition.execute({ id: task.id, to, comment });
+    if (res.e) toast.error(t(res.e.message));
+  };
+
+  const canStart = task.status === 'ready' || task.status === 'changes_requested';
+  const canReview = task.status === 'in_progress';
+  const needsPr = canReview && !task.prUrl;
+  if (!canStart && !canReview) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+      {canStart && (
+        <Button size="sm" disabled={transition.isLoading} onClick={() => void move('in_progress')}>
+          <Play className="size-4 mr-1" />
+          {t(k.tasks.actions.startWork)}
+        </Button>
+      )}
+      {canReview && (
+        <Button
+          size="sm"
+          disabled={transition.isLoading || needsPr}
+          title={needsPr ? t(k.tasks.errors.humanReviewGate) : undefined}
+          onClick={() => void move('needs_review')}
+        >
+          <SendHorizontal className="size-4 mr-1" />
+          {t(k.tasks.actions.submitForReview)}
+        </Button>
+      )}
+      {needsPr && (
+        <span className="text-xs text-muted-foreground">{t(k.tasks.errors.humanReviewGate)}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The teaching-loop "curriculum" action: from a task under review, the owner
+ * spins up a follow-up draft in the same project (carrying the same assignee
+ * and human-task lane), pre-titled from this one. What the review revealed
+ * becomes the next task.
+ */
+function CreateFollowUpButton({ task }: { task: Task }) {
+  const { t } = useTranslation();
+  const create = useCreateTask();
+  const make = async () => {
+    const res = await create.execute({
+      projectId: task.projectId,
+      title: t(k.tasks.followUpPrefix, { title: task.title }),
+      context: `Follow-up from "${task.title}".`,
+      isHumanTask: task.isHumanTask,
+      assignee: task.assignee ?? undefined,
+    });
+    if (res.e) toast.error(t(res.e.message));
+    else toast.success(t(k.tasks.followUpCreated));
+  };
+  return (
+    <Button size="sm" variant="outline" disabled={create.isLoading} onClick={() => void make()}>
+      <ListPlus className="size-4 mr-1" />
+      {t(k.tasks.actions.createFollowUp)}
+    </Button>
+  );
+}
+
+/**
  * Dependencies: the full relationship section — the "Depends on" editor
  * (add/remove your own edges) and the read-only "Blocks" list (the reverse
  * edge, edited from the other end). Both live in {@link DependencyEditor} so
@@ -704,6 +901,8 @@ function ReviewActions({ task }: { task: Task }) {
       >
         {t(k.tasks.actions.requestChanges)}
       </Button>
+      {/* Human tasks are the teaching loop — spin the follow-up from the review. */}
+      {task.isHumanTask && <CreateFollowUpButton task={task} />}
       <span className="text-xs text-muted-foreground">
         {ciFailing ? t(k.tasks.v2.mergeBlockedCi) : mergeable ? t(k.tasks.v2.ciGreenHint) : null}
       </span>
@@ -853,6 +1052,12 @@ function MovesFooter({
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
   if (isTerminal(task)) return null;
 
+  // On a human task the assignee drives status from AssigneeActions (start work,
+  // request review) and the owner reviews/reassigns — the agent-oriented
+  // re-queue/back-to-draft/reset-claim owner moves aren't part of that lane, so
+  // hide them here (the state machine would reject them for the assignee anyway).
+  const isHuman = task.isHumanTask;
+
   const go = async (to: 'ready' | 'draft' | 'cancelled') => {
     // Dispatching a draft cascades: mark-ready also promotes transitive draft
     // prerequisites and toasts any it pulled in. No confirmation — direct action.
@@ -885,10 +1090,11 @@ function MovesFooter({
     task.status === 'draft' && (!task.context?.trim() || task.acceptanceCriteria.length === 0);
   const moves: Array<{ labelKey: string; to: 'ready' | 'draft' }> = [];
   if (task.status === 'draft') moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
-  if (task.status === 'ready') moves.push({ labelKey: k.tasks.actions.backToDraft, to: 'draft' });
-  if (task.status === 'in_progress')
+  if (!isHuman && task.status === 'ready')
+    moves.push({ labelKey: k.tasks.actions.backToDraft, to: 'draft' });
+  if (!isHuman && task.status === 'in_progress')
     moves.push({ labelKey: k.tasks.actions.resetClaim, to: 'ready' });
-  if (task.status === 'changes_requested')
+  if (!isHuman && task.status === 'changes_requested')
     moves.push({ labelKey: k.tasks.actions.markReady, to: 'ready' });
 
   const busy = transition.isLoading || markReady.isLoading || update.isLoading;
@@ -1082,8 +1288,13 @@ export function TaskDetail({ task, landInHeader = false, destructiveInMenu = fal
       />
       <AreaEditor task={task} />
       <CriteriaEditor task={task} />
+      {/* Human worker lane surfaces only mount on human tasks — agent tasks are
+          unchanged, so their render path (and tests) never touch these hooks. */}
+      {task.isHumanTask && <AssigneeRow task={task} />}
       <WorkLinks task={task} />
+      {task.isHumanTask && <PrSyncRow task={task} />}
       <CostLine task={task} />
+      {readOnly || !task.isHumanTask ? null : <AssigneeActions task={task} />}
       {readOnly ? null : <StageActions task={task} landInHeader={landInHeader} />}
       <AttachmentsSection taskId={task.id} readOnly={readOnly} />
       <DependenciesSection taskId={task.id} />

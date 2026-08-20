@@ -480,6 +480,10 @@ export class GithubWebhookProcessor extends WorkerHost {
           ),
           inArray(task.status, ['needs_review', 'approved']),
           eq(task.ciState, 'passing'),
+          // Human worker lane: a human task never auto-approves or auto-merges —
+          // the owner reviews and the intern merges his own PR. Excluded here so
+          // a late CI-green webhook can't sweep it through the auto engine.
+          eq(task.isHumanTask, false),
         ),
       );
 

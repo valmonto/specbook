@@ -64,6 +64,11 @@ export const task = pgTable(
     priority: integer('priority').notNull().default(0),
     claimedBy: uuid('claimed_by').references(() => user.id, { onDelete: 'set null' }),
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    // The human worker lane: the member user this task is assigned to. Nullable
+    // (most tasks are agent-run and unassigned); ON DELETE SET NULL so removing
+    // a member never deletes their work. Org-scoping rides on the owning project
+    // (tasks carry no org_id), same as every other task query.
+    assignee: uuid('assignee').references(() => user.id, { onDelete: 'set null' }),
     branch: varchar('branch', { length: 255 }),
     prUrl: varchar('pr_url', { length: 500 }),
     // Live GitHub state, written only by the webhook worker (varchar + CHECK
@@ -117,6 +122,8 @@ export const task = pgTable(
     index('task_project_status_idx').on(table.projectId, table.status, table.priority),
     // The board's group-by-area read: distinct areas within a project.
     index('task_project_area_idx').on(table.projectId, table.area),
+    // The "My tasks" read: a member's assigned tasks across the org.
+    index('task_assignee_idx').on(table.assignee),
     check(
       'task_status_check',
       sql.raw(`status IN (${TASK_STATUSES.map((v) => `'${v}'`).join(', ')})`),

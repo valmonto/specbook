@@ -77,6 +77,23 @@ export const tasks = {
   humanTask: 'tasks.humanTask',
   humanTaskToggle: 'tasks.humanTaskToggle',
 
+  // Human worker lane: assign a task to a member, and their "My tasks" view.
+  assignee: 'tasks.assignee',
+  assignPlaceholder: 'tasks.assignPlaceholder',
+  unassigned: 'tasks.unassigned',
+  myTasks: 'tasks.myTasks',
+  myTasksDescription: 'tasks.myTasksDescription',
+  myTasksEmpty: 'tasks.myTasksEmpty',
+  // Follow-up task from a review (the teaching-loop "curriculum" action).
+  followUpPrefix: 'tasks.followUpPrefix',
+  followUpCreated: 'tasks.followUpCreated',
+  // On-demand PR sync (pull-on-click) toasts.
+  sync: {
+    merged: 'tasks.sync.merged',
+    closed: 'tasks.sync.closed',
+    open: 'tasks.sync.open',
+  },
+
   // Assumption flag: a reversible judgment call the agent shipped on instead of
   // hard-blocking. Chip on the board row; full record + Clear in the detail.
   assumption: {
@@ -183,6 +200,11 @@ export const tasks = {
     markMerged: 'tasks.actions.markMerged',
     requestChanges: 'tasks.actions.requestChanges',
     reopenWithFeedback: 'tasks.actions.reopenWithFeedback',
+    // Human worker lane executor + owner actions.
+    startWork: 'tasks.actions.startWork',
+    submitForReview: 'tasks.actions.submitForReview',
+    sync: 'tasks.actions.sync',
+    createFollowUp: 'tasks.actions.createFollowUp',
     cancelTask: 'tasks.actions.cancelTask',
     deleteDraft: 'tasks.actions.deleteDraft',
     feedbackPlaceholder: 'tasks.actions.feedbackPlaceholder',
@@ -303,6 +325,10 @@ export const tasks = {
     branch: 'tasks.detail.branch',
     prUrl: 'tasks.detail.prUrl',
     openPr: 'tasks.detail.openPr',
+    // Human worker lane PR sync surface.
+    ciUnknown: 'tasks.detail.ciUnknown',
+    syncedAgo: 'tasks.detail.syncedAgo',
+    neverSynced: 'tasks.detail.neverSynced',
     comments: 'tasks.detail.comments',
     noComments: 'tasks.detail.noComments',
     commentPlaceholder: 'tasks.detail.commentPlaceholder',
@@ -353,6 +379,9 @@ export const tasks = {
     mergeNoPr: 'tasks.errors.mergeNoPr',
     dispatchGate: 'tasks.errors.dispatchGate',
     reviewGate: 'tasks.errors.reviewGate',
+    humanReviewGate: 'tasks.errors.humanReviewGate',
+    syncNoPr: 'tasks.errors.syncNoPr',
+    assigneeNotMember: 'tasks.errors.assigneeNotMember',
     costNotClaimant: 'tasks.errors.costNotClaimant',
     assumptionNotClaimant: 'tasks.errors.assumptionNotClaimant',
     noteHumanOnly: 'tasks.errors.noteHumanOnly',
