@@ -6,6 +6,7 @@ import { jobsResource } from '@/features/jobs';
 import { notificationsResource } from '@/features/notifications';
 import { projectsResource } from '@/features/projects';
 import { researchResource } from '@/features/research';
+import { invitationsResource } from '@/features/invitations';
 
 export const api = {
   user: userResource(http),
@@ -15,4 +16,5 @@ export const api = {
   notifications: notificationsResource(http),
   projects: projectsResource(http),
   research: researchResource(http),
+  invitations: invitationsResource(http),
 };

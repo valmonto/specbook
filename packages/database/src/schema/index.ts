@@ -7,6 +7,7 @@ export * from './organization';
 export * from './organization-user';
 export * from './notification';
 export * from './api-key';
+export * from './invitation';
 export * from './project';
 export * from './server';
 export * from './environment';
