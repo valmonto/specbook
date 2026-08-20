@@ -5,6 +5,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectService } from '@/tasks/project.service';
 import type { ProjectRepository } from '@/tasks/project.repository';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
 import type { OrgService } from '@/org/org.service';
 import type { GithubAppService } from '@pkg/server';
 import type { TaskService } from '@/tasks/task.service';
@@ -76,6 +77,7 @@ describe('ProjectService — repo provisioning', () => {
     taskService = { create: vi.fn().mockResolvedValue({ id: 't1' }) };
     service = new ProjectService(
       repository as unknown as ProjectRepository,
+      {} as unknown as ProjectMemberRepository,
       orgService as unknown as OrgService,
       github as unknown as GithubAppService,
       taskService as unknown as TaskService,

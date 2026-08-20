@@ -51,7 +51,7 @@ export class AttachmentsService {
     activeUser: ActiveUser,
     dto: CreateAttachmentUploadRequest,
   ): Promise<CreateAttachmentUploadResponse> {
-    await this.requireSubject(dto.subjectType, dto.subjectId, activeUser.orgId);
+    await this.requireSubject(dto.subjectType, dto.subjectId, activeUser);
 
     // Subject policy: which kinds this subject accepts at all.
     if (!attachmentKindAllowed(dto.subjectType, dto.kind)) {
@@ -113,6 +113,9 @@ export class AttachmentsService {
   async confirm(activeUser: ActiveUser, dto: ConfirmAttachmentRequest): Promise<Attachment> {
     const row = await this.repository.findById(dto.id, activeUser.orgId);
     if (!row) throw new NotFoundException(k.attachments.errors.notFound);
+    // Visibility gate: a scoped member confirming an attachment on a task in a
+    // project they can no longer see is a NotFound, not a silent pass-through.
+    await this.requireSubject(row.subjectType, row.subjectId, activeUser);
     if (row.status === 'uploaded') return this.serialize(row);
 
     const head = await this.storage.headObject({ bucket: row.bucket, key: this.keyOf(row) });
@@ -158,7 +161,7 @@ export class AttachmentsService {
   }
 
   async list(activeUser: ActiveUser, dto: ListAttachmentsRequest): Promise<ListAttachmentsResponse> {
-    await this.requireSubject(dto.subjectType, dto.subjectId, activeUser.orgId);
+    await this.requireSubject(dto.subjectType, dto.subjectId, activeUser);
 
     const rows = await this.repository.listUploadedBySubject(
       activeUser.orgId,
@@ -174,12 +177,18 @@ export class AttachmentsService {
     if (!row || row.status !== 'uploaded') {
       throw new NotFoundException(k.attachments.errors.notFound);
     }
+    // The direct-id leak path: a signed read URL is the file itself, so the
+    // subject's visibility MUST be enforced here — org membership alone is not
+    // enough once projects are scoped. A member without the grant gets a 404.
+    await this.requireSubject(row.subjectType, row.subjectId, activeUser);
     return this.withReadUrls(row);
   }
 
   async delete(activeUser: ActiveUser, dto: DeleteAttachmentRequest): Promise<void> {
     const row = await this.repository.findById(dto.id, activeUser.orgId);
     if (!row) throw new NotFoundException(k.attachments.errors.notFound);
+    // A scoped member cannot delete an attachment on a project they can't see.
+    await this.requireSubject(row.subjectType, row.subjectId, activeUser);
 
     // Best-effort object deletes; the soft-deleted row is the sweep's
     // safety net if storage is unreachable right now.
@@ -218,11 +227,17 @@ export class AttachmentsService {
     };
   }
 
-  private async requireSubject(subjectType: string, subjectId: string, orgId: string): Promise<void> {
+  private async requireSubject(
+    subjectType: string,
+    subjectId: string,
+    activeUser: ActiveUser,
+  ): Promise<void> {
     const resolver = this.subjects[subjectType as keyof SubjectResolvers];
     if (!resolver) throw new BadRequestException(k.attachments.errors.unknownSubject);
-    const exists = await resolver(subjectId, orgId);
-    if (!exists) throw new NotFoundException(k.attachments.errors.subjectNotFound);
+    // The resolver is an ACCESS check: it answers "may this caller reach this
+    // subject", enforcing both org scoping and the per-project grant.
+    const accessible = await resolver(subjectId, activeUser);
+    if (!accessible) throw new NotFoundException(k.attachments.errors.subjectNotFound);
   }
 
   private keyOf(row: AttachmentRow, blobId?: string): string {

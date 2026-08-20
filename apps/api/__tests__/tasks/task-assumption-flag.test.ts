@@ -15,6 +15,7 @@ import { afterAll, beforeEach, expect, it } from 'vitest';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { TaskRepository } from '@/tasks/task.repository';
 import { ProjectRepository } from '@/tasks/project.repository';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository';
 import { TaskService } from '@/tasks/task.service';
 import type { NotificationService } from '@/notifications/notification.service';
 import type { OrgService } from '@/org/org.service';
@@ -33,6 +34,7 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
   const service = new TaskService(
     repo,
     new ProjectRepository(client),
+    new ProjectMemberRepository(client),
     { create: async () => undefined } as unknown as NotificationService,
     {} as OrgService,
     { enabled: false } as unknown as GithubAppService,
@@ -51,7 +53,9 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
   const asUser = (userId: string, orgId: string): ActiveUser => ({
     userId,
     orgId,
-    orgRole: 'MEMBER',
+    // All-access principal (owner): these suites predate per-project scoping
+    // and exercise the agent court via the `actor` param, not the org role.
+    orgRole: 'OWNER',
     systemRole: 'USER',
   });
 

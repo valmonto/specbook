@@ -103,6 +103,10 @@ export class ApiKeyService {
           orgId: row.orgId,
           orgRole: standing.orgRole as ActiveUser['orgRole'],
           systemRole: standing.systemRole as ActiveUser['systemRole'],
+          // A machine identity. This is what keeps the dispatch runner (and any
+          // agent) org-wide even when the key's owner is a MEMBER: the
+          // project-visibility layer scopes humans only, never agents.
+          isAgent: true,
         };
       }
     }

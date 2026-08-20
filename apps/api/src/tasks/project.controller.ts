@@ -26,6 +26,15 @@ import {
   type ResumeProjectResponse,
   type UpdateProjectRequest,
   type UpdateProjectResponse,
+  GrantProjectAccessRequestSchema,
+  ListProjectMembersRequestSchema,
+  RevokeProjectAccessRequestSchema,
+  type GrantProjectAccessRequest,
+  type GrantProjectAccessResponse,
+  type ListProjectMembersRequest,
+  type ListProjectMembersResponse,
+  type RevokeProjectAccessRequest,
+  type RevokeProjectAccessResponse,
 } from '@pkg/contracts';
 import { ProjectService } from './project.service';
 
@@ -121,5 +130,36 @@ export class ProjectController {
   ): Promise<DeleteProjectResponse> {
     await this.projectService.delete(activeUser, dto.id);
     return {};
+  }
+
+  // --- Per-project visibility ACL (owner/admin only) ---
+  // Specbook's OWN visibility plane; the returned githubReminder REFLECTS the
+  // need to add a repo collaborator but never grants it.
+
+  @Get(':id/members')
+  @Permissions('project:grant-access')
+  async listMembers(
+    @ZodRequest(ListProjectMembersRequestSchema) dto: ListProjectMembersRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ListProjectMembersResponse> {
+    return this.projectService.listMembers(activeUser, dto.id);
+  }
+
+  @Post(':id/members')
+  @Permissions('project:grant-access')
+  async grantAccess(
+    @ZodRequest(GrantProjectAccessRequestSchema) dto: GrantProjectAccessRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GrantProjectAccessResponse> {
+    return this.projectService.grantAccess(activeUser, dto.id, dto.userId);
+  }
+
+  @Delete(':id/members/:userId')
+  @Permissions('project:grant-access')
+  async revokeAccess(
+    @ZodRequest(RevokeProjectAccessRequestSchema) dto: RevokeProjectAccessRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<RevokeProjectAccessResponse> {
+    return this.projectService.revokeAccess(activeUser, dto.id, dto.userId);
   }
 }

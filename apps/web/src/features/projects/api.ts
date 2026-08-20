@@ -34,6 +34,12 @@ import type {
   DeleteTaskResponse,
   GetProjectByIdRequest,
   GetProjectByIdResponse,
+  GrantProjectAccessRequest,
+  GrantProjectAccessResponse,
+  ListProjectMembersRequest,
+  ListProjectMembersResponse,
+  RevokeProjectAccessRequest,
+  RevokeProjectAccessResponse,
   GetTaskByIdRequest,
   GetTaskByIdResponse,
   GetTaskPrRequest,
@@ -89,6 +95,14 @@ export const projectsResource = (client: HttpClient) => ({
     client.post(`/api/projects/${dto.id}/unarchive`, {}),
   resumeProject: (dto: ResumeProjectRequest): Promise<ResumeProjectResponse> =>
     client.post(`/api/projects/${dto.id}/resume`, {}),
+
+  // Per-project visibility ACL (owner/admin): who may SEE this project.
+  listProjectMembers: (dto: ListProjectMembersRequest): Promise<ListProjectMembersResponse> =>
+    client.get(`/api/projects/${dto.id}/members`),
+  grantProjectAccess: (dto: GrantProjectAccessRequest): Promise<GrantProjectAccessResponse> =>
+    client.post(`/api/projects/${dto.id}/members`, { userId: dto.userId }),
+  revokeProjectAccess: (dto: RevokeProjectAccessRequest): Promise<RevokeProjectAccessResponse> =>
+    client.delete(`/api/projects/${dto.id}/members/${dto.userId}`),
 
   // Agents (the fleet strip + managed lifecycle)
   listAgents: (): Promise<ListAgentsResponse> => client.get('/api/agents'),

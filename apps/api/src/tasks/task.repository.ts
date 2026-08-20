@@ -73,6 +73,22 @@ export class TaskRepository {
   }
 
   /**
+   * The per-project visibility layer, BELOW org scoping. `restrictMemberId`
+   * present = a human MEMBER whose reads are confined to granted projects
+   * (deny-by-default). Absent = OWNER/ADMIN or an agent — no restriction. A
+   * task carries no org/grant of its own, so the grant is checked on its owning
+   * project. The caller derives the id via isProjectScopedIdentity, so a
+   * machine identity is never scoped and the runner stays sighted.
+   */
+  private memberScope(restrictMemberId: string | undefined) {
+    if (!restrictMemberId) return undefined;
+    return sql`EXISTS (
+      SELECT 1 FROM project_member pm
+      WHERE pm.project_id = ${task.projectId} AND pm.user_id = ${restrictMemberId}
+    )`;
+  }
+
+  /**
    * The agent queue predicate: every prerequisite is SATISFIED. Only `done`
    * satisfies (DEPENDENCY_SATISFYING_STATUSES) — a killed prerequisite never
    * delivered its groundwork, so a `cancelled` dependency does NOT unblock and
@@ -182,11 +198,14 @@ export class TaskRepository {
   async findForOrg(
     orgId: string,
     filter: ListTasksFilter,
+    restrictMemberId?: string,
   ): Promise<{ data: TaskWithSource[]; total: number }> {
     const conditions = [eq(project.orgId, orgId)];
     if (filter.projectId) conditions.push(eq(task.projectId, filter.projectId));
     if (filter.status) conditions.push(eq(task.status, filter.status));
     if (filter.assigneeId) conditions.push(eq(task.assignee, filter.assigneeId));
+    const memberScope = this.memberScope(restrictMemberId);
+    if (memberScope) conditions.push(memberScope);
     if (filter.available) {
       // changes_requested is fed alongside ready: review rejections and
       // done-task reopens both carry their spec delta as the latest human
@@ -249,7 +268,7 @@ export class TaskRepository {
     return rows.map((r) => r.area!).filter((a): a is string => a !== null);
   }
 
-  async findById(id: string, orgId: string): Promise<TaskWithSource | null> {
+  async findById(id: string, orgId: string, restrictMemberId?: string): Promise<TaskWithSource | null> {
     const [row] = await this.dbClient.db
       .select({ task, sourceResearchTitle: research.title })
       .from(task)
@@ -258,7 +277,7 @@ export class TaskRepository {
         research,
         and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)),
       )
-      .where(and(eq(task.id, id), eq(project.orgId, orgId)))
+      .where(and(eq(task.id, id), eq(project.orgId, orgId), this.memberScope(restrictMemberId)))
       .limit(1);
 
     return row ? { ...row.task, sourceResearchTitle: row.sourceResearchTitle } : null;

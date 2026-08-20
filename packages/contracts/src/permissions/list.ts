@@ -45,6 +45,7 @@ export const PERMISSIONS = [
   'project:create',
   'project:update',
   'project:delete',
+  'project:grant-access', // Grant/revoke a member's per-project visibility (owner/admin)
 
   // Task permissions
   'task:list',

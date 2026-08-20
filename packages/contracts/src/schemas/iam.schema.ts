@@ -22,6 +22,17 @@ export const ActiveUserSchema = z.object({
   userId: z.string().uuid(),
   orgRole: z.enum(ORGANIZATION_USER_ROLES),
   systemRole: z.enum(SYSTEM_ROLES),
+  /**
+   * True when the caller is a MACHINE identity — an MCP API key acting as its
+   * owner. Set server-side at key verification only (never carried in a token
+   * or a request payload); absent/false for every human session.
+   *
+   * Read by the project-visibility layer: agent identities keep ORG-WIDE
+   * visibility so the dispatch runner can see every project to dispatch, while
+   * human MEMBER users are scoped to their granted projects. Getting this wrong
+   * blinds the runner — see isProjectScopedIdentity.
+   */
+  isAgent: z.boolean().optional(),
 });
 
 export type ActiveUser = z.infer<typeof ActiveUserSchema>;

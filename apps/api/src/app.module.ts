@@ -27,6 +27,7 @@ import { ServerModule } from './servers';
 import { EnvironmentModule } from './environments';
 import { AgentModule } from './agents';
 import { AttachmentsModule } from './attachments';
+import { isProjectScopedIdentity } from '@pkg/contracts';
 import type { SubjectResolvers } from './attachments/attachment.tokens';
 import { TaskRepository } from './tasks/task.repository';
 import { ApiKeyModule } from './api-key';
@@ -123,7 +124,16 @@ import { validateEnv } from './config';
         useFactory: (...args: unknown[]): SubjectResolvers => {
           const tasks = args[0] as TaskRepository;
           return {
-            task: async (subjectId, orgId) => (await tasks.findById(subjectId, orgId)) !== null,
+            // Access check, not existence: a human MEMBER only reaches a task
+            // whose project they were granted (the same scoped findById the
+            // task surface uses); OWNER/ADMIN and agents pass unrestricted. This
+            // is what closes the attachment leak on list, direct :id and read-url.
+            task: async (subjectId, activeUser) =>
+              (await tasks.findById(
+                subjectId,
+                activeUser.orgId,
+                isProjectScopedIdentity(activeUser) ? activeUser.userId : undefined,
+              )) !== null,
           };
         },
       },

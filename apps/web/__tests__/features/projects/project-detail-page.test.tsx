@@ -41,6 +41,11 @@ const hooks = vi.hoisted(() => ({
   useProjectAreas: vi.fn(),
   useAddDependency: vi.fn(),
   useRemoveDependency: vi.fn(),
+  // The owner/admin project-access section (rendered on the page).
+  useProjectMembers: vi.fn(),
+  useOrgMembers: vi.fn(),
+  useGrantProjectAccess: vi.fn(),
+  useRevokeProjectAccess: vi.fn(),
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
@@ -107,6 +112,10 @@ beforeEach(() => {
   hooks.useTaskPr.mockReturnValue({ data: undefined, isLoading: false });
   hooks.useUnarchiveProject.mockReturnValue(makeAction());
   hooks.useProjectAreas.mockReturnValue({ data: { areas: [] } });
+  hooks.useProjectMembers.mockReturnValue({ data: { data: [], githubReminder: null } });
+  hooks.useOrgMembers.mockReturnValue({ data: { data: [] } });
+  hooks.useGrantProjectAccess.mockReturnValue(makeAction());
+  hooks.useRevokeProjectAccess.mockReturnValue(makeAction());
   hooks.useBlockedQuestions.mockReturnValue({ data: {} });
   hooks.useAddDependency.mockReturnValue(makeAction());
   hooks.useRemoveDependency.mockReturnValue(makeAction());

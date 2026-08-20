@@ -356,6 +356,19 @@ export const tasks = {
     notePending: 'tasks.detail.notePending',
   },
 
+  // Per-project visibility ACL (owner/admin surface)
+  access: {
+    title: 'tasks.access.title',
+    description: 'tasks.access.description',
+    addMember: 'tasks.access.addMember',
+    grantPlaceholder: 'tasks.access.grantPlaceholder',
+    noMembers: 'tasks.access.noMembers',
+    revoke: 'tasks.access.revoke',
+    allProjects: 'tasks.access.allProjects',
+    githubReminder: 'tasks.access.githubReminder',
+    nobodyToAdd: 'tasks.access.nobodyToAdd',
+  },
+
   // Errors
   errors: {
     githubNotConnected: 'tasks.errors.githubNotConnected',
@@ -382,6 +395,8 @@ export const tasks = {
     humanReviewGate: 'tasks.errors.humanReviewGate',
     syncNoPr: 'tasks.errors.syncNoPr',
     assigneeNotMember: 'tasks.errors.assigneeNotMember',
+    assigneeNotProjectMember: 'tasks.errors.assigneeNotProjectMember',
+    grantNotOrgMember: 'tasks.errors.grantNotOrgMember',
     costNotClaimant: 'tasks.errors.costNotClaimant',
     assumptionNotClaimant: 'tasks.errors.assumptionNotClaimant',
     noteHumanOnly: 'tasks.errors.noteHumanOnly',

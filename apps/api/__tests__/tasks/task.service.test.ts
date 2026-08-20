@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskService } from '@/tasks/task.service';
 import type { TaskRepository } from '@/tasks/task.repository';
 import type { ProjectRepository } from '@/tasks/project.repository';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
 import type { NotificationService } from '@/notifications/notification.service';
 import type { OrgService } from '@/org/org.service';
 import type { GithubAppService } from '@pkg/server';
@@ -50,6 +51,7 @@ describe('TaskService — the status protocol', () => {
   let service: TaskService;
   let repo: Record<string, ReturnType<typeof vi.fn>>;
   let projectRepo: Record<string, ReturnType<typeof vi.fn>>;
+  let projectMemberRepo: Record<string, ReturnType<typeof vi.fn>>;
   let notifications: Record<string, ReturnType<typeof vi.fn>>;
   let orgService: Record<string, ReturnType<typeof vi.fn>>;
   let githubApp: Record<string, unknown>;
@@ -86,6 +88,12 @@ describe('TaskService — the status protocol', () => {
     projectRepo = {
       findById: vi.fn().mockResolvedValue({ id: PROJECT, orgId: ORG }),
     };
+    // The assignment gate reads org membership + project access here. USER and
+    // AGENT are members with access; OTHER is neither (the rejection case).
+    projectMemberRepo = {
+      isOrgMember: vi.fn(async (_org: string, uid: string) => [USER, AGENT].includes(uid)),
+      canAccessProject: vi.fn().mockResolvedValue(true),
+    };
     notifications = { create: vi.fn().mockResolvedValue(undefined) };
     orgService = { githubConnection: vi.fn().mockResolvedValue({ installationId: 777 }) };
     githubApp = {
@@ -97,6 +105,7 @@ describe('TaskService — the status protocol', () => {
     service = new TaskService(
       repo as unknown as TaskRepository,
       projectRepo as unknown as ProjectRepository,
+      projectMemberRepo as unknown as ProjectMemberRepository,
       notifications as unknown as NotificationService,
       orgService as unknown as OrgService,
       githubApp as unknown as GithubAppService,
