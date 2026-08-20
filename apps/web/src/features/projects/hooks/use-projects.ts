@@ -14,6 +14,7 @@ import type {
   ListTaskAreasResponse,
   ListTasksRequest,
   ListTasksResponse,
+  ListUsersResponse,
   UpdateProjectRequest,
 } from '@pkg/contracts';
 import { useAuth } from '@/shared/auth/auth-context';
@@ -113,6 +114,36 @@ export function useAgents() {
   });
 }
 
+/**
+ * Org members for the human-worker-lane assignee picker. Gated on user:list
+ * (owners/admins), so a MEMBER simply gets no list and sees the read-only
+ * "assigned to you" affordance instead of a dropdown.
+ */
+export function useOrgMembers() {
+  const { user } = useAuth();
+  const canList = useCan('user:list');
+  return useCachedRequest<ListUsersResponse>({
+    key: canList && prefix(user?.orgId) ? `${prefix(user?.orgId)}/members` : null,
+    fetcher: () => projectsApi.listOrgMembers({ skip: 0, limit: 100, search: '' }),
+  });
+}
+
+/**
+ * The human worker lane "My tasks" list: tasks assigned to the current user.
+ * `assignedToMe` is resolved to the session user server-side, so the payload
+ * never carries an identity. Any member holds task:list, so no extra gate.
+ */
+export function useMyTasks(limit = 100) {
+  const { user } = useAuth();
+  const canList = useCan('task:list');
+  const params: ListTasksRequest = { assignedToMe: true, skip: 0, limit, available: false };
+
+  return useCachedRequest<ListTasksResponse>({
+    key: canList ? taskListKey(user?.orgId, params) : null,
+    fetcher: () => projectsApi.listTasks(params),
+  });
+}
+
 export function useTasksByStatus(status: TaskStatus, limit = 100) {
   const { user } = useAuth();
   const canList = useCan('task:list');
@@ -206,6 +237,8 @@ export const useCreateManagedAgent = () => useProjectsAction(projectsApi.createM
 export const useStartAgent = () => useProjectsAction(projectsApi.startAgent);
 export const useStopAgent = () => useProjectsAction(projectsApi.stopAgent);
 export const useMergeTask = () => useProjectsAction(projectsApi.mergeTask);
+/** Pull-on-click PR sync (human worker lane): reflect the linked PR's state. */
+export const useSyncTaskPr = () => useProjectsAction(projectsApi.syncTaskPr);
 
 /** Live PR scope (files, +/−, areas) for one task — fetched when a card expands. */
 export function useTaskPr(id: string | null) {

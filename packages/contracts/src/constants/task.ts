@@ -92,6 +92,23 @@ export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
   done: ['changes_requested'],
 };
 
+/**
+ * Assignee transitions: a human worker (an intern) assigned a `isHumanTask`
+ * task is an EXECUTOR on the board, exactly like an agent — they claim ready
+ * work, push a branch + PR, and submit for the owner's review. So their legal
+ * moves mirror {@link AGENT_TASK_TRANSITIONS}, NOT the owner's court moves:
+ * they can start work and request review, but never approve, promote to ready,
+ * or merge (those stay the owner's, gated by {@link HUMAN_TASK_TRANSITIONS} +
+ * the permission layer). The service selects this map when the acting user is
+ * the task's assignee; every other human uses HUMAN_TASK_TRANSITIONS.
+ */
+export const ASSIGNEE_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
+  ready: ['in_progress'],
+  in_progress: ['blocked', 'needs_review'],
+  blocked: ['in_progress'],
+  changes_requested: ['in_progress'],
+};
+
 /** Statuses that count as "the human's move" — the daily dashboard filter. */
 export const HUMAN_COURT_STATUSES = ['blocked', 'needs_review', 'approved'] as const;
 

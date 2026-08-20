@@ -75,6 +75,10 @@ export const TaskSchema = z.object({
   priority: z.number().int(),
   claimedBy: z.string().uuid().nullable(),
   claimedAt: z.string().nullable(),
+  /** The member user this task is assigned to (the human worker lane); null =
+   *  unassigned. Independent of `claimedBy` (which the state machine sets when
+   *  work starts) — assignment is the owner's up-front "this is yours". */
+  assignee: z.string().uuid().nullable(),
   branch: z.string().nullable(),
   prUrl: z.string().nullable(),
   // Live GitHub state, webhook-written only; null until an event arrives.
@@ -143,6 +147,9 @@ export const CreateTaskRequestSchema = z
     acceptanceCriteria: z.array(z.string().min(1).max(1000)).max(50).optional(),
     priority: z.number().int().min(0).max(1000).optional(),
     isHumanTask: z.boolean().optional(),
+    // Assign to a member user up front (the human worker lane). The service
+    // validates the id is a member of the caller's org; null = unassigned.
+    assignee: z.string().uuid().nullable().optional(),
     // "Depends on" edges to wire at creation: ids of prerequisite tasks in the
     // same project. Each is added through the guarded add-dependency path, so
     // existence, same-project, self and cycle checks all apply.
@@ -169,6 +176,9 @@ export const UpdateTaskRequestSchema = z
     branch: z.string().max(255).nullable().optional(),
     prUrl: z.string().max(500).nullable().optional(),
     isHumanTask: z.boolean().optional(),
+    // Reassign (or clear) the human worker lane assignee. The service validates
+    // membership in the caller's org; null = unassign.
+    assignee: z.string().uuid().nullable().optional(),
   })
   .strict();
 
@@ -202,6 +212,12 @@ export const ListTasksRequestSchema = PaginatedRequestSchema.extend({
     .preprocess((val) => val === 'true' || val === true, z.boolean())
     .optional()
     .default(false),
+  // The "My tasks" filter: resolve to the SESSION user's id server-side (never
+  // trust an assignee id from the payload). Query-string boolean; optional (no
+  // default) so existing callers that omit it stay valid.
+  assignedToMe: z
+    .preprocess((val) => val === 'true' || val === true ? true : undefined, z.boolean().optional())
+    .optional(),
 }).strict();
 
 export const ListTasksResponseSchema = PaginatedResponseSchema(TaskSchema);
@@ -312,6 +328,20 @@ export const MergeTaskResponseSchema = TaskSchema;
 
 export type MergeTaskRequest = z.infer<typeof MergeTaskRequestSchema>;
 export type MergeTaskResponse = z.infer<typeof MergeTaskResponseSchema>;
+
+// --- Sync PR (pull-on-click; the human worker lane's "show me his work now") ---
+// Reads the linked PR's current state from GitHub via the repo token (a READ,
+// so a member assignee may trigger it) and writes prState/prNumber/prSyncedAt
+// onto the task. A merged PR advances the task to `done`; a closed-unmerged PR
+// is flagged (a comment), never silently completed. CI is left as "unknown"
+// (null) — the installation token can't read checks, but the pulls API can, so
+// merged/open state is authoritative. No webhook is involved: this is the
+// on-demand alternative to the passive webhook path, writing the same fields.
+export const SyncTaskPrRequestSchema = z.object({ id: z.string().uuid() }).strict();
+export const SyncTaskPrResponseSchema = TaskSchema;
+
+export type SyncTaskPrRequest = z.infer<typeof SyncTaskPrRequestSchema>;
+export type SyncTaskPrResponse = z.infer<typeof SyncTaskPrResponseSchema>;
 
 // --- PR stats (scope-at-a-glance for the review card) ---
 // Live from GitHub at read time, so the numbers can't go stale. `areas` are

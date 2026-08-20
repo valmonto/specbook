@@ -13,6 +13,7 @@ import {
   ListTasksRequestSchema,
   MarkReadyRequestSchema,
   MergeTaskRequestSchema,
+  SyncTaskPrRequestSchema,
   RemoveTaskDependencyRequestSchema,
   TransitionTaskRequestSchema,
   UpdateTaskRequestSchema,
@@ -41,6 +42,8 @@ import {
   type MarkReadyResponse,
   type MergeTaskRequest,
   type MergeTaskResponse,
+  type SyncTaskPrRequest,
+  type SyncTaskPrResponse,
   type RemoveTaskDependencyRequest,
   type RemoveTaskDependencyResponse,
   type TransitionTaskRequest,
@@ -149,6 +152,20 @@ export class TaskController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<MergeTaskResponse> {
     return this.taskService.merge(activeUser, dto);
+  }
+
+  // Pull-on-click PR sync for the human worker lane. Gated by task:transition,
+  // NOT task:merge — a MEMBER assignee holds it, and the GitHub call is a READ
+  // (getPullRequest), so letting the intern reflect "my PR is up / merged" is
+  // safe. The status advance to `done` reflects a merge that already happened
+  // on GitHub; it never merges anything itself.
+  @Post(':id/sync')
+  @Permissions('task:transition')
+  async syncPr(
+    @ZodRequest(SyncTaskPrRequestSchema) dto: SyncTaskPrRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<SyncTaskPrResponse> {
+    return this.taskService.syncPr(activeUser, dto);
   }
 
   @Get(':id/pr')

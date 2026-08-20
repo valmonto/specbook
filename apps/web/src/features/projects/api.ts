@@ -42,10 +42,14 @@ import type {
   ListTaskAreasResponse,
   MergeTaskRequest,
   MergeTaskResponse,
+  SyncTaskPrRequest,
+  SyncTaskPrResponse,
   ListProjectsRequest,
   ListProjectsResponse,
   ListTasksRequest,
   ListTasksResponse,
+  ListUsersRequest,
+  ListUsersResponse,
   MarkReadyRequest,
   MarkReadyResponse,
   RemoveTaskDependencyRequest,
@@ -102,6 +106,11 @@ export const projectsResource = (client: HttpClient) => ({
     client.get('/api/tasks', { params: dto }),
   listTaskAreas: (dto: ListTaskAreasRequest): Promise<ListTaskAreasResponse> =>
     client.get('/api/tasks/areas', { params: dto }),
+  // Org members for the human-worker-lane assignee picker. Hits the users
+  // endpoint over HTTP (types only from @pkg/contracts) rather than importing
+  // the users feature — cross-feature code imports are forbidden here.
+  listOrgMembers: (dto: ListUsersRequest): Promise<ListUsersResponse> =>
+    client.get('/api/users', { params: dto }),
   getTask: (dto: GetTaskByIdRequest): Promise<GetTaskByIdResponse> =>
     client.get(`/api/tasks/${dto.id}`),
   updateTask: (dto: UpdateTaskRequest): Promise<UpdateTaskResponse> =>
@@ -114,6 +123,8 @@ export const projectsResource = (client: HttpClient) => ({
     client.post('/api/tasks/mark-ready', dto),
   mergeTask: (dto: MergeTaskRequest): Promise<MergeTaskResponse> =>
     client.post(`/api/tasks/${dto.id}/merge`, dto),
+  syncTaskPr: (dto: SyncTaskPrRequest): Promise<SyncTaskPrResponse> =>
+    client.post(`/api/tasks/${dto.id}/sync`, dto),
   getTaskPr: (dto: GetTaskPrRequest): Promise<GetTaskPrResponse> =>
     client.get(`/api/tasks/${dto.id}/pr`),
   checkCriterion: (dto: CheckCriterionRequest): Promise<CheckCriterionResponse> =>

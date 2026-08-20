@@ -8,6 +8,7 @@ import {
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import {
   AGENT_TASK_TRANSITIONS,
+  ASSIGNEE_TASK_TRANSITIONS,
   HUMAN_TASK_TRANSITIONS,
   TERMINAL_TASK_STATUSES,
   type ActiveUser,
@@ -23,6 +24,8 @@ import {
   type GetTaskPrResponse,
   type MergeTaskRequest,
   type MergeTaskResponse,
+  type SyncTaskPrRequest,
+  type SyncTaskPrResponse,
   type ListTasksRequest,
   type ListTasksResponse,
   type MarkReadyRequest,
@@ -76,6 +79,10 @@ export class TaskService {
       throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
     }
 
+    if (dto.assignee) {
+      await this.assertAssignableMember(activeUser.orgId, dto.assignee);
+    }
+
     const created = await this.taskRepository.create({
       projectId: dto.projectId,
       title: dto.title,
@@ -85,6 +92,7 @@ export class TaskService {
       acceptanceCriteria: (dto.acceptanceCriteria ?? []).map((text) => ({ text, done: false })),
       priority: dto.priority ?? 0,
       isHumanTask: dto.isHumanTask ?? false,
+      assignee: dto.assignee ?? null,
       createdBy: activeUser.userId,
     });
 
@@ -108,6 +116,8 @@ export class TaskService {
       projectId: dto.projectId,
       status: dto.status,
       available: dto.available,
+      // "My tasks": the assignee id is the SESSION user, never a payload field.
+      assigneeId: dto.assignedToMe ? activeUser.userId : undefined,
     });
 
     // The board's collapsed rows show dependency indicators, so the list read
@@ -181,6 +191,12 @@ export class TaskService {
     }
 
     const { id, ...patch } = dto;
+
+    // Reassignment must stay inside the tenant: a non-null assignee has to be a
+    // member of the caller's org (null = unassign, always allowed).
+    if (dto.assignee) {
+      await this.assertAssignableMember(activeUser.orgId, dto.assignee);
+    }
 
     // Round 2 (a reopened task recording fresh links over a merged PR):
     // preserve round 1 in the activity log — the link columns are about to
@@ -283,7 +299,19 @@ export class TaskService {
     const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
     const from = current.status as TaskStatus;
 
-    const map = actor === 'agent' ? AGENT_TASK_TRANSITIONS : HUMAN_TASK_TRANSITIONS;
+    // The assignee of a human task is an EXECUTOR (like an agent): they get the
+    // executor moves (start work, request review), NOT the owner's court moves
+    // (approve/merge/promote). Every other human — the owner/reviewer — gets
+    // HUMAN_TASK_TRANSITIONS. This is what stops a MEMBER assignee approving
+    // their own work at the state-machine layer, alongside the permission gates.
+    const isAssigneeExecutor =
+      actor === 'user' && current.isHumanTask && current.assignee === activeUser.userId;
+    const map =
+      actor === 'agent'
+        ? AGENT_TASK_TRANSITIONS
+        : isAssigneeExecutor
+          ? ASSIGNEE_TASK_TRANSITIONS
+          : HUMAN_TASK_TRANSITIONS;
     const allowed = map[from] ?? [];
     if (!allowed.includes(dto.to)) {
       throw new BadRequestException(k.tasks.errors.invalidTransition);
@@ -312,6 +340,14 @@ export class TaskService {
       if (await this.taskRepository.hasUnackedNotes(dto.id)) {
         throw new UnprocessableEntityException(k.tasks.errors.unackedNotes);
       }
+    }
+
+    // Human worker lane review gate: an assignee submitting their human task for
+    // the owner's review must have linked the PR first (the review IS "open the
+    // PR and evaluate"). Lighter than the agent gate — no summary/branch/notes
+    // ceremony — but the PR link is non-negotiable.
+    if (dto.to === 'needs_review' && isAssigneeExecutor && !current.prUrl?.trim()) {
+      throw new UnprocessableEntityException(k.tasks.errors.humanReviewGate);
     }
 
     // A blocked task without the question, or a rejection without the
@@ -462,6 +498,11 @@ export class TaskService {
    * branch) is set.
    */
   private async maybeAutoProgress(activeUser: ActiveUser, current: Task): Promise<void> {
+    // Human worker lane: the owner reviews, never the auto-reviewer, and the
+    // intern merges his own approved PR — so a human task never auto-approves or
+    // auto-merges, whatever the project mode. This is the api-side half of the
+    // isHumanTask gate; the worker's autoProgress excludes them too.
+    if (current.isHumanTask) return;
     if (current.ciState !== 'passing' || current.prState === 'merged') return;
     const proj = await this.projectRepository.findById(current.projectId, activeUser.orgId);
     if (!proj || proj.mode === 'manual' || proj.autoPausedAt) return;
@@ -583,6 +624,84 @@ export class TaskService {
       throw new NotFoundException(k.tasks.errors.mergeNoPr);
     }
     return pr;
+  }
+
+  /**
+   * Pull-on-click PR sync — the human worker lane's on-demand alternative to
+   * the webhook: read the linked PR's current state from GitHub (a READ, safe
+   * for a MEMBER assignee to trigger) and stamp prState/prNumber/prSyncedAt onto
+   * the task, writing the SAME fields the webhook worker does so webhooks can be
+   * layered on later. CI is left "unknown" (null) — the installation token can't
+   * read checks, but the pulls API IS readable, so merged/open drives status:
+   *   - merged   → the task advances to `done` (a machine fact, like merge()).
+   *   - closed   → flagged with a comment, never silently completed.
+   *   - open     → fields refreshed; status untouched.
+   * Org-scoped via requireTask; a foreign task id is a NotFound.
+   */
+  async syncPr(activeUser: ActiveUser, dto: SyncTaskPrRequest): Promise<SyncTaskPrResponse> {
+    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    if (!current.prNumber && !current.branch?.trim()) {
+      throw new UnprocessableEntityException(k.tasks.errors.syncNoPr);
+    }
+
+    const { connection, repoFullName } = await this.githubRepoContext(
+      activeUser.orgId,
+      current.projectId,
+    );
+
+    const pr = current.prNumber
+      ? await this.githubApp.getPullRequest(connection.installationId, repoFullName, {
+          number: current.prNumber,
+        })
+      : await this.githubApp.getPullRequest(connection.installationId, repoFullName, {
+          headBranch: current.branch!,
+        });
+    if (!pr) {
+      throw new UnprocessableEntityException(k.tasks.errors.syncNoPr);
+    }
+
+    this.logger.info(
+      { taskId: dto.id, prNumber: pr.number, prState: pr.state },
+      'PR synced (pull-on-click)',
+    );
+
+    // Merged is terminal truth: advance to done (same finalize the merge path
+    // uses), and record that the sync — not an auto-merge — completed it.
+    if (pr.state === 'merged') {
+      const done = await this.finalizeMerged(activeUser, dto.id, pr.number);
+      await this.taskRepository.createComment({
+        taskId: dto.id,
+        authorId: activeUser.userId,
+        authorType: 'user',
+        kind: 'comment',
+        body: `Synced: PR #${pr.number} is merged — task marked done.`,
+      });
+      return done;
+    }
+
+    // Open or closed: refresh the live fields, but never advance status here.
+    const updated = await this.taskRepository.update(dto.id, activeUser.orgId, {
+      prState: pr.state,
+      prNumber: pr.number,
+      prSyncedAt: new Date(),
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+
+    // A closed-but-unmerged PR is a dead end, not a completion — flag it so the
+    // owner sees it needs a reopened or freshly linked PR, and it is NOT done.
+    if (pr.state === 'closed') {
+      await this.taskRepository.createComment({
+        taskId: dto.id,
+        authorId: activeUser.userId,
+        authorType: 'user',
+        kind: 'comment',
+        body: `Synced: PR #${pr.number} was closed without merging — not completed. Reopen it or link a new PR.`,
+      });
+    }
+
+    return this.serialize(updated);
   }
 
   private async finalizeMerged(
@@ -911,6 +1030,18 @@ export class TaskService {
     }
     await this.taskRepository.delete(id, activeUser.orgId);
     this.logger.info({ taskId: id }, 'Task deleted');
+  }
+
+  /**
+   * An assignee must be a member of the caller's org — assignment never reaches
+   * across the tenant. The membership read is org-scoped, so a foreign user id
+   * simply isn't in the set and the assignment is rejected.
+   */
+  private async assertAssignableMember(orgId: string, userId: string): Promise<void> {
+    const memberIds = await this.taskRepository.findOrgMemberIds(orgId);
+    if (!memberIds.includes(userId)) {
+      throw new BadRequestException(k.tasks.errors.assigneeNotMember);
+    }
   }
 
   /** `mutating` enforces the archive boundary: an archived project is

@@ -15,6 +15,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     priority: 0,
     claimedBy: null,
     claimedAt: null,
+    assignee: null,
     branch: null,
     prUrl: null,
     prState: null,

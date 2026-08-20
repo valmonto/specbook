@@ -243,6 +243,23 @@ by merge debt: a project holding `MERGE_DEBT_CAP` (3) approved tasks
 stops feeding runners until the queue drains — enforced in the
 repository query, so no client can bypass it.
 
+**Human worker lane** — a task can be assigned to a member (`task.assignee`,
+nullable FK; set via `PATCH /tasks/:id`, validated to an org member) and read
+back through `GET /tasks?assignedToMe=true` (the "My tasks" view; the id is
+resolved from the session, never the payload). On a `isHumanTask` task the
+assignee is an EXECUTOR, not a reviewer: the transition machine gives them
+`ASSIGNEE_TASK_TRANSITIONS` (the agent's moves — start work, request review),
+so a MEMBER can never approve/merge/promote their own work. Human tasks bypass
+auto-review/auto-merge in BOTH engines (`maybeAutoProgress` and the worker's
+`autoProgress` exclude `is_human_task`), routing review to the owner. `POST
+/tasks/:id/sync` (permission `task:transition`, so the assignee may click it —
+the GitHub call is a read) pulls the linked PR via `getPullRequest` and writes
+`prState/prNumber/prSyncedAt`: a merged PR advances the task to `done`, a
+closed-unmerged PR is flagged with a comment (never silently completed), and CI
+shows "unknown" when the installation token can't read checks. No webhook
+endpoint is added — sync is the on-demand alternative writing the same fields
+the webhook worker does, so webhooks can be layered on later.
+
 **Bulk mark-ready** — `POST /tasks/mark-ready` (permission
 `task:transition`; deliberately no MCP tool — `ready` is the human
 dispatch gate, an agent must never bulk-promote its own queue) moves a
