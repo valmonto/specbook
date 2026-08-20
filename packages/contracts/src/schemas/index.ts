@@ -15,3 +15,4 @@ export * from './agent.schema';
 export * from './task.schema';
 export * from './research.schema';
 export * from './attachment.schema';
+export * from './invitation.schema';

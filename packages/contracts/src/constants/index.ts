@@ -16,3 +16,4 @@ export * from './environment';
 export * from './deployment';
 export * from './agent';
 export * from './attachment';
+export * from './invitation';

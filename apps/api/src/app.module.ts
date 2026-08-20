@@ -30,6 +30,7 @@ import { AttachmentsModule } from './attachments';
 import type { SubjectResolvers } from './attachments/attachment.tokens';
 import { TaskRepository } from './tasks/task.repository';
 import { ApiKeyModule } from './api-key';
+import { InvitationModule } from './invitations';
 import { McpModule } from './mcp';
 import { I18nModule } from './i18n';
 import { SeedModule } from './seed/seed.module';
@@ -128,6 +129,7 @@ import { validateEnv } from './config';
       },
     }),
     ApiKeyModule,
+    InvitationModule,
     McpModule,
     SeedModule.forApp(),
   ],
