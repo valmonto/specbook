@@ -14,6 +14,7 @@ import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { TaskRepository } from '@/tasks/task.repository';
 import { ProjectRepository } from '@/tasks/project.repository';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository';
 import { ProjectService } from '@/tasks/project.service';
 
 /**
@@ -273,6 +274,7 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
     // collaborators are stubs so the real repository does the org scoping.
     const service = new ProjectService(
       new ProjectRepository(client),
+      new ProjectMemberRepository(client),
       {} as never,
       {} as never,
       {} as never,

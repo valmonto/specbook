@@ -1,33 +1,46 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
-import type {
-  ActiveUser,
-  CreateProjectRequest,
-  CreateProjectResponse,
-  GetProjectByIdResponse,
-  GithubRepo,
-  ListProjectsRequest,
-  ListProjectsResponse,
-  Project as ProjectDto,
-  UpdateProjectRequest,
-  UpdateProjectResponse,
+import {
+  isProjectScopedIdentity,
+  type ActiveUser,
+  type CreateProjectRequest,
+  type CreateProjectResponse,
+  type GetProjectByIdResponse,
+  type GithubRepo,
+  type ListProjectsRequest,
+  type ListProjectsResponse,
+  type Project as ProjectDto,
+  type ProjectMembersView,
+  type UpdateProjectRequest,
+  type UpdateProjectResponse,
 } from '@pkg/contracts';
 import type { Project } from '@pkg/database';
 import { k } from '@pkg/locales';
 import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
+import { ProjectMemberRepository } from './project-member.repository';
 import { TaskService } from './task.service';
 
 @Injectable()
 export class ProjectService {
   constructor(
     private readonly projectRepository: ProjectRepository,
+    private readonly projectMemberRepository: ProjectMemberRepository,
     private readonly orgService: OrgService,
     private readonly githubApp: GithubAppService,
     private readonly taskService: TaskService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
+
+  /**
+   * The member id a read must be confined to, or undefined for all-access. A
+   * human MEMBER is scoped to their granted projects; OWNER/ADMIN and agent
+   * identities are not — so the dispatch runner keeps org-wide visibility.
+   */
+  private scopeFor(activeUser: ActiveUser): string | undefined {
+    return isProjectScopedIdentity(activeUser) ? activeUser.userId : undefined;
+  }
 
   async create(activeUser: ActiveUser, dto: CreateProjectRequest): Promise<CreateProjectResponse> {
     const binding = dto.githubRepoId
@@ -400,11 +413,15 @@ export class ProjectService {
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {
     const [{ data, total }, counts, spend] = await Promise.all([
-      this.projectRepository.findForOrg(activeUser.orgId, {
-        skip: dto.skip,
-        limit: dto.limit,
-        archived: dto.archived,
-      }),
+      this.projectRepository.findForOrg(
+        activeUser.orgId,
+        {
+          skip: dto.skip,
+          limit: dto.limit,
+          archived: dto.archived,
+        },
+        this.scopeFor(activeUser),
+      ),
       this.projectRepository.countTasksByStatus(activeUser.orgId),
       this.projectRepository.monthSpendByProject(activeUser.orgId),
     ]);
@@ -420,7 +437,7 @@ export class ProjectService {
   }
 
   async getById(activeUser: ActiveUser, id: string): Promise<GetProjectByIdResponse> {
-    const found = await this.projectRepository.findById(id, activeUser.orgId);
+    const found = await this.projectRepository.findById(id, activeUser.orgId, this.scopeFor(activeUser));
     if (!found) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
@@ -568,6 +585,74 @@ export class ProjectService {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
     this.logger.info({ projectId: id }, 'Project deleted');
+  }
+
+  // --- Per-project visibility ACL (owner/admin surface) ---
+
+  /**
+   * The granted members of a project plus, for a repo-bound project, the
+   * GitHub-collaborator reminder. Reflect-only: specbook says who can SEE the
+   * project here; it NEVER grants a seat on the repository — that stays a
+   * GitHub action the owner performs, this only reminds them to.
+   */
+  async listMembers(activeUser: ActiveUser, projectId: string): Promise<ProjectMembersView> {
+    const project = await this.requireProject(activeUser, projectId);
+    return this.membersView(activeUser, project);
+  }
+
+  /** Grant a MEMBER visibility of a project. Idempotent; owners/admins only. */
+  async grantAccess(
+    activeUser: ActiveUser,
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectMembersView> {
+    const project = await this.requireProject(activeUser, projectId);
+    if (!(await this.projectMemberRepository.isOrgMember(activeUser.orgId, userId))) {
+      throw new BadRequestException(k.tasks.errors.grantNotOrgMember);
+    }
+    await this.projectMemberRepository.grant(activeUser.orgId, projectId, userId, activeUser.userId);
+    this.logger.info({ projectId, userId, grantedBy: activeUser.userId }, 'Project access granted');
+    return this.membersView(activeUser, project);
+  }
+
+  /** Revoke a member's project visibility. */
+  async revokeAccess(
+    activeUser: ActiveUser,
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectMembersView> {
+    const project = await this.requireProject(activeUser, projectId);
+    await this.projectMemberRepository.revoke(activeUser.orgId, projectId, userId);
+    this.logger.info({ projectId, userId, revokedBy: activeUser.userId }, 'Project access revoked');
+    return this.membersView(activeUser, project);
+  }
+
+  /** Org-scoped project existence for the ACL surface (owner/admin — no member scope). */
+  private async requireProject(activeUser: ActiveUser, projectId: string): Promise<Project> {
+    const project = await this.projectRepository.findById(projectId, activeUser.orgId);
+    if (!project) {
+      throw new NotFoundException(k.tasks.errors.projectNotFound);
+    }
+    return project;
+  }
+
+  private async membersView(activeUser: ActiveUser, project: Project): Promise<ProjectMembersView> {
+    const members = await this.projectMemberRepository.listForProject(activeUser.orgId, project.id);
+    return {
+      data: members.map((m) => ({
+        userId: m.userId,
+        projectId: m.projectId,
+        name: m.name,
+        email: m.email,
+        orgRole: m.orgRole,
+        grantedAt: m.grantedAt.toISOString(),
+      })),
+      // Reflect-only reminder: a bound repo means the person also needs a
+      // collaborator seat on GitHub — specbook never grants it, only surfaces it.
+      githubReminder: project.githubRepoFullName
+        ? { repoFullName: project.githubRepoFullName }
+        : null,
+    };
   }
 
   private serialize(p: Project): ProjectDto {

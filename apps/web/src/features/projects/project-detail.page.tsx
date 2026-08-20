@@ -29,6 +29,7 @@ import {
 } from './hooks/use-projects';
 import { ProjectReadOnlyContext } from './components/v2/read-only-context';
 import { EnvironmentsSection } from './components/environments-section';
+import { ProjectAccessSection } from './components/project-access-section';
 import { useCan } from '@/shared/hooks/use-permissions';
 
 /**
@@ -357,6 +358,9 @@ export default function ProjectDetailV2Page() {
       />
 
       <ProjectContextSection project={project} readOnly={readOnly} />
+
+      {/* Owner/admin only: who may SEE this project (renders null otherwise). */}
+      <ProjectAccessSection projectId={project.id} />
 
       <EnvironmentsSection projectId={project.id} />
 

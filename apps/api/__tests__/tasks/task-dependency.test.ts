@@ -15,6 +15,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { TaskRepository } from '@/tasks/task.repository';
 import { ProjectRepository } from '@/tasks/project.repository';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository';
 import { TaskService } from '@/tasks/task.service';
 import type { NotificationService } from '@/notifications/notification.service';
 import type { OrgService } from '@/org/org.service';
@@ -33,6 +34,7 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
   const service = new TaskService(
     repo,
     new ProjectRepository(client),
+    new ProjectMemberRepository(client),
     {} as NotificationService,
     {} as OrgService,
     {} as GithubAppService,

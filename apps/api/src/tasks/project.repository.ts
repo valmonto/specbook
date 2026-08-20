@@ -20,6 +20,21 @@ import {
 export class ProjectRepository {
   constructor(@Inject(DATABASE_CLIENT) private readonly dbClient: DatabaseClient) {}
 
+  /**
+   * The per-project visibility layer, BELOW org scoping. `restrictMemberId`
+   * present = a human MEMBER: the project must carry a `project_member` grant
+   * for them (deny-by-default). Absent = OWNER/ADMIN or an agent — no
+   * restriction, org scoping alone applies. The caller decides which via
+   * isProjectScopedIdentity, so a machine identity is never blinded here.
+   */
+  private memberScope(restrictMemberId: string | undefined) {
+    if (!restrictMemberId) return undefined;
+    return sql`EXISTS (
+      SELECT 1 FROM project_member pm
+      WHERE pm.project_id = ${project.id} AND pm.user_id = ${restrictMemberId}
+    )`;
+  }
+
   async create(data: NewProject): Promise<Project> {
     const [result] = await this.dbClient.db.insert(project).values(data).returning();
     return result!;
@@ -28,10 +43,12 @@ export class ProjectRepository {
   async findForOrg(
     orgId: string,
     opts: { skip: number; limit: number; archived?: boolean },
+    restrictMemberId?: string,
   ): Promise<{ data: Project[]; total: number }> {
     const whereClause = and(
       eq(project.orgId, orgId),
       opts.archived ? isNotNull(project.archivedAt) : isNull(project.archivedAt),
+      this.memberScope(restrictMemberId),
     );
 
     const [data, totalResult] = await Promise.all([
@@ -92,11 +109,11 @@ export class ProjectRepository {
     return byProject;
   }
 
-  async findById(id: string, orgId: string): Promise<Project | null> {
+  async findById(id: string, orgId: string, restrictMemberId?: string): Promise<Project | null> {
     const [result] = await this.dbClient.db
       .select()
       .from(project)
-      .where(and(eq(project.id, id), eq(project.orgId, orgId)))
+      .where(and(eq(project.id, id), eq(project.orgId, orgId), this.memberScope(restrictMemberId)))
       .limit(1);
 
     return result ?? null;

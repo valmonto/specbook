@@ -11,6 +11,7 @@ import {
   ASSIGNEE_TASK_TRANSITIONS,
   HUMAN_TASK_TRANSITIONS,
   TERMINAL_TASK_STATUSES,
+  isProjectScopedIdentity,
   type ActiveUser,
   type AddTaskCommentRequest,
   type AddTaskCommentResponse,
@@ -48,6 +49,7 @@ import { GithubAppService } from '@pkg/server';
 import { NotificationService } from '../notifications/notification.service';
 import { OrgService } from '../org/org.service';
 import { ProjectRepository } from './project.repository';
+import { ProjectMemberRepository } from './project-member.repository';
 import { TaskRepository, type EdgeSummaryRow, type TaskWithSource } from './task.repository';
 
 const isTerminal = (status: TaskStatus): boolean =>
@@ -64,14 +66,30 @@ export class TaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
     private readonly projectRepository: ProjectRepository,
+    private readonly projectMemberRepository: ProjectMemberRepository,
     private readonly notificationService: NotificationService,
     private readonly orgService: OrgService,
     private readonly githubApp: GithubAppService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
+  /**
+   * The member id a read/write must be confined to, or undefined for all-access.
+   * A human MEMBER is scoped to their granted projects; OWNER/ADMIN and agents
+   * (isAgent) are never scoped — the dispatch runner must see every project.
+   */
+  private scopeFor(activeUser: ActiveUser): string | undefined {
+    return isProjectScopedIdentity(activeUser) ? activeUser.userId : undefined;
+  }
+
   async create(activeUser: ActiveUser, dto: CreateTaskRequest): Promise<CreateTaskResponse> {
-    const owner = await this.projectRepository.findById(dto.projectId, activeUser.orgId);
+    // Scoped so a MEMBER cannot file into a project they were never granted —
+    // a foreign project id behaves exactly like a missing one.
+    const owner = await this.projectRepository.findById(
+      dto.projectId,
+      activeUser.orgId,
+      this.scopeFor(activeUser),
+    );
     if (!owner) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
@@ -80,7 +98,7 @@ export class TaskService {
     }
 
     if (dto.assignee) {
-      await this.assertAssignableMember(activeUser.orgId, dto.assignee);
+      await this.assertAssignableToProject(activeUser.orgId, dto.projectId, dto.assignee);
     }
 
     const created = await this.taskRepository.create({
@@ -110,15 +128,19 @@ export class TaskService {
   }
 
   async list(activeUser: ActiveUser, dto: ListTasksRequest): Promise<ListTasksResponse> {
-    const { data, total } = await this.taskRepository.findForOrg(activeUser.orgId, {
-      skip: dto.skip,
-      limit: dto.limit,
-      projectId: dto.projectId,
-      status: dto.status,
-      available: dto.available,
-      // "My tasks": the assignee id is the SESSION user, never a payload field.
-      assigneeId: dto.assignedToMe ? activeUser.userId : undefined,
-    });
+    const { data, total } = await this.taskRepository.findForOrg(
+      activeUser.orgId,
+      {
+        skip: dto.skip,
+        limit: dto.limit,
+        projectId: dto.projectId,
+        status: dto.status,
+        available: dto.available,
+        // "My tasks": the assignee id is the SESSION user, never a payload field.
+        assigneeId: dto.assignedToMe ? activeUser.userId : undefined,
+      },
+      this.scopeFor(activeUser),
+    );
 
     // The board's collapsed rows show dependency indicators, so the list read
     // model carries each task's edges (both directions) — one extra org-scoped
@@ -155,7 +177,11 @@ export class TaskService {
    * the repository read is org-scoped either way.
    */
   async listAreas(activeUser: ActiveUser, projectId: string): Promise<ListTaskAreasResponse> {
-    const owner = await this.projectRepository.findById(projectId, activeUser.orgId);
+    const owner = await this.projectRepository.findById(
+      projectId,
+      activeUser.orgId,
+      this.scopeFor(activeUser),
+    );
     if (!owner) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
@@ -164,7 +190,7 @@ export class TaskService {
   }
 
   async getById(activeUser: ActiveUser, id: string): Promise<GetTaskByIdResponse> {
-    const found = await this.requireTask(id, activeUser.orgId);
+    const found = await this.requireTask(id, activeUser);
 
     const [comments, dependencies, dependents] = await Promise.all([
       this.taskRepository.findComments(id),
@@ -185,17 +211,18 @@ export class TaskService {
     dto: UpdateTaskRequest,
     actor: TaskAuthorType = 'user',
   ): Promise<UpdateTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
 
     const { id, ...patch } = dto;
 
-    // Reassignment must stay inside the tenant: a non-null assignee has to be a
-    // member of the caller's org (null = unassign, always allowed).
+    // Reassignment stays inside the tenant AND inside the project: a non-null
+    // assignee must be able to SEE this task's project (null = unassign, always
+    // allowed). A member without a grant on the project cannot be handed work in it.
     if (dto.assignee) {
-      await this.assertAssignableMember(activeUser.orgId, dto.assignee);
+      await this.assertAssignableToProject(activeUser.orgId, current.projectId, dto.assignee);
     }
 
     // Round 2 (a reopened task recording fresh links over a merged PR):
@@ -255,7 +282,7 @@ export class TaskService {
       acceptanceCriteria?: string[];
     },
   ): Promise<TaskDto> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
 
     // Editable while the spec is still the agent's to shape: an undispatched
     // draft, or a task this same agent has claimed and is working. Anything
@@ -296,7 +323,7 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: TransitionTaskRequest,
   ): Promise<TransitionTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     const from = current.status as TaskStatus;
 
     // The assignee of a human task is an EXECUTOR (like an agent): they get the
@@ -544,7 +571,7 @@ export class TaskService {
    * idempotent overwrite of the same values.
    */
   async merge(activeUser: ActiveUser, dto: MergeTaskRequest): Promise<MergeTaskResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     if (current.status !== 'approved') {
       throw new UnprocessableEntityException(k.tasks.errors.mergeNotApproved);
     }
@@ -605,7 +632,7 @@ export class TaskService {
 
   /** Scope-at-a-glance for the review card, live from GitHub at read time. */
   async getPr(activeUser: ActiveUser, dto: GetTaskPrRequest): Promise<GetTaskPrResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId);
+    const current = await this.requireTask(dto.id, activeUser);
     const { connection, repoFullName } = await this.githubRepoContext(
       activeUser.orgId,
       current.projectId,
@@ -639,7 +666,7 @@ export class TaskService {
    * Org-scoped via requireTask; a foreign task id is a NotFound.
    */
   async syncPr(activeUser: ActiveUser, dto: SyncTaskPrRequest): Promise<SyncTaskPrResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     if (!current.prNumber && !current.branch?.trim()) {
       throw new UnprocessableEntityException(k.tasks.errors.syncNoPr);
     }
@@ -758,7 +785,7 @@ export class TaskService {
   }
 
   async checkCriterion(activeUser: ActiveUser, dto: CheckCriterionRequest): Promise<TaskDto> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
@@ -786,7 +813,7 @@ export class TaskService {
    * ride the submission itself.
    */
   async reportCost(activeUser: ActiveUser, dto: ReportCostRequest): Promise<TaskDto> {
-    const current = await this.requireTask(dto.taskId, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.taskId, activeUser, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
@@ -821,7 +848,7 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: { id: string; what: string; why: string; howToVerify: string },
   ): Promise<TaskDto> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
     if (isTerminal(current.status as TaskStatus)) {
       throw new UnprocessableEntityException(k.tasks.errors.terminalTask);
     }
@@ -843,7 +870,7 @@ export class TaskService {
    * is free to auto-merge again (or the human merges it directly). Org-scoped.
    */
   async clearAssumption(activeUser: ActiveUser, id: string): Promise<TaskDto> {
-    await this.requireTask(id, activeUser.orgId, { mutating: true });
+    await this.requireTask(id, activeUser, { mutating: true });
     const updated = await this.taskRepository.update(id, activeUser.orgId, {
       assumptionFlag: null,
     });
@@ -859,7 +886,7 @@ export class TaskService {
     actor: TaskAuthorType,
     dto: AddTaskCommentRequest,
   ): Promise<AddTaskCommentResponse> {
-    const current = await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(dto.id, activeUser, { mutating: true });
 
     // Notes are the human's steering channel INTO a working agent — agents
     // cannot author them, and they only make sense while someone is working.
@@ -889,7 +916,7 @@ export class TaskService {
    * "returned" IS "seen", so the needs_review gate can trust the timestamp.
    */
   async getNotes(activeUser: ActiveUser, taskId: string): Promise<TaskCommentDto[]> {
-    const current = await this.requireTask(taskId, activeUser.orgId);
+    const current = await this.requireTask(taskId, activeUser);
     if (current.claimedBy !== activeUser.userId) {
       throw new UnprocessableEntityException(k.tasks.errors.notesNotClaimant);
     }
@@ -899,8 +926,8 @@ export class TaskService {
 
   async addDependency(activeUser: ActiveUser, dto: AddTaskDependencyRequest): Promise<void> {
     const [dependent, dependency] = await Promise.all([
-      this.requireTask(dto.id, activeUser.orgId, { mutating: true }),
-      this.taskRepository.findById(dto.dependsOnTaskId, activeUser.orgId),
+      this.requireTask(dto.id, activeUser, { mutating: true }),
+      this.taskRepository.findById(dto.dependsOnTaskId, activeUser.orgId, this.scopeFor(activeUser)),
     ]);
     if (!dependency) {
       throw new NotFoundException(k.tasks.errors.dependencyNotFound);
@@ -924,7 +951,7 @@ export class TaskService {
   }
 
   async removeDependency(activeUser: ActiveUser, dto: RemoveTaskDependencyRequest): Promise<void> {
-    await this.requireTask(dto.id, activeUser.orgId, { mutating: true });
+    await this.requireTask(dto.id, activeUser, { mutating: true });
     const removed = await this.taskRepository.removeDependency(dto.id, dto.dependsOnTaskId);
     if (!removed) {
       throw new NotFoundException(k.tasks.errors.dependencyNotFound);
@@ -944,7 +971,11 @@ export class TaskService {
    */
   async markReady(activeUser: ActiveUser, dto: MarkReadyRequest): Promise<MarkReadyResponse> {
     const { scope } = dto;
-    const proj = await this.projectRepository.findById(scope.projectId, activeUser.orgId);
+    const proj = await this.projectRepository.findById(
+      scope.projectId,
+      activeUser.orgId,
+      this.scopeFor(activeUser),
+    );
     if (!proj) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
@@ -1023,7 +1054,7 @@ export class TaskService {
   }
 
   async delete(activeUser: ActiveUser, id: string): Promise<void> {
-    const current = await this.requireTask(id, activeUser.orgId, { mutating: true });
+    const current = await this.requireTask(id, activeUser, { mutating: true });
     // Anything past draft has history worth keeping — cancel, don't erase.
     if (current.status !== 'draft') {
       throw new UnprocessableEntityException(k.tasks.errors.onlyDraftDeletable);
@@ -1033,30 +1064,45 @@ export class TaskService {
   }
 
   /**
-   * An assignee must be a member of the caller's org — assignment never reaches
-   * across the tenant. The membership read is org-scoped, so a foreign user id
-   * simply isn't in the set and the assignment is rejected.
+   * The assignment gate: a task may only be assigned to a user who can SEE its
+   * project — an org OWNER/ADMIN (all projects) or a MEMBER granted this one.
+   * A non-org-member is rejected with the org-boundary message; an org member
+   * without the project grant with the project-scope one. Both reads are
+   * org-scoped, so a foreign user id can never slip through.
    */
-  private async assertAssignableMember(orgId: string, userId: string): Promise<void> {
-    const memberIds = await this.taskRepository.findOrgMemberIds(orgId);
-    if (!memberIds.includes(userId)) {
+  private async assertAssignableToProject(
+    orgId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<void> {
+    if (!(await this.projectMemberRepository.isOrgMember(orgId, userId))) {
       throw new BadRequestException(k.tasks.errors.assigneeNotMember);
+    }
+    if (!(await this.projectMemberRepository.canAccessProject(orgId, projectId, userId))) {
+      throw new BadRequestException(k.tasks.errors.assigneeNotProjectMember);
     }
   }
 
-  /** `mutating` enforces the archive boundary: an archived project is
-   *  readonly — every task write bounces until it is unarchived. */
+  /**
+   * The single choke for a task read/mutation. It gates BOTH planes at once:
+   * org scoping AND the per-project visibility grant (a human MEMBER only ever
+   * resolves a task whose project they were granted; OWNER/ADMIN and agents are
+   * unrestricted). A task outside the caller's visibility behaves exactly like a
+   * missing one — no leak via a direct `:id`. `mutating` also enforces the
+   * archive boundary: an archived project is readonly until unarchived.
+   */
   private async requireTask(
     id: string,
-    orgId: string,
+    activeUser: ActiveUser,
     opts: { mutating?: boolean } = {},
   ): Promise<TaskWithSource> {
-    const found = await this.taskRepository.findById(id, orgId);
+    const restrict = this.scopeFor(activeUser);
+    const found = await this.taskRepository.findById(id, activeUser.orgId, restrict);
     if (!found) {
       throw new NotFoundException(k.tasks.errors.notFound);
     }
     if (opts.mutating) {
-      const owner = await this.projectRepository.findById(found.projectId, orgId);
+      const owner = await this.projectRepository.findById(found.projectId, activeUser.orgId, restrict);
       if (owner?.archivedAt) {
         throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
       }

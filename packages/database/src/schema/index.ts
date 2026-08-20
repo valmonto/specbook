@@ -9,6 +9,7 @@ export * from './notification';
 export * from './api-key';
 export * from './invitation';
 export * from './project';
+export * from './project-member';
 export * from './server';
 export * from './environment';
 export * from './deployment';

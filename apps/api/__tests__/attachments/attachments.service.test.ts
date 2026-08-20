@@ -76,7 +76,7 @@ describe('AttachmentsService — the three-step protocol', () => {
     service = new AttachmentsService(
       storage as unknown as StorageService,
       repo as unknown as AttachmentRepository,
-      { task: taskExists as unknown as (subjectId: string, orgId: string) => Promise<boolean> },
+      { task: taskExists as unknown as (subjectId: string, activeUser: ActiveUser) => Promise<boolean> },
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -93,7 +93,9 @@ describe('AttachmentsService — the three-step protocol', () => {
       withThumbnail: false,
     });
 
-    expect(taskExists).toHaveBeenCalledWith(TASK, ORG);
+    // The subject resolver is now an ACCESS check — it receives the full
+    // ActiveUser so it can enforce the per-project visibility grant.
+    expect(taskExists).toHaveBeenCalledWith(TASK, human);
     expect(result.uploadUrl).toContain(`org/${ORG}/task/${TASK}/`);
     expect(repo.insert).toHaveBeenCalledWith(expect.objectContaining({ orgId: ORG, kind: 'image' }));
   });

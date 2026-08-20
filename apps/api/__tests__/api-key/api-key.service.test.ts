@@ -98,6 +98,8 @@ describe('ApiKeyService', () => {
       orgId: ORG,
       orgRole: 'OWNER',
       systemRole: 'ADMIN',
+      // A machine identity — this is what keeps agents org-wide under scoping.
+      isAgent: true,
     });
   });
 

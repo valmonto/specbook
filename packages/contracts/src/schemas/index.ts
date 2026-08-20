@@ -9,6 +9,7 @@ export * from './jobs.schema';
 export * from './notification.schema';
 export * from './api-key.schema';
 export * from './project.schema';
+export * from './project-member.schema';
 export * from './server.schema';
 export * from './environment.schema';
 export * from './agent.schema';

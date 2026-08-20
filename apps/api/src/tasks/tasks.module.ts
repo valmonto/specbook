@@ -4,6 +4,7 @@ import { GithubModule } from '../github/github.module';
 import { OrgModule } from '../org/org.module';
 import { ProjectController } from './project.controller';
 import { ProjectRepository } from './project.repository';
+import { ProjectMemberRepository } from './project-member.repository';
 import { ProjectService } from './project.service';
 import { TaskController } from './task.controller';
 import { TaskRepository } from './task.repository';
@@ -12,7 +13,13 @@ import { TaskService } from './task.service';
 @Module({
   imports: [NotificationModule, GithubModule, OrgModule],
   controllers: [ProjectController, TaskController],
-  providers: [ProjectService, ProjectRepository, TaskService, TaskRepository],
+  providers: [
+    ProjectService,
+    ProjectRepository,
+    ProjectMemberRepository,
+    TaskService,
+    TaskRepository,
+  ],
   // Exported for the MCP module: tools wrap the same services with actor
   // 'agent'. ProjectRepository is exported for the research module, which
   // validates a ticket-cut target project through the same org-scoped lookup.

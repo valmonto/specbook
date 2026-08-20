@@ -12,6 +12,7 @@ import type {
   GetTaskPrResponse,
   ListProjectsResponse,
   ListTaskAreasResponse,
+  ListProjectMembersResponse,
   ListTasksRequest,
   ListTasksResponse,
   ListUsersResponse,
@@ -129,6 +130,22 @@ export function useOrgMembers() {
 }
 
 /**
+ * The per-project visibility ACL (owner/admin surface): who has been granted
+ * this project. Gated on project:grant-access so a MEMBER never fetches it.
+ */
+export function useProjectMembers(projectId: string | null) {
+  const { user } = useAuth();
+  const canManage = useCan('project:grant-access');
+  return useCachedRequest<ListProjectMembersResponse>({
+    key:
+      canManage && projectId && prefix(user?.orgId)
+        ? `${prefix(user?.orgId)}/${projectId}/members`
+        : null,
+    fetcher: () => projectsApi.listProjectMembers({ id: projectId! }),
+  });
+}
+
+/**
  * The human worker lane "My tasks" list: tasks assigned to the current user.
  * `assignedToMe` is resolved to the session user server-side, so the payload
  * never carries an identity. Any member holds task:list, so no extra gate.
@@ -225,6 +242,8 @@ export const useDeleteProject = () =>
 export const useArchiveProject = () => useProjectsAction(projectsApi.archiveProject);
 export const useUnarchiveProject = () => useProjectsAction(projectsApi.unarchiveProject);
 export const useResumeProject = () => useProjectsAction(projectsApi.resumeProject);
+export const useGrantProjectAccess = () => useProjectsAction(projectsApi.grantProjectAccess);
+export const useRevokeProjectAccess = () => useProjectsAction(projectsApi.revokeProjectAccess);
 export const useCreateTask = () =>
   useProjectsAction((dto: CreateTaskRequest) => projectsApi.createTask(dto));
 export const useUpdateTask = () => useProjectsAction(projectsApi.updateTask);

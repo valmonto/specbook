@@ -95,6 +95,37 @@ including OWNERs, cannot delete organizations at all.
 service first proves membership with `findUserInOrg`, removes the user from the
 organization, and only deletes the account once `countUserOrgs` reaches zero.
 
+### Per-project visibility (the plane below org membership)
+
+Org scoping answers "which tenant"; a second plane answers "which projects
+within it a given human MEMBER may see". The `project_member` table is a
+per-project ACL (`projectId × userId`, org-scoped). The rule lives in one
+Zod-free helper, `isProjectScopedIdentity` (`@pkg/contracts`):
+
+- a human **MEMBER** is scoped — they see ONLY projects they were granted
+  (deny-by-default), enforced at the repository layer, not the UI;
+- **OWNER/ADMIN** see every project by role;
+- **agent identities** (an MCP API key, `activeUser.isAgent` set at key
+  verification) keep **org-wide** visibility whatever their owner's role — so
+  the dispatch runner never goes blind. This is the one bit you must not get
+  wrong: scope humans, never machines.
+
+Enforcement is a `restrictMemberId` the services derive from the identity and
+thread into the org-scoped reads — `ProjectRepository`/`TaskRepository`
+`findForOrg`/`findById` add an `EXISTS (project_member …)` predicate when it is
+present. All three read paths are closed the same way: the project list and
+`:id`, the task list and `:id` (which also gates every task mutation through
+`requireTask`), and attachments — whose injected subject resolver became an
+**access** check (it runs the scoped `task` `findById`), closing list, direct
+`:id` and the signed read-url alike. A task may be assigned only to a user who
+can see its project (`canAccessProject`). The two-member boundary is proven in
+`__tests__/tasks/project-scoping.test.ts`, mirroring the two-tenant discipline.
+
+MVP scope: no project sub-roles (viewer/contributor), no task-level visibility,
+and the GitHub-collaborator reminder is a reflection only — specbook controls
+visibility here, it never grants a repository seat. Research and environments
+still scope at the org level (see `GAPS.md`).
+
 ## Auth
 
 `@pkg/server` owns authentication; this app supplies the part that needs the
