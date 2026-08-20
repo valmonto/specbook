@@ -427,6 +427,7 @@
   "research.message.agent": "Agent",
   "research.message.updatedDocument": "Updated the document",
   "research.message.you": "You",
+  "research.recent.by": "by {{name}}",
   "research.recent.empty": "No research yet",
   "research.recent.emptyHint": "Ask a question above to start your first research.",
   "research.recent.searchAll": "Search all research",

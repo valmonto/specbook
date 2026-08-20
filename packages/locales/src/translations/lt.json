@@ -427,6 +427,7 @@
   "research.message.agent": "Agentas",
   "research.message.updatedDocument": "Atnaujino dokumentą",
   "research.message.you": "Jūs",
+  "research.recent.by": "sukūrė {{name}}",
   "research.recent.empty": "Tyrimų dar nėra",
   "research.recent.emptyHint": "Įveskite klausimą viršuje, kad pradėtumėte pirmąjį tyrimą.",
   "research.recent.searchAll": "Ieškoti visuose tyrimuose",

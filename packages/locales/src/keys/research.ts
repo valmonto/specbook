@@ -16,6 +16,7 @@ export const research = {
     title: 'research.recent.title',
     searchAll: 'research.recent.searchAll',
     updated: 'research.recent.updated',
+    by: 'research.recent.by',
     tasksCut: 'research.recent.tasksCut',
     empty: 'research.recent.empty',
     emptyHint: 'research.recent.emptyHint',

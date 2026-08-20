@@ -143,6 +143,19 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
     expect((await repo.list(orgA, { limit: 20 })).data.map((r) => r.title)).toEqual(['A private']);
   });
 
+  it('list() joins the author identity (name + email) onto each row', async () => {
+    await seed(orgA, ownerA, 'authored');
+
+    const { data } = await repo.list(orgA, { limit: 20 });
+    expect(data).toHaveLength(1);
+    expect(data[0]).toMatchObject({
+      title: 'authored',
+      createdBy: ownerA,
+      createdByName: 'org-a',
+      createdByEmail: 'org-a@example.com',
+    });
+  });
+
   it('keyset pagination is stable across inserts', async () => {
     const first: string[] = [];
     for (let i = 1; i <= 5; i++) first.push((await seed(orgA, ownerA, `r${i}`)).id);

@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/shared/lib/utils';
+import { initials, tintFor } from '@/shared/lib/avatar';
 import { useCan } from '@/shared/hooks/use-permissions';
 import { ResearchStatusPill } from './components/research-status-pill';
 import { useCreateResearch, useRecentResearch, useResearchSearch } from './hooks/use-research';
@@ -32,9 +35,29 @@ function ResearchRow({ research, onOpen }: { research: Research; onOpen: () => v
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{research.title}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {t(k.research.recent.updated, { time })}
-        </p>
+        <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          {research.createdByName ? (
+            <span className="flex min-w-0 items-center gap-1">
+              <Avatar
+                className={cn(
+                  'size-4 shrink-0 rounded-full text-[9px] font-semibold',
+                  tintFor(research.createdBy),
+                )}
+              >
+                <AvatarFallback className={cn('rounded-full', tintFor(research.createdBy))}>
+                  {initials(research.createdByName, research.createdByEmail ?? '')}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate">
+                {t(k.research.recent.by, { name: research.createdByName })}
+              </span>
+              <span aria-hidden className="text-muted-foreground/50">
+                ·
+              </span>
+            </span>
+          ) : null}
+          <span className="shrink-0 truncate">{t(k.research.recent.updated, { time })}</span>
+        </div>
       </div>
       <ResearchStatusPill status={research.status} />
     </button>
