@@ -10,8 +10,10 @@ import {
   SecretsService,
 } from '@pkg/server';
 import { k } from '@pkg/locales';
+import { classifyEnvVarName, type EnvVarClassification } from '@pkg/contracts';
 import type {
   ActiveUser,
+  BulkSetEnvVarsRequest,
   CreateEnvironmentRequest,
   DeleteEnvironmentRequest,
   DeleteEnvVarRequest,
@@ -20,8 +22,11 @@ import type {
   Environment as EnvironmentDto,
   ListEnvironmentsResponse,
   ProvisionEnvironmentRequest,
+  RevealEnvVarsRequest,
+  RevealEnvVarsResponse,
   SetEnvVarRequest,
   UpdateEnvironmentRequest,
+  UserEnvVar,
 } from '@pkg/contracts';
 import type { Deployment, Project, Server } from '@pkg/database';
 import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository';
@@ -217,16 +222,19 @@ export class EnvironmentService {
 
   /**
    * Set (create or replace) one user env var. The value goes INTO the sealed
-   * map and never comes back out — every return path serializes names only.
+   * map; only its classification (and name) is ever readable back.
    */
   async setEnvVar(activeUser: ActiveUser, dto: SetEnvVarRequest): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
 
     const map = this.openUserEnv(existing.userEnvEnc);
+    const classMap = this.openUserClass(existing.userEnvClass);
     map[dto.name] = dto.value;
+    classMap[dto.name] = dto.classification ?? classifyEnvVarName(dto.name);
     await this.environmentRepository.update(dto.id, dto.projectId, {
       userEnvEnc: this.secrets.seal(JSON.stringify(map)),
+      userEnvClass: classMap,
     });
     this.logger.info({ environmentId: dto.id, name: dto.name }, 'User env var set');
     return this.getById(activeUser, dto.projectId, dto.id);
@@ -237,15 +245,85 @@ export class EnvironmentService {
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
 
     const map = this.openUserEnv(existing.userEnvEnc);
+    const classMap = this.openUserClass(existing.userEnvClass);
     if (!(dto.name in map)) {
       throw new NotFoundException(k.environments.errors.varNotFound);
     }
     delete map[dto.name];
+    delete classMap[dto.name];
     await this.environmentRepository.update(dto.id, dto.projectId, {
       userEnvEnc: Object.keys(map).length ? this.secrets.seal(JSON.stringify(map)) : null,
+      userEnvClass: classMap,
     });
     this.logger.info({ environmentId: dto.id, name: dto.name }, 'User env var deleted');
     return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /**
+   * Atomically REPLACE the whole user-var set in one pass (add / rename /
+   * delete / reclassify). The desired end-state is the `vars` list; anything
+   * absent is dropped. A row with a value (re)seals it; a value-less row
+   * carries its previous sealed value over from `from ?? name` — so a rename
+   * or a classification flip never needs a secret resurfaced to the client.
+   * Never a partial apply: it validates first, then does a single sealed write.
+   */
+  async bulkSetEnvVars(
+    activeUser: ActiveUser,
+    dto: BulkSetEnvVarsRequest,
+  ): Promise<EnvironmentDto> {
+    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const current = this.openUserEnv(existing.userEnvEnc);
+
+    const nextMap: Record<string, string> = {};
+    const nextClass: Record<string, EnvVarClassification> = {};
+    for (const row of dto.vars) {
+      if (row.value !== null) {
+        nextMap[row.name] = row.value;
+      } else {
+        const source = row.from ?? row.name;
+        if (!(source in current)) {
+          // A value-less row must point at an existing value to carry over.
+          throw new BadRequestException(k.environments.errors.varValueRequired);
+        }
+        nextMap[row.name] = current[source]!;
+      }
+      nextClass[row.name] = row.classification;
+    }
+
+    await this.environmentRepository.update(dto.id, dto.projectId, {
+      userEnvEnc: Object.keys(nextMap).length ? this.secrets.seal(JSON.stringify(nextMap)) : null,
+      userEnvClass: nextClass,
+    });
+    this.logger.info(
+      { environmentId: dto.id, count: dto.vars.length },
+      'User env vars bulk-set',
+    );
+    return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /**
+   * Decode CONFIG-classified values for an authorized editor. Secret-classified
+   * vars are NEVER included — the guarantee is structural, not a filter the
+   * caller can toggle. Gated at the controller by project:update.
+   */
+  async revealEnvVars(
+    activeUser: ActiveUser,
+    dto: RevealEnvVarsRequest,
+  ): Promise<RevealEnvVarsResponse> {
+    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const map = this.openUserEnv(existing.userEnvEnc);
+    const classMap = this.openUserClass(existing.userEnvClass);
+    const data: Record<string, string> = {};
+    for (const [name, value] of Object.entries(map)) {
+      if (this.classify(classMap, name) === 'config') data[name] = value;
+    }
+    this.logger.info(
+      { environmentId: dto.id, revealed: Object.keys(data).length },
+      'Config env vars revealed',
+    );
+    return { data };
   }
 
   /**
@@ -382,6 +460,29 @@ export class EnvironmentService {
     return JSON.parse(this.secrets.open(sealed)) as Record<string, string>;
   }
 
+  /** The plaintext classification map, coerced to a plain record. */
+  private openUserClass(raw: unknown): Record<string, EnvVarClassification> {
+    return raw && typeof raw === 'object'
+      ? ({ ...(raw as Record<string, EnvVarClassification>) })
+      : {};
+  }
+
+  /** A var with no recorded classification is 'secret' — the safe default. */
+  private classify(
+    classMap: Record<string, EnvVarClassification>,
+    name: string,
+  ): EnvVarClassification {
+    return classMap[name] === 'config' ? 'config' : 'secret';
+  }
+
+  /** Name + classification for every user var, sorted by name. */
+  private userEnvVars(e: EnvironmentWithServer): UserEnvVar[] {
+    const classMap = this.openUserClass(e.userEnvClass);
+    return Object.keys(this.openUserEnv(e.userEnvEnc))
+      .sort()
+      .map((name) => ({ name, classification: this.classify(classMap, name) }));
+  }
+
   private serializeDeployment(d: Deployment): DeploymentDto {
     return {
       id: d.id,
@@ -427,6 +528,7 @@ export class EnvironmentService {
       autoDeploy: e.autoDeploy,
       platformEnv: (e.platformEnv ?? {}) as Record<string, string>,
       userEnvNames: Object.keys(this.openUserEnv(e.userEnvEnc)).sort(),
+      userEnvVars: this.userEnvVars(e),
       provisionStatus: e.provisionStatus as EnvironmentDto['provisionStatus'],
       provisionError: e.provisionError,
       provisionedAt: e.provisionedAt?.toISOString() ?? null,

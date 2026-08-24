@@ -48,3 +48,9 @@ export const useSetEnvVar = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.setVar);
 export const useDeleteEnvVar = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.deleteVar);
+export const useBulkSetEnvVars = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.bulkSetVars);
+// Reveal is an on-demand read (never auto-fetched and it mutates no cache), so
+// it stays a plain action. The projectId is unused here — it rides the dto.
+export const useRevealEnvVars = (_projectId: string) =>
+  useActionRequest(environmentsApi.revealVars);

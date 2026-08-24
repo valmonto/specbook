@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   ChevronRight,
+  ClipboardPaste,
+  Eye,
+  EyeOff,
   ExternalLink,
   Globe,
   HardDrive,
@@ -11,15 +14,25 @@ import {
   Plus,
   RefreshCw,
   Rocket,
+  Save,
   Trash2,
 } from 'lucide-react';
-import { ENVIRONMENT_NAMES, type Environment, type EnvironmentName } from '@pkg/contracts';
+import {
+  ENVIRONMENT_NAMES,
+  classifyEnvVarName,
+  parseDotenv,
+  type DotenvParseError,
+  type Environment,
+  type EnvironmentName,
+  type EnvVarClassification,
+} from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,13 +56,13 @@ import { useServers } from '@/shared/servers/hooks';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { Switch } from '@/components/ui/switch';
 import {
+  useBulkSetEnvVars,
   useCreateEnvironment,
-  useDeleteEnvVar,
   useDeployEnvironment,
   useEnvironments,
   useProvisionEnvironment,
   useRemoveEnvironment,
-  useSetEnvVar,
+  useRevealEnvVars,
   useUpdateEnvironment,
 } from '../hooks/use-environments';
 
@@ -470,10 +483,6 @@ function EnvironmentRow({
 }
 
 /**
- * Secrets: names are listed, values are write-only. The single form both
- * creates a new var and replaces an existing one (same NAME = replace).
- */
-/**
  * The auto-deploy toggle lives ON the chip: on = colored, off = muted, and
  * clicking flips the flag (managers only; disabled until provisioned).
  */
@@ -518,6 +527,60 @@ function AutoDeployChip({
   );
 }
 
+/**
+ * One editable var in the grid. `origName` is the name the row had on the
+ * server (null for a brand-new row) — the save carries a secret's sealed
+ * value over from it, so a rename never needs the value resurfaced. `value`
+ * is the pending edit: null means "unchanged, carry it over".
+ */
+interface EditRow {
+  key: string;
+  name: string;
+  classification: EnvVarClassification;
+  origName: string | null;
+  value: string | null;
+  /** config only: whether the decoded value is on screen. */
+  revealed: boolean;
+}
+
+let rowSeq = 0;
+const nextRowKey = () => `row-${rowSeq++}`;
+
+const rowsFromVars = (vars: Environment['userEnvVars']): EditRow[] =>
+  vars.map((v) => ({
+    key: nextRowKey(),
+    name: v.name,
+    classification: v.classification,
+    origName: v.name,
+    value: null,
+    revealed: false,
+  }));
+
+const rowsFromEnv = (env: Environment): EditRow[] => rowsFromVars(env.userEnvVars);
+
+/** Does the grid differ from what the server holds? Drives the Save/Discard row. */
+const rowsDirty = (rows: EditRow[], env: Environment): boolean => {
+  if (rows.length !== env.userEnvVars.length) return true;
+  const byName = new Map(env.userEnvVars.map((v) => [v.name, v]));
+  return rows.some((r) => {
+    if (r.value !== null) return true;
+    const server = byName.get(r.name);
+    return !server || r.origName !== r.name || server.classification !== r.classification;
+  });
+};
+
+const PARSE_REASON: Record<DotenvParseError['reason'], string> = {
+  missingEquals: k.environments.parseMissingEquals,
+  emptyKey: k.environments.parseEmptyKey,
+  badName: k.environments.parseBadName,
+  duplicate: k.environments.parseDuplicate,
+};
+
+/**
+ * The user-var editor: an editable grid with per-row secret/config
+ * classification, masked-until-revealed config values, a `.env` bulk paste,
+ * and a single atomic Save (add/rename/delete/reclassify in one pass).
+ */
 function UserEnvEditor({
   env,
   projectId,
@@ -528,117 +591,386 @@ function UserEnvEditor({
   canManage: boolean;
 }) {
   const { t } = useTranslation();
-  const setVar = useSetEnvVar(projectId);
-  const deleteVar = useDeleteEnvVar(projectId);
-  const [name, setName] = useState('');
-  const [value, setValue] = useState('');
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const bulk = useBulkSetEnvVars(projectId);
+  const reveal = useRevealEnvVars(projectId);
+  const [rows, setRows] = useState<EditRow[]>(() => rowsFromEnv(env));
+  /** Decoded config values, fetched on demand and cached until the next save. */
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pasteOpen, setPasteOpen] = useState(false);
 
-  const submit = async () => {
-    const trimmed = name.trim().toUpperCase();
-    if (!trimmed || !value) return;
-    const res = await setVar.execute({ projectId, id: env.id, name: trimmed, value });
+  const dirty = rowsDirty(rows, env);
+  // Re-sync from the server only when the var-set identity changes AND the
+  // grid is clean — never clobber an in-progress edit (the list polls).
+  const baseline = env.userEnvVars.map((v) => `${v.name}:${v.classification}`).join('|');
+  const baselineRef = useRef(baseline);
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    if (baselineRef.current === baseline) return;
+    baselineRef.current = baseline;
+    if (!dirtyRef.current) {
+      setRows(rowsFromEnv(env));
+      setRevealed({});
+      setErrors({});
+    }
+    // env is read through the latest render's closure when baseline moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseline]);
+
+  const patch = (key: string, next: Partial<EditRow>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...next } : r)));
+
+  const addRow = () =>
+    setRows((rs) => [
+      ...rs,
+      { key: nextRowKey(), name: '', classification: 'config', origName: null, value: '', revealed: true },
+    ]);
+
+  const removeRow = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
+
+  const importEntries = (entries: { name: string; value: string }[]) => {
+    setRows((rs) => {
+      const next = [...rs];
+      for (const entry of entries) {
+        const idx = next.findIndex((r) => r.name === entry.name);
+        if (idx >= 0) {
+          next[idx] = { ...next[idx]!, value: entry.value, revealed: true };
+        } else {
+          next.push({
+            key: nextRowKey(),
+            name: entry.name,
+            classification: classifyEnvVarName(entry.name),
+            origName: null,
+            value: entry.value,
+            revealed: true,
+          });
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleReveal = async (key: string) => {
+    const row = rows.find((r) => r.key === key);
+    if (!row) return;
+    if (row.revealed) {
+      patch(key, { revealed: false });
+      return;
+    }
+    // Fetch the decoded config values once, then cache for the whole grid.
+    if (!(row.name in revealed)) {
+      const res = await reveal.execute({ projectId, id: env.id });
+      if (res.e) {
+        toast.error(t(res.e.message));
+        return;
+      }
+      setRevealed(res.d?.data ?? {});
+    }
+    patch(key, { revealed: true });
+  };
+
+  const save = async () => {
+    const nextErrors: Record<string, string> = {};
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.name, (counts.get(r.name) ?? 0) + 1);
+    for (const r of rows) {
+      if (!r.name) nextErrors[r.key] = k.environments.varNameRequired;
+      else if (!/^[A-Z][A-Z0-9_]*$/.test(r.name)) nextErrors[r.key] = k.environments.varNameInvalid;
+      else if ((counts.get(r.name) ?? 0) > 1) nextErrors[r.key] = k.environments.errors.duplicateVar;
+      else if (r.origName === null && !r.value) nextErrors[r.key] = k.environments.varValueRequired;
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    const vars = rows.map((r) => ({
+      name: r.name,
+      classification: r.classification,
+      value: r.value && r.value.length > 0 ? r.value : null,
+      from: r.origName,
+    }));
+    const res = await bulk.execute({ projectId, id: env.id, vars });
     if (res.e) {
       toast.error(t(res.e.message));
       return;
     }
-    setName('');
-    setValue('');
+    // Re-seed straight from the saved server shape: the just-added rows are
+    // still "dirty" (origName null), so the sync effect would refuse to reset
+    // them — and secret values must drop back to write-only after a save.
+    if (res.d) {
+      baselineRef.current = res.d.userEnvVars.map((v) => `${v.name}:${v.classification}`).join('|');
+      setRows(rowsFromVars(res.d.userEnvVars));
+    }
+    setRevealed({});
+    setErrors({});
+  };
+
+  const discard = () => {
+    setRows(rowsFromEnv(env));
+    setRevealed({});
+    setErrors({});
   };
 
   return (
     <div className="space-y-1.5">
-      <p className="inline-flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        <KeyRound className="size-3" />
-        {t(k.environments.userEnvTitle)}
-      </p>
+      <div className="flex items-center gap-2">
+        <p className="inline-flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <KeyRound className="size-3" />
+          {t(k.environments.userEnvTitle)}
+        </p>
+        {canManage && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-auto h-7 gap-1 px-2 text-xs text-muted-foreground"
+            onClick={() => setPasteOpen(true)}
+          >
+            <ClipboardPaste className="size-3.5" />
+            {t(k.environments.pasteEnv)}
+          </Button>
+        )}
+      </div>
       <p className="text-xs text-muted-foreground/70">{t(k.environments.userEnvHint)}</p>
 
-      {env.userEnvNames.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t(k.environments.userEnvEmpty)}</p>
       ) : (
-        <div className="rounded-md border bg-card text-xs">
-          {env.userEnvNames.map((varName) => (
-            <div
-              key={varName}
-              className="flex items-center gap-2 border-b px-2 py-1 last:border-b-0"
-            >
-              <span className="font-mono">{varName}</span>
-              <span className="text-muted-foreground/60">••••••••</span>
-              {canManage && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={`${t(k.environments.deleteVarConfirmTitle)} ${varName}`}
-                  className="ml-auto size-6 text-muted-foreground"
-                  onClick={() => setDeleting(varName)}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
-              )}
-            </div>
+        <div className="space-y-1">
+          {rows.map((row) => (
+            <VarRow
+              key={row.key}
+              row={row}
+              canManage={canManage}
+              revealedValue={revealed[row.name]}
+              error={errors[row.key]}
+              onName={(name) => patch(row.key, { name: name.toUpperCase() })}
+              onClassification={(classification) => patch(row.key, { classification })}
+              onValue={(value) => patch(row.key, { value })}
+              onToggleReveal={() => void toggleReveal(row.key)}
+              onRemove={() => removeRow(row.key)}
+            />
           ))}
         </div>
       )}
 
       {canManage && (
-        <form
-          className="flex flex-wrap items-center gap-2 pt-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t(k.environments.varName)}
-            className="h-8 w-40 font-mono text-xs uppercase"
-          />
-          <Input
-            type="password"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={t(k.environments.varValueWriteOnly)}
-            autoComplete="new-password"
-            className="h-8 flex-1 min-w-40 font-mono text-xs"
-          />
-          <Button type="submit" size="sm" variant="outline" disabled={setVar.isLoading}>
-            {env.userEnvNames.includes(name.trim().toUpperCase())
-              ? t(k.environments.replaceVar)
-              : t(k.environments.setVar)}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button type="button" size="sm" variant="outline" className="gap-1" onClick={addRow}>
+            <Plus className="size-3.5" />
+            {t(k.environments.addVar)}
           </Button>
-        </form>
+          {dirty && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1"
+                disabled={bulk.isLoading}
+                onClick={() => void save()}
+              >
+                <Save className="size-3.5" />
+                {t(k.environments.saveVars)}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                disabled={bulk.isLoading}
+                onClick={discard}
+              >
+                {t(k.environments.discardVars)}
+              </Button>
+              <span className="text-xs text-amber-700 dark:text-amber-400">
+                {t(k.environments.unsavedVars)}
+              </span>
+            </>
+          )}
+        </div>
       )}
 
-      <AlertDialog open={deleting !== null} onOpenChange={(o) => !o && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t(k.environments.deleteVarConfirmTitle)}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleting} — {t(k.environments.deleteVarConfirmBody)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t(k.common.actions.cancel)}</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleteVar.isLoading}
-              className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => {
-                const varName = deleting;
-                if (!varName) return;
-                void deleteVar.execute({ projectId, id: env.id, name: varName }).then((res) => {
-                  if (res.e) toast.error(t(res.e.message));
-                  else setDeleting(null);
-                });
-              }}
-            >
-              {t(k.common.actions.delete)}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <PasteEnvDialog open={pasteOpen} onOpenChange={setPasteOpen} onImport={importEntries} />
     </div>
+  );
+}
+
+/** A single editable variable row: name · classification · value · delete. */
+function VarRow({
+  row,
+  canManage,
+  revealedValue,
+  error,
+  onName,
+  onClassification,
+  onValue,
+  onToggleReveal,
+  onRemove,
+}: {
+  row: EditRow;
+  canManage: boolean;
+  revealedValue: string | undefined;
+  error: string | undefined;
+  onName: (name: string) => void;
+  onClassification: (c: EnvVarClassification) => void;
+  onValue: (value: string) => void;
+  onToggleReveal: () => void;
+  onRemove: () => void;
+}) {
+  const { t } = useTranslation();
+  const isConfig = row.classification === 'config';
+  // config: show the decoded value once revealed; secret: never show it back.
+  const shownValue = row.value ?? (isConfig && row.revealed ? (revealedValue ?? '') : '');
+  const carriedOver = row.value === null && row.origName !== null;
+  const placeholder = carriedOver
+    ? t(k.environments.valueUnchanged)
+    : isConfig
+      ? t(k.environments.varValue)
+      : t(k.environments.varValueWriteOnly);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          value={row.name}
+          onChange={(e) => onName(e.target.value)}
+          disabled={!canManage}
+          placeholder={t(k.environments.varName)}
+          aria-label={t(k.environments.varName)}
+          className="h-8 w-44 font-mono text-xs uppercase"
+        />
+        <NativeSelect
+          value={row.classification}
+          onChange={(e) => onClassification(e.target.value as EnvVarClassification)}
+          disabled={!canManage}
+          aria-label={t(k.environments.classification)}
+          className="h-8 w-28 text-xs"
+        >
+          <NativeSelectOption value="secret">{t(k.environments.classSecret)}</NativeSelectOption>
+          <NativeSelectOption value="config">{t(k.environments.classConfig)}</NativeSelectOption>
+        </NativeSelect>
+        <div className="relative flex min-w-40 flex-1 items-center">
+          <Input
+            type={isConfig && row.revealed ? 'text' : 'password'}
+            value={shownValue}
+            onChange={(e) => onValue(e.target.value)}
+            disabled={!canManage}
+            placeholder={placeholder}
+            autoComplete="new-password"
+            className="h-8 flex-1 pr-8 font-mono text-xs"
+          />
+          {isConfig && (
+            <button
+              type="button"
+              onClick={onToggleReveal}
+              aria-label={t(row.revealed ? k.environments.hideValue : k.environments.revealValue)}
+              title={t(row.revealed ? k.environments.hideValue : k.environments.revealValue)}
+              className="absolute right-1.5 text-muted-foreground hover:text-foreground"
+            >
+              {row.revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+            </button>
+          )}
+        </div>
+        {canManage && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={`${t(k.common.actions.delete)} ${row.name}`}
+            className="size-7 text-muted-foreground"
+            onClick={onRemove}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        )}
+      </div>
+      {error && <p className="pl-1 pt-0.5 text-xs text-rose-600 dark:text-rose-400">{t(error)}</p>}
+    </div>
+  );
+}
+
+/** Paste a `.env` blob; parse into rows (all-or-nothing) before merging in. */
+function PasteEnvDialog({
+  open,
+  onOpenChange,
+  onImport,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImport: (entries: { name: string; value: string }[]) => void;
+}) {
+  const { t } = useTranslation();
+  const [blob, setBlob] = useState('');
+  const [parseErrors, setParseErrors] = useState<DotenvParseError[]>([]);
+
+  const reset = () => {
+    setBlob('');
+    setParseErrors([]);
+  };
+
+  const apply = () => {
+    const result = parseDotenv(blob);
+    if (!result.ok) {
+      setParseErrors(result.errors);
+      return;
+    }
+    onImport(result.entries);
+    reset();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) reset();
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t(k.environments.pasteEnvTitle)}</DialogTitle>
+          <DialogDescription>{t(k.environments.pasteEnvHint)}</DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={blob}
+          onChange={(e) => {
+            setBlob(e.target.value);
+            if (parseErrors.length) setParseErrors([]);
+          }}
+          placeholder={'API_KEY=sk-123\n# a comment\nPUBLIC_URL="https://example.com"'}
+          rows={8}
+          className="font-mono text-xs"
+        />
+        {parseErrors.length > 0 && (
+          <div className="space-y-0.5 rounded-md border border-rose-500/30 bg-rose-500/5 p-2">
+            <p className="text-xs font-medium text-rose-700 dark:text-rose-400">
+              {t(k.environments.pasteEnvErrors)}
+            </p>
+            {parseErrors.map((err) => (
+              <p key={err.line} className="font-mono text-xs text-rose-700 dark:text-rose-400">
+                {t(k.environments.parseErrorLine, { line: err.line, reason: t(PARSE_REASON[err.reason]) })}
+              </p>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              reset();
+              onOpenChange(false);
+            }}
+          >
+            {t(k.common.actions.cancel)}
+          </Button>
+          <Button type="button" disabled={!blob.trim()} onClick={apply}>
+            {t(k.environments.pasteEnvApply)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -97,6 +97,35 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
   });
 
+  it("user env vars (sealed values + classification) never cross the org boundary", async () => {
+    const mine = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      userEnvEnc: 'v1:sealed-secret-blob',
+      userEnvClass: { API_KEY: 'secret', PUBLIC_URL: 'config' },
+    });
+
+    // Owner reads the sealed blob and the classification map back.
+    const owned = await repo.findById(mine.id, projectA, orgA);
+    expect(owned?.userEnvEnc).toBe('v1:sealed-secret-blob');
+    expect(owned?.userEnvClass).toEqual({ API_KEY: 'secret', PUBLIC_URL: 'config' });
+
+    // A foreign org cannot READ them (the only door, findById, refuses).
+    expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
+
+    // Nor WRITE them: keyed by the foreign project, the update matches nothing.
+    expect(
+      await repo.update(mine.id, projectB, {
+        userEnvEnc: 'v1:attacker',
+        userEnvClass: { API_KEY: 'config' },
+      }),
+    ).toBeNull();
+    const still = await repo.findById(mine.id, projectA, orgA);
+    expect(still?.userEnvEnc).toBe('v1:sealed-secret-blob');
+    expect(still?.userEnvClass).toEqual({ API_KEY: 'secret', PUBLIC_URL: 'config' });
+  });
+
   it('(project, name) is unique; another project reuses the name freely', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
     await expect(

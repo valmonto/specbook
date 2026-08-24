@@ -16,8 +16,16 @@ export {
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
   ENV_VAR_NAME_PATTERN,
+  ENV_VAR_CLASSIFICATIONS,
+  SECRET_NAME_PATTERN,
   PROVISION_STATUSES,
+  classifyEnvVarName,
+  parseDotenv,
   type EnvironmentName,
+  type EnvVarClassification,
+  type ParsedEnvEntry,
+  type DotenvParseError,
+  type DotenvParseResult,
   type ProvisionStatus,
 } from './constants/environment';
 export {

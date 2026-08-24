@@ -162,6 +162,89 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     ).rejects.toThrow('environments.errors.varNotFound');
   });
 
+  it('setEnvVar records a smart-default classification; a name-clue seals it', async () => {
+    const cfg = await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'PORT', value: '8080' });
+    expect(cfg.userEnvVars).toContainEqual({ name: 'PORT', classification: 'config' });
+    const sec = await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_TOKEN', value: 'x' });
+    expect(sec.userEnvVars).toContainEqual({ name: 'API_TOKEN', classification: 'secret' });
+    // An explicit classification overrides the guess.
+    const forced = await service.setEnvVar(actor, {
+      projectId: PROJECT, id: ENV, name: 'DEBUG_TOKEN', value: 'y', classification: 'config',
+    });
+    expect(forced.userEnvVars).toContainEqual({ name: 'DEBUG_TOKEN', classification: 'config' });
+  });
+
+  it('a var with no recorded classification serializes as secret (the safe default)', async () => {
+    // Legacy row: sealed value present, but no class map at all.
+    stored = { userEnvEnc: secrets.seal(JSON.stringify({ LEGACY: 'v' })) };
+    const [env] = (await service.list(actor, PROJECT)).data;
+    expect(env!.userEnvVars).toEqual([{ name: 'LEGACY', classification: 'secret' }]);
+  });
+
+  it('bulkSetEnvVars replaces the whole set: add, rename, delete, reclassify in one pass', async () => {
+    await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'hunter2' });
+    const res = await service.bulkSetEnvVars(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      vars: [
+        // carry the sealed secret over under a NEW name (rename, no value)
+        { name: 'RENAMED_KEY', classification: 'secret', value: null, from: 'API_KEY' },
+        // brand-new config var with a value
+        { name: 'PUBLIC_URL', classification: 'config', value: 'https://x.dev', from: null },
+      ],
+    });
+    expect(res.userEnvVars).toEqual([
+      { name: 'PUBLIC_URL', classification: 'config' },
+      { name: 'RENAMED_KEY', classification: 'secret' },
+    ]);
+    // The carried-over secret survived the rename in the sealed blob.
+    const map = JSON.parse(secrets.open(String(stored.userEnvEnc))) as Record<string, string>;
+    expect(map).toEqual({ RENAMED_KEY: 'hunter2', PUBLIC_URL: 'https://x.dev' });
+    expect(String(stored.userEnvEnc)).not.toContain('hunter2');
+  });
+
+  it('bulkSetEnvVars refuses a value-less row with nothing to carry over', async () => {
+    await expect(
+      service.bulkSetEnvVars(actor, {
+        projectId: PROJECT,
+        id: ENV,
+        vars: [{ name: 'GHOST', classification: 'config', value: null, from: null }],
+      }),
+    ).rejects.toThrow('environments.errors.varValueRequired');
+  });
+
+  it('bulkSetEnvVars clearing every row nulls the sealed blob', async () => {
+    await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'x' });
+    const res = await service.bulkSetEnvVars(actor, { projectId: PROJECT, id: ENV, vars: [] });
+    expect(res.userEnvVars).toEqual([]);
+    expect(stored.userEnvEnc).toBeNull();
+  });
+
+  it('revealEnvVars returns config values ONLY — never a secret', async () => {
+    await service.bulkSetEnvVars(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      vars: [
+        { name: 'API_KEY', classification: 'secret', value: 'sha-hunter2', from: null },
+        { name: 'PUBLIC_URL', classification: 'config', value: 'https://x.dev', from: null },
+      ],
+    });
+    const { data } = await service.revealEnvVars(actor, { projectId: PROJECT, id: ENV });
+    expect(data).toEqual({ PUBLIC_URL: 'https://x.dev' });
+    expect(JSON.stringify(data)).not.toContain('sha-hunter2');
+    expect('API_KEY' in data).toBe(false);
+  });
+
+  it('bulk and reveal are archived-readonly guarded', async () => {
+    repository.findProject!.mockResolvedValue(projectRow({ archivedAt: new Date() }));
+    await expect(
+      service.bulkSetEnvVars(actor, { projectId: PROJECT, id: ENV, vars: [] }),
+    ).rejects.toThrow('tasks.errors.projectArchivedReadonly');
+    await expect(
+      service.revealEnvVars(actor, { projectId: PROJECT, id: ENV }),
+    ).rejects.toThrow('tasks.errors.projectArchivedReadonly');
+  });
+
   it('no response from any surface carries a secret value or sealed blob', async () => {
     await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'hunter2' });
     // Deployment logs ride along serialized — stored pre-scrubbed by the
@@ -180,6 +263,11 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
       await service.update(actor, { projectId: PROJECT, id: ENV, domain: 'new.example.com' }),
       await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'OTHER', value: 'swordfish' }),
       await service.deleteEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'OTHER' }),
+      await service.bulkSetEnvVars(actor, {
+        projectId: PROJECT,
+        id: ENV,
+        vars: [{ name: 'BULK_SECRET', classification: 'secret', value: 'swordfish', from: null }],
+      }),
     ];
     const flat = JSON.stringify(responses);
     expect(flat).not.toContain('userEnvEnc');

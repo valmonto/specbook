@@ -43,8 +43,19 @@ export const projectEnvironment = pgTable(
     autoDeploy: boolean('auto_deploy').notNull().default(false),
     /** Machine-owned { NAME: value } wiring; read-only to humans. */
     platformEnv: jsonb('platform_env').notNull().default({}),
-    /** Sealed (SecretsService v1) JSON map; null when no secrets are set. */
+    /**
+     * Sealed (SecretsService v1) JSON map of ALL user vars { NAME: value },
+     * both secret and config; null when no user vars are set. The deploy
+     * renderer reads this verbatim — its shape must not change.
+     */
     userEnvEnc: text('user_env_enc'),
+    /**
+     * Plaintext { NAME: 'secret' | 'config' } classification for the user
+     * vars. Names are non-secret (already listed in responses) and the label
+     * is not sensitive, so this stays visible jsonb. A name missing here is
+     * treated as 'secret' — the safe default for rows predating this column.
+     */
+    userEnvClass: jsonb('user_env_class').notNull().default({}),
     /** Data-plane lifecycle — values from @pkg/contracts PROVISION_STATUSES. */
     provisionStatus: varchar('provision_status', { length: 16 }).notNull().default('unprovisioned'),
     /** A k.* key or short detail from the last failed provision run. */
