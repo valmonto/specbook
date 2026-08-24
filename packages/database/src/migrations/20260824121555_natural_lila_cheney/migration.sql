@@ -1,0 +1,1 @@
+ALTER TABLE "project_environment" ADD COLUMN "user_env_class" jsonb DEFAULT '{}' NOT NULL;

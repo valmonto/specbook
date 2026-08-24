@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ENV_VAR_CLASSIFICATIONS,
   ENV_VAR_NAME_PATTERN,
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
@@ -35,6 +36,15 @@ export const DeploymentSchema = z.object({
 export type Deployment = z.infer<typeof DeploymentSchema>;
 
 const EnvVarNameSchema = z.string().min(1).max(128).regex(ENV_VAR_NAME_PATTERN);
+const EnvVarValueSchema = z.string().min(1).max(8192);
+export const EnvVarClassificationSchema = z.enum(ENV_VAR_CLASSIFICATIONS);
+
+/** One user var as it appears in a response: name + how its value is treated. */
+export const UserEnvVarSchema = z.object({
+  name: z.string(),
+  classification: EnvVarClassificationSchema,
+});
+export type UserEnvVar = z.infer<typeof UserEnvVarSchema>;
 
 // --- Environment Entity (public shape) ---
 // platformEnv is fully visible (machine-owned wiring, humans debug against it).
@@ -52,8 +62,13 @@ export const EnvironmentSchema = z.object({
   autoDeploy: z.boolean(),
   /** Machine-owned; read-only to humans. */
   platformEnv: z.record(z.string(), z.string()),
-  /** Names of user secrets. Values never appear in any response. */
+  /**
+   * Names of user vars. SECRET values never appear in any response; CONFIG
+   * values are fetched separately (and only on demand) via the reveal route.
+   */
   userEnvNames: z.array(z.string()),
+  /** Each user var's name + classification, sorted by name. */
+  userEnvVars: z.array(UserEnvVarSchema),
   /** Data-plane lifecycle; error carries a k.* key or short detail. */
   provisionStatus: ProvisionStatusSchema,
   provisionError: z.string().nullable(),
@@ -120,18 +135,62 @@ export const DeleteEnvironmentResponseSchema = z.object({});
 export type DeleteEnvironmentRequest = z.infer<typeof DeleteEnvironmentRequestSchema>;
 export type DeleteEnvironmentResponse = z.infer<typeof DeleteEnvironmentResponseSchema>;
 
-// --- Set a user env var (create or replace; the value is WRITE-ONLY) ---
+// --- Set a user env var (create or replace one) ---
 export const SetEnvVarRequestSchema = z
   .object({
     projectId: z.string().uuid(),
     id: z.string().uuid(),
     name: EnvVarNameSchema,
-    value: z.string().min(1).max(8192),
+    value: EnvVarValueSchema,
+    /** How the value is treated; defaults to a smart guess from the name. */
+    classification: EnvVarClassificationSchema.optional(),
   })
   .strict();
 export const SetEnvVarResponseSchema = EnvironmentSchema;
 export type SetEnvVarRequest = z.infer<typeof SetEnvVarRequestSchema>;
 export type SetEnvVarResponse = z.infer<typeof SetEnvVarResponseSchema>;
+
+// --- Bulk set: atomically REPLACE the whole user-var set (add/rename/delete) ---
+// One row of the desired end-state. `value` present = (re)seal it; `value`
+// null = carry the existing sealed value over from `from` (the row's previous
+// name — supports rename without ever resurfacing a secret). A new row must
+// carry a value. The write is atomic: it rebuilds the sealed map in one pass.
+export const EnvVarInputSchema = z
+  .object({
+    name: EnvVarNameSchema,
+    classification: EnvVarClassificationSchema,
+    value: EnvVarValueSchema.nullable(),
+    /** The name this row previously had, when its value is being carried over. */
+    from: EnvVarNameSchema.nullable(),
+  })
+  .strict();
+export type EnvVarInput = z.infer<typeof EnvVarInputSchema>;
+
+export const BulkSetEnvVarsRequestSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    id: z.string().uuid(),
+    vars: z.array(EnvVarInputSchema).max(500),
+  })
+  .strict()
+  .refine((dto) => new Set(dto.vars.map((v) => v.name)).size === dto.vars.length, {
+    message: 'environments.errors.duplicateVar',
+    path: ['vars'],
+  });
+export const BulkSetEnvVarsResponseSchema = EnvironmentSchema;
+export type BulkSetEnvVarsRequest = z.infer<typeof BulkSetEnvVarsRequestSchema>;
+export type BulkSetEnvVarsResponse = z.infer<typeof BulkSetEnvVarsResponseSchema>;
+
+// --- Reveal: decode CONFIG values only (secrets are never included) ---
+export const RevealEnvVarsRequestSchema = z
+  .object({ projectId: z.string().uuid(), id: z.string().uuid() })
+  .strict();
+export const RevealEnvVarsResponseSchema = z.object({
+  /** name -> decoded value, for config-classified vars only. */
+  data: z.record(z.string(), z.string()),
+});
+export type RevealEnvVarsRequest = z.infer<typeof RevealEnvVarsRequestSchema>;
+export type RevealEnvVarsResponse = z.infer<typeof RevealEnvVarsResponseSchema>;
 
 // --- Provision (enqueues the data-plane job; result lands on the row) ---
 export const ProvisionEnvironmentRequestSchema = z

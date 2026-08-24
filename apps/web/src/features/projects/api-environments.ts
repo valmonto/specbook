@@ -1,4 +1,6 @@
 import type {
+  BulkSetEnvVarsRequest,
+  BulkSetEnvVarsResponse,
   CreateEnvironmentRequest,
   CreateEnvironmentResponse,
   DeleteEnvironmentRequest,
@@ -11,6 +13,8 @@ import type {
   ListEnvironmentsResponse,
   ProvisionEnvironmentRequest,
   ProvisionEnvironmentResponse,
+  RevealEnvVarsRequest,
+  RevealEnvVarsResponse,
   SetEnvVarRequest,
   SetEnvVarResponse,
   UpdateEnvironmentRequest,
@@ -31,11 +35,18 @@ export const environmentsApi = {
     http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/provision`, {}),
   deploy: (dto: DeployEnvironmentRequest): Promise<DeployEnvironmentResponse> =>
     http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/deploy`, {}),
-  // The value rides the body; it is write-only — no endpoint returns it back.
+  // The value rides the body; secrets are write-only, config is revealable.
   setVar: (dto: SetEnvVarRequest): Promise<SetEnvVarResponse> =>
     http.put(`/api/projects/${dto.projectId}/environments/${dto.id}/env/${dto.name}`, {
       value: dto.value,
+      classification: dto.classification,
     }),
   deleteVar: (dto: DeleteEnvVarRequest): Promise<DeleteEnvVarResponse> =>
     http.delete(`/api/projects/${dto.projectId}/environments/${dto.id}/env/${dto.name}`),
+  // Atomic replace of the whole user-var set (add/rename/delete in one save).
+  bulkSetVars: (dto: BulkSetEnvVarsRequest): Promise<BulkSetEnvVarsResponse> =>
+    http.put(`/api/projects/${dto.projectId}/environments/${dto.id}/env`, { vars: dto.vars }),
+  // On-demand decode of CONFIG values only — secrets are never returned.
+  revealVars: (dto: RevealEnvVarsRequest): Promise<RevealEnvVarsResponse> =>
+    http.get(`/api/projects/${dto.projectId}/environments/${dto.id}/env/reveal`),
 };

@@ -1,15 +1,19 @@
 import { Controller, Delete, Get, Patch, Post, Put } from '@nestjs/common';
 import { ActiveUser, Permissions, ZodRequest } from '@pkg/server';
 import {
+  BulkSetEnvVarsRequestSchema,
   CreateEnvironmentRequestSchema,
   DeleteEnvironmentRequestSchema,
   DeleteEnvVarRequestSchema,
   DeployEnvironmentRequestSchema,
   ListEnvironmentsRequestSchema,
   ProvisionEnvironmentRequestSchema,
+  RevealEnvVarsRequestSchema,
   SetEnvVarRequestSchema,
   UpdateEnvironmentRequestSchema,
   type ActiveUser as ActiveUserType,
+  type BulkSetEnvVarsRequest,
+  type BulkSetEnvVarsResponse,
   type CreateEnvironmentRequest,
   type CreateEnvironmentResponse,
   type DeleteEnvironmentRequest,
@@ -22,6 +26,8 @@ import {
   type ListEnvironmentsResponse,
   type ProvisionEnvironmentRequest,
   type ProvisionEnvironmentResponse,
+  type RevealEnvVarsRequest,
+  type RevealEnvVarsResponse,
   type SetEnvVarRequest,
   type SetEnvVarResponse,
   type UpdateEnvironmentRequest,
@@ -90,7 +96,30 @@ export class EnvironmentController {
     return this.environmentService.deploy(activeUser, dto);
   }
 
-  /** Set-or-replace is a PUT: the var's value is written, never readable back. */
+  /**
+   * Reveal CONFIG values (secrets are never included). Static 'reveal'
+   * declared before ':name' — Nest matches top-down.
+   */
+  @Get(':id/env/reveal')
+  @Permissions('project:update')
+  async revealEnvVars(
+    @ZodRequest(RevealEnvVarsRequestSchema) dto: RevealEnvVarsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<RevealEnvVarsResponse> {
+    return this.environmentService.revealEnvVars(activeUser, dto);
+  }
+
+  /** Atomically replace the whole user-var set (add/rename/delete in one save). */
+  @Put(':id/env')
+  @Permissions('project:update')
+  async bulkSetEnvVars(
+    @ZodRequest(BulkSetEnvVarsRequestSchema) dto: BulkSetEnvVarsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<BulkSetEnvVarsResponse> {
+    return this.environmentService.bulkSetEnvVars(activeUser, dto);
+  }
+
+  /** Set-or-replace is a PUT: writes one var's value; only config is readable back. */
   @Put(':id/env/:name')
   @Permissions('project:update')
   async setEnvVar(
