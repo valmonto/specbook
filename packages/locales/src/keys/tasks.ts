@@ -198,6 +198,7 @@ export const tasks = {
     mergeAllGreen: 'tasks.actions.mergeAllGreen',
     undoApprove: 'tasks.actions.undoApprove',
     markMerged: 'tasks.actions.markMerged',
+    markDone: 'tasks.actions.markDone',
     requestChanges: 'tasks.actions.requestChanges',
     reopenWithFeedback: 'tasks.actions.reopenWithFeedback',
     // Human worker lane executor + owner actions.
@@ -218,6 +219,13 @@ export const tasks = {
     body: 'tasks.cancelConfirm.body',
     confirm: 'tasks.cancelConfirm.confirm',
     keep: 'tasks.cancelConfirm.keep',
+  },
+
+  // Confirm dialog for the stranded-work recovery move (draft → done)
+  markDoneConfirm: {
+    title: 'tasks.markDoneConfirm.title',
+    body: 'tasks.markDoneConfirm.body',
+    confirm: 'tasks.markDoneConfirm.confirm',
   },
 
   // Project automation modes
