@@ -6,6 +6,7 @@ import {
   type DatabaseClient,
   agent,
   apiKey,
+  organization,
   project,
   server,
   task,
@@ -13,12 +14,15 @@ import {
   and,
   eq,
   inArray,
+  isNull,
+  isNotNull,
   type AgentRow,
   type Server,
 } from '@pkg/database';
 import { STALE_CLAIM_AFTER_MS } from '@pkg/contracts';
 import {
   AGENT_SWEEP_QUEUE,
+  GithubAppService,
   InjectLogger,
   PinoLogger,
   SecretsService,
@@ -48,6 +52,7 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
     @InjectQueue(AGENT_SWEEP_QUEUE.name) private readonly queue: Queue,
     private readonly ssh: SshService,
     private readonly secrets: SecretsService,
+    private readonly githubApp: GithubAppService,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {
     super();
@@ -60,7 +65,7 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
     });
   }
 
-  async process(_job: Job): Promise<{ released: number }> {
+  async process(_job: Job): Promise<{ released: number; prsOpened: number }> {
     const cutoff = new Date(Date.now() - STALE_CLAIM_AFTER_MS);
 
     const claims = await this.dbClient.db
@@ -88,7 +93,130 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
 
     await this.pollManaged();
 
-    return { released };
+    const prsOpened = await this.recoverParkedReviewPrs();
+
+    return { released, prsOpened };
+  }
+
+  /**
+   * Belt-and-suspenders for the full-auto bootstrap: any task PARKED in
+   * needs_review with a branch but no PR — in an auto/auto_merge project — gets
+   * its PR opened here. The api's transition hook opens the PR at the moment a
+   * task ENTERS needs_review; this sweep recovers tasks that were already
+   * stranded (submitted before that hook shipped, or when the App was briefly
+   * down). Opening the PR fires CI, and the webhook's green-CI autoProgress
+   * then carries it to done. Idempotent: an already-open PR for the branch is
+   * adopted, never duplicated; a merged branch finalizes the task to done.
+   * Best-effort per task — one GitHub error never stalls the rest of the sweep,
+   * and the task is simply left in needs_review for a human.
+   */
+  private async recoverParkedReviewPrs(): Promise<number> {
+    if (!this.githubApp.enabled) return 0;
+
+    const parked = await this.dbClient.db
+      .select({
+        taskId: task.id,
+        title: task.title,
+        branch: task.branch,
+        defaultBranch: project.defaultBranch,
+        repoFullName: project.githubRepoFullName,
+        repoUrl: project.repoUrl,
+        installationId: organization.githubInstallationId,
+      })
+      .from(task)
+      .innerJoin(project, eq(project.id, task.projectId))
+      .innerJoin(organization, eq(organization.id, project.orgId))
+      .where(
+        and(
+          eq(task.status, 'needs_review'),
+          isNull(task.prNumber),
+          isNotNull(task.branch),
+          eq(task.isHumanTask, false),
+          inArray(project.mode, ['auto', 'auto_merge']),
+          isNull(project.archivedAt),
+          isNotNull(organization.githubInstallationId),
+        ),
+      )
+      .limit(AGENT_SWEEP_QUEUE.batchSize);
+
+    let opened = 0;
+    for (const row of parked) {
+      const branch = row.branch?.trim();
+      const installationId = row.installationId;
+      if (!branch || installationId === null) continue;
+      const repoFullName =
+        row.repoFullName ??
+        /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/.exec(row.repoUrl ?? '')?.[1] ??
+        null;
+      if (!repoFullName) {
+        this.logger.warn(
+          { taskId: row.taskId },
+          'Parked review PR skipped: project has no resolvable GitHub repo',
+        );
+        continue;
+      }
+
+      try {
+        const existing = await this.githubApp.getPullRequest(installationId, repoFullName, {
+          headBranch: branch,
+        });
+        if (existing?.state === 'merged') {
+          await this.dbClient.db
+            .update(task)
+            .set({
+              status: 'done',
+              prState: 'merged',
+              prNumber: existing.number,
+              prSyncedAt: new Date(),
+              statusChangedAt: new Date(),
+            })
+            .where(and(eq(task.id, row.taskId), eq(task.status, 'needs_review')));
+          this.logger.info(
+            { taskId: row.taskId, prNumber: existing.number },
+            'Parked task: branch already merged — finalized to done',
+          );
+          continue;
+        }
+
+        let prNumber: number;
+        let prUrl: string;
+        if (existing?.state === 'open') {
+          prNumber = existing.number;
+          prUrl = existing.url;
+        } else {
+          prNumber = await this.githubApp.createPullRequest(installationId, repoFullName, {
+            head: branch,
+            base: row.defaultBranch || 'main',
+            title: row.title,
+          });
+          prUrl = `https://github.com/${repoFullName}/pull/${prNumber}`;
+        }
+
+        // Idempotent write: re-guarded on needs_review + null prNumber so a
+        // concurrent api-side open or a retried sweep never double-writes.
+        const updated = await this.dbClient.db
+          .update(task)
+          .set({ prNumber, prUrl, prState: 'open', prSyncedAt: new Date() })
+          .where(
+            and(eq(task.id, row.taskId), eq(task.status, 'needs_review'), isNull(task.prNumber)),
+          )
+          .returning({ id: task.id });
+        if (updated.length > 0) {
+          opened += 1;
+          this.logger.info(
+            { taskId: row.taskId, prNumber, adopted: existing?.state === 'open' },
+            'Parked task: opened review PR — CI will drive it to done',
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          { taskId: row.taskId, err: error },
+          'Parked review PR could not be opened — left in needs_review for a human',
+        );
+      }
+    }
+
+    return opened;
   }
 
   /**
