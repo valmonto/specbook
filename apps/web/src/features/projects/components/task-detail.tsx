@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   Bot,
   Check,
+  CheckCircle2,
   ExternalLink,
   GitBranch,
   GitMerge,
@@ -52,6 +53,7 @@ import { useAuth } from '@/shared/auth/auth-context';
 import { useCan } from '@/shared/hooks/use-permissions';
 import { AttachmentsSection } from './attachments-section';
 import { CancelTaskDialog, liveDependents } from './cancel-task-dialog';
+import { MarkDoneDialog } from './mark-done-dialog';
 import { DependencyEditor } from './dependency-editor';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { markSingleTaskReady } from './v2/mark-ready-menu';
@@ -1049,6 +1051,10 @@ function MovesFooter({
   const update = useUpdateTask();
   const [priority, setPriority] = useState(String(task.priority));
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDone, setConfirmDone] = useState(false);
+  // Marking a stranded draft done skips review, so it is an owner-court move —
+  // gated on the same permission the API's transition route enforces.
+  const canManage = useCan('task:transition');
   useEffect(() => setPriority(String(task.priority)), [task.priority]);
   if (isTerminal(task)) return null;
 
@@ -1058,7 +1064,7 @@ function MovesFooter({
   // hide them here (the state machine would reject them for the assignee anyway).
   const isHuman = task.isHumanTask;
 
-  const go = async (to: 'ready' | 'draft' | 'cancelled') => {
+  const go = async (to: 'ready' | 'draft' | 'cancelled' | 'done') => {
     // Dispatching a draft cascades: mark-ready also promotes transitive draft
     // prerequisites and toasts any it pulled in. No confirmation — direct action.
     if (to === 'ready' && task.status === 'draft') {
@@ -1124,6 +1130,20 @@ function MovesFooter({
           {t(k.tasks.errors.dispatchGate)}
         </span>
       )}
+      {/* Stranded-work recovery: a draft whose PR merged out-of-band has no
+          review arc to travel, so the owner records it done directly. Confirmed
+          (not a silent option) because it skips review; owner-court gated. */}
+      {task.status === 'draft' && canManage && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => setConfirmDone(true)}
+        >
+          <CheckCircle2 className="size-4 mr-1" />
+          {t(k.tasks.actions.markDone)}
+        </Button>
+      )}
       {/* The slide-over has no overflow menu, so the destructive moves land
           here; on the board they live in the row menu instead. */}
       {!destructiveInMenu && task.status === 'draft' && (
@@ -1188,6 +1208,15 @@ function MovesFooter({
       onConfirm={() => {
         setConfirmCancel(false);
         void go('cancelled');
+      }}
+    />
+    <MarkDoneDialog
+      open={confirmDone}
+      onOpenChange={setConfirmDone}
+      isLoading={transition.isLoading}
+      onConfirm={() => {
+        setConfirmDone(false);
+        void go('done');
       }}
     />
     </>

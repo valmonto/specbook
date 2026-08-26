@@ -26,6 +26,9 @@ const hooks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
+// The moves footer permission-gates the draft → done recovery action.
+const perms = vi.hoisted(() => ({ useCan: vi.fn(() => true) }));
+vi.mock('@/shared/hooks/use-permissions', () => perms);
 vi.mock('@/features/projects/hooks/use-attachments', () => ({
   useTaskAttachments: () => ({ data: { data: [] }, mutate: vi.fn() }),
   useUploadAttachment: () => ({ upload: vi.fn(), isUploading: false, error: null }),
@@ -35,6 +38,7 @@ vi.mock('@/features/projects/hooks/use-attachments', () => ({
 beforeAll(() => installRadixDomShims());
 
 beforeEach(() => {
+  perms.useCan.mockReturnValue(true);
   hooks.useUpdateTask.mockReturnValue(makeAction());
   hooks.useTransitionTask.mockReturnValue(makeAction());
   hooks.useMarkReady.mockReturnValue(makeAction());
@@ -123,5 +127,30 @@ describe('TaskDetail (shared body)', () => {
     expect(
       screen.getByRole('button', { name: 'tasks.actions.undoApprove' }),
     ).toBeInTheDocument();
+  });
+
+  // Stranded-work recovery (draft → done): an authorized owner sees an explicit
+  // "Mark as done" action on a draft; an unauthorized user does not.
+  it('offers Mark as done on a draft for an authorized user', () => {
+    const task = fullTask({ status: 'draft', branch: null, prUrl: null, ciState: null });
+    hooks.useTask.mockReturnValue({ data: task });
+
+    render(<TaskDetail task={task} />);
+
+    expect(
+      screen.getByRole('button', { name: /tasks\.actions\.markDone/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides Mark as done from a user without task:transition', () => {
+    perms.useCan.mockReturnValue(false);
+    const task = fullTask({ status: 'draft', branch: null, prUrl: null, ciState: null });
+    hooks.useTask.mockReturnValue({ data: task });
+
+    render(<TaskDetail task={task} />);
+
+    expect(
+      screen.queryByRole('button', { name: /tasks\.actions\.markDone/ }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -216,8 +216,14 @@ Grouped by whose move it is:
 
 - `done` — MERGED: normally stamped by the machine (the merge endpoint or
   the PR-merge webhook completing an `approved` task). The human's manual
-  `→ done` remains for repo-less tasks. The agent may claim completion,
-  never accept its own work. One human-only exit exists: **reopen** —
+  `→ done` remains for repo-less tasks, and a human-only `draft → done`
+  is the **stranded-work recovery path**: a task whose PR merged out-of-band
+  never travelled ready → needs_review → approved, and the review gate needs
+  an OPEN PR, so from `ready` a human could only cancel or return to draft —
+  this edge lets the owner record the truth directly. Both manual `→ done`
+  edges are human court only; agents are barred from `done` from every state.
+  The agent may claim completion, never accept its own work. One human-only
+  exit exists: **reopen** —
   `done → changes_requested` with a required feedback comment, for when
   manual testing after the merge finds residuals. The comment is the
   round-2 spec delta; recording fresh links over the merged round-1 PR
@@ -236,7 +242,7 @@ criteria and `progress` comments.
 | Actor | Allowed transitions |
 | --- | --- |
 | Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer) |
-| Human | `draft→ready`, `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), any non-done→`cancelled` |
+| Human | `draft→ready`, `draft→done` (stranded-work recovery — a PR merged out-of-band), `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), any non-done→`cancelled` |
 | Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
 
 **Automation modes (per project — the trust dial).** `manual` is the

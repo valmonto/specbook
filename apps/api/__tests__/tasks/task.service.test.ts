@@ -417,6 +417,34 @@ describe('TaskService — the status protocol', () => {
     expect(result.status).toBe('ready');
   });
 
+  // --- Stranded-work recovery: draft → done, human court only ---
+
+  it('lets an authorized human mark a stranded draft done, stamping who/when', async () => {
+    const result = await service.transition(human, 'user', { id: TASK, to: 'done' });
+    expect(result.status).toBe('done');
+    // The move is attributed to the acting human on the CAS write.
+    const [, , from, patch] = repo.casUpdateStatus!.mock.calls[0]!;
+    expect(from).toBe('draft');
+    expect(patch).toMatchObject({ status: 'done', statusChangedBy: USER });
+    expect(patch.statusChangedAt).toBeInstanceOf(Date);
+  });
+
+  it('refuses the AGENT draft → done — the recovery path is human court only', async () => {
+    await expect(service.transition(agent, 'agent', { id: TASK, to: 'done' })).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(repo.casUpdateStatus).not.toHaveBeenCalled();
+  });
+
+  it('refuses a human-task ASSIGNEE (executor court) draft → done', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ isHumanTask: true, assignee: AGENT }));
+    const assignee: ActiveUser = { ...agent };
+    await expect(
+      service.transition(assignee, 'user', { id: TASK, to: 'done' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.casUpdateStatus).not.toHaveBeenCalled();
+  });
+
   // --- The archive boundary: an archived project is readonly ---
 
   it('bounces every task write on an archived project', async () => {

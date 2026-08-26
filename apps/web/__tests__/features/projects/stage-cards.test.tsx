@@ -37,6 +37,7 @@ const hooks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/features/projects/hooks/use-projects', () => hooks);
+vi.mock('@/shared/hooks/use-permissions', () => ({ useCan: () => true }));
 vi.mock('@/features/projects/hooks/use-attachments', () => ({
   useTaskAttachments: () => ({ data: { data: [] }, mutate: vi.fn() }),
   useUploadAttachment: () => ({ upload: vi.fn(), isUploading: false, error: null }),

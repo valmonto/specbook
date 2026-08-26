@@ -80,9 +80,16 @@ export const AGENT_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
  * found residuals, and the feedback comment (required, like a review
  * rejection) is the round-2 spec delta. Human-only — done stays terminal
  * for agents, so nothing can resurrect its own shipped work.
+ *
+ * `draft → done` is the stranded-work recovery path: a task whose PR merged
+ * out-of-band (so it never travelled ready → needs_review → approved) would
+ * otherwise have no route to `done` — the review gate needs an OPEN PR, and
+ * from `ready` a human can only cancel or return to draft. This human-only
+ * edge lets the owner record the truth (it shipped) directly. It is absent
+ * from AGENT_TASK_TRANSITIONS on purpose: agents stay barred from `done`.
  */
 export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
-  draft: ['ready', 'cancelled'],
+  draft: ['ready', 'done', 'cancelled'],
   ready: ['draft', 'cancelled'],
   in_progress: ['ready', 'cancelled'],
   blocked: ['ready', 'in_progress', 'cancelled'],
