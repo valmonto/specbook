@@ -461,6 +461,22 @@ export class TaskService {
       }
     }
 
+    // Bootstrap the review PR: entering needs_review in an auto mode with a
+    // branch but no PR is exactly the deadlock this closes — no PR means no CI
+    // means the webhook's autoProgress never fires. Open (or adopt) the PR
+    // here so CI can run and the reliable green-CI path carries it to done.
+    // Best-effort: a failure is logged and leaves the task in needs_review.
+    if (dto.to === 'needs_review' && actor === 'agent') {
+      try {
+        await this.maybeOpenReviewPr(activeUser, updated);
+      } catch (error) {
+        this.logger.warn(
+          { taskId: dto.id, err: error },
+          'Opening review PR failed — task left in needs_review for a human',
+        );
+      }
+    }
+
     // Auto modes: the event may arrive with CI ALREADY green (the webhook
     // path covers green-arrives-later). Best-effort — never fails the
     // transition that triggered it.
@@ -514,6 +530,82 @@ export class TaskService {
     this.logger.info(
       { taskId: cancelled.id, detached: dependents.length },
       'Cancelled task detached from its non-terminal dependents',
+    );
+  }
+
+  /**
+   * The bootstrap fix: when a task enters needs_review in an auto mode with a
+   * branch but no PR yet, open (or adopt) the PR so CI can run. Without this
+   * the loop deadlocks — the agent may have recorded only a compare link (no
+   * real PR), and no PR means no CI means the webhook's autoProgress never
+   * fires, so the task sits in needs_review forever. Opening it here fires CI,
+   * and the existing green-CI path (webhook autoProgress / maybeAutoProgress)
+   * carries it the rest of the way.
+   *
+   * Idempotent: an already-open PR for the branch is adopted, never duplicated;
+   * a branch already merged out-of-band finalizes the task to done. The
+   * assumption-flag hold is NOT applied here — a flagged task still gets a PR
+   * (so a human can review the diff); the merge is what waits (see
+   * maybeAutoProgress / the worker's autoProgress). Best-effort by design: the
+   * caller logs any throw and leaves the task in needs_review — a legible stop,
+   * never a silent stall. Non-auto and human-lane tasks are untouched.
+   */
+  private async maybeOpenReviewPr(activeUser: ActiveUser, current: Task): Promise<void> {
+    // Human worker lane: the intern opens and merges his own PR — never the
+    // platform. Mirrors the isHumanTask exclusion in the auto engine.
+    if (current.isHumanTask) return;
+    // Already has a PR, or nothing to open one from, or already merged.
+    if (current.prNumber || !current.branch?.trim() || current.prState === 'merged') return;
+    if (!this.githubApp.enabled) return;
+
+    const proj = await this.projectRepository.findById(current.projectId, activeUser.orgId);
+    if (!proj || (proj.mode !== 'auto' && proj.mode !== 'auto_merge')) return;
+
+    const { connection, repoFullName, defaultBranch } = await this.githubRepoContext(
+      activeUser.orgId,
+      current.projectId,
+    );
+
+    // Adopt an existing PR for the branch before opening a new one — a redeliver
+    // or a race must never create a duplicate.
+    const existing = await this.githubApp.getPullRequest(connection.installationId, repoFullName, {
+      headBranch: current.branch,
+    });
+    if (existing?.state === 'merged') {
+      await this.finalizeMerged(activeUser, current.id, existing.number);
+      this.logger.info(
+        { taskId: current.id, prNumber: existing.number },
+        'Auto: branch already merged out-of-band — task finalized to done',
+      );
+      return;
+    }
+
+    let prNumber: number;
+    let prUrl: string;
+    if (existing?.state === 'open') {
+      prNumber = existing.number;
+      prUrl = existing.url;
+    } else {
+      prNumber = await this.githubApp.createPullRequest(connection.installationId, repoFullName, {
+        head: current.branch,
+        base: defaultBranch,
+        title: current.title,
+      });
+      prUrl = `https://github.com/${repoFullName}/pull/${prNumber}`;
+    }
+
+    const updated = await this.taskRepository.update(current.id, activeUser.orgId, {
+      prNumber,
+      prUrl,
+      prState: 'open',
+      prSyncedAt: new Date(),
+    });
+    if (!updated) {
+      throw new NotFoundException(k.tasks.errors.notFound);
+    }
+    this.logger.info(
+      { taskId: current.id, prNumber, adopted: existing?.state === 'open' },
+      'Auto: opened review PR (needs_review, auto mode) — CI will drive it to done',
     );
   }
 

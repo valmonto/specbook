@@ -256,6 +256,141 @@ describe('TaskService — the status protocol', () => {
     });
   });
 
+  // --- Bootstrap: platform opens the review PR on needs_review (no PR yet) ---
+
+  describe('opens the review PR on needs_review', () => {
+    const autoProject = (over: Record<string, unknown> = {}) => ({
+      id: PROJECT,
+      orgId: ORG,
+      mode: 'auto',
+      autoPausedAt: null,
+      githubRepoFullName: 'valmonto/specbook',
+      defaultBranch: 'main',
+      ...over,
+    });
+    // A submission that recorded a branch + compare link but no real PR — the
+    // exact bootstrap deadlock: no PR means no CI means autoProgress never fires.
+    const bootstrap = (over: Record<string, unknown> = {}) =>
+      taskInState({
+        status: 'in_progress',
+        claimedBy: AGENT,
+        branch: 'feat/x',
+        prUrl: 'https://github.com/x/y/compare/main...feat/x',
+        prNumber: null,
+        prState: null,
+        ciState: null,
+        ...over,
+      });
+
+    beforeEach(() => {
+      projectRepo.findById!.mockResolvedValue(autoProject());
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) => bootstrap(patch));
+    });
+
+    it('auto + branch + no PR: opens a PR (base=default, head=branch) and records prNumber/prUrl', async () => {
+      repo.findById!.mockResolvedValue(bootstrap());
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const result = await service.transition(agent, 'agent', {
+        id: TASK,
+        to: 'needs_review',
+        comment: 'done',
+      });
+
+      expect(result.status).toBe('needs_review');
+      expect(githubApp.createPullRequest).toHaveBeenCalledWith(777, 'valmonto/specbook', {
+        head: 'feat/x',
+        base: 'main',
+        title: expect.any(String),
+      });
+      expect(repo.update).toHaveBeenCalledWith(
+        TASK,
+        ORG,
+        expect.objectContaining({
+          prNumber: 12,
+          prUrl: 'https://github.com/valmonto/specbook/pull/12',
+          prState: 'open',
+        }),
+      );
+      // Fresh PR has no CI — nothing merges yet.
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('idempotent: an already-open PR for the branch is adopted, not duplicated', async () => {
+      repo.findById!.mockResolvedValue(bootstrap());
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        number: 99,
+        url: 'https://github.com/valmonto/specbook/pull/99',
+        state: 'open',
+      });
+
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+      expect(githubApp.createPullRequest).not.toHaveBeenCalled();
+      expect(repo.update).toHaveBeenCalledWith(
+        TASK,
+        ORG,
+        expect.objectContaining({ prNumber: 99, prUrl: 'https://github.com/valmonto/specbook/pull/99' }),
+      );
+    });
+
+    it('assumption-flagged task still gets a PR but is NOT auto-merged', async () => {
+      const flag = { what: 'x', why: 'y', howToVerify: 'z' };
+      repo.findById!.mockResolvedValue(bootstrap({ assumptionFlag: flag }));
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) =>
+        bootstrap({ assumptionFlag: flag, ...patch }),
+      );
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+      expect(githubApp.createPullRequest).toHaveBeenCalled();
+      expect(githubApp.mergePullRequest).not.toHaveBeenCalled();
+    });
+
+    it('non-auto project: no PR is opened', async () => {
+      projectRepo.findById!.mockResolvedValue(autoProject({ mode: 'manual' }));
+      repo.findById!.mockResolvedValue(bootstrap());
+
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+      expect(githubApp.createPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('a GitHub error opening the PR is swallowed — the task stays in needs_review', async () => {
+      repo.findById!.mockResolvedValue(bootstrap());
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (githubApp.createPullRequest as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('422 no commits between main and feat/x'),
+      );
+
+      const result = await service.transition(agent, 'agent', {
+        id: TASK,
+        to: 'needs_review',
+        comment: 'done',
+      });
+      expect(result.status).toBe('needs_review');
+    });
+
+    it('a branch already merged out-of-band finalizes the task to done', async () => {
+      repo.findById!.mockResolvedValue(bootstrap());
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        number: 5,
+        url: 'https://github.com/valmonto/specbook/pull/5',
+        state: 'merged',
+      });
+
+      await service.transition(agent, 'agent', { id: TASK, to: 'needs_review', comment: 'done' });
+
+      expect(githubApp.createPullRequest).not.toHaveBeenCalled();
+      expect(repo.update).toHaveBeenCalledWith(
+        TASK,
+        ORG,
+        expect.objectContaining({ status: 'done', prState: 'merged', prNumber: 5 }),
+      );
+    });
+  });
+
   // --- Assumption flag: agent sets (claimant), human clears ---
 
   describe('assumption flag', () => {
