@@ -220,18 +220,24 @@ Grouped by whose move it is:
   is the **stranded-work recovery path**: a task whose PR merged out-of-band
   never travelled ready → needs_review → approved, and the review gate needs
   an OPEN PR, so from `ready` a human could only cancel or return to draft —
-  this edge lets the owner record the truth directly. Both manual `→ done`
-  edges are human court only; agents are barred from `done` from every state.
-  The agent may claim completion, never accept its own work. One human-only
-  exit exists: **reopen** —
+  this edge lets the owner record the truth directly. A third recovery edge,
+  **`cancelled → done`**, closes the same gap for a completed task the owner
+  cancelled instead of returning to draft (a no-code/research task with no PR):
+  it is the ONE `→ done` an agent may make over MCP — sound because only a
+  human can cancel, so the agent merely finishes work a human already chose to
+  abandon. Every other `→ done` (the review path) stays human court: the agent
+  may claim completion via `needs_review`, never accept its own reviewed work.
+  One human-only exit exists: **reopen** —
   `done → changes_requested` with a required feedback comment, for when
   manual testing after the merge finds residuals. The comment is the
   round-2 spec delta; recording fresh links over the merged round-1 PR
   auto-logs it to the activity thread and resets the live GitHub state
   for the new PR. Agents can never resurrect their own shipped work.
-- `cancelled` — terminal for everyone. Cancelling also **detaches the task
-  from its non-terminal dependents** (deletes those edges and comments on each),
-  so no live task is left depending on a killed one — see *Task dependency*.
+- `cancelled` — terminal, with a single recovery edge out: `cancelled → done`
+  (both courts — see the `done` entry), for a finished task the owner cancelled
+  instead of shipping. Cancelling also **detaches the task from its non-terminal
+  dependents** (deletes those edges and comments on each), so no live task is
+  left depending on a killed one — see *Task dependency*.
 
 **Progress is not a status.** There is no `50%` or `almost_done`. Coarse
 status answers whose move it is; fine progress lives in ticked acceptance
@@ -241,8 +247,8 @@ criteria and `progress` comments.
 
 | Actor | Allowed transitions |
 | --- | --- |
-| Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer) |
-| Human | `draft→ready`, `draft→done` (stranded-work recovery — a PR merged out-of-band), `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), any non-done→`cancelled` |
+| Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer), `cancelled→done` (recovery — a finished, human-cancelled task with no PR; the only `→done` an agent may make) |
+| Human | `draft→ready`, `draft→done` (stranded-work recovery — a PR merged out-of-band), `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), `cancelled→done` (recovery), any non-done→`cancelled` |
 | Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
 
 **Automation modes (per project — the trust dial).** `manual` is the
