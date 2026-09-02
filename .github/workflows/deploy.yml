@@ -108,10 +108,19 @@ jobs:
     steps:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          # The runner already holds a repo-scoped token for this run. Handing it
+          # to the fetch means the BOX needs no GitHub credentials of its own —
+          # no deploy key to rotate, no stored password to expire, nothing on the
+          # server that can silently rot between deploys. It dies with the job.
+          DEPLOY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_REPO: ${{ github.repository }}
+          DEPLOY_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_TOKEN,DEPLOY_REPO,DEPLOY_SHA
           # Without this the remote script does NOT abort on a failed command:
           # a `git pull` that fails leaves the OLD checkout in place, the rebuild
           # succeeds against stale code, --wait reports healthy, and the deploy
@@ -121,16 +130,30 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/specbook
+            # Fetch by explicit URL, NOT via the box's `origin`. The remote on the
+            # server was an HTTPS URL with no credentials, so every `git fetch`
+            # died with "could not read Username for 'https://github.com'" — git
+            # asking for a password with no TTY to ask on. Deploys had been
+            # failing that way for weeks while reporting green. Sourcing the URL
+            # (and its token) from the workflow makes the deploy independent of
+            # whatever state the box's git config happens to be in.
+            #
             # fetch + reset, not pull: the deploy target is a MIRROR of main, not
             # a working copy. A merge can fail (diverged branch, local edits, a
             # conflict) and leave the tree on old code; a reset cannot. Anything
             # hand-edited on the box is deliberately discarded — the repo is the
             # only source of what runs.
-            git fetch --prune origin main
+            git fetch --prune "https://x-access-token:${DEPLOY_TOKEN}@github.com/${DEPLOY_REPO}.git" main
             git reset --hard FETCH_HEAD
             # Print what actually shipped, so "is my merge live?" is answerable
-            # from the deploy log instead of by probing production.
+            # from the deploy log instead of by probing production. A checkout
+            # that does not match the commit that triggered this run means the
+            # tree did not advance — fail rather than rebuild the wrong code.
             echo "Deploying $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
+            if [ "$(git rev-parse HEAD)" != "${DEPLOY_SHA}" ]; then
+              echo "MISMATCH: checkout is $(git rev-parse HEAD), this run is ${DEPLOY_SHA}"
+              exit 1
+            fi
             # --wait blocks until services are healthy and exits non-zero if any
             # container is unhealthy or crash-looping (so a bad deploy is RED, not a
             # silently-green deploy hiding a rebooting api). On failure, dump status +

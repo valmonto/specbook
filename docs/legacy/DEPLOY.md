@@ -38,8 +38,12 @@ sudo mkdir -p /opt/specbook && sudo chown deploy:deploy /opt/specbook
 git clone git@github.com:<org>/<repo>.git /opt/specbook
 ```
 
-Add a **deploy key** (`ssh-keygen -t ed25519`) to GitHub → Settings → Deploy keys so `git pull`
-works non-interactively.
+**No GitHub credentials are needed on the server.** The workflow passes its own
+run-scoped token into the fetch, so the box never stores a deploy key or password
+that can silently expire. (It used to need one — and when the server's `origin`
+ended up an HTTPS URL with no credentials, every fetch died with `could not read
+Username for 'https://github.com'` and deploys reported green for weeks while
+shipping nothing. Sourcing the URL from the workflow removes that failure mode.)
 
 **4. Create `.env`** in the repo root (git-ignored, server-only). Required keys:
 
