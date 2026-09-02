@@ -580,6 +580,44 @@ describe('TaskService — the status protocol', () => {
     expect(repo.casUpdateStatus).not.toHaveBeenCalled();
   });
 
+  // --- Cancelled-work recovery: cancelled → done, the one → done an agent may make ---
+
+  it('lets a human recover a cancelled task to done, stamping who/when', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'cancelled' }));
+    const result = await service.transition(human, 'user', { id: TASK, to: 'done' });
+    expect(result.status).toBe('done');
+    const [, , from, patch] = repo.casUpdateStatus!.mock.calls[0]!;
+    expect(from).toBe('cancelled');
+    expect(patch).toMatchObject({ status: 'done', statusChangedBy: USER });
+  });
+
+  it('lets the AGENT recover a cancelled task to done — its only → done edge', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'cancelled' }));
+    const result = await service.transition(agent, 'agent', { id: TASK, to: 'done' });
+    expect(result.status).toBe('done');
+    const [, , from, patch] = repo.casUpdateStatus!.mock.calls[0]!;
+    expect(from).toBe('cancelled');
+    expect(patch).toMatchObject({ status: 'done', statusChangedBy: AGENT });
+  });
+
+  it('still refuses the agent the review-path needs_review → done — the crack did not widen', async () => {
+    repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review' }));
+    await expect(service.transition(agent, 'agent', { id: TASK, to: 'done' })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('refuses a human-task ASSIGNEE (executor court) cancelled → done', async () => {
+    repo.findById!.mockResolvedValue(
+      taskInState({ status: 'cancelled', isHumanTask: true, assignee: AGENT }),
+    );
+    const assignee: ActiveUser = { ...agent };
+    await expect(
+      service.transition(assignee, 'user', { id: TASK, to: 'done' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(repo.casUpdateStatus).not.toHaveBeenCalled();
+  });
+
   // --- The archive boundary: an archived project is readonly ---
 
   it('bounces every task write on an archived project', async () => {
