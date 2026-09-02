@@ -1,15 +1,24 @@
 # Deployment
 
 Every push to `main` auto-deploys to the VM (e.g. a Hetzner server). GitHub Actions SSHes in,
-pulls the code, and rebuilds the Docker stack.
+resets the checkout to `main`, and rebuilds the Docker stack.
 
 - Workflow: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
 - Stack: [`compose.staging.yml`](compose.staging.yml) — Postgres, Redis, a one-shot `migrate`
   runner, `api` (scalable), `web`, `worker`.
 
 ```
-git push main → Actions → ssh → cd /opt/specbook && git pull && docker compose -f compose.staging.yml up -d --build
+git push main → Actions → ssh → cd /opt/specbook && git fetch origin main && git reset --hard FETCH_HEAD && docker compose -f compose.staging.yml up -d --build
 ```
+
+**`/opt/specbook` on the VM is a mirror of `main`, not a working copy.** The deploy
+resets to `FETCH_HEAD` rather than merging, and anything edited on the box is
+discarded on the next deploy — the repo is the only source of what runs. A merge
+can fail (diverged branch, local edits, a conflict) and silently leave the tree on
+old code; a reset cannot. The remote script also runs with `script_stop: true`, so
+a failure there makes the deploy RED instead of rebuilding stale code and reporting
+green. The deploy log prints the SHA it shipped, so "is my merge live?" is
+answerable from Actions instead of by probing production.
 
 Ports bind to **`127.0.0.1` only** — put a reverse proxy in front:
 web `3010`, api `3011`–`3015` (one per replica).

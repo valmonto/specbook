@@ -112,9 +112,25 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # Without this the remote script does NOT abort on a failed command:
+          # a `git pull` that fails leaves the OLD checkout in place, the rebuild
+          # succeeds against stale code, --wait reports healthy, and the deploy
+          # goes GREEN having shipped nothing. That exact failure hid a merged
+          # change from production while CI insisted it was live.
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /opt/specbook
-            git pull origin main
+            # fetch + reset, not pull: the deploy target is a MIRROR of main, not
+            # a working copy. A merge can fail (diverged branch, local edits, a
+            # conflict) and leave the tree on old code; a reset cannot. Anything
+            # hand-edited on the box is deliberately discarded — the repo is the
+            # only source of what runs.
+            git fetch --prune origin main
+            git reset --hard FETCH_HEAD
+            # Print what actually shipped, so "is my merge live?" is answerable
+            # from the deploy log instead of by probing production.
+            echo "Deploying $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
             # --wait blocks until services are healthy and exits non-zero if any
             # container is unhealthy or crash-looping (so a bad deploy is RED, not a
             # silently-green deploy hiding a rebooting api). On failure, dump status +
