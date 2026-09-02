@@ -56,12 +56,20 @@ type Status = (typeof TASK_STATUSES)[number];
  * Agent = a session authenticated with an MCP API key. It pulls from
  * `ready`, reports `blocked`/`needs_review`, and re-enters after answers
  * (`blocked`) or review feedback (`changes_requested`).
+ *
+ * `cancelled → done` is the one recovery edge an agent owns. It is NOT a
+ * self-approval hole: only a human can cancel a task (every `→ cancelled`
+ * edge is human-only), so this merely lets the runner finish a task the
+ * human abandoned — the case being a no-code/research task that completed
+ * its work but can never reach `done` through `needs_review` because it has
+ * no PR to record. The human's cancel is the standing authorization.
  */
 export const AGENT_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
   ready: ['in_progress'],
   in_progress: ['blocked', 'needs_review'],
   blocked: ['in_progress'],
   changes_requested: ['in_progress'],
+  cancelled: ['done'],
 };
 
 /**
@@ -85,8 +93,15 @@ export const AGENT_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
  * out-of-band (so it never travelled ready → needs_review → approved) would
  * otherwise have no route to `done` — the review gate needs an OPEN PR, and
  * from `ready` a human can only cancel or return to draft. This human-only
- * edge lets the owner record the truth (it shipped) directly. It is absent
- * from AGENT_TASK_TRANSITIONS on purpose: agents stay barred from `done`.
+ * edge lets the owner record the truth (it shipped) directly.
+ *
+ * `cancelled → done` is the same recovery for a task the human cancelled
+ * rather than returned to draft — a completed no-code/research task with no
+ * PR to record. Unlike the paths above it is granted to BOTH actors: the
+ * human owns it via the UI, and the runner via MCP (see AGENT_TASK_TRANSITIONS).
+ * It is the ONLY `→ done` edge an agent has; the review path
+ * (needs_review/approved → done) stays human-only, so an agent still cannot
+ * approve its own reviewed work — only finish work a human chose to abandon.
  */
 export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> = {
   draft: ['ready', 'done', 'cancelled'],
@@ -97,6 +112,7 @@ export const HUMAN_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly St
   approved: ['done', 'needs_review', 'changes_requested', 'cancelled'],
   changes_requested: ['ready', 'cancelled'],
   done: ['changes_requested'],
+  cancelled: ['done'],
 };
 
 /**
@@ -119,10 +135,11 @@ export const ASSIGNEE_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly
 /** Statuses that count as "the human's move" — the daily dashboard filter. */
 export const HUMAN_COURT_STATUSES = ['blocked', 'needs_review', 'approved'] as const;
 
-/** Terminal statuses: no transitions out. A terminal task is never a live
- *  dependent, so cancelling a prerequisite leaves its terminal dependents
- *  untouched (their history stays intact) — see DEPENDENCY_SATISFYING_STATUSES
- *  for how a *non*-terminal dependent is handled. */
+/** Terminal statuses: settled end-states, each with only a narrow recovery
+ *  edge out (`done → changes_requested` reopen, `cancelled → done` recovery).
+ *  A terminal task is never a live dependent, so cancelling a prerequisite
+ *  leaves its terminal dependents untouched (their history stays intact) — see
+ *  DEPENDENCY_SATISFYING_STATUSES for how a *non*-terminal dependent is handled. */
 export const TERMINAL_TASK_STATUSES = ['done', 'cancelled'] as const;
 
 /**

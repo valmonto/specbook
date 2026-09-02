@@ -120,7 +120,7 @@ export const MCP_TOOLS = [
     scope: 'tasks:agent',
     needsOrgContext: true,
     description:
-      'Move a task through the agent transitions: in_progress → blocked (comment = your question, required) or → needs_review (requires a summary comment AND branch + prUrl set on the task first, via update_task_links); blocked/changes_requested → in_progress to resume.',
+      'Move a task through the agent transitions: in_progress → blocked (comment = your question, required) or → needs_review (requires a summary comment AND branch + prUrl set on the task first, via update_task_links); blocked/changes_requested → in_progress to resume. One recovery edge: cancelled → done, for a completed no-code/research task the human cancelled that has no PR to reach done through review (the only → done an agent may make; the review path stays the human\'s).',
   },
   {
     name: 'update_task_links',

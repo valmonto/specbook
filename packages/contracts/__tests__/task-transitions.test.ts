@@ -18,14 +18,21 @@ describe('the task status protocol — transition maps', () => {
     );
   });
 
-  // The whole point of a separate agent court: `done` is never an agent target,
-  // from any state. draft → done must stay a human-only move so nothing can
-  // ship its own work without review.
-  it('bars agents from ever reaching done or approved', () => {
-    for (const targets of Object.values(AGENT_TASK_TRANSITIONS)) {
-      expect(targets).not.toContain('done');
+  // The core of the agent court: `approved` is never an agent target from any
+  // state, and `done` is reachable by an agent through exactly ONE edge —
+  // cancelled → done, recovering a task the human already cancelled. The review
+  // path (needs_review/approved/draft → done) stays human court, so an agent can
+  // never ship its own REVIEWED work without review; it can only finish work a
+  // human chose to abandon.
+  it('bars agents from approved, and from done except the cancelled recovery', () => {
+    for (const [from, targets] of Object.entries(AGENT_TASK_TRANSITIONS)) {
       expect(targets).not.toContain('approved');
+      if (from !== 'cancelled') {
+        expect(targets).not.toContain('done');
+      }
     }
+    // The sole agent → done edge is the cancelled-work recovery.
+    expect(AGENT_TASK_TRANSITIONS.cancelled).toEqual(['done']);
     // Agents have no `draft` moves at all — draft is the human dispatch court.
     expect(AGENT_TASK_TRANSITIONS.draft).toBeUndefined();
   });
