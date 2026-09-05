@@ -44,6 +44,13 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     deployPath: '/srv/app',
     autoDeploy: false,
     platformEnv: { DATABASE_URL: 'postgres://visible' },
+    databaseServerId: null,
+    databaseServerName: null,
+    cacheServerId: null,
+    cacheServerName: null,
+    storageServerId: null,
+    storageServerName: null,
+    dataTransport: null,
     userEnvEnc: null,
     provisionStatus: 'unprovisioned',
     provisionError: null,
@@ -61,6 +68,21 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     repository = {
       findProject: vi.fn().mockResolvedValue(projectRow()),
       findServer: vi.fn().mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app'] }),
+      // Default: every requested id resolves to the findServer row under that id,
+      // so the pre-placement tests keep their single-server world view.
+      findServers: vi.fn().mockImplementation(async (ids: string[]) => {
+        const base = await (
+          repository.findServer as unknown as () => Promise<Record<string, unknown> | null>
+        )();
+        return base
+          ? ids.map((id) => ({
+              ...base,
+              id,
+              name: `srv-${id.slice(0, 4)}`,
+              host: `${id.slice(0, 4)}.internal`,
+            }))
+          : [];
+      }),
       findForProject: vi.fn().mockImplementation(() => [envRow()]),
       findById: vi.fn().mockImplementation(() => envRow()),
       create: vi.fn().mockImplementation((data: Record<string, unknown>) => {
@@ -372,7 +394,10 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   it('delete of a provisioned environment enqueues teardown from a pre-delete snapshot', async () => {
     stored = { provisionStatus: 'provisioned' };
     await service.delete(actor, { projectId: PROJECT, id: ENV });
-    expect(provisioner.enqueueDeprovision).toHaveBeenCalledWith(SERVER, 'the_project_staging');
+    expect(provisioner.enqueueDeprovision).toHaveBeenCalledWith(SERVER, 'the_project_staging', {
+      databaseServerId: null,
+      cacheServerId: null,
+    });
     expect(repository.delete).toHaveBeenCalled();
   });
 
@@ -554,5 +579,151 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     expect(flat).not.toContain('dataRootEnvEnc');
     expect(flat).not.toContain('v1:');
     expect(res.provisionStatus).toBe('provisioning');
+  });
+
+  describe('data-plane placement — additive, validated at create/update, never at provision time', () => {
+    const DB = '66666666-6666-4666-8666-666666666666';
+    const CACHE = '77777777-7777-4777-8777-777777777777';
+    const STORE = '88888888-8888-4888-8888-888888888888';
+    const fleet = (roles: Record<string, string[]>) =>
+      repository.findServers!.mockImplementation(async (ids: string[]) =>
+        ids
+          .filter((id) => roles[id])
+          .map((id) => ({
+            id,
+            orgId: ORG,
+            name: `srv-${id.slice(0, 4)}`,
+            host: `${id.slice(0, 4)}.internal`,
+            roles: roles[id],
+          })),
+      );
+
+    it('NULL placement keeps the legacy path: create writes null placement fields and provisions on the app data role', async () => {
+      repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['app', 'data'] });
+      await service.create(actor, createDto);
+      const created = repository.create!.mock.calls[0]![0] as Record<string, unknown>;
+      expect(created).toMatchObject({
+        databaseServerId: null,
+        cacheServerId: null,
+        storageServerId: null,
+        dataTransport: null,
+        provisionStatus: 'provisioning',
+      });
+    });
+
+    it('a database placed on a database-role server over a private network is stored and provisioned', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [DB]: ['database'] });
+      await service.create(actor, {
+        ...createDto,
+        databaseServerId: DB,
+        dataTransport: 'private-network',
+      });
+      const created = repository.create!.mock.calls[0]![0] as Record<string, unknown>;
+      expect(created).toMatchObject({
+        databaseServerId: DB,
+        dataTransport: 'private-network',
+        provisionStatus: 'provisioning',
+      });
+      expect(provisioner.enqueueProvision).toHaveBeenCalledWith(ENV);
+    });
+
+    it('a remote placement must hold the GRANULAR role — the legacy data role does not spread to new boxes', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [DB]: ['app', 'data'] });
+      await expect(
+        service.create(actor, {
+          ...createDto,
+          databaseServerId: DB,
+          dataTransport: 'private-network',
+        }),
+      ).rejects.toThrow('environments.errors.serverNotDatabase');
+      fleet({ [SERVER]: ['app', 'data'], [CACHE]: ['data'] });
+      await expect(
+        service.create(actor, {
+          ...createDto,
+          cacheServerId: CACHE,
+          dataTransport: 'private-network',
+        }),
+      ).rejects.toThrow('environments.errors.serverNotCache');
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it('a moved role without a transport is REFUSED — unencrypted over an unstated network never lands', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [DB]: ['database'] });
+      await expect(service.create(actor, { ...createDto, databaseServerId: DB })).rejects.toThrow(
+        'environments.errors.transportRequired',
+      );
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it('tls is accepted by the schema but refused here with the reason (nothing installs certificates yet)', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [DB]: ['database'] });
+      await expect(
+        service.create(actor, { ...createDto, databaseServerId: DB, dataTransport: 'tls' }),
+      ).rejects.toThrow('environments.errors.transportTlsUnsupported');
+    });
+
+    it('storage placement is refused up front — its provisioning is a follow-up', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [STORE]: ['storage'] });
+      await expect(
+        service.create(actor, {
+          ...createDto,
+          storageServerId: STORE,
+          dataTransport: 'private-network',
+        }),
+      ).rejects.toThrow('environments.errors.storageProvisionUnsupported');
+    });
+
+    it('a placement server the org does not own reads as absent', async () => {
+      fleet({ [SERVER]: ['app', 'data'] });
+      await expect(
+        service.create(actor, {
+          ...createDto,
+          databaseServerId: DB,
+          dataTransport: 'private-network',
+        }),
+      ).rejects.toThrow('servers.errors.notFound');
+    });
+
+    it('update validates a placement change the same way, against the merged row', async () => {
+      fleet({ [SERVER]: ['app', 'data'], [CACHE]: ['cache'] });
+      await expect(
+        service.update(actor, { projectId: PROJECT, id: ENV, cacheServerId: CACHE }),
+      ).rejects.toThrow('environments.errors.transportRequired');
+      await service.update(actor, {
+        projectId: PROJECT,
+        id: ENV,
+        cacheServerId: CACHE,
+        dataTransport: 'private-network',
+      });
+      expect(repository.update).toHaveBeenCalledWith(ENV, PROJECT, {
+        cacheServerId: CACHE,
+        dataTransport: 'private-network',
+      });
+    });
+
+    it('delete snapshots the placement so teardown reaches the moved roles too', async () => {
+      stored = { provisionStatus: 'provisioned', databaseServerId: DB, cacheServerId: null };
+      await service.delete(actor, { projectId: PROJECT, id: ENV });
+      expect(provisioner.enqueueDeprovision).toHaveBeenCalledWith(SERVER, 'the_project_staging', {
+        databaseServerId: DB,
+        cacheServerId: null,
+      });
+    });
+
+    it('the response carries placement ids, display names and the transport', async () => {
+      stored = {
+        databaseServerId: DB,
+        databaseServerName: 'pg-box',
+        dataTransport: 'private-network',
+      };
+      const { data } = await service.list(actor, PROJECT);
+      expect(data[0]).toMatchObject({
+        databaseServerId: DB,
+        databaseServerName: 'pg-box',
+        cacheServerId: null,
+        cacheServerName: null,
+        dataTransport: 'private-network',
+      });
+    });
   });
 });

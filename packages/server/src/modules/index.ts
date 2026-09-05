@@ -14,5 +14,6 @@ export * from './deploy/render.js';
 export * from './deploy/auto-deploy.js';
 export * from './deploy/deploy-log.js';
 export * from './deploy/deploy-path.js';
+export * from './deploy/placement.js';
 export * from './deploy/seed-env.js';
 export * from './deploy/seed-password.js';

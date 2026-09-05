@@ -222,6 +222,10 @@ export class DeploymentProcessor extends WorkerHost {
         NODE_ENV: 'production',
         WORKER_PORT: '3001',
         IAM_REDIS_HOST: platformEnv.REDIS_HOST ?? 'localhost',
+        // A moved (or password-protected) cache carries its port + password;
+        // the co-located default has neither, so both stay absent there.
+        ...(platformEnv.REDIS_PORT ? { IAM_REDIS_PORT: platformEnv.REDIS_PORT } : {}),
+        ...(platformEnv.REDIS_PASSWORD ? { IAM_REDIS_PASSWORD: platformEnv.REDIS_PASSWORD } : {}),
         PUBLIC_PORT: String(publicPort),
         ...(firstDeploy ? { SEED_ON_STARTUP: 'true' } : {}),
       },

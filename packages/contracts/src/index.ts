@@ -33,6 +33,12 @@ export {
   SERVER_STATUSES,
   type ServerRole,
   type ServerStatus,
+  LEGACY_SERVER_ROLES,
+  REGISTERABLE_SERVER_ROLES,
+  DATA_PLANE_ROLES,
+  type DataPlaneRole,
+  DATA_TRANSPORTS,
+  type DataTransport,
 } from './constants/server.js';
 export {
   AGENT_KINDS,

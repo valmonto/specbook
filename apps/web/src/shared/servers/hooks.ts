@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
-import type { ListServersResponse } from '@pkg/contracts';
+import type { ListServersResponse, ServerEnvironmentsResponse } from '@pkg/contracts';
 import { useAuth } from '@/shared/auth/auth-context';
 import { useCachedRequest } from '@/shared/hooks/use-cached-request';
 import { useActionRequest } from '@/shared/hooks/use-action-request';
@@ -46,3 +46,12 @@ export const useCreateServer = () => useServersAction(serversApi.create);
 export const useUpdateServer = () => useServersAction(serversApi.update);
 export const useRemoveServer = () => useServersAction(serversApi.remove);
 export const useTestServer = () => useServersAction(serversApi.test);
+
+/** The shared-instance view for one server; fetched on demand (null id = idle). */
+export function useServerEnvironments(serverId: string | null) {
+  const { user } = useAuth();
+  return useCachedRequest<ServerEnvironmentsResponse>({
+    key: serverId && user?.orgId ? `servers:${user.orgId}:${serverId}:environments` : null,
+    fetcher: () => serversApi.environments({ id: serverId! }),
+  });
+}

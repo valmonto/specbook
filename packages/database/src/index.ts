@@ -36,3 +36,5 @@ export {
   asc,
   getTableColumns,
 } from 'drizzle-orm';
+// Aliased self-joins (an environment joins `server` up to four times).
+export { alias } from 'drizzle-orm/pg-core';

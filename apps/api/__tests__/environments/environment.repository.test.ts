@@ -217,4 +217,60 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     // Deleting is what the FK refuses, exactly as documented on the schema.
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
   });
+
+  it('placement: an environment can put its database on a second server; deleting that server is then refused', async () => {
+    const owner = await client.db.select({ id: user.id }).from(user).limit(1);
+    const [dbBox] = await client.db
+      .insert(server)
+      .values({
+        orgId: orgA,
+        name: 'org-a-pg',
+        host: '192.168.122.20',
+        roles: ['database'],
+        publicKey: 'ssh-ed25519 AAAA test',
+        privateKeyEnc: 'v1:sealed',
+        createdBy: owner[0]!.id,
+      })
+      .returning();
+    const created = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      databaseServerId: dbBox!.id,
+      dataTransport: 'private-network',
+    });
+    expect(created.databaseServerId).toBe(dbBox!.id);
+    expect(created.cacheServerId).toBeNull();
+
+    // Read back with both display names — the app server and the database server.
+    const found = await repo.findById(created.id, projectA, orgA);
+    expect(found?.serverName).toBe('org-a-box');
+    expect(found?.databaseServerName).toBe('org-a-pg');
+    expect(found?.cacheServerName).toBeNull();
+
+    // The shared-instance view: the database box hosts this environment's database ONLY.
+    const hosted = await repo.findHostedBy(dbBox!.id, orgA);
+    expect(hosted).toHaveLength(1);
+    expect(hosted[0]).toMatchObject({
+      environmentName: 'staging',
+      serverId: serverA,
+      databaseServerId: dbBox!.id,
+    });
+    // …and another org sees nothing on it.
+    expect(await repo.findHostedBy(dbBox!.id, orgB)).toEqual([]);
+
+    // RESTRICT protects the placement server exactly like the app server.
+    await expect(client.db.delete(server).where(eq(server.id, dbBox!.id))).rejects.toThrow();
+  });
+
+  it('placement: the transport CHECK refuses values outside the contract', async () => {
+    await expect(
+      repo.create({
+        projectId: projectA,
+        name: 'staging',
+        serverId: serverA,
+        dataTransport: 'carrier-pigeon',
+      }),
+    ).rejects.toThrow();
+  });
 });

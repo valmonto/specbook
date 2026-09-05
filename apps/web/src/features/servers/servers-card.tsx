@@ -1,8 +1,20 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Check, Copy, HardDrive, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  HardDrive,
+  Loader2,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react';
+import {
+  REGISTERABLE_SERVER_ROLES,
   SERVER_ROLES,
   type Server,
   type ServerRole,
@@ -37,6 +49,7 @@ import { useCan } from '@/shared/hooks/use-permissions';
 import {
   useCreateServer,
   useRemoveServer,
+  useServerEnvironments,
   useServers,
   useTestServer,
   useUpdateServer,
@@ -99,6 +112,52 @@ export function serverPatch(original: Server, form: ServerForm): Omit<UpdateServ
 /** True when the pending patch would clear the pinned fingerprint. */
 export const resetsPin = (patch: Omit<UpdateServerRequest, 'id'>): boolean =>
   patch.host !== undefined || patch.port !== undefined;
+
+/**
+ * The shared-instance view: which environments use this server, and as what.
+ * One Postgres per server is reused by N environments (each with its own
+ * database + role) — this is where that reuse becomes visible.
+ */
+function HostedEnvironments({ server }: { server: Server }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useServerEnvironments(open ? server.id : null);
+  const rows = data?.data ?? [];
+  return (
+    <div className="basis-full">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+        {t(k.servers.hostedEnvironments)}
+      </button>
+      {open && (
+        <ul className="mt-1.5 space-y-1 pl-4 text-xs">
+          {isLoading && rows.length === 0 && <li className="text-muted-foreground">…</li>}
+          {!isLoading && rows.length === 0 && (
+            <li className="text-muted-foreground">{t(k.servers.hostedEnvironmentsEmpty)}</li>
+          )}
+          {rows.map((r) => (
+            <li key={r.environmentId} className="flex flex-wrap items-center gap-x-2">
+              <span className="font-medium">
+                {r.projectName} · {r.environmentName}
+              </span>
+              <span className="text-muted-foreground">
+                {t(k.servers.hostedAs)} {r.roles.map((role) => t(k.servers.role[role])).join(' · ')}
+              </span>
+              {r.databaseName && (
+                <span className="font-mono text-muted-foreground">db: {r.databaseName}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function ServersCard() {
   const { t } = useTranslation();
@@ -240,6 +299,7 @@ export function ServersCard() {
                     </Button>
                   </div>
                 )}
+                <HostedEnvironments server={s} />
               </li>
             ))}
           </ul>
@@ -293,8 +353,10 @@ export function ServersCard() {
             </div>
             <div className="grid gap-1.5">
               <Label>{t(k.servers.roles)}</Label>
-              <div className="flex gap-4">
-                {SERVER_ROLES.map((role) => (
+              {/* New servers get the granular roles only; the combined legacy
+                  `data` role stays valid on existing servers (see the Edit dialog). */}
+              <div className="flex flex-wrap gap-4">
+                {REGISTERABLE_SERVER_ROLES.map((role) => (
                   <label key={role} className="flex items-center gap-1.5 text-sm">
                     <Checkbox
                       checked={roles.includes(role)}
@@ -376,7 +438,7 @@ export function ServersCard() {
               </div>
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.roles)}</Label>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4">
                   {SERVER_ROLES.map((role) => (
                     <label key={role} className="flex items-center gap-1.5 text-sm">
                       <Checkbox
@@ -389,7 +451,7 @@ export function ServersCard() {
                           })
                         }
                       />
-                      {t(k.servers.role[role])}
+                      {role === 'data' ? t(k.servers.legacyDataRole) : t(k.servers.role[role])}
                     </label>
                   ))}
                 </div>
