@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Check, Copy, HardDrive, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { SERVER_ROLES, type Server, type ServerRole } from '@pkg/contracts';
+import { Check, Copy, HardDrive, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  SERVER_ROLES,
+  type Server,
+  type ServerRole,
+  type UpdateServerRequest,
+} from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +39,7 @@ import {
   useRemoveServer,
   useServers,
   useTestServer,
+  useUpdateServer,
 } from '@/shared/servers/hooks';
 
 const statusStyles: Record<Server['status'], string> = {
@@ -52,6 +58,48 @@ const ago = (iso: string | null): string => {
   return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 };
 
+type ServerForm = {
+  name: string;
+  host: string;
+  port: string;
+  sshUser: string;
+  roles: ServerRole[];
+};
+
+const toForm = (s: Server): ServerForm => ({
+  name: s.name,
+  host: s.host,
+  port: String(s.port),
+  sshUser: s.sshUser,
+  roles: s.roles ?? [],
+});
+
+const sameRoles = (a: readonly ServerRole[], b: readonly ServerRole[]): boolean =>
+  a.length === b.length && a.every((r) => b.includes(r));
+
+/**
+ * Only the fields that actually changed go on the wire. The backend resets the
+ * pinned host fingerprint whenever `host` or `port` is PRESENT in the patch, so
+ * sending an unchanged host would silently re-verify a working server.
+ */
+export function serverPatch(original: Server, form: ServerForm): Omit<UpdateServerRequest, 'id'> {
+  const patch: Omit<UpdateServerRequest, 'id'> = {};
+  const name = form.name.trim();
+  const host = form.host.trim();
+  const port = Math.max(1, Math.min(65535, Number(form.port) || original.port));
+  const sshUser = form.sshUser.trim();
+  if (name && name !== original.name) patch.name = name;
+  if (host && host !== original.host) patch.host = host;
+  if (port !== original.port) patch.port = port;
+  if (sshUser && sshUser !== original.sshUser) patch.sshUser = sshUser;
+  if (!sameRoles(form.roles, original.roles ?? [])) patch.roles = form.roles;
+  return patch;
+}
+
+/** True when the pending patch would clear the pinned fingerprint. */
+export const resetsPin = (patch: Omit<UpdateServerRequest, 'id'>): boolean =>
+  patch.host !== undefined || patch.port !== undefined;
+
 export function ServersCard() {
   const { t } = useTranslation();
   const { data } = useServers();
@@ -59,6 +107,7 @@ export function ServersCard() {
   const create = useCreateServer();
   const remove = useRemoveServer();
   const test = useTestServer();
+  const update = useUpdateServer();
 
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: '', host: '', port: '22', sshUser: 'deploy' });
@@ -66,6 +115,8 @@ export function ServersCard() {
   /** Set right after creation: the one moment the key ceremony happens. */
   const [revealed, setRevealed] = useState<Server | null>(null);
   const [removing, setRemoving] = useState<Server | null>(null);
+  /** The server being edited and its live form; null when the dialog is closed. */
+  const [editing, setEditing] = useState<{ server: Server; form: ServerForm } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const servers = data?.data ?? [];
@@ -83,6 +134,26 @@ export function ServersCard() {
     setForm({ name: '', host: '', port: '22', sshUser: 'deploy' });
     setRoles(['app']);
     setRevealed(res.d);
+  };
+
+  const editPatch = editing ? serverPatch(editing.server, editing.form) : {};
+  const editHasChanges = Object.keys(editPatch).length > 0;
+  const editRolesMissing = editing !== null && editing.form.roles.length === 0;
+  const editNameTaken = update.error?.message === k.servers.errors.nameTaken;
+
+  const openEdit = (s: Server) => {
+    update.reset();
+    setEditing({ server: s, form: toForm(s) });
+  };
+  const setEditForm = (next: Partial<ServerForm>) =>
+    setEditing((prev) => (prev ? { ...prev, form: { ...prev.form, ...next } } : prev));
+
+  const saveEdit = async () => {
+    if (!editing || !editHasChanges || editRolesMissing) return;
+    const res = await update.execute({ id: editing.server.id, ...editPatch });
+    if (res.e) return;
+    setEditing(null);
+    toast.success(t(k.servers.saved));
   };
 
   const copyKey = async (key: string) => {
@@ -135,6 +206,15 @@ export function ServersCard() {
                 </div>
                 {canManage && (
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 text-muted-foreground"
+                      aria-label={t(k.servers.edit)}
+                      onClick={() => openEdit(s)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -237,6 +317,112 @@ export function ServersCard() {
             >
               {create.isLoading && <Loader2 className="size-4 mr-1 animate-spin" />}
               {t(k.servers.add)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog — PATCH /servers/:id with only the changed fields */}
+      <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t(k.servers.editTitle)}</DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {editing?.server.sshUser}@{editing?.server.host}:{editing?.server.port}
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="grid gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit-server-name">{t(k.servers.name)}</Label>
+                <Input
+                  id="edit-server-name"
+                  value={editing.form.name}
+                  aria-invalid={editNameTaken || undefined}
+                  onChange={(e) => {
+                    update.reset();
+                    setEditForm({ name: e.target.value });
+                  }}
+                />
+                {editNameTaken && (
+                  <p className="text-xs text-destructive">{t(k.servers.errors.nameTaken)}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-[1fr_6rem] gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-server-host">{t(k.servers.host)}</Label>
+                  <Input
+                    id="edit-server-host"
+                    value={editing.form.host}
+                    onChange={(e) => setEditForm({ host: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-server-port">{t(k.servers.port)}</Label>
+                  <Input
+                    id="edit-server-port"
+                    value={editing.form.port}
+                    onChange={(e) => setEditForm({ port: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="edit-server-ssh-user">{t(k.servers.sshUser)}</Label>
+                <Input
+                  id="edit-server-ssh-user"
+                  value={editing.form.sshUser}
+                  onChange={(e) => setEditForm({ sshUser: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>{t(k.servers.roles)}</Label>
+                <div className="flex gap-4">
+                  {SERVER_ROLES.map((role) => (
+                    <label key={role} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox
+                        checked={editing.form.roles.includes(role)}
+                        onCheckedChange={(v) =>
+                          setEditForm({
+                            roles: v
+                              ? [...editing.form.roles, role]
+                              : editing.form.roles.filter((r) => r !== role),
+                          })
+                        }
+                      />
+                      {t(k.servers.role[role])}
+                    </label>
+                  ))}
+                </div>
+                {editRolesMissing && (
+                  <p className="text-xs text-destructive">{t(k.servers.rolesRequired)}</p>
+                )}
+              </div>
+              {/* Shown BEFORE saving, the moment host or port differs: the reset is
+                  existing backend behaviour and must not be a surprise. */}
+              {resetsPin(editPatch) && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300"
+                >
+                  {t(k.servers.pinResetWarning)}
+                </p>
+              )}
+              {update.error && !editNameTaken && (
+                <p className="text-xs text-destructive">{t(update.error.message)}</p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              {t(k.common.actions.cancel)}
+            </Button>
+            <Button
+              disabled={!editHasChanges || editRolesMissing || update.isLoading}
+              title={!editHasChanges ? t(k.servers.noChanges) : undefined}
+              onClick={() => void saveEdit()}
+            >
+              {update.isLoading && <Loader2 className="size-4 mr-1 animate-spin" />}
+              {t(k.servers.save)}
             </Button>
           </DialogFooter>
         </DialogContent>

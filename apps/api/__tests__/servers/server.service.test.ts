@@ -95,6 +95,23 @@ describe('ServerService — generated credentials, write-only by construction', 
     expect('hostFingerprint' in patch).toBe(false);
   });
 
+  it('changing only roles or the SSH user keeps the pin — the UI edit path must never re-verify a working server', async () => {
+    await service.update(actor, { id: 's1', roles: ['app', 'runner'], sshUser: 'ops' });
+    const patch = repository.update!.mock.calls[0]![2] as Record<string, unknown>;
+    expect(patch).toEqual({ roles: ['app', 'runner'], sshUser: 'ops' });
+    expect(patch).not.toHaveProperty('hostFingerprint');
+    expect(patch).not.toHaveProperty('status');
+  });
+
+  it('changing the port alone resets the pin, like a host change', async () => {
+    await service.update(actor, { id: 's1', port: 2222 });
+    expect(repository.update).toHaveBeenCalledWith(
+      's1',
+      actor.orgId,
+      expect.objectContaining({ port: 2222, hostFingerprint: null, status: 'unverified' }),
+    );
+  });
+
   it('test enqueues the worker check — the API opens no sockets', async () => {
     await service.test(actor, 's1');
     expect(checks.enqueueCheck).toHaveBeenCalledWith('s1');
