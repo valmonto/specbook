@@ -40,11 +40,12 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
     super();
   }
 
+  /** Self-scheduling, like every sweep (bullmq 6 dropped the legacy `repeat` option). */
   async onModuleInit(): Promise<void> {
-    await this.queue.add(
-      'sweep-all',
-      { sweep: true },
-      { repeat: { every: SWEEP_EVERY_MS }, jobId: 'server-check-sweep' },
+    await this.queue.upsertJobScheduler(
+      'server-check-sweep',
+      { every: SWEEP_EVERY_MS },
+      { name: 'sweep-all', data: { sweep: true } },
     );
   }
 

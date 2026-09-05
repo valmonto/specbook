@@ -20,12 +20,17 @@ export class ServerCheckProducer {
     );
   }
 
-  /** Recurring sweep keeping every status chip honest. */
+  /**
+   * Recurring sweep keeping every status chip honest. A job scheduler, not
+   * the legacy `repeat` option — bullmq 6 removed that from `JobsOptions`;
+   * the scheduler is idempotent on its id, so re-registering on every boot
+   * is safe.
+   */
   async scheduleSweep(everyMs: number) {
-    return this.queue.add(
-      SERVER_CHECK_JOB_NAMES.SWEEP,
-      { sweep: true },
-      { repeat: { every: everyMs }, jobId: 'server-check-sweep' },
+    return this.queue.upsertJobScheduler(
+      'server-check-sweep',
+      { every: everyMs },
+      { name: SERVER_CHECK_JOB_NAMES.SWEEP, data: { sweep: true } },
     );
   }
 }

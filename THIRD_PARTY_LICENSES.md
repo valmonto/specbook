@@ -8,8 +8,8 @@ This project uses the following third-party packages:
 ## Summary
 
 - **Direct dependencies:** 96 packages (from pnpm catalog)
-- **Transitive dependencies:** 1477 packages
-- **Total:** 1573 packages
+- **Transitive dependencies:** 1474 packages
+- **Total:** 1570 packages
 
 ### License Breakdown
 
@@ -29,7 +29,7 @@ This project uses the following third-party packages:
 | CC-BY-4.0 | 0 | 1 | 1 |
 | CC0-1.0 | 0 | 1 | 1 |
 | ISC | 1 | 57 | 58 |
-| MIT | 83 | 1257 | 1340 |
+| MIT | 83 | 1254 | 1337 |
 | MIT AND Apache-2.0 | 0 | 1 | 1 |
 | MIT AND ISC | 0 | 1 | 1 |
 | MIT AND OFL-1.1 | 0 | 1 | 1 |
@@ -137,7 +137,7 @@ These packages are explicitly declared in `pnpm-workspace.yaml` catalog:
   - V8 coverage provider for Vitest
 - **axios** (1.17.0) - [Homepage](https://axios-http.com)
   - Promise based HTTP client for the browser and node.js
-- **bullmq** (5.78.0) - [Homepage](https://bullmq.io/)
+- **bullmq** (6.3.4) - [Homepage](https://bullmq.io/)
   - Queue for messages and jobs based on Redis
 - **clsx** (2.1.1) - [Homepage](https://github.com/lukeed/clsx#readme)
   - A tiny (239B) utility for constructing className strings conditionally.
@@ -171,7 +171,7 @@ These packages are explicitly declared in `pnpm-workspace.yaml` catalog:
   - language detector used in browser environment for i18next
 - **input-otp** (1.4.2) - [Homepage](https://input-otp.rodz.dev/)
   - One-time password input component for React.
-- **ioredis** (5.10.1, 5.11.1) - [Homepage](https://github.com/luin/ioredis#readme)
+- **ioredis** (6.0.0) - [Homepage](https://github.com/redis/ioredis#readme)
   - A robust, performance-focused and full-featured Redis client for Node.js.
 - **jsdom** (29.1.1) - [Homepage](https://github.com/jsdom/jsdom#readme)
   - A JavaScript implementation of many web standards
@@ -343,7 +343,7 @@ These packages are installed as dependencies of direct dependencies:
 - **bser** (2.1.1) - [Homepage](https://facebook.github.io/watchman/docs/bser.html)
 - **chrome-launcher** (0.15.2) - [Homepage](https://github.com/GoogleChrome/chrome-launcher#readme)
 - **chromium-edge-launcher** (0.3.0) - [Homepage](https://github.com/cezaraugusto/chromium-edge-launcher#readme)
-- **cluster-key-slot** (1.1.1, 1.1.2) - [Homepage](https://github.com/Salakar/cluster-key-slot#readme)
+- **cluster-key-slot** (1.1.1) - [Homepage](https://github.com/Salakar/cluster-key-slot#readme)
 - **denque** (2.1.0) - [Homepage](https://docs.page/invertase/denque)
 - **detect-libc** (2.1.2) - [Homepage](https://github.com/lovell/detect-libc#readme)
 - **doctrine** (2.1.0) - [Homepage](https://github.com/eslint/doctrine)
@@ -482,7 +482,7 @@ These packages are installed as dependencies of direct dependencies:
 - **picocolors** (1.1.1) - [Homepage](https://github.com/alexeyraspopov/picocolors#readme)
 - **proc-log** (4.2.0) - [Homepage](https://github.com/npm/proc-log#readme)
 - **saxes** (6.0.0) - [Homepage](https://github.com/lddubeau/saxes#readme)
-- **semver** (6.3.1, 7.7.4, 7.8.0, 7.8.5) - [Homepage](https://github.com/npm/node-semver#readme)
+- **semver** (6.3.1, 7.7.4, 7.8.5) - [Homepage](https://github.com/npm/node-semver#readme)
 - **setprototypeof** (1.2.0) - [Homepage](https://github.com/wesleytodd/setprototypeof)
 - **siginfo** (2.0.0) - [Homepage](https://github.com/emilbayes/siginfo#readme)
 - **signal-exit** (3.0.7, 4.1.0) - [Homepage](https://github.com/tapjs/signal-exit#readme)
@@ -676,7 +676,7 @@ These packages are installed as dependencies of direct dependencies:
 - **@inquirer/search** (4.2.1, 4.3.2) - [Homepage](https://github.com/SBoudrias/Inquirer.js/blob/main/packages/search/README.md)
 - **@inquirer/select** (5.2.1, 5.2.4) - [Homepage](https://github.com/SBoudrias/Inquirer.js/blob/main/packages/select/README.md)
 - **@inquirer/type** (4.0.7, 4.1.1) - [Homepage](https://github.com/SBoudrias/Inquirer.js#readme)
-- **@ioredis/commands** (1.5.1, 1.10.0) - [Homepage](https://github.com/ioredis/commands)
+- **@ioredis/commands** (2.0.0) - [Homepage](https://github.com/ioredis/commands)
 - **@jest/schemas** (29.6.3) - [Homepage](https://github.com/jestjs/jest#readme)
 - **@jest/types** (29.6.3) - [Homepage](https://github.com/jestjs/jest#readme)
 - **@jridgewell/gen-mapping** (0.3.13) - [Homepage](https://github.com/jridgewell/sourcemaps/tree/main/packages/gen-mapping)
@@ -1031,7 +1031,7 @@ These packages are installed as dependencies of direct dependencies:
 - **cosmiconfig** (8.3.6, 9.0.2) - [Homepage](https://github.com/cosmiconfig/cosmiconfig#readme)
 - **cosmiconfig-typescript-loader** (6.3.0) - [Homepage](https://github.com/Codex-/cosmiconfig-typescript-loader#readme)
 - **cpu-features** (0.0.10) - [Homepage](https://github.com/mscdex/cpu-features#readme)
-- **cron-parser** (4.9.0) - [Homepage](https://github.com/harrisiirak/cron-parser#readme)
+- **cron-parser** (5.10.0) - [Homepage](https://github.com/harrisiirak/cron-parser#readme)
 - **cross-fetch** (3.2.0) - [Homepage](https://github.com/lquixada/cross-fetch)
 - **cross-spawn** (7.0.6) - [Homepage](https://github.com/moxystudio/node-cross-spawn)
 - **css-in-js-utils** (3.1.0) - [Homepage](https://github.com/robinweser/css-in-js-utils#readme)
@@ -1330,10 +1330,8 @@ These packages are installed as dependencies of direct dependencies:
 - **locate-path** (6.0.0) - [Homepage](https://github.com/sindresorhus/locate-path#readme)
 - **lodash.capitalize** (4.2.1) - [Homepage](https://lodash.com/)
 - **lodash.debounce** (4.0.8) - [Homepage](https://lodash.com/)
-- **lodash.defaults** (4.2.0) - [Homepage](https://lodash.com/)
 - **lodash.escaperegexp** (4.1.2) - [Homepage](https://lodash.com/)
 - **lodash.includes** (4.3.0) - [Homepage](https://lodash.com/)
-- **lodash.isarguments** (3.1.0) - [Homepage](https://lodash.com/)
 - **lodash.isboolean** (3.0.3) - [Homepage](https://lodash.com/)
 - **lodash.isinteger** (4.0.4) - [Homepage](https://lodash.com/)
 - **lodash.isnumber** (3.0.3) - [Homepage](https://lodash.com/)
@@ -1427,7 +1425,7 @@ These packages are installed as dependencies of direct dependencies:
 - **mkdirp** (1.0.4) - [Homepage](https://github.com/isaacs/node-mkdirp#readme)
 - **module-details-from-path** (1.0.4) - [Homepage](https://github.com/watson/module-details-from-path#readme)
 - **ms** (2.0.0, 2.1.3) - [Homepage](https://github.com/vercel/ms#readme)
-- **msgpackr** (2.0.2) - [Homepage](https://github.com/kriszyp/msgpackr#readme)
+- **msgpackr** (2.1.0) - [Homepage](https://github.com/kriszyp/msgpackr#readme)
 - **msgpackr-extract** (3.0.4) - [Homepage](https://github.com/kriszyp/msgpackr-extract#readme)
 - **multitars** (1.0.0) - [Homepage](https://github.com/kitten/multitars#readme)
 - **nan** (2.28.0) - [Homepage](https://github.com/nodejs/nan#readme)
@@ -1554,7 +1552,6 @@ These packages are installed as dependencies of direct dependencies:
 - **real-require** (0.2.0, 1.0.0) - [Homepage](https://github.com/pinojs/real-require)
 - **redent** (3.0.0) - [Homepage](https://github.com/sindresorhus/redent#readme)
 - **redis-errors** (1.2.0) - [Homepage](https://github.com/NodeRedis/redis-errors#readme)
-- **redis-parser** (3.0.0) - [Homepage](https://github.com/NodeRedis/node-redis-parser#readme)
 - **redux** (5.0.1) - [Homepage](http://redux.js.org)
 - **redux-thunk** (3.1.0) - [Homepage](https://github.com/reduxjs/redux-thunk)
 - **reflect.getprototypeof** (1.0.10) - [Homepage](https://github.com/es-shims/Reflect.getPrototypeOf)
