@@ -245,7 +245,9 @@ function ChartTooltipContent({
   );
 }
 
-const ChartLegend = RechartsPrimitive.Legend;
+// Annotated on purpose: recharts resolves its own @types/react copy, and the
+// inferred type of the re-export would name that copy's private path (TS2883).
+const ChartLegend: typeof RechartsPrimitive.Legend = RechartsPrimitive.Legend;
 
 function ChartLegendContent({
   className,

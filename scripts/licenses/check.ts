@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { expressionAllowed, normalizeLicense } from './spdx.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -93,10 +94,6 @@ function getLicenseData(): LicenseData {
   return JSON.parse(result) as LicenseData;
 }
 
-function normalizeLicense(license: string): string {
-  return license.trim();
-}
-
 function validateLicenses(data: LicenseData, config: LicenseConfig): ValidationResult {
   const result: ValidationResult = {
     allowed: [],
@@ -124,8 +121,10 @@ function validateLicenses(data: LicenseData, config: LicenseConfig): ValidationR
         ? config.overrides[pkg.name].toLowerCase()
         : normalizedLicense;
 
-      // Categorize
-      if (allowedSet.has(effectiveLicense)) {
+      // Categorize. A compound SPDX expression is evaluated, not string-matched:
+      // "A OR B" is allowed when we may pick an allowed side; "A AND B" only
+      // when every side is allowed. One operator level is enough for npm.
+      if (allowedSet.has(effectiveLicense) || expressionAllowed(effectiveLicense, allowedSet)) {
         result.allowed.push({ ...pkg, license });
       } else if (reviewSet.has(effectiveLicense)) {
         result.reviewRequired.push({ ...pkg, license });
