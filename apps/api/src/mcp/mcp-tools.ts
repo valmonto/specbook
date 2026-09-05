@@ -1,9 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import { k } from '@pkg/locales';
-// The MCP SDK is built against zod v3; the workspace is v4. Tool input schemas
-// use the aliased v3 so they match the SDK's ZodRawShape at runtime.
-import { z, type ZodRawShape } from 'zod-v3';
+import { z, type ZodRawShape } from 'zod';
 import {
   ATTACHMENT_KINDS,
   ENVIRONMENT_NAMES,

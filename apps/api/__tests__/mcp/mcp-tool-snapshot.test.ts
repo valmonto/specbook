@@ -13,7 +13,13 @@ import { McpTools } from '@/mcp/mcp-tools.js';
  * an optional turning nullable) fails here instead of in a client.
  *
  * The snapshot was first taken on SDK 1.20 + the zod-v3 alias, BEFORE moving
- * to SDK 1.30 on zod 4; the post-bump diff is reviewed in the PR that bumps.
+ * to SDK 1.30 on zod 4. The post-bump diff had exactly three kinds of change,
+ * all from zod 4's JSON Schema emitter and all accepted as intentional:
+ *   - `.uuid()` now emits an explicit `pattern` beside `format: "uuid"` (27×);
+ *   - `.int()` now also emits `maximum: 9007199254740991` (safe-integer bound, 11×);
+ *   - `additionalProperties: false` is no longer emitted (26×) — zod 4 objects
+ *     strip unknown keys instead of rejecting them, so a client sending an
+ *     extra argument gets it ignored rather than a validation error.
  */
 describe('MCP tools/list snapshot', () => {
   it('publishes the same schema for every tool, all scopes granted, org-bound', async () => {

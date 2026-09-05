@@ -7,7 +7,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "kind": {
           "type": "string",
@@ -28,7 +29,6 @@
         "id",
         "body"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -40,18 +40,19 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "dependsOnTaskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id",
         "dependsOnTaskId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -63,7 +64,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "bodyMarkdown": {
           "type": "string",
@@ -77,7 +79,6 @@
         "id",
         "bodyMarkdown"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -89,11 +90,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "index": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "done": {
           "type": "boolean"
@@ -104,7 +107,6 @@
         "index",
         "done"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -116,13 +118,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -134,13 +136,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -152,7 +154,8 @@
       "properties": {
         "taskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "kind": {
           "type": "string",
@@ -175,7 +178,8 @@
         },
         "sizeBytes": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -185,7 +189,6 @@
         "mimeType",
         "sizeBytes"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -197,7 +200,8 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "title": {
           "type": "string",
@@ -215,12 +219,12 @@
           "maxLength": 120
         },
         "acceptanceCriteria": {
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          },
-          "maxItems": 50
+          }
         },
         "priority": {
           "type": "integer",
@@ -228,19 +232,19 @@
           "maximum": 1000
         },
         "dependsOn": {
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "string",
-            "format": "uuid"
-          },
-          "maxItems": 50
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
         }
       },
       "required": [
         "projectId",
         "title"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -252,7 +256,8 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "name": {
           "type": "string",
@@ -265,7 +270,6 @@
       "required": [
         "projectId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -277,13 +281,13 @@
       "properties": {
         "taskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "taskId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -295,13 +299,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -313,13 +317,13 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "projectId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -331,13 +335,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -349,13 +353,13 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -375,13 +379,13 @@
       "properties": {
         "taskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "taskId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -393,7 +397,8 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "limit": {
           "type": "integer",
@@ -404,7 +409,6 @@
       "required": [
         "projectId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -416,7 +420,8 @@
       "properties": {
         "skip": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "limit": {
           "type": "integer",
@@ -424,7 +429,6 @@
           "maximum": 100
         }
       },
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -436,7 +440,8 @@
       "properties": {
         "skip": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "limit": {
           "type": "integer",
@@ -444,7 +449,6 @@
           "maximum": 100
         }
       },
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -456,7 +460,8 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "status": {
           "type": "string",
@@ -476,7 +481,6 @@
           "type": "string"
         }
       },
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -488,7 +492,8 @@
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "status": {
           "type": "string",
@@ -509,7 +514,8 @@
         },
         "skip": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "limit": {
           "type": "integer",
@@ -517,7 +523,6 @@
           "maximum": 100
         }
       },
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -537,18 +542,19 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "dependsOnTaskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         }
       },
       "required": [
         "id",
         "dependsOnTaskId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -560,25 +566,28 @@
       "properties": {
         "taskId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "tokensIn": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "tokensOut": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "usdCents": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
         "taskId"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -590,7 +599,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "what": {
           "type": "string",
@@ -614,7 +624,6 @@
         "why",
         "howToVerify"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -626,7 +635,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "to": {
           "type": "string",
@@ -647,22 +657,24 @@
         },
         "costTokensIn": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "costTokensOut": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "costUsdCents": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
         "id",
         "to"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -674,7 +686,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "title": {
           "type": "string",
@@ -692,18 +705,17 @@
           "maxLength": 120
         },
         "acceptanceCriteria": {
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          },
-          "maxItems": 50
+          }
         }
       },
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
@@ -715,7 +727,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "branch": {
           "type": "string",
@@ -729,7 +742,6 @@
       "required": [
         "id"
       ],
-      "additionalProperties": false,
       "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
