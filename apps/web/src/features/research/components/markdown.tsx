@@ -41,9 +41,7 @@ const components: Components = {
   code: ({ className, children }) => {
     const isBlock = /language-/.test(className ?? '');
     if (isBlock) {
-      return (
-        <code className="font-mono text-[13px] leading-relaxed">{children}</code>
-      );
+      return <code className="font-mono text-[13px] leading-relaxed">{children}</code>;
     }
     return (
       <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]">{children}</code>

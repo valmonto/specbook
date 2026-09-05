@@ -214,10 +214,7 @@ export class DeploymentProcessor extends WorkerHost {
     const userEnv = env.userEnvEnc
       ? (JSON.parse(this.secrets.open(env.userEnvEnc)) as Record<string, string>)
       : {};
-    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(
-      env,
-      Object.keys(userEnv),
-    );
+    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env, Object.keys(userEnv));
     const envFile = renderDeployEnv([
       platformEnv,
       userEnv,
@@ -267,10 +264,7 @@ export class DeploymentProcessor extends WorkerHost {
     sink.line('deploy complete — healthy');
     await sink.flush();
     await this.finish(row.id, 'healthy', null);
-    this.logger.info(
-      { deploymentId: row.id, unit, sha, port: publicPort },
-      'Deployment healthy',
-    );
+    this.logger.info({ deploymentId: row.id, unit, sha, port: publicPort }, 'Deployment healthy');
   }
 
   /**

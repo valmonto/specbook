@@ -309,196 +309,195 @@ export default function ProjectDetailV2Page() {
 
   return (
     <ProjectReadOnlyContext.Provider value={readOnly}>
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <Link to="/projects" className="inline-flex items-center gap-1 hover:text-foreground">
-          <ArrowLeft className="size-4" />
-          {t(k.tasks.projects)}
-        </Link>
-      </div>
-
-      {/* Archived: the whole page is a reading surface until unarchived. */}
-      {readOnly && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
-          <Archive className="size-4 shrink-0" />
-          <span>{t(k.tasks.archivedBanner)}</span>
-          {canManage && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="ml-auto"
-              disabled={unarchive.isLoading}
-              onClick={() => void unarchive.execute({ id: project.id })}
-            >
-              <ArchiveRestore className="size-4 mr-1" />
-              {t(k.tasks.unarchiveProject)}
-            </Button>
-          )}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Link to="/projects" className="inline-flex items-center gap-1 hover:text-foreground">
+            <ArrowLeft className="size-4" />
+            {t(k.tasks.projects)}
+          </Link>
         </div>
-      )}
 
-      <ProjectHeader
-        project={project}
-        readOnly={readOnly}
-        actions={
-          readOnly ? null : (
-            <div className="flex items-center gap-2">
-              <NewTaskMenu
-                candidates={dependencyCandidates}
-                disabled={create.isLoading}
-                onNewTask={() => void newTask()}
-                onCreateWithDependency={createWithDependency}
-                createError={create.error?.message}
-              />
-              {/* The project-wide bulk sweep — Mark all drafts ready. */}
-              <ProjectMarkReadyMenu projectId={project.id} draftCount={draftCount} />
-            </div>
-          )
-        }
-      />
+        {/* Archived: the whole page is a reading surface until unarchived. */}
+        {readOnly && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+            <Archive className="size-4 shrink-0" />
+            <span>{t(k.tasks.archivedBanner)}</span>
+            {canManage && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                disabled={unarchive.isLoading}
+                onClick={() => void unarchive.execute({ id: project.id })}
+              >
+                <ArchiveRestore className="size-4 mr-1" />
+                {t(k.tasks.unarchiveProject)}
+              </Button>
+            )}
+          </div>
+        )}
 
-      <ProjectContextSection project={project} readOnly={readOnly} />
+        <ProjectHeader
+          project={project}
+          readOnly={readOnly}
+          actions={
+            readOnly ? null : (
+              <div className="flex items-center gap-2">
+                <NewTaskMenu
+                  candidates={dependencyCandidates}
+                  disabled={create.isLoading}
+                  onNewTask={() => void newTask()}
+                  onCreateWithDependency={createWithDependency}
+                  createError={create.error?.message}
+                />
+                {/* The project-wide bulk sweep — Mark all drafts ready. */}
+                <ProjectMarkReadyMenu projectId={project.id} draftCount={draftCount} />
+              </div>
+            )
+          }
+        />
 
-      {/* Owner/admin only: who may SEE this project (renders null otherwise). */}
-      <ProjectAccessSection projectId={project.id} />
+        <ProjectContextSection project={project} readOnly={readOnly} />
 
-      <EnvironmentsSection projectId={project.id} />
+        {/* Owner/admin only: who may SEE this project (renders null otherwise). */}
+        <ProjectAccessSection projectId={project.id} />
 
-      {/* Morning triage: read-only, one-glance summary of what an unattended
+        <EnvironmentsSection projectId={project.id} />
+
+        {/* Morning triage: read-only, one-glance summary of what an unattended
           run left in your court (merged / needs review / blocked / changes
           requested / assumed). Hidden when there is nothing since last night. */}
-      {!tasksLoading && <TriageDigest tasks={tasks} onSelectTask={revealTask} />}
+        {!tasksLoading && <TriageDigest tasks={tasks} onSelectTask={revealTask} />}
 
-      {tasksLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : (
-        <>
-          {/* One control row: the Board ⇄ Plan toggle + pipeline strip (funnel
+        {tasksLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <>
+            {/* One control row: the Board ⇄ Plan toggle + pipeline strip (funnel
               + status filter) on the left, the title search on the right. In
               Plan mode the strip locks to Draft and the search is hidden (the
               canvas is its own surface). */}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-              <ViewToggle view={view} onChange={setView} />
-              {/* min-w-0 lets the strip's own overflow-x-auto engage on phones
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+                <ViewToggle view={view} onChange={setView} />
+                {/* min-w-0 lets the strip's own overflow-x-auto engage on phones
                   instead of forcing the row wider than the viewport. */}
-              <div className="min-w-0 flex-1 sm:flex-none">
-                <PipelineStrip
-                  counts={counts}
-                  selected={isPlan ? 'draft' : stage}
-                  onSelect={setStage}
-                  locked={isPlan}
-                />
+                <div className="min-w-0 flex-1 sm:flex-none">
+                  <PipelineStrip
+                    counts={counts}
+                    selected={isPlan ? 'draft' : stage}
+                    onSelect={setStage}
+                    locked={isPlan}
+                  />
+                </div>
               </div>
+              {view === 'board' && <TaskSearch query={query} onQueryChange={setQuery} />}
             </div>
-            {view === 'board' && <TaskSearch query={query} onQueryChange={setQuery} />}
-          </div>
 
-          {/* The merge-debt gate, visible where it jams. */}
-          {!readOnly && approvedCount >= MERGE_DEBT_CAP && (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-200">
-              <Pause className="size-4 shrink-0" />
-              <span>{t(k.tasks.v2.dispatchPaused, { count: approvedCount })}</span>
-              {mergeCandidates.length > 0 && (
-                <Button
-                  size="sm"
-                  className="ml-auto"
-                  disabled={merge.isLoading}
-                  onClick={() => void mergeAllGreen()}
-                >
-                  <GitMerge className="size-4 mr-1" />
-                  {t(k.tasks.actions.mergeAllGreen)}
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Plan mode swaps the whole board surface for the draft-only
-              dependency planner; Board mode stays exactly as it was. */}
-          {view === 'plan' ? (
-            <PlanMode
-              projectId={project.id}
-              tasks={tasks}
-              readOnly={readOnly}
-              onOpenEditor={openTaskEditor}
-            />
-          ) : (
-          /* The board: always one collapsible section per feature area, each
-              with its status rollup; rows wear their area as a chip. */
-          <ShowAreaChipContext.Provider value={true}>
-            {areaGroups.length === 0 ? (
-              <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-                {t(k.tasks.v2.stageEmpty.generic)}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {areaGroups.map(([key, groupTasks]) => {
-                  const collapsed = collapsedAreas.has(key);
-                  return (
-                    <div
-                      key={key || '__no_area__'}
-                      className="overflow-hidden rounded-xl border bg-card shadow-xs"
-                    >
-                      <div className="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/40">
-                        <button
-                          type="button"
-                          onClick={() => toggleArea(key)}
-                          aria-expanded={!collapsed}
-                          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                        >
-                          <ChevronRight
-                            className={cn(
-                              'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
-                              !collapsed && 'rotate-90',
-                            )}
-                          />
-                          <span className="truncate text-sm font-medium">
-                            {key || t(k.tasks.noArea)}
-                          </span>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {groupTasks.length}
-                          </span>
-                          <span className="ml-auto shrink-0">
-                            <RollupBar roll={rollupOf(groupTasks)} />
-                          </span>
-                        </button>
-                        {/* Right-aligned per-group settings: Mark all in this
-                            group as ready (prereqs from other groups pulled in). */}
-                        {!readOnly && (
-                          <GroupMarkReadyMenu
-                            projectId={project.id}
-                            area={key || null}
-                            draftCount={groupTasks.filter((gt) => gt.status === 'draft').length}
-                          />
-                        )}
-                      </div>
-                      {!collapsed && (
-                        <div className="divide-y border-t">
-                          {groupTasks.map((task: Task) => {
-                            const RowCard = cardFor(task.status);
-                            return (
-                              <RowCard
-                                key={task.id}
-                                task={task}
-                                expanded={expandedId === task.id}
-                                freshlyCreated={freshId === task.id}
-                                onToggle={toggleExpanded}
-                              />
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            {/* The merge-debt gate, visible where it jams. */}
+            {!readOnly && approvedCount >= MERGE_DEBT_CAP && (
+              <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-200">
+                <Pause className="size-4 shrink-0" />
+                <span>{t(k.tasks.v2.dispatchPaused, { count: approvedCount })}</span>
+                {mergeCandidates.length > 0 && (
+                  <Button
+                    size="sm"
+                    className="ml-auto"
+                    disabled={merge.isLoading}
+                    onClick={() => void mergeAllGreen()}
+                  >
+                    <GitMerge className="size-4 mr-1" />
+                    {t(k.tasks.actions.mergeAllGreen)}
+                  </Button>
+                )}
               </div>
             )}
-          </ShowAreaChipContext.Provider>
-          )}
-        </>
-      )}
 
-    </div>
+            {/* Plan mode swaps the whole board surface for the draft-only
+              dependency planner; Board mode stays exactly as it was. */}
+            {view === 'plan' ? (
+              <PlanMode
+                projectId={project.id}
+                tasks={tasks}
+                readOnly={readOnly}
+                onOpenEditor={openTaskEditor}
+              />
+            ) : (
+              /* The board: always one collapsible section per feature area, each
+              with its status rollup; rows wear their area as a chip. */
+              <ShowAreaChipContext.Provider value={true}>
+                {areaGroups.length === 0 ? (
+                  <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                    {t(k.tasks.v2.stageEmpty.generic)}
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {areaGroups.map(([key, groupTasks]) => {
+                      const collapsed = collapsedAreas.has(key);
+                      return (
+                        <div
+                          key={key || '__no_area__'}
+                          className="overflow-hidden rounded-xl border bg-card shadow-xs"
+                        >
+                          <div className="flex w-full items-center gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/40">
+                            <button
+                              type="button"
+                              onClick={() => toggleArea(key)}
+                              aria-expanded={!collapsed}
+                              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                            >
+                              <ChevronRight
+                                className={cn(
+                                  'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
+                                  !collapsed && 'rotate-90',
+                                )}
+                              />
+                              <span className="truncate text-sm font-medium">
+                                {key || t(k.tasks.noArea)}
+                              </span>
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {groupTasks.length}
+                              </span>
+                              <span className="ml-auto shrink-0">
+                                <RollupBar roll={rollupOf(groupTasks)} />
+                              </span>
+                            </button>
+                            {/* Right-aligned per-group settings: Mark all in this
+                            group as ready (prereqs from other groups pulled in). */}
+                            {!readOnly && (
+                              <GroupMarkReadyMenu
+                                projectId={project.id}
+                                area={key || null}
+                                draftCount={groupTasks.filter((gt) => gt.status === 'draft').length}
+                              />
+                            )}
+                          </div>
+                          {!collapsed && (
+                            <div className="divide-y border-t">
+                              {groupTasks.map((task: Task) => {
+                                const RowCard = cardFor(task.status);
+                                return (
+                                  <RowCard
+                                    key={task.id}
+                                    task={task}
+                                    expanded={expandedId === task.id}
+                                    freshlyCreated={freshId === task.id}
+                                    onToggle={toggleExpanded}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ShowAreaChipContext.Provider>
+            )}
+          </>
+        )}
+      </div>
     </ProjectReadOnlyContext.Provider>
   );
 }

@@ -44,11 +44,11 @@ imports.
 
 ### Which TypeScript runs where
 
-| Workspace                                        | TypeScript      | Why                                                                                                 |
-| ------------------------------------------------ | --------------- | --------------------------------------------------------------------------------------------------- |
-| `packages/*`, `apps/web`, `apps/e2e`, root       | 7.0.x (native)  | `tsc --noEmit` and the library builds only need the compiler binary                                 |
-| `apps/api`, `apps/worker`                        | 6.0.x (`ts6`)   | the Nest CLI (`nest build`, `nest start`) needs the programmatic compiler API that 7.0 does not ship |
-| `apps/mobile`                                    | 6.0.x (`ts6`)   | Expo's lint stack (typescript-eslint) has the same dependency                                       |
+| Workspace                                  | TypeScript     | Why                                                                                                  |
+| ------------------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `packages/*`, `apps/web`, `apps/e2e`, root | 7.0.x (native) | `tsc --noEmit` and the library builds only need the compiler binary                                  |
+| `apps/api`, `apps/worker`                  | 6.0.x (`ts6`)  | the Nest CLI (`nest build`, `nest start`) needs the programmatic compiler API that 7.0 does not ship |
+| `apps/mobile`                              | 6.0.x (`ts6`)  | Expo's lint stack (typescript-eslint) has the same dependency                                        |
 
 The default catalog pins TypeScript 7; `apps/api`, `apps/worker` and
 `apps/mobile` take `catalog:ts6` instead. Their `tsc --noEmit` therefore runs 6;

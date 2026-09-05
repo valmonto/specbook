@@ -23,6 +23,8 @@ describe('computeAutoDeployPaused (newest-first)', () => {
   });
 
   it('an in-flight run defers judgement', () => {
-    expect(computeAutoDeployPaused([{ status: 'building', trigger: 'auto' }, failedAuto, failedAuto])).toBe(false);
+    expect(
+      computeAutoDeployPaused([{ status: 'building', trigger: 'auto' }, failedAuto, failedAuto]),
+    ).toBe(false);
   });
 });

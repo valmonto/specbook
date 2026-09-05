@@ -41,7 +41,11 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
     new FakeLogger().as<PinoLogger>(),
   );
 
-  const flag = { what: 'used soft-delete', why: 'matches the module convention', howToVerify: 'check the repo query' };
+  const flag = {
+    what: 'used soft-delete',
+    why: 'matches the module convention',
+    howToVerify: 'check the repo query',
+  };
 
   let orgA: string;
   let orgB: string;
@@ -151,10 +155,12 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
   it('cross-tenant: org B cannot CLEAR org A’s flag, nor read it (NotFound)', async () => {
     const id = await makeTask({ assumptionFlag: flag });
 
-    await expect(
-      service.clearAssumption(asUser(ownerB, orgB), id),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.getById(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.clearAssumption(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.getById(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
 
     // Org A's flag is untouched.
     expect((await repo.findById(id, orgA))?.assumptionFlag).toEqual(flag);

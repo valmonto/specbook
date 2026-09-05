@@ -160,11 +160,11 @@ ${
   lines.push(`networks:
   specbook-data:
     external: true${
-    domain
-      ? `
+      domain
+        ? `
   specbook-ingress:
     external: true`
-      : ''
-  }`);
+        : ''
+    }`);
   return lines.join('\n') + '\n';
 }

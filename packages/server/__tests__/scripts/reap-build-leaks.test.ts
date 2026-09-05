@@ -12,8 +12,12 @@ describe('reap-build-leaks discriminator: classifyCwd', () => {
   it('KILLS a process whose cwd is strictly under the worktrees root', () => {
     expect(classifyCwd('/opt/specbook/.claude/worktrees/agent-abc', ROOT).action).toBe('kill');
     // …including nested boot dirs (a build stack booted from apps/web inside its worktree)
-    expect(classifyCwd('/opt/specbook/.claude/worktrees/agent-abc/apps/web', ROOT).action).toBe('kill');
-    expect(classifyCwd('/opt/specbook/.claude/worktrees/agent-abc/apps/api', ROOT).action).toBe('kill');
+    expect(classifyCwd('/opt/specbook/.claude/worktrees/agent-abc/apps/web', ROOT).action).toBe(
+      'kill',
+    );
+    expect(classifyCwd('/opt/specbook/.claude/worktrees/agent-abc/apps/api', ROOT).action).toBe(
+      'kill',
+    );
   });
 
   it('KEEPS the live main-checkout processes (:3000 api, :5173 web) — never killed', () => {

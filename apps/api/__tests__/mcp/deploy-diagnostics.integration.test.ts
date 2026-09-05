@@ -12,7 +12,11 @@ import {
   type DatabaseClient,
 } from '@pkg/database';
 import type { ActiveUser } from '@pkg/contracts';
-import { SecretsService, type DeploymentProducer, type EnvironmentProvisionProducer } from '@pkg/server';
+import {
+  SecretsService,
+  type DeploymentProducer,
+  type EnvironmentProvisionProducer,
+} from '@pkg/server';
 import { describeIntegration, FakeLogger, truncate } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it, vi } from 'vitest';
@@ -34,7 +38,10 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
   const service = new EnvironmentService(
     repo,
     secrets,
-    { enqueueProvision: vi.fn(), enqueueDeprovision: vi.fn() } as unknown as EnvironmentProvisionProducer,
+    {
+      enqueueProvision: vi.fn(),
+      enqueueDeprovision: vi.fn(),
+    } as unknown as EnvironmentProvisionProducer,
     { enqueueDeploy: vi.fn() } as unknown as DeploymentProducer,
     new FakeLogger().as<PinoLogger>(),
   );
@@ -52,8 +59,18 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
   let ownerA: string;
   let envA: string;
 
-  const actorA = (): ActiveUser => ({ userId: ownerA, orgId: orgA, orgRole: 'MEMBER', systemRole: 'USER' });
-  const actorB = (): ActiveUser => ({ userId: 'ub', orgId: orgB, orgRole: 'MEMBER', systemRole: 'USER' });
+  const actorA = (): ActiveUser => ({
+    userId: ownerA,
+    orgId: orgA,
+    orgRole: 'MEMBER',
+    systemRole: 'USER',
+  });
+  const actorB = (): ActiveUser => ({
+    userId: 'ub',
+    orgId: orgB,
+    orgRole: 'MEMBER',
+    systemRole: 'USER',
+  });
 
   async function makeOrg(name: string, withSecrets: boolean) {
     const [owner] = await client.db
@@ -97,16 +114,22 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
         autoDeploy: true,
         provisionStatus: 'provisioned',
         provisionError: null,
-        platformEnv: withSecrets
-          ? { DATABASE_URL: PLATFORM_SECRET, PORT: '3000' }
-          : {},
+        platformEnv: withSecrets ? { DATABASE_URL: PLATFORM_SECRET, PORT: '3000' } : {},
         userEnvEnc: withSecrets ? secrets.seal(JSON.stringify({ API_KEY: USER_ENV_SECRET })) : null,
       })
       .returning();
     return { orgId: org!.id, ownerId: owner!.id, projectId: proj!.id, envId: env!.id };
   }
 
-  const tables = [deployment, projectEnvironment, server, project, organizationUser, organization, user];
+  const tables = [
+    deployment,
+    projectEnvironment,
+    server,
+    project,
+    organizationUser,
+    organization,
+    user,
+  ];
 
   beforeEach(async () => {
     await truncate(client.db, tables);
@@ -146,7 +169,16 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
       expect(json).not.toContain(secret);
     }
     // The sealed/secret column NAMES don't ride along either.
-    for (const col of ['userEnvEnc', 'user_env_enc', 'platformEnv', 'platform_env', 'privateKeyEnc', 'private_key_enc', 'dataRootEnvEnc', 'data_root_env_enc']) {
+    for (const col of [
+      'userEnvEnc',
+      'user_env_enc',
+      'platformEnv',
+      'platform_env',
+      'privateKeyEnc',
+      'private_key_enc',
+      'dataRootEnvEnc',
+      'data_root_env_enc',
+    ]) {
       expect(json).not.toContain(col);
     }
   });
@@ -212,7 +244,10 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
         createdBy: ownerA,
       });
     }
-    const { data } = await service.agentListDeployments(actorA(), { projectId: projectA, limit: 2 });
+    const { data } = await service.agentListDeployments(actorA(), {
+      projectId: projectA,
+      limit: 2,
+    });
     expect(data).toHaveLength(2);
   });
 });

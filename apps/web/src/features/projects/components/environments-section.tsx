@@ -111,7 +111,10 @@ const elapsed = (iso: string): string => {
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
 };
 
-const phaseLabels: Record<NonNullable<NonNullable<Environment['latestDeployment']>['phase']>, string> = {
+const phaseLabels: Record<
+  NonNullable<NonNullable<Environment['latestDeployment']>['phase']>,
+  string
+> = {
   resolve: k.environments.deploymentPhase.resolve,
   build: k.environments.deploymentPhase.build,
   transfer: k.environments.deploymentPhase.transfer,
@@ -214,7 +217,8 @@ function EnvironmentRow({
 
   const platformNames = Object.keys(env.platformEnv).sort();
   const latest = env.latestDeployment;
-  const deployInFlight = latest?.status === 'queued' || latest?.status === 'building' || latest?.status === 'deploying';
+  const deployInFlight =
+    latest?.status === 'queued' || latest?.status === 'building' || latest?.status === 'deploying';
   // The newest output is the interesting end — keep the tail in view.
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -317,13 +321,20 @@ function EnvironmentRow({
           {latest?.sha && latest.status === 'healthy' && (
             <span
               role={latest.log ? 'button' : undefined}
-              title={latest.log ? t(showLog ? k.environments.hideLog : k.environments.showLog) : undefined}
+              title={
+                latest.log
+                  ? t(showLog ? k.environments.hideLog : k.environments.showLog)
+                  : undefined
+              }
               onClick={(e) => {
                 e.stopPropagation();
                 if (!latest.log) return;
                 setShowLog((s) => !s);
               }}
-              className={cn('text-xs text-muted-foreground', latest.log && 'cursor-pointer hover:text-foreground')}
+              className={cn(
+                'text-xs text-muted-foreground',
+                latest.log && 'cursor-pointer hover:text-foreground',
+              )}
             >
               {t(k.environments.deployedLine, {
                 sha: latest.sha.slice(0, 7),
@@ -501,16 +512,16 @@ function AutoDeployChip({
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!canManage || !provisioned || update.isLoading) return;
-    void update
-      .execute({ projectId, id: env.id, autoDeploy: !env.autoDeploy })
-      .then((res) => {
-        if (res.e) toast.error(t(res.e.message));
-      });
+    void update.execute({ projectId, id: env.id, autoDeploy: !env.autoDeploy }).then((res) => {
+      if (res.e) toast.error(t(res.e.message));
+    });
   };
   return (
     <span
       role={canManage ? 'button' : undefined}
-      title={!provisioned ? t(k.environments.autoDeployNeedsProvision) : t(k.environments.autoDeployHint)}
+      title={
+        !provisioned ? t(k.environments.autoDeployNeedsProvision) : t(k.environments.autoDeployHint)
+      }
       onClick={toggle}
       className={cn(
         'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs',
@@ -624,7 +635,14 @@ function UserEnvEditor({
   const addRow = () =>
     setRows((rs) => [
       ...rs,
-      { key: nextRowKey(), name: '', classification: 'config', origName: null, value: '', revealed: true },
+      {
+        key: nextRowKey(),
+        name: '',
+        classification: 'config',
+        origName: null,
+        value: '',
+        revealed: true,
+      },
     ]);
 
   const removeRow = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
@@ -677,7 +695,8 @@ function UserEnvEditor({
     for (const r of rows) {
       if (!r.name) nextErrors[r.key] = k.environments.varNameRequired;
       else if (!/^[A-Z][A-Z0-9_]*$/.test(r.name)) nextErrors[r.key] = k.environments.varNameInvalid;
-      else if ((counts.get(r.name) ?? 0) > 1) nextErrors[r.key] = k.environments.errors.duplicateVar;
+      else if ((counts.get(r.name) ?? 0) > 1)
+        nextErrors[r.key] = k.environments.errors.duplicateVar;
       else if (r.origName === null && !r.value) nextErrors[r.key] = k.environments.varValueRequired;
     }
     setErrors(nextErrors);
@@ -949,7 +968,10 @@ function PasteEnvDialog({
             </p>
             {parseErrors.map((err) => (
               <p key={err.line} className="font-mono text-xs text-rose-700 dark:text-rose-400">
-                {t(k.environments.parseErrorLine, { line: err.line, reason: t(PARSE_REASON[err.reason]) })}
+                {t(k.environments.parseErrorLine, {
+                  line: err.line,
+                  reason: t(PARSE_REASON[err.reason]),
+                })}
               </p>
             ))}
           </div>

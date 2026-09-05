@@ -132,7 +132,10 @@ export class EnvironmentService {
   }
 
   /** Explicit (re-)provision: sets the status and hands off to the worker. */
-  async provision(activeUser: ActiveUser, dto: ProvisionEnvironmentRequest): Promise<EnvironmentDto> {
+  async provision(
+    activeUser: ActiveUser,
+    dto: ProvisionEnvironmentRequest,
+  ): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
     // Fast feedback at the API; the worker re-validates before acting.
@@ -295,10 +298,7 @@ export class EnvironmentService {
       userEnvEnc: Object.keys(nextMap).length ? this.secrets.seal(JSON.stringify(nextMap)) : null,
       userEnvClass: nextClass,
     });
-    this.logger.info(
-      { environmentId: dto.id, count: dto.vars.length },
-      'User env vars bulk-set',
-    );
+    this.logger.info({ environmentId: dto.id, count: dto.vars.length }, 'User env vars bulk-set');
     return this.getById(activeUser, dto.projectId, dto.id);
   }
 
@@ -463,7 +463,7 @@ export class EnvironmentService {
   /** The plaintext classification map, coerced to a plain record. */
   private openUserClass(raw: unknown): Record<string, EnvVarClassification> {
     return raw && typeof raw === 'object'
-      ? ({ ...(raw as Record<string, EnvVarClassification>) })
+      ? { ...(raw as Record<string, EnvVarClassification>) }
       : {};
   }
 
@@ -542,4 +542,5 @@ export class EnvironmentService {
   }
 }
 
-const serverRoles = (srv: Server): string[] => (Array.isArray(srv.roles) ? (srv.roles as string[]) : []);
+const serverRoles = (srv: Server): string[] =>
+  Array.isArray(srv.roles) ? (srv.roles as string[]) : [];

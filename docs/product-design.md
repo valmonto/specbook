@@ -24,8 +24,8 @@ Two design principles fall out of the loop:
    which node it picks up, works, and marks done. Unlimited task nesting
    destroys that — so the hierarchy is fixed and shallow, and sequencing is
    expressed with dependencies instead of depth.
-2. **Status is a protocol, not a label.** Every status answers *whose move
-   is it* — the human's or the agent's. That is what turns "review" and
+2. **Status is a protocol, not a label.** Every status answers _whose move
+   is it_ — the human's or the agent's. That is what turns "review" and
    "feedback" from ceremony into a working loop.
 
 ## Data model
@@ -49,18 +49,18 @@ are cut from it just-in-time.
 
 The unit of agent work, calibrated to one session / one PR. Structured
 spec, not a freetext description box — agents fail on vague tickets, so
-the tool makes vague tickets hard to *dispatch* (see the gates below):
+the tool makes vague tickets hard to _dispatch_ (see the gates below):
 
-| Field | Purpose |
-| --- | --- |
-| `title` | What, in one line |
-| `context` | Why, plus pointers into the codebase |
-| `out_of_scope` | The fence — what the agent must not touch |
-| `acceptance_criteria` | jsonb checklist `[{text, done}]` — the definition of done |
-| `status` | See the state machine below |
-| `priority` | Ordering within the queue |
-| `claimed_by`, `claimed_at` | Which agent session holds it, since when |
-| `branch`, `pr_url` | Link to the work product — required at review time |
+| Field                      | Purpose                                                   |
+| -------------------------- | --------------------------------------------------------- |
+| `title`                    | What, in one line                                         |
+| `context`                  | Why, plus pointers into the codebase                      |
+| `out_of_scope`             | The fence — what the agent must not touch                 |
+| `acceptance_criteria`      | jsonb checklist `[{text, done}]` — the definition of done |
+| `status`                   | See the state machine below                               |
+| `priority`                 | Ordering within the queue                                 |
+| `claimed_by`, `claimed_at` | Which agent session holds it, since when                  |
+| `branch`, `pr_url`         | Link to the work product — required at review time        |
 
 **Acceptance criteria replace subtasks.** Below the unit-of-work,
 granularity is a checklist the agent ticks — "all boxes ticked" is a
@@ -80,7 +80,7 @@ cannot express this — "build the API" and "build the UI" are not
 parent/child, they are sequenced — dependencies can.
 
 **"No unfinished dependencies" means every prerequisite is `done`, and only
-`done`.** `done` is the sole *satisfying* status (the single source is
+`done`.** `done` is the sole _satisfying_ status (the single source is
 `DEPENDENCY_SATISFYING_STATUSES` in `@pkg/contracts`); a prerequisite that was
 killed never delivered its groundwork, so a `cancelled` dependency does **not**
 count as satisfied. To keep that from ever stranding a live task, **cancelling
@@ -99,12 +99,12 @@ rather than silently sailing through.)
 
 The work log, typed:
 
-| `kind` | Written by | Meaning |
-| --- | --- | --- |
-| `comment` | either | Ordinary discussion |
-| `progress` | agent | Narration mid-flight ("migrations done, starting API layer") |
-| `question` | agent | Blocking ambiguity — pairs with the `blocked` status |
-| `answer` | human | Unblocks the question |
+| `kind`     | Written by | Meaning                                                      |
+| ---------- | ---------- | ------------------------------------------------------------ |
+| `comment`  | either     | Ordinary discussion                                          |
+| `progress` | agent      | Narration mid-flight ("migrations done, starting API layer") |
+| `question` | agent      | Blocking ambiguity — pairs with the `blocked` status         |
+| `answer`   | human      | Unblocks the question                                        |
 
 Comments carry `author_type` (user or agent, with the concrete user id /
 API key id from IAM). Together with `status_changed_by` + timestamps on
@@ -127,18 +127,18 @@ specs. A task's evidence of "done" is a branch + PR; a research document's is
 the document itself, so it is modelled separately rather than bent onto the
 task state machine.
 
-| Field | Purpose |
-| --- | --- |
-| `title` | What the document is about |
-| `project_id` | The associated project — **nullable**; null = an org-level document. The default target when tickets are cut |
-| `status` | `researching` → `needs_review` → `accepted` (see below) |
-| `body_markdown` | The living document — null until the first agent draft lands |
-| `version` | Bumped every time the agent publishes a new draft |
-| `accepted_at` | When the human finalized it |
+| Field           | Purpose                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `title`         | What the document is about                                                                                   |
+| `project_id`    | The associated project — **nullable**; null = an org-level document. The default target when tickets are cut |
+| `status`        | `researching` → `needs_review` → `accepted` (see below)                                                      |
+| `body_markdown` | The living document — null until the first agent draft lands                                                 |
+| `version`       | Bumped every time the agent publishes a new draft                                                            |
+| `accepted_at`   | When the human finalized it                                                                                  |
 
 A **research_message** is one turn in the conversation (`author_type` user or
 agent, exactly like a comment). The human writes; appending a message moves the
-document back to `researching`; the agent's reply *publishes a new draft* — it
+document back to `researching`; the agent's reply _publishes a new draft_ — it
 replaces `body_markdown`, bumps `version`, and moves the document to
 `needs_review`.
 
@@ -208,7 +208,7 @@ Grouped by whose move it is:
   human reviews, leaves comments on what is wrong, flips the task here; it
   re-enters the agent queue with the full prior context — spec, previous
   attempt, objections — attached. `needs_review → changes_requested →
-  in_progress → needs_review` cycles as many times as needed, entirely on
+in_progress → needs_review` cycles as many times as needed, entirely on
   the record. It feeds the agent queue alongside `ready` — a rejection
   never waits for a manual re-dispatch.
 
@@ -237,7 +237,7 @@ Grouped by whose move it is:
   (both courts — see the `done` entry), for a finished task the owner cancelled
   instead of shipping. Cancelling also **detaches the task from its non-terminal
   dependents** (deletes those edges and comments on each), so no live task is
-  left depending on a killed one — see *Task dependency*.
+  left depending on a killed one — see _Task dependency_.
 
 **Progress is not a status.** There is no `50%` or `almost_done`. Coarse
 status answers whose move it is; fine progress lives in ticked acceptance
@@ -245,11 +245,11 @@ criteria and `progress` comments.
 
 ### Transition rules (enforced in the service, not by convention)
 
-| Actor | Allowed transitions |
-| --- | --- |
-| Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer), `cancelled→done` (recovery — a finished, human-cancelled task with no PR; the only `→done` an agent may make) |
-| Human | `draft→ready`, `draft→done` (stranded-work recovery — a PR merged out-of-band), `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), `cancelled→done` (recovery), any non-done→`cancelled` |
-| Webhook worker | `approved→done` when the task's PR merges — the only status the machine moves, and only forward |
+| Actor           | Allowed transitions                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent (MCP key) | `ready→in_progress`, `in_progress→blocked`, `in_progress→needs_review`, `changes_requested→in_progress`, `blocked→in_progress` (after an answer), `cancelled→done` (recovery — a finished, human-cancelled task with no PR; the only `→done` an agent may make)                                                                                                           |
+| Human           | `draft→ready`, `draft→done` (stranded-work recovery — a PR merged out-of-band), `blocked→ready`, `needs_review→approved` (or `→done` for repo-less tasks), `needs_review→changes_requested`, `approved→needs_review` (undo) / `→changes_requested` / `→done`, `done→changes_requested` (reopen, feedback required), `cancelled→done` (recovery), any non-done→`cancelled` |
+| Webhook worker  | `approved→done` when the task's PR merges — the only status the machine moves, and only forward                                                                                                                                                                                                                                                                           |
 
 **Automation modes (per project — the trust dial).** `manual` is the
 protocol above. `auto_merge` keeps review human but merges an approved task
@@ -312,15 +312,15 @@ tiresome.
 
 The agent-facing API. MVP set:
 
-| Tool | Purpose |
-| --- | --- |
-| `list_tasks` | The queue query — `ready`, unblocked, priority-ordered; also filters for other statuses |
-| `get_task` | Full spec + comments + dependency state |
-| `claim_task` | Atomic `ready→in_progress` |
-| `update_status` | Guarded transitions (gates enforced server-side) |
-| `add_comment` | Typed: `progress`, `question`, summary `comment` |
-| `check_criterion` | Tick an acceptance-criteria box |
-| `set_assumption` | Flag a reversible judgment call (`{ what, why, howToVerify }`) — holds the task out of full-auto auto-merge until a human clears it |
+| Tool              | Purpose                                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `list_tasks`      | The queue query — `ready`, unblocked, priority-ordered; also filters for other statuses                                             |
+| `get_task`        | Full spec + comments + dependency state                                                                                             |
+| `claim_task`      | Atomic `ready→in_progress`                                                                                                          |
+| `update_status`   | Guarded transitions (gates enforced server-side)                                                                                    |
+| `add_comment`     | Typed: `progress`, `question`, summary `comment`                                                                                    |
+| `check_criterion` | Tick an acceptance-criteria box                                                                                                     |
+| `set_assumption`  | Flag a reversible judgment call (`{ what, why, howToVerify }`) — holds the task out of full-auto auto-merge until a human clears it |
 
 `ask_question` is `add_comment(kind: question)` + automatic flip to
 `blocked` — the async Q&A channel between agent and human that generic
@@ -415,8 +415,8 @@ Delivered in three steps, each independently valuable:
    (`init:project`) becomes the agent's first task on the fresh repo.
 
 Scope guard: one specbook org ↔ one GitHub installation until a real
-tenant needs more. The end state is the product pitch: *connect your
-GitHub org, describe work, agents ship it through a review gate.*
+tenant needs more. The end state is the product pitch: _connect your
+GitHub org, describe work, agents ship it through a review gate._
 
 ## MVP build order
 

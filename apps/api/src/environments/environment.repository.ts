@@ -88,18 +88,28 @@ export class EnvironmentRepository {
     const rows = await this.dbClient.db
       .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(asc(projectEnvironment.name));
     return rows.map((r) => ({ ...r.env, serverName: r.serverName, serverHost: r.serverHost }));
   }
 
-  async findById(id: string, projectId: string, orgId: string): Promise<EnvironmentWithServer | null> {
+  async findById(
+    id: string,
+    projectId: string,
+    orgId: string,
+  ): Promise<EnvironmentWithServer | null> {
     const [row] = await this.dbClient.db
       .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(and(eq(projectEnvironment.id, id), eq(projectEnvironment.projectId, projectId)))
       .limit(1);
@@ -184,7 +194,10 @@ export class EnvironmentRepository {
         serverPort: server.port,
       })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(and(...conds))
       .orderBy(asc(projectEnvironment.name));
@@ -216,7 +229,10 @@ export class EnvironmentRepository {
       })
       .from(deployment)
       .innerJoin(projectEnvironment, eq(projectEnvironment.id, deployment.environmentId))
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(desc(deployment.createdAt))
       .limit(limit);
@@ -235,10 +251,11 @@ export class EnvironmentRepository {
     const [row] = await this.dbClient.db
       .select({ env: projectEnvironment })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
-      .where(
-        and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)),
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
       )
+      .where(and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)))
       .limit(1);
     return row?.env ?? null;
   }

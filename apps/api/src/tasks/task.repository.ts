@@ -231,10 +231,7 @@ export class TaskRepository {
         .innerJoin(project, eq(task.projectId, project.id))
         // Lineage title, resolved inside the tenant: the join is pinned to the
         // same org, so a null source_research_id (or a foreign row) yields null.
-        .leftJoin(
-          research,
-          and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)),
-        )
+        .leftJoin(research, and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)))
         .where(whereClause)
         .orderBy(desc(task.priority), asc(task.createdAt))
         .offset(filter.skip)
@@ -268,15 +265,16 @@ export class TaskRepository {
     return rows.map((r) => r.area!).filter((a): a is string => a !== null);
   }
 
-  async findById(id: string, orgId: string, restrictMemberId?: string): Promise<TaskWithSource | null> {
+  async findById(
+    id: string,
+    orgId: string,
+    restrictMemberId?: string,
+  ): Promise<TaskWithSource | null> {
     const [row] = await this.dbClient.db
       .select({ task, sourceResearchTitle: research.title })
       .from(task)
       .innerJoin(project, eq(task.projectId, project.id))
-      .leftJoin(
-        research,
-        and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)),
-      )
+      .leftJoin(research, and(eq(task.sourceResearchId, research.id), eq(research.orgId, orgId)))
       .where(and(eq(task.id, id), eq(project.orgId, orgId), this.memberScope(restrictMemberId)))
       .limit(1);
 
@@ -530,7 +528,9 @@ export class TaskRepository {
   async findProjectPromotionRows(
     orgId: string,
     projectId: string,
-  ): Promise<Array<{ id: string; status: string; area: string | null; title: string; dispatchable: boolean }>> {
+  ): Promise<
+    Array<{ id: string; status: string; area: string | null; title: string; dispatchable: boolean }>
+  > {
     const rows = await this.dbClient.db
       .select({
         id: task.id,
@@ -574,9 +574,7 @@ export class TaskRepository {
         statusChangedBy,
         statusChangedAt: new Date(),
       })
-      .where(
-        and(inArray(task.id, ids), eq(task.status, 'draft'), this.orgGuard(orgId)),
-      )
+      .where(and(inArray(task.id, ids), eq(task.status, 'draft'), this.orgGuard(orgId)))
       .returning({ id: task.id, title: task.title });
   }
 

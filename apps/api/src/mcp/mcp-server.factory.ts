@@ -30,10 +30,8 @@ export class McpServerFactory {
     const server = new McpServer({ name: 'valmatic', version: '1.0.0' });
 
     // Always present: lets an agent discover what this key was granted.
-    server.registerTool(
-      whoami.name,
-      { description: whoami.description },
-      async () => text({ name: auth.name, scopes: auth.scopes }),
+    server.registerTool(whoami.name, { description: whoami.description }, async () =>
+      text({ name: auth.name, scopes: auth.scopes }),
     );
 
     for (const tool of this.tools.catalog()) {

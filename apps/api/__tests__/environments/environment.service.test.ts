@@ -85,7 +85,9 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         createdAt: new Date(),
         ...data,
       })),
-      findBuildServer: vi.fn().mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['build', 'app', 'data'] }),
+      findBuildServer: vi
+        .fn()
+        .mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['build', 'app', 'data'] }),
       findDomainClaim: vi.fn().mockResolvedValue(null),
     };
     provisioner = {
@@ -163,13 +165,27 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   });
 
   it('setEnvVar records a smart-default classification; a name-clue seals it', async () => {
-    const cfg = await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'PORT', value: '8080' });
+    const cfg = await service.setEnvVar(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      name: 'PORT',
+      value: '8080',
+    });
     expect(cfg.userEnvVars).toContainEqual({ name: 'PORT', classification: 'config' });
-    const sec = await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_TOKEN', value: 'x' });
+    const sec = await service.setEnvVar(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      name: 'API_TOKEN',
+      value: 'x',
+    });
     expect(sec.userEnvVars).toContainEqual({ name: 'API_TOKEN', classification: 'secret' });
     // An explicit classification overrides the guess.
     const forced = await service.setEnvVar(actor, {
-      projectId: PROJECT, id: ENV, name: 'DEBUG_TOKEN', value: 'y', classification: 'config',
+      projectId: PROJECT,
+      id: ENV,
+      name: 'DEBUG_TOKEN',
+      value: 'y',
+      classification: 'config',
     });
     expect(forced.userEnvVars).toContainEqual({ name: 'DEBUG_TOKEN', classification: 'config' });
   });
@@ -182,7 +198,12 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   });
 
   it('bulkSetEnvVars replaces the whole set: add, rename, delete, reclassify in one pass', async () => {
-    await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'hunter2' });
+    await service.setEnvVar(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      name: 'API_KEY',
+      value: 'hunter2',
+    });
     const res = await service.bulkSetEnvVars(actor, {
       projectId: PROJECT,
       id: ENV,
@@ -240,28 +261,47 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     await expect(
       service.bulkSetEnvVars(actor, { projectId: PROJECT, id: ENV, vars: [] }),
     ).rejects.toThrow('tasks.errors.projectArchivedReadonly');
-    await expect(
-      service.revealEnvVars(actor, { projectId: PROJECT, id: ENV }),
-    ).rejects.toThrow('tasks.errors.projectArchivedReadonly');
+    await expect(service.revealEnvVars(actor, { projectId: PROJECT, id: ENV })).rejects.toThrow(
+      'tasks.errors.projectArchivedReadonly',
+    );
   });
 
   it('no response from any surface carries a secret value or sealed blob', async () => {
-    await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'API_KEY', value: 'hunter2' });
+    await service.setEnvVar(actor, {
+      projectId: PROJECT,
+      id: ENV,
+      name: 'API_KEY',
+      value: 'hunter2',
+    });
     // Deployment logs ride along serialized — stored pre-scrubbed by the
     // worker, so what leaves here must carry the scrubbed forms only.
     repository.recentDeployments!.mockResolvedValue([
       {
-        id: DEPLOYMENT, environmentId: ENV, sha: 'abc', status: 'failed', trigger: 'manual',
-        phase: 'build', log: 'cloning <repo-url>\nauth x-access-token:***@github.com',
-        error: 'remote-op build-images exited 1', domain: null,
-        startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+        id: DEPLOYMENT,
+        environmentId: ENV,
+        sha: 'abc',
+        status: 'failed',
+        trigger: 'manual',
+        phase: 'build',
+        log: 'cloning <repo-url>\nauth x-access-token:***@github.com',
+        error: 'remote-op build-images exited 1',
+        domain: null,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+        createdBy: 'u',
+        createdAt: new Date(),
       },
     ]);
     const responses = [
       await service.list(actor, PROJECT),
       await service.create(actor, createDto),
       await service.update(actor, { projectId: PROJECT, id: ENV, domain: 'new.example.com' }),
-      await service.setEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'OTHER', value: 'swordfish' }),
+      await service.setEnvVar(actor, {
+        projectId: PROJECT,
+        id: ENV,
+        name: 'OTHER',
+        value: 'swordfish',
+      }),
       await service.deleteEnvVar(actor, { projectId: PROJECT, id: ENV, name: 'OTHER' }),
       await service.bulkSetEnvVars(actor, {
         projectId: PROJECT,
@@ -375,8 +415,16 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   it('a healthy latest deployment yields the public staging URL; otherwise null', async () => {
     stored = { provisionStatus: 'provisioned' };
     const healthy = {
-      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', trigger: 'manual', error: null,
-      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+      id: DEPLOYMENT,
+      environmentId: ENV,
+      sha: 'abc1234',
+      status: 'healthy',
+      trigger: 'manual',
+      error: null,
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      createdBy: 'u',
+      createdAt: new Date(),
     };
     repository.recentDeployments!.mockResolvedValue([healthy]);
     const [env] = (await service.list(actor, PROJECT)).data;
@@ -390,8 +438,16 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
 
   it('two failed auto-deploys surface autoDeployPaused; a success clears it', async () => {
     const failedAuto = {
-      id: DEPLOYMENT, environmentId: ENV, sha: 'x', status: 'failed', trigger: 'auto', error: 'boom',
-      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+      id: DEPLOYMENT,
+      environmentId: ENV,
+      sha: 'x',
+      status: 'failed',
+      trigger: 'auto',
+      error: 'boom',
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      createdBy: 'u',
+      createdAt: new Date(),
     };
     repository.recentDeployments!.mockResolvedValue([failedAuto, failedAuto]);
     let [env] = (await service.list(actor, PROJECT)).data;
@@ -437,9 +493,18 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     stored = { provisionStatus: 'provisioned' };
     repository.recentDeployments!.mockResolvedValue([
       {
-        id: DEPLOYMENT, environmentId: ENV, sha: '', status: 'building', trigger: 'manual', error: null,
-        phase: 'build', log: '== build: images at abc1234 ==\nstep 5/12',
-        startedAt: new Date(), finishedAt: null, createdBy: 'u', createdAt: new Date(),
+        id: DEPLOYMENT,
+        environmentId: ENV,
+        sha: '',
+        status: 'building',
+        trigger: 'manual',
+        error: null,
+        phase: 'build',
+        log: '== build: images at abc1234 ==\nstep 5/12',
+        startedAt: new Date(),
+        finishedAt: null,
+        createdBy: 'u',
+        createdAt: new Date(),
       },
     ]);
     const [env] = (await service.list(actor, PROJECT)).data;
@@ -450,9 +515,17 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
   it('a healthy deploy with a domain snapshot serves https and clears domainPending', async () => {
     stored = { provisionStatus: 'provisioned' };
     const healthy = {
-      id: DEPLOYMENT, environmentId: ENV, sha: 'abc1234', status: 'healthy', trigger: 'manual', error: null,
+      id: DEPLOYMENT,
+      environmentId: ENV,
+      sha: 'abc1234',
+      status: 'healthy',
+      trigger: 'manual',
+      error: null,
       domain: 'staging.example.com',
-      startedAt: new Date(), finishedAt: new Date(), createdBy: 'u', createdAt: new Date(),
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      createdBy: 'u',
+      createdAt: new Date(),
     };
     repository.recentDeployments!.mockResolvedValue([healthy]);
     const [live] = (await service.list(actor, PROJECT)).data;

@@ -28,8 +28,7 @@ export function seedEnvDefaults({
   domain,
   generate,
 }: SeedEnvInput): Record<string, string> {
-  const defined = (key: string): boolean =>
-    key in platformEnv || userEnvNames.includes(key);
+  const defined = (key: string): boolean => key in platformEnv || userEnvNames.includes(key);
 
   const added: Record<string, string> = {};
   if (!defined('SEED_INITIAL_EMAIL')) {

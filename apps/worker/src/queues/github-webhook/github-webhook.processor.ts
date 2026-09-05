@@ -389,7 +389,11 @@ export class GithubWebhookProcessor extends WorkerHost {
   ): Promise<CiClassification | null> {
     const jobs =
       event.runId && this.githubApp.enabled
-        ? await this.githubApp.listWorkflowJobs(event.installationId, event.repoFullName, event.runId)
+        ? await this.githubApp.listWorkflowJobs(
+            event.installationId,
+            event.repoFullName,
+            event.runId,
+          )
         : [];
     return classifyCiFailure({ runConclusion: event.runConclusion ?? 'failure', jobs });
   }

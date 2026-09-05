@@ -91,7 +91,8 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
       // Per-env password: reuse the one already wired into platform_env so a
       // re-provision never rotates a working credential.
       const platformEnv = (env.platformEnv ?? {}) as Record<string, string>;
-      const unitPassword = this.passwordFromUrl(platformEnv.DATABASE_URL, unit) ?? generatePassword();
+      const unitPassword =
+        this.passwordFromUrl(platformEnv.DATABASE_URL, unit) ?? generatePassword();
       await this.ssh.exec(target, 'data-plane-provision-unit', [unit], unitPassword + '\n');
 
       // Make the deploy directory exist and be writable by the SSH user NOW,
@@ -161,7 +162,9 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
     const password = generatePassword();
     await this.dbClient.db
       .update(server)
-      .set({ dataRootEnvEnc: this.secrets.seal(JSON.stringify({ POSTGRES_ROOT_PASSWORD: password })) })
+      .set({
+        dataRootEnvEnc: this.secrets.seal(JSON.stringify({ POSTGRES_ROOT_PASSWORD: password })),
+      })
       .where(eq(server.id, srv.id));
     return password;
   }

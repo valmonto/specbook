@@ -33,16 +33,13 @@ export interface GithubPullRequest {
   areas: string[];
 }
 
-const b64url = (input: string | Buffer): string =>
-  Buffer.from(input).toString('base64url');
+const b64url = (input: string | Buffer): string => Buffer.from(input).toString('base64url');
 
 /** "apps/web/src/x.ts" → "apps/web"; "README.md" → "README.md". */
 const topLevelArea = (filename: string): string => {
   const parts = filename.split('/');
   if (parts.length === 1) return parts[0]!;
-  return parts[0] === 'apps' || parts[0] === 'packages'
-    ? parts.slice(0, 2).join('/')
-    : parts[0]!;
+  return parts[0] === 'apps' || parts[0] === 'packages' ? parts.slice(0, 2).join('/') : parts[0]!;
 };
 
 /**
@@ -241,7 +238,11 @@ export class GithubAppService {
       return map(data);
     }
 
-    const { data } = await this.http.post(`/orgs/${opts.owner}/repos`, { name: opts.name, private: true }, auth);
+    const { data } = await this.http.post(
+      `/orgs/${opts.owner}/repos`,
+      { name: opts.name, private: true },
+      auth,
+    );
     return map(data);
   }
 
@@ -289,13 +290,19 @@ export class GithubAppService {
       await this.git(['-C', dir, 'checkout', '--orphan', 'specbook-init']);
       await this.git(['-C', dir, 'add', '-A']);
       await this.git([
-        '-C', dir,
-        '-c', 'user.name=specbook',
-        '-c', 'user.email=specbook@valmonto.com',
-        'commit', '-m', `Initial commit from ${templateFullName} template`,
+        '-C',
+        dir,
+        '-c',
+        'user.name=specbook',
+        '-c',
+        'user.email=specbook@valmonto.com',
+        'commit',
+        '-m',
+        `Initial commit from ${templateFullName} template`,
       ]);
       await this.git([
-        '-C', dir,
+        '-C',
+        dir,
         'push',
         `https://x-access-token:${token}@${this.gitHost().replace(/^https?:\/\//, '')}/${repoFullName}.git`,
         `HEAD:refs/heads/${defaultBranch}`,
@@ -400,10 +407,10 @@ export class GithubAppService {
           deletions: number;
           changed_files: number;
         }>(`/repos/${repoFullName}/pulls/${number}`, auth),
-        this.http.get<Array<{ filename: string }>>(
-          `/repos/${repoFullName}/pulls/${number}/files`,
-          { params: { per_page: 100 }, ...auth },
-        ),
+        this.http.get<Array<{ filename: string }>>(`/repos/${repoFullName}/pulls/${number}/files`, {
+          params: { per_page: 100 },
+          ...auth,
+        }),
       ]);
       const areas = [...new Set(files.map((f) => topLevelArea(f.filename)))].slice(0, 8);
       return {
@@ -484,7 +491,13 @@ export class GithubAppService {
     installationId: number,
     repoFullName: string,
     runId: number,
-  ): Promise<Array<{ name: string; conclusion: string | null; steps: Array<{ name: string; conclusion: string | null }> }>> {
+  ): Promise<
+    Array<{
+      name: string;
+      conclusion: string | null;
+      steps: Array<{ name: string; conclusion: string | null }>;
+    }>
+  > {
     try {
       const token = await this.installationToken(installationId, { actions: 'read' });
       const { data } = await this.http.get<{
@@ -558,9 +571,7 @@ export class GithubAppService {
     }
     const now = Math.floor(Date.now() / 1000);
     const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-    const payload = b64url(
-      JSON.stringify({ iat: now - 60, exp: now + 540, iss: this.appId }),
-    );
+    const payload = b64url(JSON.stringify({ iat: now - 60, exp: now + 540, iss: this.appId }));
     const signature = createSign('RSA-SHA256')
       .update(`${header}.${payload}`)
       .sign(this.privateKey, 'base64url');

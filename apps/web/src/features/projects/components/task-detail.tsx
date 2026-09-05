@@ -317,7 +317,10 @@ function CriteriaEditor({ task }: { task: Task }) {
                   const text = e.clipboardData.getData('text');
                   if (!text.includes('\n')) return;
                   e.preventDefault();
-                  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                  const lines = text
+                    .split(/\r?\n/)
+                    .map((l) => l.trim())
+                    .filter(Boolean);
                   const next = [
                     ...draft.slice(0, i),
                     { ...draft[i]!, text: lines[0] ?? '' },
@@ -337,7 +340,12 @@ function CriteriaEditor({ task }: { task: Task }) {
                 )}
               />
             ) : (
-              <span className={cn('min-w-0 flex-1 text-sm break-words', c.done && 'text-muted-foreground line-through')}>
+              <span
+                className={cn(
+                  'min-w-0 flex-1 text-sm break-words',
+                  c.done && 'text-muted-foreground line-through',
+                )}
+              >
                 {c.text}
               </span>
             )}
@@ -521,7 +529,9 @@ function PrSyncRow({ task }: { task: Task }) {
         <CiStateDot task={task} />
       )}
       <span className="text-muted-foreground tabular-nums">
-        {task.prSyncedAt ? t(k.tasks.detail.syncedAgo, { when: ago(task.prSyncedAt) }) : t(k.tasks.detail.neverSynced)}
+        {task.prSyncedAt
+          ? t(k.tasks.detail.syncedAgo, { when: ago(task.prSyncedAt) })
+          : t(k.tasks.detail.neverSynced)}
       </span>
       {readOnly ? null : (
         <Button
@@ -770,7 +780,9 @@ function AgentSummary({ taskId }: { taskId: string }) {
         <Bot className="size-3.5" />
         {t(k.tasks.v2.agentSummary)}
       </h4>
-      <p className="text-sm break-words whitespace-pre-wrap">{summary?.body ?? t(k.tasks.v2.noSummary)}</p>
+      <p className="text-sm break-words whitespace-pre-wrap">
+        {summary?.body ?? t(k.tasks.v2.noSummary)}
+      </p>
     </div>
   );
 }
@@ -876,7 +888,8 @@ function ReviewActions({ task }: { task: Task }) {
     else toast.success(t(k.tasks.v2.mergedToast));
   };
 
-  if (givingFeedback) return <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />;
+  if (givingFeedback)
+    return <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -923,7 +936,8 @@ function ApprovedActions({ task, landInHeader }: { task: Task; landInHeader: boo
   const [givingFeedback, setGivingFeedback] = useState(false);
   const busy = transition.isLoading;
 
-  if (givingFeedback) return <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />;
+  if (givingFeedback)
+    return <FeedbackBox taskId={task.id} onClose={() => setGivingFeedback(false)} />;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -1026,7 +1040,8 @@ function ReopenMove({ task }: { task: Task }) {
 /** Rich, stage-specific action block (approve/merge, answer, undo, …). */
 function StageActions({ task, landInHeader }: { task: Task; landInHeader: boolean }) {
   if (task.status === 'needs_review') return <ReviewActions task={task} />;
-  if (task.status === 'approved') return <ApprovedActions task={task} landInHeader={landInHeader} />;
+  if (task.status === 'approved')
+    return <ApprovedActions task={task} landInHeader={landInHeader} />;
   if (task.status === 'blocked') return <BlockedActions task={task} />;
   return null;
 }
@@ -1038,13 +1053,7 @@ function StageActions({ task, landInHeader }: { task: Task; landInHeader: boolea
  * render here only when the chrome around the detail does not already host them
  * (the board row's overflow menu does; the slide-over does not).
  */
-function MovesFooter({
-  task,
-  destructiveInMenu,
-}: {
-  task: Task;
-  destructiveInMenu: boolean;
-}) {
+function MovesFooter({ task, destructiveInMenu }: { task: Task; destructiveInMenu: boolean }) {
   const { t } = useTranslation();
   const transition = useTransitionTask();
   const markReady = useMarkReady();
@@ -1107,118 +1116,113 @@ function MovesFooter({
 
   return (
     <>
-    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-      {moves.map((m) => (
-        <Button
-          key={m.labelKey}
-          size="sm"
-          variant={m.to === 'ready' ? 'default' : 'outline'}
-          disabled={
-            transition.isLoading || markReady.isLoading || (m.to === 'ready' && dispatchBlocked)
-          }
-          title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
-          onClick={() => void go(m.to)}
-        >
-          {t(m.labelKey)}
-        </Button>
-      ))}
-      {dispatchBlocked && (
-        <span
-          className="min-w-0 truncate text-xs text-muted-foreground"
-          title={t(k.tasks.errors.dispatchGate)}
-        >
-          {t(k.tasks.errors.dispatchGate)}
-        </span>
-      )}
-      {/* Stranded-work recovery: a draft whose PR merged out-of-band has no
+      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+        {moves.map((m) => (
+          <Button
+            key={m.labelKey}
+            size="sm"
+            variant={m.to === 'ready' ? 'default' : 'outline'}
+            disabled={
+              transition.isLoading || markReady.isLoading || (m.to === 'ready' && dispatchBlocked)
+            }
+            title={m.to === 'ready' && dispatchBlocked ? t(k.tasks.errors.dispatchGate) : undefined}
+            onClick={() => void go(m.to)}
+          >
+            {t(m.labelKey)}
+          </Button>
+        ))}
+        {dispatchBlocked && (
+          <span
+            className="min-w-0 truncate text-xs text-muted-foreground"
+            title={t(k.tasks.errors.dispatchGate)}
+          >
+            {t(k.tasks.errors.dispatchGate)}
+          </span>
+        )}
+        {/* Stranded-work recovery: a draft whose PR merged out-of-band has no
           review arc to travel, so the owner records it done directly. Confirmed
           (not a silent option) because it skips review; owner-court gated. */}
-      {task.status === 'draft' && canManage && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={busy}
-          onClick={() => setConfirmDone(true)}
-        >
-          <CheckCircle2 className="size-4 mr-1" />
-          {t(k.tasks.actions.markDone)}
-        </Button>
-      )}
-      {/* The slide-over has no overflow menu, so the destructive moves land
+        {task.status === 'draft' && canManage && (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setConfirmDone(true)}>
+            <CheckCircle2 className="size-4 mr-1" />
+            {t(k.tasks.actions.markDone)}
+          </Button>
+        )}
+        {/* The slide-over has no overflow menu, so the destructive moves land
           here; on the board they live in the row menu instead. */}
-      {!destructiveInMenu && task.status === 'draft' && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-destructive"
-          disabled={busy}
-          onClick={requestCancel}
+        {!destructiveInMenu && task.status === 'draft' && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive"
+            disabled={busy}
+            onClick={requestCancel}
+          >
+            {t(k.tasks.actions.deleteDraft)}
+          </Button>
+        )}
+        {!destructiveInMenu && task.status !== 'draft' && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground"
+            disabled={busy}
+            onClick={requestCancel}
+          >
+            {t(k.tasks.actions.cancelTask)}
+          </Button>
+        )}
+        <label
+          className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
+          title={t(k.tasks.humanTaskToggle)}
         >
-          {t(k.tasks.actions.deleteDraft)}
-        </Button>
-      )}
-      {!destructiveInMenu && task.status !== 'draft' && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          disabled={busy}
-          onClick={requestCancel}
+          <input
+            type="checkbox"
+            checked={task.isHumanTask}
+            disabled={busy}
+            onChange={(e) => void update.execute({ id: task.id, isHumanTask: e.target.checked })}
+            className="size-3.5 accent-orange-600"
+          />
+          <span className="inline-flex items-center gap-1">
+            <UserRound className="size-3.5" />
+            {t(k.tasks.humanTask)}
+          </span>
+        </label>
+        <label
+          className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
+          title={t(k.tasks.priority)}
         >
-          {t(k.tasks.actions.cancelTask)}
-        </Button>
-      )}
-      <label
-        className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground"
-        title={t(k.tasks.humanTaskToggle)}
-      >
-        <input
-          type="checkbox"
-          checked={task.isHumanTask}
-          disabled={busy}
-          onChange={(e) => void update.execute({ id: task.id, isHumanTask: e.target.checked })}
-          className="size-3.5 accent-orange-600"
-        />
-        <span className="inline-flex items-center gap-1">
-          <UserRound className="size-3.5" />
-          {t(k.tasks.humanTask)}
-        </span>
-      </label>
-      <label
-        className="flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"
-        title={t(k.tasks.priority)}
-      >
-        P
-        <input
-          type="number"
-          min={0}
-          max={1000}
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          onBlur={() => void savePriority()}
-          className="w-10 rounded-md bg-transparent px-1 py-0.5 text-right text-xs tabular-nums outline-none [appearance:textfield] hover:bg-muted/50 focus:bg-muted/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        />
-      </label>
-    </div>
-    <CancelTaskDialog
-      open={confirmCancel}
-      onOpenChange={setConfirmCancel}
-      dependents={cancelDependents}
-      isLoading={transition.isLoading}
-      onConfirm={() => {
-        setConfirmCancel(false);
-        void go('cancelled');
-      }}
-    />
-    <MarkDoneDialog
-      open={confirmDone}
-      onOpenChange={setConfirmDone}
-      isLoading={transition.isLoading}
-      onConfirm={() => {
-        setConfirmDone(false);
-        void go('done');
-      }}
-    />
+          P
+          <input
+            type="number"
+            min={0}
+            max={1000}
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            onBlur={() => void savePriority()}
+            className="w-10 rounded-md bg-transparent px-1 py-0.5 text-right text-xs tabular-nums outline-none [appearance:textfield] hover:bg-muted/50 focus:bg-muted/60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        </label>
+      </div>
+      <CancelTaskDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        dependents={cancelDependents}
+        isLoading={transition.isLoading}
+        onConfirm={() => {
+          setConfirmCancel(false);
+          void go('cancelled');
+        }}
+      />
+      <MarkDoneDialog
+        open={confirmDone}
+        onOpenChange={setConfirmDone}
+        isLoading={transition.isLoading}
+        onConfirm={() => {
+          setConfirmDone(false);
+          void go('done');
+        }}
+      />
     </>
   );
 }
@@ -1297,7 +1301,11 @@ function AssumptionSection({ task }: { task: Task }) {
  * slide-over render exactly this — the single source of truth for what a task
  * detail shows and lets you do.
  */
-export function TaskDetail({ task, landInHeader = false, destructiveInMenu = false }: TaskDetailProps) {
+export function TaskDetail({
+  task,
+  landInHeader = false,
+  destructiveInMenu = false,
+}: TaskDetailProps) {
   const readOnly = useProjectReadOnly();
   return (
     <div className="grid grid-cols-1 gap-4">

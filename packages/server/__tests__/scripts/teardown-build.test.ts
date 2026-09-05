@@ -3,8 +3,14 @@ import { describe, expect, it } from 'vitest';
 // The per-build teardown is a plain .mjs tool in scripts/; we import its PURE
 // decision core (no /proc, no git, no dropdb) and prove the guardrails that keep
 // it from ever taking the live site down or dropping a real database.
-// @ts-expect-error — untyped .mjs tool imported for its exported pure functions.
-import { classifyDb, classifyTarget, parseBuildEvent, shouldAct } from '../../../../scripts/teardown-build.mjs';
+import {
+  classifyDb,
+  classifyTarget,
+  parseBuildEvent,
+  shouldAct,
+  // @ts-expect-error — untyped .mjs tool imported for its exported pure functions.
+  // (The directive sits on the line TypeScript reports: the module specifier.)
+} from '../../../../scripts/teardown-build.mjs';
 
 const ROOT = '/opt/specbook/.claude/worktrees';
 
@@ -33,7 +39,10 @@ describe('teardown-build: shouldAct (lifecycle-event gate)', () => {
 
 describe('teardown-build: parseBuildEvent', () => {
   it('parses a valid event JSON line', () => {
-    expect(parseBuildEvent('{"event":"end","reason":"success"}')).toMatchObject({ event: 'end', reason: 'success' });
+    expect(parseBuildEvent('{"event":"end","reason":"success"}')).toMatchObject({
+      event: 'end',
+      reason: 'success',
+    });
   });
 
   it('returns null for absent / blank / malformed / non-object input', () => {
@@ -50,7 +59,9 @@ describe('teardown-build: classifyTarget (which worktree may be removed)', () =>
   const OUTSIDE = '/opt/specbook'; // running from the main checkout — safe to remove a worktree
 
   it('REMOVES an orphaned build worktree strictly under the worktrees root', () => {
-    expect(classifyTarget('/opt/specbook/.claude/worktrees/agent-dead', ROOT, OUTSIDE).action).toBe('remove');
+    expect(classifyTarget('/opt/specbook/.claude/worktrees/agent-dead', ROOT, OUTSIDE).action).toBe(
+      'remove',
+    );
   });
 
   it('REFUSES the main checkout and anything outside the worktrees root', () => {
@@ -58,7 +69,9 @@ describe('teardown-build: classifyTarget (which worktree may be removed)', () =>
     expect(classifyTarget('/opt/specbook/apps/api', ROOT, OUTSIDE).action).toBe('refuse');
     expect(classifyTarget('/', ROOT, OUTSIDE).action).toBe('refuse');
     // A prefix-share sibling (…/worktrees-backup) is not inside the root.
-    expect(classifyTarget('/opt/specbook/.claude/worktrees-backup/x', ROOT, OUTSIDE).action).toBe('refuse');
+    expect(classifyTarget('/opt/specbook/.claude/worktrees-backup/x', ROOT, OUTSIDE).action).toBe(
+      'refuse',
+    );
   });
 
   it('REFUSES to remove the worktree THIS process is running inside (no self-delete)', () => {

@@ -254,7 +254,12 @@ export function CutTicketsSheet({
                 </div>
               </div>
             ))}
-            <Button variant="outline" size="sm" className="w-full" onClick={() => setProposals((r) => [...r, blank(defaultArea)])}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setProposals((r) => [...r, blank(defaultArea)])}
+            >
               <Plus className="size-3.5" />
               {t(k.research.cut.add)}
             </Button>

@@ -104,22 +104,22 @@ any real project is not code — architecture research, option comparisons,
 copy, specs. That work currently happens outside the tracker and evaporates.
 
 The first cut of this shipped as **Research** — but as its own document type,
-not a task *kind*. Bending research onto the task state machine (swapping the
+not a task _kind_. Bending research onto the task state machine (swapping the
 review gate's evidence requirement) was the original plan; the doc-first model
-won because a research deliverable is a *living, versioned document*, not a
+won because a research deliverable is a _living, versioned document_, not a
 one-shot PR, and the conversation that produces it is async and multi-turn.
 See `docs/product-design.md` → Research for what exists.
 
 - **Research documents** — a first-class `research` entity (title, nullable
   `project_id`, `body_markdown`, `version`, `researching → needs_review →
-  accepted` status) with a message conversation. Appending a message moves the
+accepted` status) with a message conversation. Appending a message moves the
   document back to `researching`; the ambient dispatch runner pulls it from
   `list_research` and its reply publishes a new draft (new body, bumped version,
   → `needs_review`). Data model, REST/MCP API, keyset listing, the agent tools
   (`get_research`, `list_research`, `append_research_message`), the runner turn
   and the web UI exist today. **Still to build:** the mobile UI.
 - **Research → tickets ("cut tickets")** — an accepted document's natural
-  output is a set of *draft* build tasks cut from it, each carrying
+  output is a set of _draft_ build tasks cut from it, each carrying
   `source_research_id` lineage. This exists (REST `POST /research/:id/cut-tickets`,
   gated by `task:create`). It is the ideation pipeline done specbook's way: the
   machine proposes at two gated points, the human decides at both. What we will
@@ -130,8 +130,8 @@ See `docs/product-design.md` → Research for what exists.
 ## 5. Going public
 
 The product's best argument is a demo that is structurally hard to fake:
-*write a ticket on camera, walk away, come back to the feature running on
-staging.* The distribution work, in order:
+_write a ticket on camera, walk away, come back to the feature running on
+staging._ The distribution work, in order:
 
 1. Close the loop (auto-deploy) so the demo is real end to end.
 2. Record it; put it at the top of a README that tells the story in 90

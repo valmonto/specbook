@@ -12,14 +12,14 @@ src/
 └── modules/    iam · health · logging · queues · redis · events
 ```
 
-| Module | What it gives you |
-|---|---|
-| `iam` | auth providers, the global guards, the decorators below |
-| `health` | `/health` — probes Postgres and Redis, 503 when either is down |
-| `logging` | pino; `@InjectLogger()` |
-| `queues` | BullMQ — api enqueues, worker consumes |
-| `redis` | one shared client behind the `REDIS` token, `@Global` |
-| `events` | in-process emitter; use a queue if it must survive a restart |
+| Module    | What it gives you                                              |
+| --------- | -------------------------------------------------------------- |
+| `iam`     | auth providers, the global guards, the decorators below        |
+| `health`  | `/health` — probes Postgres and Redis, 503 when either is down |
+| `logging` | pino; `@InjectLogger()`                                        |
+| `queues`  | BullMQ — api enqueues, worker consumes                         |
+| `redis`   | one shared client behind the `REDIS` token, `@Global`          |
+| `events`  | in-process emitter; use a queue if it must survive a restart   |
 
 ## Writing a route
 
@@ -29,14 +29,14 @@ src/
 create(@ZodRequest(CreateUserRequestSchema) dto: CreateUserRequest, @ActiveUser() user: ActiveUserType) {}
 ```
 
-| | |
-|---|---|
-| `@PublicRoute()` | skip authentication |
-| `@Permissions('user:create')` | require a permission from `@pkg/contracts` |
-| `@Roles('OWNER')` | require an org role |
-| `@SystemRoles('ADMIN')` | require a platform role, independent of any org |
-| `@ActiveUser()` | inject the authenticated user |
-| `@ZodRequest(Schema)` | validate the body; 400 with field errors |
+|                               |                                                 |
+| ----------------------------- | ----------------------------------------------- |
+| `@PublicRoute()`              | skip authentication                             |
+| `@Permissions('user:create')` | require a permission from `@pkg/contracts`      |
+| `@Roles('OWNER')`             | require an org role                             |
+| `@SystemRoles('ADMIN')`       | require a platform role, independent of any org |
+| `@ActiveUser()`               | inject the authenticated user                   |
+| `@ZodRequest(Schema)`         | validate the body; 400 with field errors        |
 
 ## Four things to know
 
@@ -51,15 +51,15 @@ account and decides nothing inside one. `@Roles` and `@Permissions` read the
 first, `@SystemRoles` the second — never each other's.
 
 **Global guard order is scan order, and the root module scans first.** A
-global guard declared in the app's root module runs *before* every guard from
+global guard declared in the app's root module runs _before_ every guard from
 an imported module, whatever the imports list says. The throttler
 (`ThrottlingModule`) depends on this: it must see `req.user`, so the app
-imports it *after* the IAM modules rather than declaring the `APP_GUARD` in
+imports it _after_ the IAM modules rather than declaring the `APP_GUARD` in
 `AppModule` — declared there, it ran before `AuthGuard` and keyed every caller
 by IP (specbook shipped that way until the pipeline suite caught it: two
 users on one IP shared a budget). The suite pins the order.
 
-A system role opens *dedicated* routes; it never widens an organization-scoped
+A system role opens _dedicated_ routes; it never widens an organization-scoped
 one. Every tenant route stays scoped to the caller's active organization
 whatever their platform standing, so there is one code path to reason about
 rather than two.
@@ -82,7 +82,7 @@ logs 5xx. Messages are **translation keys**, not sentences — see `@pkg/locales
 
 Put it here when both services need it, or a second plausibly would — guards,
 filters, decorators, transport. Feature logic stays in the app: this package
-owns *that requests are authenticated*, `apps/api/src/user/` owns users.
+owns _that requests are authenticated_, `apps/api/src/user/` owns users.
 
 ```
 modules/thing/

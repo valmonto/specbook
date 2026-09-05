@@ -135,8 +135,7 @@ export class SshService {
     dest: SshTarget,
     destOp: RemoteOp,
   ): Promise<void> {
-    const quoted = (args: string[]) =>
-      args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
+    const quoted = (args: string[]) => args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
     const { client: src } = await this.connect(source);
     try {
       const { client: dst } = await this.connect(dest);

@@ -78,7 +78,9 @@ export default function MyTasksPage() {
                   >
                     {c.done && <Check className="size-2.5" />}
                   </span>
-                  <span className={cn('break-words', c.done && 'text-muted-foreground line-through')}>
+                  <span
+                    className={cn('break-words', c.done && 'text-muted-foreground line-through')}
+                  >
                     {c.text}
                   </span>
                 </li>

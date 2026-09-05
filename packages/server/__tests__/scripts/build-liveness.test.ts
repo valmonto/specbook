@@ -10,8 +10,16 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error — untyped .mjs tool imported for its exported pure functions.
 import * as liveness from '../../../../scripts/build-liveness.mjs';
 
-const { DEFAULTS, TIMEOUT_EXIT_CODE, classifyEnd, evaluateLiveness, exitCodeForReason, parseArgs, parsePositiveInt, resolveConfig } =
-  liveness;
+const {
+  DEFAULTS,
+  TIMEOUT_EXIT_CODE,
+  classifyEnd,
+  evaluateLiveness,
+  exitCodeForReason,
+  parseArgs,
+  parsePositiveInt,
+  resolveConfig,
+} = liveness;
 
 const exec = promisify(execFile);
 const SCRIPT = resolve(__dirname, '../../../../scripts/build-liveness.mjs');
@@ -68,8 +76,12 @@ describe('build-liveness config: parsePositiveInt / resolveConfig', () => {
   });
 
   it('enforces the invariant that the timeout must exceed the heartbeat interval', () => {
-    expect(() => resolveConfig({ BUILD_TIMEOUT_SEC: '60', BUILD_HEARTBEAT_SEC: '60' })).toThrow(/must exceed/);
-    expect(() => resolveConfig({ BUILD_TIMEOUT_SEC: '30', BUILD_HEARTBEAT_SEC: '60' })).toThrow(/must exceed/);
+    expect(() => resolveConfig({ BUILD_TIMEOUT_SEC: '60', BUILD_HEARTBEAT_SEC: '60' })).toThrow(
+      /must exceed/,
+    );
+    expect(() => resolveConfig({ BUILD_TIMEOUT_SEC: '30', BUILD_HEARTBEAT_SEC: '60' })).toThrow(
+      /must exceed/,
+    );
   });
 });
 
@@ -95,11 +107,16 @@ describe('build-liveness decision: evaluateLiveness', () => {
 
 describe('build-liveness end classification', () => {
   it('maps a clean exit to success, a non-zero exit to fail, and any timeout to timeout', () => {
-    expect(classifyEnd({ timedOut: false, exitCode: 0, signal: null })).toEqual({ reason: 'success', ok: true });
+    expect(classifyEnd({ timedOut: false, exitCode: 0, signal: null })).toEqual({
+      reason: 'success',
+      ok: true,
+    });
     expect(classifyEnd({ timedOut: false, exitCode: 1, signal: null }).reason).toBe('fail');
     expect(classifyEnd({ timedOut: false, exitCode: 0, signal: 'SIGKILL' }).reason).toBe('fail');
     // timeout wins even when the killed child looks like a plain failure.
-    expect(classifyEnd({ timedOut: true, exitCode: 137, signal: 'SIGKILL' }).reason).toBe('timeout');
+    expect(classifyEnd({ timedOut: true, exitCode: 137, signal: 'SIGKILL' }).reason).toBe(
+      'timeout',
+    );
   });
 
   it('maps each reason to its process exit code (0 / 124 / child code)', () => {
@@ -116,7 +133,10 @@ describe('build-liveness arg parsing', () => {
       label: 'task-abc',
       command: ['pnpm', 'verify'],
     });
-    expect(parseArgs(['--label=x', '--', 'echo', 'hi'])).toEqual({ label: 'x', command: ['echo', 'hi'] });
+    expect(parseArgs(['--label=x', '--', 'echo', 'hi'])).toEqual({
+      label: 'x',
+      command: ['echo', 'hi'],
+    });
   });
 
   it('starts the command at the first non-flag token when no -- is given', () => {

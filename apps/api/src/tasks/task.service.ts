@@ -403,7 +403,12 @@ export class TaskService {
       patch.claimedAt = null;
     }
 
-    const updated = await this.taskRepository.casUpdateStatus(dto.id, activeUser.orgId, from, patch);
+    const updated = await this.taskRepository.casUpdateStatus(
+      dto.id,
+      activeUser.orgId,
+      from,
+      patch,
+    );
     if (!updated) {
       throw new ConflictException(
         from === 'ready' && dto.to === 'in_progress'
@@ -921,7 +926,12 @@ export class TaskService {
       throw new NotFoundException(k.tasks.errors.notFound);
     }
     this.logger.info(
-      { taskId: dto.taskId, tokensIn: dto.tokensIn, tokensOut: dto.tokensOut, usdCents: dto.usdCents },
+      {
+        taskId: dto.taskId,
+        tokensIn: dto.tokensIn,
+        tokensOut: dto.tokensOut,
+        usdCents: dto.usdCents,
+      },
       'Cost reported',
     );
     return this.serialize(updated);
@@ -1019,7 +1029,11 @@ export class TaskService {
   async addDependency(activeUser: ActiveUser, dto: AddTaskDependencyRequest): Promise<void> {
     const [dependent, dependency] = await Promise.all([
       this.requireTask(dto.id, activeUser, { mutating: true }),
-      this.taskRepository.findById(dto.dependsOnTaskId, activeUser.orgId, this.scopeFor(activeUser)),
+      this.taskRepository.findById(
+        dto.dependsOnTaskId,
+        activeUser.orgId,
+        this.scopeFor(activeUser),
+      ),
     ]);
     if (!dependency) {
       throw new NotFoundException(k.tasks.errors.dependencyNotFound);
@@ -1194,7 +1208,11 @@ export class TaskService {
       throw new NotFoundException(k.tasks.errors.notFound);
     }
     if (opts.mutating) {
-      const owner = await this.projectRepository.findById(found.projectId, activeUser.orgId, restrict);
+      const owner = await this.projectRepository.findById(
+        found.projectId,
+        activeUser.orgId,
+        restrict,
+      );
       if (owner?.archivedAt) {
         throw new UnprocessableEntityException(k.tasks.errors.projectArchivedReadonly);
       }

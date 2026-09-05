@@ -81,9 +81,21 @@ export function parsePositiveInt(value, fallback, name) {
  * @returns {{ timeoutMs:number, heartbeatIntervalMs:number, killGraceMs:number, hookCmd:string|null }}
  */
 export function resolveConfig(env = {}) {
-  const timeoutSec = parsePositiveInt(env.BUILD_TIMEOUT_SEC, DEFAULTS.timeoutSec, 'BUILD_TIMEOUT_SEC');
-  const heartbeatSec = parsePositiveInt(env.BUILD_HEARTBEAT_SEC, DEFAULTS.heartbeatSec, 'BUILD_HEARTBEAT_SEC');
-  const killGraceSec = parsePositiveInt(env.BUILD_KILL_GRACE_SEC, DEFAULTS.killGraceSec, 'BUILD_KILL_GRACE_SEC');
+  const timeoutSec = parsePositiveInt(
+    env.BUILD_TIMEOUT_SEC,
+    DEFAULTS.timeoutSec,
+    'BUILD_TIMEOUT_SEC',
+  );
+  const heartbeatSec = parsePositiveInt(
+    env.BUILD_HEARTBEAT_SEC,
+    DEFAULTS.heartbeatSec,
+    'BUILD_HEARTBEAT_SEC',
+  );
+  const killGraceSec = parsePositiveInt(
+    env.BUILD_KILL_GRACE_SEC,
+    DEFAULTS.killGraceSec,
+    'BUILD_KILL_GRACE_SEC',
+  );
   if (timeoutSec <= heartbeatSec) {
     throw new Error(
       `BUILD_TIMEOUT_SEC (${timeoutSec}) must exceed BUILD_HEARTBEAT_SEC (${heartbeatSec}) — ` +
@@ -107,7 +119,13 @@ export function resolveConfig(env = {}) {
  * @param {{ startedAt:number, now:number, lastHeartbeatAt:number, timeoutMs:number, heartbeatIntervalMs:number }} s
  * @returns {{ elapsedMs:number, sinceHeartbeatMs:number, timedOut:boolean, heartbeatDue:boolean }}
  */
-export function evaluateLiveness({ startedAt, now, lastHeartbeatAt, timeoutMs, heartbeatIntervalMs }) {
+export function evaluateLiveness({
+  startedAt,
+  now,
+  lastHeartbeatAt,
+  timeoutMs,
+  heartbeatIntervalMs,
+}) {
   const elapsedMs = Math.max(0, now - startedAt);
   const sinceHeartbeatMs = Math.max(0, now - lastHeartbeatAt);
   const timedOut = elapsedMs >= timeoutMs;
@@ -203,7 +221,11 @@ function main() {
     process.stdout.write(line + '\n');
     if (hookCmd) {
       try {
-        const h = spawn(hookCmd, { shell: true, stdio: 'ignore', env: { ...process.env, BUILD_EVENT: line } });
+        const h = spawn(hookCmd, {
+          shell: true,
+          stdio: 'ignore',
+          env: { ...process.env, BUILD_EVENT: line },
+        });
         h.on('error', () => {}); // best-effort: a broken hook must never fail the build
         h.unref();
       } catch {
