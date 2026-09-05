@@ -38,11 +38,10 @@ describeIntegration('TaskRepository — assignee (human worker lane)', () => {
   }
 
   async function makeOrg(name: string, ownerId: string) {
-    const [org] = await client.db
-      .insert(organization)
-      .values({ name, ownerId })
-      .returning();
-    await client.db.insert(organizationUser).values({ orgId: org!.id, userId: ownerId, role: 'OWNER' });
+    const [org] = await client.db.insert(organization).values({ name, ownerId }).returning();
+    await client.db
+      .insert(organizationUser)
+      .values({ orgId: org!.id, userId: ownerId, role: 'OWNER' });
     return org!.id;
   }
 
@@ -61,7 +60,9 @@ describeIntegration('TaskRepository — assignee (human worker lane)', () => {
     ownerB = await makeUser('owner-b');
     orgA = await makeOrg('org-a', ownerA);
     orgB = await makeOrg('org-b', ownerB);
-    await client.db.insert(organizationUser).values({ orgId: orgA, userId: memberA, role: 'MEMBER' });
+    await client.db
+      .insert(organizationUser)
+      .values({ orgId: orgA, userId: memberA, role: 'MEMBER' });
     projectA = await makeProject(orgA, ownerA, 'alpha');
     projectB = await makeProject(orgB, ownerB, 'beta');
   });

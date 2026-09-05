@@ -59,10 +59,7 @@ export class AgentRepository {
    * whose keys act as the same user resolve to the same task — acceptable
    * until claims carry agent identity.
    */
-  async currentClaim(
-    userId: string,
-    orgId: string,
-  ): Promise<{ id: string; title: string } | null> {
+  async currentClaim(userId: string, orgId: string): Promise<{ id: string; title: string } | null> {
     const [row] = await this.dbClient.db
       .select({ id: task.id, title: task.title })
       .from(task)
@@ -97,9 +94,7 @@ export class AgentRepository {
     return this.dbClient.db
       .select()
       .from(agent)
-      .where(
-        and(eq(agent.serverId, serverId), eq(agent.orgId, orgId), eq(agent.kind, 'managed')),
-      );
+      .where(and(eq(agent.serverId, serverId), eq(agent.orgId, orgId), eq(agent.kind, 'managed')));
   }
 
   async listForOrg(orgId: string): Promise<AgentWithContext[]> {

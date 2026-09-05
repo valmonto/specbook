@@ -10,15 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  ArrowUpFromLine,
-  Check,
-  Lock,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ArrowUpFromLine, Check, Lock, MoreVertical, Pencil, Trash2, X } from 'lucide-react';
 import type { Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
@@ -102,12 +94,7 @@ export interface PlanCanvasProps {
   registerTidy: (tidy: () => void) => void;
 }
 
-export function PlanCanvas({
-  draftTasks,
-  readOnly,
-  onOpenEditor,
-  registerTidy,
-}: PlanCanvasProps) {
+export function PlanCanvas({ draftTasks, readOnly, onOpenEditor, registerTidy }: PlanCanvasProps) {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const addDependency = useAddDependency();
@@ -232,14 +219,12 @@ export function PlanCanvas({
         toast.error(t(k.tasks.plan.rejectCycle));
         return;
       }
-      void addDependency
-        .execute({ id: dependent, dependsOnTaskId: prerequisite })
-        .then((res) => {
-          if (res.e) {
-            flashChain([prerequisite, dependent]);
-            toast.error(t(res.e.message));
-          }
-        });
+      void addDependency.execute({ id: dependent, dependsOnTaskId: prerequisite }).then((res) => {
+        if (res.e) {
+          flashChain([prerequisite, dependent]);
+          toast.error(t(res.e.message));
+        }
+      });
     },
     [addDependency, edgePairs, flashChain, t],
   );
@@ -434,8 +419,7 @@ export function PlanCanvas({
         linkFrom && 'cursor-crosshair',
       )}
       style={{
-        backgroundImage:
-          'radial-gradient(circle at 1px 1px, var(--border) 1.2px, transparent 0)',
+        backgroundImage: 'radial-gradient(circle at 1px 1px, var(--border) 1.2px, transparent 0)',
         backgroundSize: '22px 22px',
       }}
       onPointerDown={(e) => {
@@ -723,7 +707,9 @@ const TaskCard = ({
         top: pos.y,
         width: PLAN_NODE_W,
         borderLeftColor: flashing ? 'var(--destructive)' : waiting ? '#c07d16' : '#0a97d6',
-        transition: dragging ? 'none' : 'left .28s cubic-bezier(.22,.61,.36,1), top .28s cubic-bezier(.22,.61,.36,1), box-shadow .15s',
+        transition: dragging
+          ? 'none'
+          : 'left .28s cubic-bezier(.22,.61,.36,1), top .28s cubic-bezier(.22,.61,.36,1), box-shadow .15s',
         // Never let a touch-drag of a card scroll the canvas underneath it;
         // one-finger drags on empty space still pan (native scroll).
         touchAction: 'none',
@@ -782,7 +768,10 @@ const TaskCard = ({
                 {t(k.tasks.plan.promote)}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onDelete}>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={onDelete}
+              >
                 <Trash2 className="size-4" />
                 {t(k.tasks.plan.deleteDraft)}
               </DropdownMenuItem>

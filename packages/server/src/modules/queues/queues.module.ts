@@ -56,7 +56,14 @@ import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment/index.js';
     BullModule.registerQueue({ name: ENVIRONMENT_PROVISION_QUEUE.name }),
     BullModule.registerQueue({ name: DEPLOYMENT_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer, DeploymentProducer, AgentLifecycleProducer],
+  providers: [
+    ExampleProducer,
+    GithubWebhookProducer,
+    ServerCheckProducer,
+    EnvironmentProvisionProducer,
+    DeploymentProducer,
+    AgentLifecycleProducer,
+  ],
   exports: [
     BullModule,
     ExampleProducer,

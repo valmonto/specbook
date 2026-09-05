@@ -80,9 +80,10 @@ describeIntegration('ProjectRepository — unique names and the archive boundary
 
   it('rejects a duplicate live name in the same org — case-insensitively', async () => {
     await repo.create({ orgId: orgA, name: 'Testino', createdBy: ownerA });
-    const err = await repo
-      .create({ orgId: orgA, name: 'testino', createdBy: ownerA })
-      .then(() => null, (e: unknown) => e);
+    const err = await repo.create({ orgId: orgA, name: 'testino', createdBy: ownerA }).then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect(isNameCollision(err)).toBe(true);
   });
 
@@ -107,9 +108,10 @@ describeIntegration('ProjectRepository — unique names and the archive boundary
     expect(archived.data.map((p) => p.id)).toEqual([first.id]);
 
     // …and restoring the archived twin collides with the live claim.
-    const err = await repo
-      .update(first.id, orgA, { archivedAt: null })
-      .then(() => null, (e: unknown) => e);
+    const err = await repo.update(first.id, orgA, { archivedAt: null }).then(
+      () => null,
+      (e: unknown) => e,
+    );
     expect(isNameCollision(err)).toBe(true);
   });
 });

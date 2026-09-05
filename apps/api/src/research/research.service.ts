@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import {
   type AcceptResearchRequest,
@@ -51,7 +47,10 @@ export class ResearchService {
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
-  async create(activeUser: ActiveUser, dto: CreateResearchRequest): Promise<CreateResearchResponse> {
+  async create(
+    activeUser: ActiveUser,
+    dto: CreateResearchRequest,
+  ): Promise<CreateResearchResponse> {
     if (dto.projectId) await this.requireLiveProject(dto.projectId, activeUser.orgId);
 
     const created = await this.researchRepository.create({
@@ -110,7 +109,10 @@ export class ResearchService {
     };
   }
 
-  async update(activeUser: ActiveUser, dto: UpdateResearchRequest): Promise<UpdateResearchResponse> {
+  async update(
+    activeUser: ActiveUser,
+    dto: UpdateResearchRequest,
+  ): Promise<UpdateResearchResponse> {
     await this.requireResearch(dto.id, activeUser.orgId);
     if (dto.projectId) await this.requireLiveProject(dto.projectId, activeUser.orgId);
 
@@ -213,10 +215,7 @@ export class ResearchService {
    * `source_research_id` lineage. Drafts only — the Ready boundary still gates
    * dispatch. Gated by task:create at the controller.
    */
-  async cutTickets(
-    activeUser: ActiveUser,
-    dto: CutTicketsRequest,
-  ): Promise<CutTicketsResponse> {
+  async cutTickets(activeUser: ActiveUser, dto: CutTicketsRequest): Promise<CutTicketsResponse> {
     const found = await this.requireResearch(dto.id, activeUser.orgId);
     const targetProjectId = dto.targetProjectId ?? found.projectId;
     if (!targetProjectId) {

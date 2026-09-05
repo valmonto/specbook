@@ -21,12 +21,7 @@ import { TERMINAL_TASK_STATUSES } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StatusBadge } from '../status-badge';
 import {
   DropdownMenu,
@@ -122,7 +117,9 @@ function FromResearchChip({ task }: { task: Task }) {
     >
       <FlaskConical className="size-3 shrink-0" />
       <span className="shrink-0">{t(k.tasks.v2.fromResearch)}</span>
-      <span aria-hidden className="shrink-0">·</span>
+      <span aria-hidden className="shrink-0">
+        ·
+      </span>
       <span className="max-w-[10rem] truncate">{task.sourceResearchTitle}</span>
     </Link>
   );
@@ -328,7 +325,12 @@ function RowMenu({ task }: { task: Task }) {
   const dispatchBlocked =
     task.status === 'draft' && (!task.context?.trim() || task.acceptanceCriteria.length === 0);
 
-  const moves: Array<{ labelKey: string; to: 'ready' | 'draft'; disabled?: boolean; hint?: string }> = [];
+  const moves: Array<{
+    labelKey: string;
+    to: 'ready' | 'draft';
+    disabled?: boolean;
+    hint?: string;
+  }> = [];
   if (task.status === 'draft')
     moves.push({
       labelKey: k.tasks.actions.markReady,

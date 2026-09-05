@@ -63,7 +63,12 @@ beforeEach(() => {
     isLoading: false,
     data: {
       data: archived
-        ? [{ ...project('aaaaaaaa-0000-4000-8000-000000000002', 'Old thing'), archivedAt: '2026-08-01T00:00:00.000Z' }]
+        ? [
+            {
+              ...project('aaaaaaaa-0000-4000-8000-000000000002', 'Old thing'),
+              archivedAt: '2026-08-01T00:00:00.000Z',
+            },
+          ]
         : [project('aaaaaaaa-0000-4000-8000-000000000001', 'Live thing')],
     },
   }));
@@ -83,9 +88,7 @@ describe('ProjectsPage — tabs, archive, delete', () => {
     expect(screen.getByText('tasks.archiveConfirmTitle')).toBeInTheDocument();
     expect(archive.execute).not.toHaveBeenCalled();
 
-    await userEvent.click(
-      screen.getAllByRole('button', { name: /tasks\.archiveProject/ }).at(-1)!,
-    );
+    await userEvent.click(screen.getAllByRole('button', { name: /tasks\.archiveProject/ }).at(-1)!);
     await waitFor(() =>
       expect(archive.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000001' }),
     );
@@ -106,9 +109,13 @@ describe('ProjectsPage — tabs, archive, delete', () => {
     await userEvent.click(screen.getByRole('menuitem', { name: /tasks\.unarchiveProject/ }));
     await screen.findByText('tasks.unarchiveConfirmTitle');
     expect(unarchive.execute).not.toHaveBeenCalled();
-    await userEvent.click(screen.getAllByRole('button', { name: /tasks\.unarchiveProject/ }).at(-1)!);
+    await userEvent.click(
+      screen.getAllByRole('button', { name: /tasks\.unarchiveProject/ }).at(-1)!,
+    );
     await waitFor(() =>
-      expect(unarchive.execute).toHaveBeenCalledWith({ id: 'aaaaaaaa-0000-4000-8000-000000000002' }),
+      expect(unarchive.execute).toHaveBeenCalledWith({
+        id: 'aaaaaaaa-0000-4000-8000-000000000002',
+      }),
     );
 
     // Delete: destructive, gated by the confirm dialog.

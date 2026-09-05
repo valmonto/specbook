@@ -186,9 +186,15 @@ then wrap a SERVICE method, never raw SQL — tools inherit the same rules and
 logging the HTTP surface has. Connect with:
 
 ```json
-{ "mcpServers": { "myapp": {
-  "type": "http", "url": "https://api.example.com/api/mcp",
-  "headers": { "Authorization": "Bearer sk_…" } } } }
+{
+  "mcpServers": {
+    "myapp": {
+      "type": "http",
+      "url": "https://api.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer sk_…" }
+    }
+  }
+}
 ```
 
 ## GitHub App — the org ↔ repository connection
@@ -439,7 +445,7 @@ is the guide):
   without a database proves less than it looks. CI always sets one.
 
 The split earns its keep: the service tests asserted the repository was
-*called* with an org while the query ignored it — only the integration layer
+_called_ with an org while the query ignored it — only the integration layer
 caught the cross-tenant write. And the guard unit tests hand-build their
 `ExecutionContext`, so they pass whether or not the framework still invokes
 the guard — only the pipeline layer can tell.

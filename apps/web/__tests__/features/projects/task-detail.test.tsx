@@ -93,9 +93,7 @@ describe('TaskDetail (shared body)', () => {
     // capability that used to be sheet-only, now on the board too.
     expect(screen.getByText('tasks.detail.dependencies')).toBeInTheDocument();
     expect(screen.getByText('Upstream task')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'tasks.detail.addDependency' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'tasks.detail.addDependency' })).toBeInTheDocument();
     expect(screen.getByText('tasks.detail.dependents')).toBeInTheDocument();
     expect(screen.getByText('Downstream task')).toBeInTheDocument();
 
@@ -115,18 +113,14 @@ describe('TaskDetail (shared body)', () => {
 
     const { rerender } = render(<TaskDetail task={task} />);
     // Slide-over: no head merge button, so the body carries mark-merged.
-    expect(
-      screen.getByRole('button', { name: 'tasks.actions.markMerged' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'tasks.actions.markMerged' })).toBeInTheDocument();
 
     // Board: the collapsed head owns "land it", so the body drops the dup.
     rerender(<TaskDetail task={task} landInHeader />);
     expect(
       screen.queryByRole('button', { name: 'tasks.actions.markMerged' }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'tasks.actions.undoApprove' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'tasks.actions.undoApprove' })).toBeInTheDocument();
   });
 
   // Stranded-work recovery (draft → done): an authorized owner sees an explicit
@@ -137,9 +131,7 @@ describe('TaskDetail (shared body)', () => {
 
     render(<TaskDetail task={task} />);
 
-    expect(
-      screen.getByRole('button', { name: /tasks\.actions\.markDone/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tasks\.actions\.markDone/ })).toBeInTheDocument();
   });
 
   it('hides Mark as done from a user without task:transition', () => {

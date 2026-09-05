@@ -92,15 +92,19 @@ describeIntegration('TaskService — bulk mark-ready, cascade + org-scoped', () 
     ({ userId, orgId, orgRole: 'OWNER', systemRole: 'USER' }) as const;
 
   const statusOf = async (id: string): Promise<string> => {
-    const [row] = await client.db
-      .select({ status: task.status })
-      .from(task)
-      .where(eq(task.id, id));
+    const [row] = await client.db.select({ status: task.status }).from(task).where(eq(task.id, id));
     return row!.status;
   };
 
   beforeEach(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     const a = await makeOrg('mr-org-a');
     const b = await makeOrg('mr-org-b');
     orgA = a.orgId;
@@ -112,7 +116,14 @@ describeIntegration('TaskService — bulk mark-ready, cascade + org-scoped', () 
   });
 
   afterAll(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     await client.close();
   });
 

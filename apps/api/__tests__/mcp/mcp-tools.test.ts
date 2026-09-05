@@ -64,7 +64,12 @@ describe('McpTools — attachment tools', () => {
     );
     expect(attachments.createUpload).toHaveBeenCalledWith(
       actor,
-      expect.objectContaining({ subjectType: 'task', subjectId: TASK, kind: 'image', sizeBytes: 123 }),
+      expect.objectContaining({
+        subjectType: 'task',
+        subjectId: TASK,
+        kind: 'image',
+        sizeBytes: 123,
+      }),
     );
   });
 

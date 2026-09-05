@@ -150,13 +150,25 @@ function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
           </button>
         )}
         {managed && canManage && !running && (
-          <Button size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs" disabled={start.isLoading} onClick={act(start)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 gap-1 px-2 text-xs"
+            disabled={start.isLoading}
+            onClick={act(start)}
+          >
             <Play className="size-3" />
             {t(k.agents.start)}
           </Button>
         )}
         {managed && canManage && running && (
-          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-xs text-muted-foreground" disabled={stop.isLoading} onClick={act(stop)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 gap-1 px-2 text-xs text-muted-foreground"
+            disabled={stop.isLoading}
+            onClick={act(stop)}
+          >
             <Square className="size-3" />
             {t(k.agents.stop)}
           </Button>
@@ -352,10 +364,7 @@ export default function YourMovePage() {
     );
   }, [needsReview, approved, blocked]);
 
-  const blockedIds = useMemo(
-    () => (blocked?.data ?? []).map((task) => task.id).sort(),
-    [blocked],
-  );
+  const blockedIds = useMemo(() => (blocked?.data ?? []).map((task) => task.id).sort(), [blocked]);
   const { data: questions } = useBlockedQuestions(blockedIds);
 
   const loading = loadingReview || loadingBlocked;
@@ -519,11 +528,7 @@ export default function YourMovePage() {
               <PrepChecklist />
             </div>
           )}
-          <AddManagedAgentDialog
-            open={addingAgent}
-            onOpenChange={setAddingAgent}
-            agents={agents}
-          />
+          <AddManagedAgentDialog open={addingAgent} onOpenChange={setAddingAgent} agents={agents} />
         </section>
       )}
 

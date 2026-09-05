@@ -61,10 +61,7 @@ describe('classifyCiFailure', () => {
   it('a hard failure alongside a cancelled job is NOT retryable', () => {
     const c = classifyCiFailure({
       runConclusion: 'failure',
-      jobs: [
-        job('verify', 'failure', [['Run tests', 'failure']]),
-        job('e2e', 'cancelled'),
-      ],
+      jobs: [job('verify', 'failure', [['Run tests', 'failure']]), job('e2e', 'cancelled')],
     });
     expect(c).toBeNull();
   });

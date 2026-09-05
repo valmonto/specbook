@@ -204,7 +204,9 @@ export default function ResearchDetailPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t(k.research.document.reopen)}</AlertDialogTitle>
-            <AlertDialogDescription>{t(k.research.errors.reopenFeedbackRequired)}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {t(k.research.errors.reopenFeedbackRequired)}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea
             value={feedback}

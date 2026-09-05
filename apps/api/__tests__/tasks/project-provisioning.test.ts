@@ -146,7 +146,10 @@ describe('ProjectService — repo provisioning', () => {
   it('a duplicate repo name gets its own message — the one failure the user fixes themselves', async () => {
     github.createProjectRepo.mockRejectedValue(
       Object.assign(new Error('422'), {
-        response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+        response: {
+          status: 422,
+          data: { errors: [{ message: 'name already exists on this account' }] },
+        },
       }),
     );
     await expect(service.create(actor, dto)).rejects.toThrow('tasks.errors.repoNameTaken');
@@ -215,7 +218,10 @@ describe('ProjectService — repo provisioning', () => {
       )
       .mockRejectedValueOnce(
         Object.assign(new Error('422'), {
-          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+          response: {
+            status: 422,
+            data: { errors: [{ message: 'name already exists on this account' }] },
+          },
         }),
       );
     github.listRepositories.mockResolvedValue([NEW_REPO]); // grant knows it by name
@@ -245,7 +251,10 @@ describe('ProjectService — repo provisioning', () => {
       )
       .mockRejectedValueOnce(
         Object.assign(new Error('422'), {
-          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+          response: {
+            status: 422,
+            data: { errors: [{ message: 'name already exists on this account' }] },
+          },
         }),
       );
     github.listRepositories.mockResolvedValue([]);

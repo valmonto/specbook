@@ -22,10 +22,12 @@ export function scrubDeployText(text: string, literals: string[] = []): string {
   for (const literal of literals) {
     if (literal) scrubbed = scrubbed.replaceAll(literal, '<repo-url>');
   }
-  return scrubbed
-    .replace(/x-access-token:[^@\s]+@/g, 'x-access-token:***@')
-    // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+  return (
+    scrubbed
+      .replace(/x-access-token:[^@\s]+@/g, 'x-access-token:***@')
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+  );
 }
 
 /**

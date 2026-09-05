@@ -29,7 +29,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useCan } from '@/shared/hooks/use-permissions';
-import { useCreateServer, useRemoveServer, useServers, useTestServer } from '@/shared/servers/hooks';
+import {
+  useCreateServer,
+  useRemoveServer,
+  useServers,
+  useTestServer,
+} from '@/shared/servers/hooks';
 
 const statusStyles: Record<Server['status'], string> = {
   unverified: 'bg-muted text-muted-foreground',
@@ -109,7 +114,12 @@ export function ServersCard() {
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {s.name}
-                    <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', statusStyles[s.status])}>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                        statusStyles[s.status],
+                      )}
+                    >
                       {t(k.servers.status[s.status])}
                     </span>
                   </p>
@@ -173,21 +183,33 @@ export function ServersCard() {
           <div className="grid gap-3">
             <div className="grid gap-1.5">
               <Label>{t(k.servers.name)}</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-[1fr_6rem] gap-3">
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.host)}</Label>
-                <Input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
+                <Input
+                  value={form.host}
+                  onChange={(e) => setForm({ ...form, host: e.target.value })}
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.port)}</Label>
-                <Input value={form.port} onChange={(e) => setForm({ ...form, port: e.target.value })} />
+                <Input
+                  value={form.port}
+                  onChange={(e) => setForm({ ...form, port: e.target.value })}
+                />
               </div>
             </div>
             <div className="grid gap-1.5">
               <Label>{t(k.servers.sshUser)}</Label>
-              <Input value={form.sshUser} onChange={(e) => setForm({ ...form, sshUser: e.target.value })} />
+              <Input
+                value={form.sshUser}
+                onChange={(e) => setForm({ ...form, sshUser: e.target.value })}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>{t(k.servers.roles)}</Label>
@@ -208,7 +230,9 @@ export function ServersCard() {
           </div>
           <DialogFooter>
             <Button
-              disabled={!form.name.trim() || !form.host.trim() || roles.length === 0 || create.isLoading}
+              disabled={
+                !form.name.trim() || !form.host.trim() || roles.length === 0 || create.isLoading
+              }
               onClick={() => void submit()}
             >
               {create.isLoading && <Loader2 className="size-4 mr-1 animate-spin" />}
@@ -250,7 +274,10 @@ export function ServersCard() {
               disabled={remove.isLoading}
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() =>
-                void (removing && remove.execute({ id: removing.id }).then((r) => !r.e && setRemoving(null)))
+                void (
+                  removing &&
+                  remove.execute({ id: removing.id }).then((r) => !r.e && setRemoving(null))
+                )
               }
             >
               {t(k.servers.remove)}

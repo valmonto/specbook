@@ -131,7 +131,9 @@ describe('ResearchDetailPage', () => {
     hooks.useCutTickets.mockReturnValue(cut);
     renderPage();
 
-    await userEvent.click(screen.getByRole('button', { name: /research\.document\.createTickets/ }));
+    await userEvent.click(
+      screen.getByRole('button', { name: /research\.document\.createTickets/ }),
+    );
 
     const titleInput = await screen.findByLabelText('research.cut.titlePlaceholder');
     await userEvent.type(titleInput, 'Render a Caddyfile edge');

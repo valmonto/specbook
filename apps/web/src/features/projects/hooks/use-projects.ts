@@ -59,7 +59,8 @@ export function useProjects(archived = false) {
     canList,
     ...useCachedRequest<ListProjectsResponse>({
       key: canList ? projectListKey(user?.orgId, archived) : null,
-      fetcher: () => projectsApi.listProjects({ skip: 0, limit: 100, ...(archived ? { archived } : {}) }),
+      fetcher: () =>
+        projectsApi.listProjects({ skip: 0, limit: 100, ...(archived ? { archived } : {}) }),
     }),
   };
 }

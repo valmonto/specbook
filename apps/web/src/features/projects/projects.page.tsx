@@ -1,7 +1,15 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { Archive, ArchiveRestore, FolderKanban, GitBranch, Plus, Settings2, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  FolderKanban,
+  GitBranch,
+  Plus,
+  Settings2,
+  Trash2,
+} from 'lucide-react';
 import type { Project } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import {
@@ -106,7 +114,9 @@ function ProjectCard({
             )}
           </div>
           {project.context && (
-            <p className="line-clamp-2 break-words text-sm text-muted-foreground">{project.context}</p>
+            <p className="line-clamp-2 break-words text-sm text-muted-foreground">
+              {project.context}
+            </p>
           )}
           {project.repoUrl && (
             <p className="mt-auto inline-flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
@@ -159,9 +169,21 @@ export default function ProjectsPage() {
     if (!res.e) setPending(null);
   };
   const confirmKeys = {
-    archive: { title: k.tasks.archiveConfirmTitle, body: k.tasks.archiveConfirmBody, cta: k.tasks.archiveProject },
-    unarchive: { title: k.tasks.unarchiveConfirmTitle, body: k.tasks.unarchiveConfirmBody, cta: k.tasks.unarchiveProject },
-    delete: { title: k.tasks.deleteConfirmTitle, body: k.tasks.deleteConfirmBody, cta: k.tasks.deleteProject },
+    archive: {
+      title: k.tasks.archiveConfirmTitle,
+      body: k.tasks.archiveConfirmBody,
+      cta: k.tasks.archiveProject,
+    },
+    unarchive: {
+      title: k.tasks.unarchiveConfirmTitle,
+      body: k.tasks.unarchiveConfirmBody,
+      cta: k.tasks.unarchiveProject,
+    },
+    delete: {
+      title: k.tasks.deleteConfirmTitle,
+      body: k.tasks.deleteConfirmBody,
+      cta: k.tasks.deleteProject,
+    },
   }[pending?.kind ?? lastPending.current];
 
   return (

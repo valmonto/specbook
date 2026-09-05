@@ -102,10 +102,7 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
 
   it('a changes_requested task obeys the same gates — archived project feeds none', async () => {
     const archived = await makeProject(orgA, ownerA, 'attic');
-    await client.db
-      .update(project)
-      .set({ archivedAt: new Date() })
-      .where(eq(project.id, archived));
+    await client.db.update(project).set({ archivedAt: new Date() }).where(eq(project.id, archived));
     await makeTask(archived, ownerA, 'changes_requested', 'attic-sent-back');
     const { data } = await queue();
     expect(data).toHaveLength(0);

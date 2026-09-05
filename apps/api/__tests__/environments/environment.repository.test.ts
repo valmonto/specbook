@@ -61,7 +61,15 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     return { orgId: org!.id, projectId: proj!.id, serverId: srv!.id };
   }
 
-  const tables = [deployment, projectEnvironment, server, project, organizationUser, organization, user];
+  const tables = [
+    deployment,
+    projectEnvironment,
+    server,
+    project,
+    organizationUser,
+    organization,
+    user,
+  ];
 
   beforeEach(async () => {
     await truncate(client.db, tables);
@@ -97,7 +105,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
   });
 
-  it("user env vars (sealed values + classification) never cross the org boundary", async () => {
+  it('user env vars (sealed values + classification) never cross the org boundary', async () => {
     const mine = await repo.create({
       projectId: projectA,
       name: 'staging',
@@ -141,9 +149,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     // The provision endpoint resolves the row through findById(org) — which
     // refuses — and the write itself is keyed by the owning project.
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
-    expect(
-      await repo.update(mine.id, projectB, { provisionStatus: 'provisioning' }),
-    ).toBeNull();
+    expect(await repo.update(mine.id, projectB, { provisionStatus: 'provisioning' })).toBeNull();
     const still = await repo.findById(mine.id, projectA, orgA);
     expect(still?.provisionStatus).toBe('unprovisioned');
   });

@@ -234,7 +234,12 @@ export class ProjectService {
     // direct initial push. The populate refuses non-empty repos itself, so
     // a successful /generate result passes through untouched.
     const populateNote = wantsTemplate
-      ? await this.populateOrNote(connection.installationId, connection.templateRepo!, created, projectId)
+      ? await this.populateOrNote(
+          connection.installationId,
+          connection.templateRepo!,
+          created,
+          projectId,
+        )
       : null;
 
     const protectionNote = await this.protectOrNote(connection.installationId, created, projectId);
@@ -267,7 +272,12 @@ export class ProjectService {
     });
 
     this.logger.info(
-      { projectId, repo: created.fullName, template: repo.fromTemplate, protected: !protectionNote },
+      {
+        projectId,
+        repo: created.fullName,
+        template: repo.fromTemplate,
+        protected: !protectionNote,
+      },
       'Repository provisioned and bound',
     );
   }
@@ -361,7 +371,12 @@ export class ProjectService {
 
     const populateNote =
       dto.fromTemplate && connection.templateRepo
-        ? await this.populateOrNote(connection.installationId, connection.templateRepo, binding, dto.id)
+        ? await this.populateOrNote(
+            connection.installationId,
+            connection.templateRepo,
+            binding,
+            dto.id,
+          )
         : null;
 
     if (alreadyBound) {
@@ -437,7 +452,11 @@ export class ProjectService {
   }
 
   async getById(activeUser: ActiveUser, id: string): Promise<GetProjectByIdResponse> {
-    const found = await this.projectRepository.findById(id, activeUser.orgId, this.scopeFor(activeUser));
+    const found = await this.projectRepository.findById(
+      id,
+      activeUser.orgId,
+      this.scopeFor(activeUser),
+    );
     if (!found) {
       throw new NotFoundException(k.tasks.errors.projectNotFound);
     }
@@ -561,7 +580,10 @@ export class ProjectService {
    * caller's ACTIVE org supplies the installation, so cross-org binding is
    * structurally impossible.
    */
-  private async resolveGithubRepo(activeUser: ActiveUser, githubRepoId: number): Promise<GithubRepo> {
+  private async resolveGithubRepo(
+    activeUser: ActiveUser,
+    githubRepoId: number,
+  ): Promise<GithubRepo> {
     if (!this.githubApp.enabled) {
       throw new BadRequestException(k.orgs.github.errors.notConfigured);
     }
@@ -610,7 +632,12 @@ export class ProjectService {
     if (!(await this.projectMemberRepository.isOrgMember(activeUser.orgId, userId))) {
       throw new BadRequestException(k.tasks.errors.grantNotOrgMember);
     }
-    await this.projectMemberRepository.grant(activeUser.orgId, projectId, userId, activeUser.userId);
+    await this.projectMemberRepository.grant(
+      activeUser.orgId,
+      projectId,
+      userId,
+      activeUser.userId,
+    );
     this.logger.info({ projectId, userId, grantedBy: activeUser.userId }, 'Project access granted');
     return this.membersView(activeUser, project);
   }

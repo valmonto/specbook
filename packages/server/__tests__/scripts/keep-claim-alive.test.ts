@@ -12,8 +12,15 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error — untyped .mjs tool imported for its exported pure functions.
 import * as keepClaimAlive from '../../../../scripts/keep-claim-alive.mjs';
 
-const { DEFAULT_MCP_URL, STAMP_EVENTS, parseBuildEvent, shouldStamp, resolveHeartbeatConfig, buildHeartbeatRequest, extractMcpPayload } =
-  keepClaimAlive;
+const {
+  DEFAULT_MCP_URL,
+  STAMP_EVENTS,
+  parseBuildEvent,
+  shouldStamp,
+  resolveHeartbeatConfig,
+  buildHeartbeatRequest,
+  extractMcpPayload,
+} = keepClaimAlive;
 
 const SCRIPT = resolve(__dirname, '../../../../scripts/keep-claim-alive.mjs');
 
@@ -59,26 +66,42 @@ describe('keep-claim-alive: resolveHeartbeatConfig', () => {
   });
 
   it('resolves the URL by precedence: explicit → base+/api/mcp → prod default', () => {
-    expect(resolveHeartbeatConfig({ SPECBOOK_API_KEY: 'k' })).toEqual({ url: DEFAULT_MCP_URL, apiKey: 'k' });
-    expect(resolveHeartbeatConfig({ SPECBOOK_API_KEY: 'k', SPECBOOK_BASE_URL: 'https://h.test/' })).toEqual({
+    expect(resolveHeartbeatConfig({ SPECBOOK_API_KEY: 'k' })).toEqual({
+      url: DEFAULT_MCP_URL,
+      apiKey: 'k',
+    });
+    expect(
+      resolveHeartbeatConfig({ SPECBOOK_API_KEY: 'k', SPECBOOK_BASE_URL: 'https://h.test/' }),
+    ).toEqual({
       url: 'https://h.test/api/mcp',
       apiKey: 'k',
     });
     expect(
-      resolveHeartbeatConfig({ SPECBOOK_API_KEY: 'k', SPECBOOK_BASE_URL: 'https://h.test', SPECBOOK_MCP_URL: 'https://explicit/api/mcp' }),
+      resolveHeartbeatConfig({
+        SPECBOOK_API_KEY: 'k',
+        SPECBOOK_BASE_URL: 'https://h.test',
+        SPECBOOK_MCP_URL: 'https://explicit/api/mcp',
+      }),
     ).toEqual({ url: 'https://explicit/api/mcp', apiKey: 'k' });
   });
 });
 
 describe('keep-claim-alive: buildHeartbeatRequest', () => {
   it('POSTs a JSON-RPC tools/call for the `heartbeat` tool with the Bearer key', () => {
-    const { url, init } = buildHeartbeatRequest({ url: 'https://h.test/api/mcp', apiKey: 'sk_abc' });
+    const { url, init } = buildHeartbeatRequest({
+      url: 'https://h.test/api/mcp',
+      apiKey: 'sk_abc',
+    });
     expect(url).toBe('https://h.test/api/mcp');
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer sk_abc');
     expect(init.headers.Accept).toContain('text/event-stream');
     const body = JSON.parse(init.body);
-    expect(body).toMatchObject({ jsonrpc: '2.0', method: 'tools/call', params: { name: 'heartbeat' } });
+    expect(body).toMatchObject({
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'heartbeat' },
+    });
   });
 });
 
@@ -141,7 +164,13 @@ describe('keep-claim-alive CLI against a mock MCP endpoint', () => {
 
   const run = (buildEvent: string, extraEnv: Record<string, string> = {}) =>
     exec('node', [SCRIPT], {
-      env: { ...process.env, BUILD_EVENT: buildEvent, SPECBOOK_MCP_URL: endpoint, SPECBOOK_API_KEY: 'sk_test', ...extraEnv },
+      env: {
+        ...process.env,
+        BUILD_EVENT: buildEvent,
+        SPECBOOK_MCP_URL: endpoint,
+        SPECBOOK_API_KEY: 'sk_test',
+        ...extraEnv,
+      },
     });
 
   it('stamps the claim on a live heartbeat — one heartbeat tools/call reaches the endpoint', async () => {
@@ -151,7 +180,10 @@ describe('keep-claim-alive CLI against a mock MCP endpoint', () => {
     expect(req.method).toBe('POST');
     expect(req.url).toBe('/api/mcp');
     expect(req.auth).toBe('Bearer sk_test');
-    expect(JSON.parse(req.body)).toMatchObject({ method: 'tools/call', params: { name: 'heartbeat' } });
+    expect(JSON.parse(req.body)).toMatchObject({
+      method: 'tools/call',
+      params: { name: 'heartbeat' },
+    });
   });
 
   it('does NOT stamp on end — a finished build sends nothing, so the claim can go stale', async () => {

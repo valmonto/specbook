@@ -252,7 +252,8 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
                 },
           )
           .where(eq(agent.id, row.id));
-        if (!alive) this.logger.warn({ agentId: row.id, name: row.name }, 'Managed agent session gone');
+        if (!alive)
+          this.logger.warn({ agentId: row.id, name: row.name }, 'Managed agent session gone');
       } catch (error) {
         this.logger.warn({ agentId: row.id, error }, 'Managed agent status poll failed');
       }

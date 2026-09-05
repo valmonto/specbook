@@ -127,9 +127,7 @@ export function DependencyEditor({ task }: { task: GetTaskByIdResponse }) {
   // already-linked exclusions.
   const candidates = (projectTasks?.data ?? []).filter(
     (candidate) =>
-      candidate.id !== task.id &&
-      !linkedIds.has(candidate.id) &&
-      isNonTerminal(candidate.status),
+      candidate.id !== task.id && !linkedIds.has(candidate.id) && isNonTerminal(candidate.status),
   );
 
   const busy = addDependency.isLoading || removeDependency.isLoading;

@@ -75,7 +75,9 @@ export function PipelineStrip({ counts, selected, onSelect, locked = false }: Pr
                 disabled && 'pointer-events-none opacity-30',
               )}
             >
-              {isGate && <span className="size-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_2px_rgba(217,153,34,0.35)]" />}
+              {isGate && (
+                <span className="size-1.5 rounded-full bg-amber-500 shadow-[0_0_5px_2px_rgba(217,153,34,0.35)]" />
+              )}
               {t(k.tasks.status[status])}
               <span className="font-semibold text-foreground tabular-nums">{n}</span>
               {status === 'approved' && (

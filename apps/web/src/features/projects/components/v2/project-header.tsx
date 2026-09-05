@@ -81,10 +81,7 @@ export function ProjectHeader({
     [project.budgetUsdCents],
   );
 
-  const save = async (
-    patch: Record<string, unknown>,
-    revert: () => void,
-  ): Promise<void> => {
+  const save = async (patch: Record<string, unknown>, revert: () => void): Promise<void> => {
     const res = await update.execute({ id: project.id, ...patch });
     if (res.e) {
       revert();
@@ -131,9 +128,11 @@ export function ProjectHeader({
   };
 
   const repos = github.data?.connected ? github.data.repositories : [];
-  const modeLabel = { manual: k.tasks.mode.manual, auto_merge: k.tasks.mode.auto_merge, auto: k.tasks.mode.auto }[
-    project.mode
-  ];
+  const modeLabel = {
+    manual: k.tasks.mode.manual,
+    auto_merge: k.tasks.mode.auto_merge,
+    auto: k.tasks.mode.auto,
+  }[project.mode];
   const modeHint = {
     manual: k.tasks.mode.manualHint,
     auto_merge: k.tasks.mode.autoMergeHint,
@@ -205,7 +204,9 @@ export function ProjectHeader({
                         {repo.fullName}
                       </code>
                       {repo.private && <Lock className="size-3 text-muted-foreground" />}
-                      {project.githubRepoId === repo.id && <Check className="size-3.5 text-primary" />}
+                      {project.githubRepoId === repo.id && (
+                        <Check className="size-3.5 text-primary" />
+                      )}
                     </button>
                   ))}
                   {repos.length === 0 && (
@@ -468,13 +469,18 @@ export function ProjectContextSection({
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
       >
         <ChevronRight
-          className={cn('size-3.5 shrink-0 text-muted-foreground/60 transition-transform', open && 'rotate-90')}
+          className={cn(
+            'size-3.5 shrink-0 text-muted-foreground/60 transition-transform',
+            open && 'rotate-90',
+          )}
         />
         <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           {t(k.tasks.contextDoc)}
         </span>
         {!open && (
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground/70">{preview}</span>
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground/70">
+            {preview}
+          </span>
         )}
       </button>
       {open && (
@@ -504,7 +510,9 @@ export function ProjectContextSection({
                 !readOnly && 'cursor-text hover:bg-muted/50',
               )}
             >
-              {shown ?? <span className="text-muted-foreground/60 italic">{t(k.tasks.contextDocHint)}</span>}
+              {shown ?? (
+                <span className="text-muted-foreground/60 italic">{t(k.tasks.contextDocHint)}</span>
+              )}
             </button>
           )}
         </div>

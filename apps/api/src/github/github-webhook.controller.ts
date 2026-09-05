@@ -52,7 +52,11 @@ export class GithubWebhookController {
     }
 
     const signature = req.headers['x-hub-signature-256'];
-    if (typeof signature !== 'string' || !req.rawBody || !this.verify(req.rawBody, signature, secret)) {
+    if (
+      typeof signature !== 'string' ||
+      !req.rawBody ||
+      !this.verify(req.rawBody, signature, secret)
+    ) {
       this.logger.warn(
         { ip: req.ip, event: req.headers['x-github-event'], hasSignature: Boolean(signature) },
         'GitHub webhook rejected: missing or invalid signature',

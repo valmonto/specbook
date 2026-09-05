@@ -15,9 +15,14 @@ describe('classifyEnvVarName', () => {
 describe('parseDotenv', () => {
   it('parses KEY=value lines, ignoring comments and blanks, stripping quotes', () => {
     const result = parseDotenv(
-      ['# a comment', '', 'API_KEY=sk-123', 'PUBLIC_URL="https://example.com"', "NAME='quoted'", 'export FOO=bar'].join(
-        '\n',
-      ),
+      [
+        '# a comment',
+        '',
+        'API_KEY=sk-123',
+        'PUBLIC_URL="https://example.com"',
+        "NAME='quoted'",
+        'export FOO=bar',
+      ].join('\n'),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;

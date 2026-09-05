@@ -68,12 +68,8 @@ describe('TaskDetailSheet', () => {
     // The sheet's own chrome (title) plus the shared body's sections.
     expect(screen.getByText('Ship it')).toBeInTheDocument();
     expect(screen.getByText('tasks.detail.dependencies')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'tasks.detail.addDependency' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'tasks.detail.addDependency' })).toBeInTheDocument();
     expect(screen.getByText('tasks.detail.comments')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /^tasks\.actions\.approve$/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tasks\.actions\.approve$/ })).toBeInTheDocument();
   });
 });

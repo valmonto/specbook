@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
-import { GithubAppModule, QueuesModule as SharedQueuesModule, SecretsModule, SshModule } from '@pkg/server';
+import {
+  GithubAppModule,
+  QueuesModule as SharedQueuesModule,
+  SecretsModule,
+  SshModule,
+} from '@pkg/server';
 import { ExampleProcessor } from './example/example.processor.js';
 import { ExampleListener } from './example/example.listener.js';
 import { NotificationRepository } from './example/notification.repository.js';

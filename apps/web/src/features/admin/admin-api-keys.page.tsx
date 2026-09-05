@@ -120,7 +120,9 @@ function CreateKeyDialog({
   const [scopes, setScopes] = useState<McpScope[]>([]);
 
   const toggleScope = (scope: McpScope) =>
-    setScopes((prev) => (prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]));
+    setScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
 
   const submit = async () => {
     const res = await create.execute({ name: name.trim(), scopes });
@@ -135,8 +137,7 @@ function CreateKeyDialog({
   // Groups derive from the scope naming convention (domain:action), so a new
   // domain groups itself with zero UI changes.
   const scopeGroups = [...new Set(MCP_SCOPES.map((scope) => scope.split(':')[0]!))].map(
-    (domain) =>
-      [domain, MCP_SCOPES.filter((scope) => scope.startsWith(`${domain}:`))] as const,
+    (domain) => [domain, MCP_SCOPES.filter((scope) => scope.startsWith(`${domain}:`))] as const,
   );
 
   // Scope descriptions are looked up defensively: a scope added to
@@ -202,95 +203,93 @@ function CreateKeyDialog({
               chips. Selection reads from the checkbox alone; the description
               lives in a hover tooltip instead of card chrome. */}
           <TooltipProvider delayDuration={200}>
-          <div className="divide-y rounded-lg border">
-            {scopeGroups.map(([domain, domainScopes]) => {
-              const selectedCount = domainScopes.filter((scope) => scopes.includes(scope)).length;
-              return (
-                <div
-                  key={domain}
-                  className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-4 px-3 py-2.5"
-                >
-                  <label className="flex items-center gap-2 py-1.5">
-                    <Checkbox
-                      checked={
-                        selectedCount === 0
-                          ? false
-                          : selectedCount === domainScopes.length
-                            ? true
-                            : 'indeterminate'
-                      }
-                      onCheckedChange={(checked) =>
-                        setScopes((prev) =>
-                          checked === true
-                            ? [...new Set([...prev, ...domainScopes])]
-                            : prev.filter((scope) => !domainScopes.includes(scope)),
-                        )
-                      }
-                    />
-                    <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                      {domain}
-                    </span>
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {domainScopes.map((scope) => {
-                      const selected = scopes.includes(scope);
-                      const action = scope.split(':')[1]!;
-                      const scopeTools = mcpToolsForScope(scope);
-                      return (
-                        <Tooltip key={scope}>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => toggleScope(scope)}
-                              aria-pressed={selected}
-                              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 transition-colors hover:bg-muted/50"
-                            >
-                              <Checkbox
-                                checked={selected}
-                                className="pointer-events-none size-3.5"
-                              />
-                              <code className="font-mono text-xs">{action}</code>
-                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
-                                {scopeTools.length}
-                              </span>
-                              <Info className="size-3 text-muted-foreground/50" />
-                            </button>
-                          </TooltipTrigger>
-                          {/* Anchored beside the chip: a 13-tool list rendered
+            <div className="divide-y rounded-lg border">
+              {scopeGroups.map(([domain, domainScopes]) => {
+                const selectedCount = domainScopes.filter((scope) => scopes.includes(scope)).length;
+                return (
+                  <div
+                    key={domain}
+                    className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-4 px-3 py-2.5"
+                  >
+                    <label className="flex items-center gap-2 py-1.5">
+                      <Checkbox
+                        checked={
+                          selectedCount === 0
+                            ? false
+                            : selectedCount === domainScopes.length
+                              ? true
+                              : 'indeterminate'
+                        }
+                        onCheckedChange={(checked) =>
+                          setScopes((prev) =>
+                            checked === true
+                              ? [...new Set([...prev, ...domainScopes])]
+                              : prev.filter((scope) => !domainScopes.includes(scope)),
+                          )
+                        }
+                      />
+                      <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        {domain}
+                      </span>
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {domainScopes.map((scope) => {
+                        const selected = scopes.includes(scope);
+                        const action = scope.split(':')[1]!;
+                        const scopeTools = mcpToolsForScope(scope);
+                        return (
+                          <Tooltip key={scope}>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() => toggleScope(scope)}
+                                aria-pressed={selected}
+                                className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 transition-colors hover:bg-muted/50"
+                              >
+                                <Checkbox
+                                  checked={selected}
+                                  className="pointer-events-none size-3.5"
+                                />
+                                <code className="font-mono text-xs">{action}</code>
+                                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+                                  {scopeTools.length}
+                                </span>
+                                <Info className="size-3 text-muted-foreground/50" />
+                              </button>
+                            </TooltipTrigger>
+                            {/* Anchored beside the chip: a 13-tool list rendered
                               above would blanket the other scope rows and trap
                               their hover. */}
-                          <TooltipContent side="right" align="start" className="max-w-sm">
-                            <p className="mb-0.5 font-mono text-[11px]">
-                              {scope} —{' '}
-                              {t(k.admin.apiKeys.toolCount, { count: scopeTools.length })}
-                            </p>
-                            {scopeDesc(scope) && <p>{scopeDesc(scope)}</p>}
-                            {/* The exposure list: rendered from the same MCP_TOOLS
+                            <TooltipContent side="right" align="start" className="max-w-sm">
+                              <p className="mb-0.5 font-mono text-[11px]">
+                                {scope} —{' '}
+                                {t(k.admin.apiKeys.toolCount, { count: scopeTools.length })}
+                              </p>
+                              {scopeDesc(scope) && <p>{scopeDesc(scope)}</p>}
+                              {/* The exposure list: rendered from the same MCP_TOOLS
                                 constant the server builds its catalog from. One
                                 truncated line per tool keeps 13 rows hoverable. */}
-                            <ul className="mt-1.5 grid gap-0.5 border-t border-white/20 pt-1.5">
-                              {scopeTools.map((tool) => (
-                                <li key={tool.name} className="flex min-w-0 gap-1.5 text-[11px]">
-                                  <span className="shrink-0 font-mono">{tool.name}</span>
-                                  <span className="min-w-0 truncate opacity-75">
-                                    {tool.description}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
+                              <ul className="mt-1.5 grid gap-0.5 border-t border-white/20 pt-1.5">
+                                {scopeTools.map((tool) => (
+                                  <li key={tool.name} className="flex min-w-0 gap-1.5 text-[11px]">
+                                    <span className="shrink-0 font-mono">{tool.name}</span>
+                                    <span className="min-w-0 truncate opacity-75">
+                                      {tool.description}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
           </TooltipProvider>
-          <p className="text-xs text-muted-foreground">
-            {t(k.admin.apiKeys.scopeGrowthConsent)}
-          </p>
+          <p className="text-xs text-muted-foreground">{t(k.admin.apiKeys.scopeGrowthConsent)}</p>
         </div>
         {create.error && <p className="text-sm text-destructive">{t(create.error.message)}</p>}
       </div>

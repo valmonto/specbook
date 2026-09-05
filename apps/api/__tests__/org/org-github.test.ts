@@ -47,7 +47,9 @@ describe('OrgService — GitHub connection', () => {
     github = {
       enabled: true,
       templateRepo: 'valmonto/valmatic',
-      installUrl: vi.fn().mockReturnValue('https://github.com/apps/valmonto-specbook/installations/new'),
+      installUrl: vi
+        .fn()
+        .mockReturnValue('https://github.com/apps/valmonto-specbook/installations/new'),
       getInstallation: vi
         .fn()
         .mockResolvedValue({ id: 777, accountLogin: 'valmonto', canCreateRepos: true }),

@@ -216,7 +216,10 @@ export const ListTasksRequestSchema = PaginatedRequestSchema.extend({
   // trust an assignee id from the payload). Query-string boolean; optional (no
   // default) so existing callers that omit it stay valid.
   assignedToMe: z
-    .preprocess((val) => val === 'true' || val === true ? true : undefined, z.boolean().optional())
+    .preprocess(
+      (val) => (val === 'true' || val === true ? true : undefined),
+      z.boolean().optional(),
+    )
     .optional(),
 }).strict();
 
@@ -228,9 +231,7 @@ export type ListTasksResponse = z.infer<typeof ListTasksResponseSchema>;
 // --- List distinct areas for a project (autocomplete + board grouping) ---
 // Just task data under task:read — the distinct non-null `area` values used
 // for one project, most-used first, so the form combobox suggests them.
-export const ListTaskAreasRequestSchema = z
-  .object({ projectId: z.string().uuid() })
-  .strict();
+export const ListTaskAreasRequestSchema = z.object({ projectId: z.string().uuid() }).strict();
 export const ListTaskAreasResponseSchema = z.object({
   areas: z.array(z.string()),
 });
