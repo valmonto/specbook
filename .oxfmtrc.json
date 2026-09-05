@@ -16,6 +16,8 @@
     "pnpm-lock.yaml",
     "**/test-results/**",
     "**/playwright-report/**",
-    ".debug/"
+    ".debug/",
+    "**/__snapshots__/**",
+    "THIRD_PARTY_LICENSES.md"
   ]
 }

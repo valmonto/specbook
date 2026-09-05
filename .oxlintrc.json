@@ -7,7 +7,6 @@
     "**/coverage/**",
     "**/node_modules/**",
     ".debug/**",
-    "apps/mobile/**",
     "docs/legacy/**"
   ],
   "rules": {
