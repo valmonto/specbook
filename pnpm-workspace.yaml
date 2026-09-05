@@ -59,8 +59,8 @@ catalog:
   oxlint: 1.81.0
   oxlint-tsgolint: 7.0.2001 # type-aware rules on the TS 7 engine
   '@types/node': 26.4.1
-  vitest: 4.1.8
-  '@vitest/coverage-v8': 4.1.8
+  vitest: 5.0.0
+  '@vitest/coverage-v8': 5.0.0
   tsdown: 0.22.14 # library bundler for packages/*
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -181,11 +181,11 @@ catalog:
   # Build + test (web)
   vite: 8.2.2
   '@vitejs/plugin-react-swc': 4.3.3
-  jsdom: 29.1.1
+  jsdom: 30.0.1
   msw: 2.15.0
   fast-check: 4.9.0
   '@testing-library/react': 16.3.3
-  '@testing-library/jest-dom': 6.9.1
+  '@testing-library/jest-dom': 7.0.1
   '@testing-library/user-event': 14.6.7
 
   # ═══════════════════════════════════════════════════════════════════════
