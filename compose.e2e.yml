@@ -36,7 +36,7 @@ services:
     # which treats that service's clean exit as "abort" and stops the api ten
     # seconds after it boots. One replica here, so no migration race.
     entrypoint:
-      ['sh', '-c', 'node /app/packages/database/dist/cli/migrate.cjs && exec /docker-entrypoint.sh']
+      ['sh', '-c', 'node /app/packages/database/dist/cli/migrate.mjs && exec /docker-entrypoint.sh']
     environment:
       NODE_ENV: production
       # NODE_ENV=production fails boot without these (env.schema superRefine) —
