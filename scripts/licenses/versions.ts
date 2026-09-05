@@ -15,6 +15,7 @@
 import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { compareVersions } from './version-compare.mjs';
 
 interface PackageJson {
   name?: string;
@@ -121,25 +122,6 @@ function getLatestVersion(packageName: string): string | null {
   } catch {
     return null;
   }
-}
-
-function compareVersions(current: string, latest: string): VersionInfo['updateType'] {
-  if (current === latest) return 'current';
-
-  // Check for prerelease
-  if (current.includes('-') || latest.includes('-')) {
-    return 'prerelease';
-  }
-
-  const currentParts = current.split('.').map(Number);
-  const latestParts = latest.split('.').map(Number);
-
-  const [curMajor = 0, curMinor = 0] = currentParts;
-  const [latMajor = 0, latMinor = 0] = latestParts;
-
-  if (curMajor !== latMajor) return 'major';
-  if (curMinor !== latMinor) return 'minor';
-  return 'patch';
 }
 
 function collectDependencies(
