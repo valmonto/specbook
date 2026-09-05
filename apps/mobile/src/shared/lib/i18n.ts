@@ -5,9 +5,9 @@ import {
   translations,
   type SupportedLanguage,
 } from '@pkg/locales';
-import * as SecureStore from 'expo-secure-store';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import { getItem, setItem } from './secure-storage';
 
 const LANGUAGE_KEY = 'valmatic.language';
 const isSupported = (v: string | null | undefined): v is SupportedLanguage =>
@@ -43,14 +43,16 @@ i18n.use(initReactI18next).init({
 });
 
 // Apply a persisted manual override once (async — runs right after sync init).
-SecureStore.getItemAsync(LANGUAGE_KEY).then((saved) => {
+// Through the platform-aware store: a direct expo-secure-store call has no web
+// implementation and took every `expo start --web` page down at module load.
+getItem(LANGUAGE_KEY).then((saved) => {
   if (isSupported(saved) && saved !== i18n.language) i18n.changeLanguage(saved);
 });
 
 /** Change the app language and persist the choice across restarts. */
 export async function setLanguage(lang: SupportedLanguage): Promise<void> {
   await i18n.changeLanguage(lang);
-  await SecureStore.setItemAsync(LANGUAGE_KEY, lang);
+  await setItem(LANGUAGE_KEY, lang);
 }
 
 export { supportedLanguages, type SupportedLanguage };

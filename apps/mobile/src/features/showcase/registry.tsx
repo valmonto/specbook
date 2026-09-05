@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -248,7 +248,9 @@ const AlertDialogDemo = () => (
 
 const AspectRatioDemo = () => {
   // Pick one random image per mount so it doesn't reload on every render.
-  const seed = useMemo(() => Math.floor(Math.random() * 1000), []);
+  // Lazy useState initializer: one random image per mount, without calling
+  // Math.random() during render (the React Compiler flags impure calls there).
+  const [seed] = useState(() => Math.floor(Math.random() * 1000));
   return (
     <View className="w-full items-center">
       <View className="w-full max-w-sm">
@@ -317,7 +319,9 @@ const AvatarDemo = () => (
 );
 
 const BadgeDemo = () => {
-  const seed = useMemo(() => Math.floor(Math.random() * 1000), []);
+  // Lazy useState initializer: one random image per mount, without calling
+  // Math.random() during render (the React Compiler flags impure calls there).
+  const [seed] = useState(() => Math.floor(Math.random() * 1000));
   return (
     <View className="w-full gap-5">
       <ButtonGroup label="Variants">
@@ -989,7 +993,9 @@ const CarouselDemo = () => (
 );
 
 const CardDemo = () => {
-  const seed = useMemo(() => Math.floor(Math.random() * 1000), []);
+  // Lazy useState initializer: one random image per mount, without calling
+  // Math.random() during render (the React Compiler flags impure calls there).
+  const [seed] = useState(() => Math.floor(Math.random() * 1000));
   return (
     <View className="w-full gap-5">
       {/* Default Card — glass by default (subtle frost on the plain canvas). */}
