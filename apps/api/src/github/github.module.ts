@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { GithubAppModule } from '@pkg/server';
-import { GithubWebhookController } from './github-webhook.controller';
+import { GithubWebhookController } from './github-webhook.controller.js';
 
 @Module({
   // GithubWebhookProducer comes from the @Global QueuesModule; the GitHub

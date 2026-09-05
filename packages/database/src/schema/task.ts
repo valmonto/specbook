@@ -14,10 +14,10 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { CI_FAILURE_KINDS, TASK_CI_STATES, TASK_PR_STATES, TASK_STATUSES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { project } from './project';
-import { research } from './research';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { project } from './project.js';
+import { research } from './research.js';
+import { user } from './user.js';
 
 export interface AcceptanceCriterion {
   text: string;

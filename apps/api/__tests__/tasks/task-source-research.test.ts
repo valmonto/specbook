@@ -10,7 +10,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * Research lineage on the task read path: a task cut from a research document

@@ -5,8 +5,8 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import type { GithubWebhookProducer } from '@pkg/server';
 import { describe, expect, it, vi } from 'vitest';
-import { GithubWebhookController } from '@/github/github-webhook.controller';
-import { normalizeGithubEvent } from '@/github/github-webhook.mapper';
+import { GithubWebhookController } from '@/github/github-webhook.controller.js';
+import { normalizeGithubEvent } from '@/github/github-webhook.mapper.js';
 
 const SECRET = 'test-webhook-secret-0123456789';
 

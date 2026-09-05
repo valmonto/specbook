@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrganizationUserRoleSchema } from './organization.schema';
+import { OrganizationUserRoleSchema } from './organization.schema.js';
 
 /**
  * The per-project visibility ACL, over the wire. A grant means a human MEMBER

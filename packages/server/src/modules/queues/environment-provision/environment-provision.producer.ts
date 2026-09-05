@@ -4,8 +4,8 @@ import { Queue } from 'bullmq';
 import {
   ENVIRONMENT_PROVISION_JOB_NAMES,
   ENVIRONMENT_PROVISION_QUEUE,
-} from './environment-provision.constants';
-import type { EnvironmentProvisionJobPayload } from './environment-provision.types';
+} from './environment-provision.constants.js';
+import type { EnvironmentProvisionJobPayload } from './environment-provision.types.js';
 
 @Injectable()
 export class EnvironmentProvisionProducer {

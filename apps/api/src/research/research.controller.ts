@@ -33,7 +33,7 @@ import {
   type UpdateResearchRequest,
   type UpdateResearchResponse,
 } from '@pkg/contracts';
-import { ResearchService } from './research.service';
+import { ResearchService } from './research.service.js';
 
 /**
  * The human court for research: create, converse, accept/reopen, and cut

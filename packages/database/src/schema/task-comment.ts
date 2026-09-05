@@ -1,9 +1,9 @@
 import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { TASK_AUTHOR_TYPES, TASK_COMMENT_KINDS } from '@pkg/contracts';
-import { pk } from './helpers';
-import { task } from './task';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { task } from './task.js';
+import { user } from './user.js';
 
 /**
  * The work log, typed: `progress` is agent narration mid-flight, `question`

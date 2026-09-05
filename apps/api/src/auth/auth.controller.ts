@@ -1,9 +1,9 @@
 import { Throttle } from '@nestjs/throttler';
 
-import { AUTH_THROTTLE } from '../config';
+import { AUTH_THROTTLE } from '../config/index.js';
 import { Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
-import { AuthService } from './auth.service';
+import { AuthService } from './auth.service.js';
 import {
   PublicRoute,
   ActiveUser,
@@ -18,25 +18,25 @@ import { k } from '@pkg/locales';
 import { tryCatch } from '@pkg/utils';
 import {
   type AuthTokens,
-  ChangePasswordRequest,
+  type ChangePasswordRequest,
   ChangePasswordRequestSchema,
   ChangePasswordResponse,
-  CurrentUserRequest,
+  type CurrentUserRequest,
   CurrentUserRequestSchema,
   CurrentUserResponse,
-  LoginRequest,
+  type LoginRequest,
   LoginRequestSchema,
   LoginResponse,
-  LogoutAllRequest,
+  type LogoutAllRequest,
   LogoutAllRequestSchema,
   LogoutAllResponse,
-  LogoutRequest,
+  type LogoutRequest,
   LogoutRequestSchema,
   LogoutResponse,
-  RefreshRequest,
+  type RefreshRequest,
   RefreshRequestSchema,
   RefreshResponse,
-  RegisterRequest,
+  type RegisterRequest,
   RegisterRequestSchema,
   RegisterResponse,
   type ActiveUser as ActiveUserType,

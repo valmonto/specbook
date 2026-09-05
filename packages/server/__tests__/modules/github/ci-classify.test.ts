@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCiFailure, type CiJob } from '../../../src/modules/github/ci-classify';
+import { classifyCiFailure, type CiJob } from '../../../src/modules/github/ci-classify.js';
 
 const job = (name: string, conclusion: string, steps: Array<[string, string]> = []): CiJob => ({
   name,

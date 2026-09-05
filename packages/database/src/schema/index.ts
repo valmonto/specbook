@@ -1,23 +1,23 @@
 // Helpers
-export * from './helpers';
+export * from './helpers.js';
 
 // Core entities
-export * from './user';
-export * from './organization';
-export * from './organization-user';
-export * from './notification';
-export * from './api-key';
-export * from './invitation';
-export * from './project';
-export * from './project-member';
-export * from './server';
-export * from './environment';
-export * from './deployment';
-export * from './task';
-export * from './task-comment';
-export * from './research';
-export * from './attachment';
-export * from './agent';
+export * from './user.js';
+export * from './organization.js';
+export * from './organization-user.js';
+export * from './notification.js';
+export * from './api-key.js';
+export * from './invitation.js';
+export * from './project.js';
+export * from './project-member.js';
+export * from './server.js';
+export * from './environment.js';
+export * from './deployment.js';
+export * from './task.js';
+export * from './task-comment.js';
+export * from './research.js';
+export * from './attachment.js';
+export * from './agent.js';
 
 // Relations
-export * from './relations';
+export * from './relations.js';

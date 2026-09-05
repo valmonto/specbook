@@ -1,2 +1,2 @@
-export * from './server.module';
-export * from './server.service';
+export * from './server.module.js';
+export * from './server.service.js';

@@ -1,3 +1,3 @@
-export * from './deployment.constants';
-export * from './deployment.producer';
-export * from './deployment.types';
+export * from './deployment.constants.js';
+export * from './deployment.producer.js';
+export * from './deployment.types.js';

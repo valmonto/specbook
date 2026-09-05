@@ -5,9 +5,9 @@ import { AGENT_OFFLINE_AFTER_MS, type ActiveUser } from '@pkg/contracts';
 import { SecretsService, type AgentLifecycleProducer } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentService } from '@/agents/agent.service';
-import type { AgentRepository } from '@/agents/agent.repository';
-import type { ApiKeyService } from '@/api-key/api-key.service';
+import { AgentService } from '@/agents/agent.service.js';
+import type { AgentRepository } from '@/agents/agent.repository.js';
+import type { ApiKeyService } from '@/api-key/api-key.service.js';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const KEY = '22222222-2222-4222-8222-222222222222';

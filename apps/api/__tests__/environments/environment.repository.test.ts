@@ -12,7 +12,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { EnvironmentRepository } from '@/environments/environment.repository';
+import { EnvironmentRepository } from '@/environments/environment.repository.js';
 
 /**
  * The tenancy boundary on environments, proven against the real database.

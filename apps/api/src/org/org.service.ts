@@ -25,7 +25,7 @@ import type {
   ActiveUser,
 } from '@pkg/contracts';
 import { GithubAppService } from '@pkg/server';
-import { OrgRepository } from './org.repository';
+import { OrgRepository } from './org.repository.js';
 
 @Injectable()
 export class OrgService {

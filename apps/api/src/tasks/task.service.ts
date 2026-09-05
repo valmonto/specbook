@@ -46,11 +46,11 @@ import {
 import type { NewTask, Task, TaskComment } from '@pkg/database';
 import { k } from '@pkg/locales';
 import { GithubAppService } from '@pkg/server';
-import { NotificationService } from '../notifications/notification.service';
-import { OrgService } from '../org/org.service';
-import { ProjectRepository } from './project.repository';
-import { ProjectMemberRepository } from './project-member.repository';
-import { TaskRepository, type EdgeSummaryRow, type TaskWithSource } from './task.repository';
+import { NotificationService } from '../notifications/notification.service.js';
+import { OrgService } from '../org/org.service.js';
+import { ProjectRepository } from './project.repository.js';
+import { ProjectMemberRepository } from './project-member.repository.js';
+import { TaskRepository, type EdgeSummaryRow, type TaskWithSource } from './task.repository.js';
 
 const isTerminal = (status: TaskStatus): boolean =>
   (TERMINAL_TASK_STATUSES as readonly string[]).includes(status);

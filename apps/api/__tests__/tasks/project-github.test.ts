@@ -3,12 +3,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProjectService } from '@/tasks/project.service';
-import type { ProjectRepository } from '@/tasks/project.repository';
-import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import type { OrgService } from '@/org/org.service';
+import { ProjectService } from '@/tasks/project.service.js';
+import type { ProjectRepository } from '@/tasks/project.repository.js';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
-import type { TaskService } from '@/tasks/task.service';
+import type { TaskService } from '@/tasks/task.service.js';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';

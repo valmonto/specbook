@@ -36,7 +36,7 @@ import {
   type RevokeProjectAccessRequest,
   type RevokeProjectAccessResponse,
 } from '@pkg/contracts';
-import { ProjectService } from './project.service';
+import { ProjectService } from './project.service.js';
 
 @Controller('projects')
 export class ProjectController {

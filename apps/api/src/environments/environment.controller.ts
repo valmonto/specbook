@@ -33,7 +33,7 @@ import {
   type UpdateEnvironmentRequest,
   type UpdateEnvironmentResponse,
 } from '@pkg/contracts';
-import { EnvironmentService } from './environment.service';
+import { EnvironmentService } from './environment.service.js';
 
 @Controller('projects/:projectId/environments')
 export class EnvironmentController {

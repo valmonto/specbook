@@ -5,8 +5,8 @@ import { SecretsService } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ServerService } from '@/servers/server.service';
-import type { ServerRepository } from '@/servers/server.repository';
+import { ServerService } from '@/servers/server.service.js';
+import type { ServerRepository } from '@/servers/server.repository.js';
 import type { ServerCheckProducer } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PASSWORD_REGEX } from '@pkg/contracts';
-import { generateSeedPassword } from '../../../src/modules/deploy/seed-password';
+import { generateSeedPassword } from '../../../src/modules/deploy/seed-password.js';
 
 describe('generateSeedPassword', () => {
   // Enough runs to make a probabilistic miss (a class the shuffle happened to

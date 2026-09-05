@@ -1,2 +1,2 @@
-export * from './secrets.service';
-export * from './secrets.module';
+export * from './secrets.service.js';
+export * from './secrets.module.js';

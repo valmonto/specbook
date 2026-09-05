@@ -9,30 +9,30 @@ import {
   ZodRequest,
 } from '@pkg/server';
 import {
-  AcceptInvitationAsMemberRequest,
+  type AcceptInvitationAsMemberRequest,
   AcceptInvitationAsMemberRequestSchema,
   AcceptInvitationAsMemberResponse,
-  AcceptInvitationRequest,
+  type AcceptInvitationRequest,
   AcceptInvitationRequestSchema,
   AcceptInvitationResponse,
   type ActiveUser as ActiveUserType,
   type AuthTokens,
-  CreateInvitationRequest,
+  type CreateInvitationRequest,
   CreateInvitationRequestSchema,
   CreateInvitationResponse,
-  ListInvitationsRequest,
+  type ListInvitationsRequest,
   ListInvitationsRequestSchema,
   ListInvitationsResponse,
-  PreviewInvitationRequest,
+  type PreviewInvitationRequest,
   PreviewInvitationRequestSchema,
   PreviewInvitationResponse,
-  RevokeInvitationRequest,
+  type RevokeInvitationRequest,
   RevokeInvitationRequestSchema,
   RevokeInvitationResponse,
 } from '@pkg/contracts';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import '@fastify/cookie';
-import { InvitationService } from './invitation.service';
+import { InvitationService } from './invitation.service.js';
 
 /**
  * Org invitations: invite-by-link (out-of-band delivery — no email transport,

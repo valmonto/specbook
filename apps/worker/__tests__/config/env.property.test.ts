@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { validateEnv } from '@/config/env.schema';
+import { validateEnv } from '@/config/env.schema.js';
 
 const url = 'postgresql://user:pass@localhost:5432/db';
 // 32 zero bytes, base64 — the schema only checks length, not entropy.

@@ -1,10 +1,10 @@
 import { pgTable, uuid, varchar, text, integer, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { RESEARCH_STATUSES, TASK_AUTHOR_TYPES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { organization } from './organization';
-import { project } from './project';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { organization } from './organization.js';
+import { project } from './project.js';
+import { user } from './user.js';
 
 /**
  * A first-class, durable, versioned research document produced through an

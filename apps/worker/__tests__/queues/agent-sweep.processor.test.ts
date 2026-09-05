@@ -18,7 +18,7 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import type { Queue, Job } from 'bullmq';
 import { afterAll, beforeEach, expect, it, vi } from 'vitest';
-import { AgentSweepProcessor } from '@/queues/agent-sweep/agent-sweep.processor';
+import { AgentSweepProcessor } from '@/queues/agent-sweep/agent-sweep.processor.js';
 
 /** A GitHub App stub disabled by default — the stale-claim suite never opens PRs. */
 const disabledGithubApp = { enabled: false } as unknown as GithubAppService;

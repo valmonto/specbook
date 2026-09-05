@@ -16,8 +16,8 @@ import { SecretsService, type DeploymentProducer, type EnvironmentProvisionProdu
 import { describeIntegration, FakeLogger, truncate } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it, vi } from 'vitest';
-import { EnvironmentRepository } from '@/environments/environment.repository';
-import { EnvironmentService } from '@/environments/environment.service';
+import { EnvironmentRepository } from '@/environments/environment.repository.js';
+import { EnvironmentService } from '@/environments/environment.service.js';
 
 /**
  * The read-only deploy-diagnosis tools (get_environment / list_deployments)

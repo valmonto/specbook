@@ -3,7 +3,7 @@ import {
   appendDeployLog,
   LOG_TRUNCATION_MARKER,
   scrubDeployText,
-} from '../../../src/modules/deploy/deploy-log';
+} from '../../../src/modules/deploy/deploy-log.js';
 
 describe('scrubDeployText', () => {
   it('removes registered literals and the x-access-token pattern anywhere', () => {

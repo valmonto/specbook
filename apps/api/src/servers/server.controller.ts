@@ -21,7 +21,7 @@ import {
   type UpdateServerRequest,
   type UpdateServerResponse,
 } from '@pkg/contracts';
-import { ServerService } from './server.service';
+import { ServerService } from './server.service.js';
 
 @Controller('servers')
 export class ServerController {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
-import { SecretsService } from '../../../src/modules/secrets/secrets.service';
+import { SecretsService } from '../../../src/modules/secrets/secrets.service.js';
 
 const key = () => randomBytes(32).toString('base64');
 const make = (k: string) => new SecretsService({ get: () => k } as unknown as ConfigService);

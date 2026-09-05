@@ -10,9 +10,9 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { TaskRepository } from '@/tasks/task.repository';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * The per-project visibility boundary — the load-bearing test for

@@ -3,8 +3,8 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ActiveUser } from '@pkg/contracts';
-import { ApiKeyService } from '@/api-key/api-key.service';
-import type { ApiKeyRepository } from '@/api-key/api-key.repository';
+import { ApiKeyService } from '@/api-key/api-key.service.js';
+import type { ApiKeyRepository } from '@/api-key/api-key.repository.js';
 
 const now = new Date('2026-01-01T00:00:00.000Z');
 const ORG = '99999999-9999-4999-8999-999999999999';

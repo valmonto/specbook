@@ -1,6 +1,6 @@
-export * from './schemas';
-export * from './permissions';
-// Explicit rather than `export * from './constants'`: several constants are
+export * from './schemas/index.js';
+export * from './permissions/index.js';
+// Explicit rather than `export * from './constants/index.js'`: several constants are
 // already re-exported through schema files, and colliding star exports drop
 // names silently.
 export {
@@ -11,7 +11,7 @@ export {
   type DeploymentPhase,
   type DeploymentStatus,
   type DeploymentTrigger,
-} from './constants/deployment';
+} from './constants/deployment.js';
 export {
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
@@ -27,13 +27,13 @@ export {
   type DotenvParseError,
   type DotenvParseResult,
   type ProvisionStatus,
-} from './constants/environment';
+} from './constants/environment.js';
 export {
   SERVER_ROLES,
   SERVER_STATUSES,
   type ServerRole,
   type ServerStatus,
-} from './constants/server';
+} from './constants/server.js';
 export {
   AGENT_KINDS,
   AGENT_STATUSES,
@@ -41,13 +41,13 @@ export {
   STALE_CLAIM_AFTER_MS,
   type AgentKind,
   type AgentStatus,
-} from './constants/agent';
+} from './constants/agent.js';
 export {
   ANALYTICS_EVENTS,
   FEATURE_FLAGS,
   type AnalyticsEvent,
   type FeatureFlag,
-} from './constants/analytics';
+} from './constants/analytics.js';
 export {
   MCP_SCOPES,
   MCP_TOOLS,
@@ -56,7 +56,7 @@ export {
   type McpScope,
   type McpToolDescriptor,
   type McpToolName,
-} from './constants/mcp';
+} from './constants/mcp.js';
 export {
   TASK_STATUSES,
   TASK_COMMENT_KINDS,
@@ -72,8 +72,8 @@ export {
   DEPENDENCY_SATISFYING_STATUSES,
   MERGE_DEBT_CAP,
   PROJECT_MODES,
-} from './constants/task';
-export { RESEARCH_STATUSES } from './constants/research';
+} from './constants/task.js';
+export { RESEARCH_STATUSES } from './constants/research.js';
 export {
   ATTACHMENT_KINDS,
   ATTACHMENT_STATUSES,
@@ -83,4 +83,4 @@ export {
   attachmentLimitFor,
   attachmentKindAllowed,
   type AttachmentPolicy,
-} from './constants/attachment';
+} from './constants/attachment.js';

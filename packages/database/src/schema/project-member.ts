@@ -1,7 +1,7 @@
 import { pgTable, uuid, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
-import { organization } from './organization';
-import { project } from './project';
-import { user } from './user';
+import { organization } from './organization.js';
+import { project } from './project.js';
+import { user } from './user.js';
 
 /**
  * The per-project visibility ACL — the plane BELOW org membership. One row

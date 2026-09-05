@@ -6,8 +6,8 @@ import {
   TASK_COMMENT_KINDS,
   TASK_PR_STATES,
   TASK_STATUSES,
-} from '../constants';
-import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
+} from '../constants/index.js';
+import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema.js';
 
 // --- Task Enums ---
 // Derived from ../constants — the same value sets the database CHECK

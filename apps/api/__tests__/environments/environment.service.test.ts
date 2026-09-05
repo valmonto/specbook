@@ -6,8 +6,8 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DeploymentProducer, EnvironmentProvisionProducer } from '@pkg/server';
-import { EnvironmentService } from '@/environments/environment.service';
-import type { EnvironmentRepository } from '@/environments/environment.repository';
+import { EnvironmentService } from '@/environments/environment.service.js';
+import type { EnvironmentRepository } from '@/environments/environment.repository.js';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';

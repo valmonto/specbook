@@ -12,9 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { CI_FAILURE_KINDS, PROJECT_MODES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { organization } from './organization';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { organization } from './organization.js';
+import { user } from './user.js';
 
 /**
  * A project is the container AND the brain: `context` is the product's

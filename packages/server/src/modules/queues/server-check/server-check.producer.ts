@@ -1,8 +1,8 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { SERVER_CHECK_JOB_NAMES, SERVER_CHECK_QUEUE } from './server-check.constants';
-import type { ServerCheckJobPayload } from './server-check.types';
+import { SERVER_CHECK_JOB_NAMES, SERVER_CHECK_QUEUE } from './server-check.constants.js';
+import type { ServerCheckJobPayload } from './server-check.types.js';
 
 @Injectable()
 export class ServerCheckProducer {

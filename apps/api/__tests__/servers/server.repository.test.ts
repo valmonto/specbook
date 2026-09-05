@@ -8,7 +8,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ServerRepository } from '@/servers/server.repository';
+import { ServerRepository } from '@/servers/server.repository.js';
 
 /**
  * The tenancy boundary on the machine inventory, proven against the real

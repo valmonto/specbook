@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AGENT_KINDS, AGENT_STATUSES } from '../constants/agent';
+import { AGENT_KINDS, AGENT_STATUSES } from '../constants/agent.js';
 
 /**
  * The public agent shape: presence and identity, never credentials — the

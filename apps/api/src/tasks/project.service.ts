@@ -17,10 +17,10 @@ import {
 import type { Project } from '@pkg/database';
 import { k } from '@pkg/locales';
 import { GithubAppService } from '@pkg/server';
-import { OrgService } from '../org/org.service';
-import { ProjectRepository } from './project.repository';
-import { ProjectMemberRepository } from './project-member.repository';
-import { TaskService } from './task.service';
+import { OrgService } from '../org/org.service.js';
+import { ProjectRepository } from './project.repository.js';
+import { ProjectMemberRepository } from './project-member.repository.js';
+import { TaskService } from './task.service.js';
 
 @Injectable()
 export class ProjectService {
