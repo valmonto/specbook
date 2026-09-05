@@ -41,3 +41,12 @@ when a package is added.
 `src/**/*.test.ts`, and v8 coverage excluding barrels and module files.
 
 `react` swaps in jsdom, `@vitejs/plugin-react-swc`, and `.tsx` matching.
+
+## Alias order matters
+
+`workspaceAliases` lists the `@pkg/contracts` **subpaths** (`client`, `types`,
+`schemas`, `constants`, `permissions`) before the bare `@pkg/contracts`. Vitest
+matches aliases as prefixes, so the bare key alone would turn
+`@pkg/contracts/schemas` into `…/src/index.ts/schemas` — unresolvable — and the
+coverage provider then silently dropped every importing file from the report.
+Add a new subpath export to `@pkg/contracts` here too, above the bare key.
