@@ -197,11 +197,12 @@ jobs:
             # The container's own GIT_SHA is baked in at build time, so the
             # expected value is passed in separately. `node` runs in the image
             # (the host may not have curl/jq).
-            if ! docker compose -f compose.staging.yml exec -T -e EXPECTED_SHA="$GIT_SHA" api node -e "
-              fetch('http://127.0.0.1:3000/health').then(r => r.json()).then(h => {
-                console.log('running sha=' + h.sha + ' uptime=' + h.uptime + 's');
-                if (h.sha !== process.env.EXPECTED_SHA) { console.error('expected ' + process.env.EXPECTED_SHA); process.exit(1); }
-              })"; then
+            # ONE LINE on purpose: appleboy/ssh-action's `script_stop` appends a
+            # shell exit-code check after EVERY newline of the script — including
+            # newlines inside this quoted JS. A multi-line -e string therefore
+            # handed node `if [ 0 -ne 0 ]...` to parse, node threw SyntaxError,
+            # and a healthy deploy was reported as a SHA mismatch (2026-09-05).
+            if ! docker compose -f compose.staging.yml exec -T -e EXPECTED_SHA="$GIT_SHA" api node -e "fetch('http://127.0.0.1:3000/health').then(r => r.json()).then(h => { console.log('running sha=' + h.sha + ' uptime=' + h.uptime + 's'); if (h.sha !== process.env.EXPECTED_SHA) { console.error('expected ' + process.env.EXPECTED_SHA); process.exit(1); } })"; then
               echo "===== DEPLOYED CODE DOES NOT MATCH THE SHA JUST BUILT ====="
               exit 1
             fi
