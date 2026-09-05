@@ -13,6 +13,7 @@ import {
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { EnvironmentRepository } from '@/environments/environment.repository.js';
+import { ServerRepository } from '@/servers/server.repository.js';
 
 /**
  * The tenancy boundary on environments, proven against the real database.
@@ -191,6 +192,29 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
 
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
+    await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
+  });
+
+  it('a server that hosts an environment can still be EDITED — only DELETE is blocked by RESTRICT', async () => {
+    await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
+    const servers = new ServerRepository(client);
+
+    // The edit path the UI takes: roles + name via PATCH semantics, no pin fields.
+    const edited = await servers.update(serverA, orgA, {
+      roles: ['app', 'data'],
+      name: 'org-a-box-2',
+    });
+    expect(edited?.roles).toEqual(['app', 'data']);
+    expect(edited?.name).toBe('org-a-box-2');
+
+    // The environment still points at the same server row.
+    const [env] = await client.db
+      .select()
+      .from(projectEnvironment)
+      .where(eq(projectEnvironment.serverId, serverA));
+    expect(env?.serverId).toBe(serverA);
+
+    // Deleting is what the FK refuses, exactly as documented on the schema.
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
   });
 });
