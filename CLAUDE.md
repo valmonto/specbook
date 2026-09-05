@@ -100,10 +100,10 @@ spans the whole repo belongs here.
   standing and drives `@SystemRoles` only. A system role opens dedicated
   routes (`/admin/*`); it never widens an org-scoped route.
 - **Relative imports carry a `.js` suffix everywhere** (`./x.js`,
-  `./dir/index.js`, and `@/x.js` in app tests) — in `packages/*` and in the
-  Nest apps alike. Every workspace resolves with NodeNext; the suffix is the
-  compiled name and tooling maps it to the `.ts` source. (`apps/web` and
-  `apps/mobile` bundle with Vite/Metro and are exempt for now.) See
+  `./dir/index.js`, and `@/x.js` in app tests). Every package and both Nest
+  apps are ESM under NodeNext resolution; the suffix is the compiled name and
+  tooling maps it to the `.ts` source. (`apps/web` and `apps/mobile` bundle
+  with Vite/Metro and keep bundler resolution.) See
   `packages/tsconfig/README.md`.
 - **Dependency versions live in the `pnpm-workspace.yaml` catalog.** Never
   `pnpm add` a version into a package.json directly — add an exact pin to the
