@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { AgentModule } from '../agents';
-import { ApiKeyModule } from '../api-key';
-import { EnvironmentModule } from '../environments';
-import { GithubModule } from '../github/github.module';
-import { OrgModule } from '../org/org.module';
-import { TasksModule } from '../tasks';
-import { ResearchModule } from '../research';
-import { McpController } from './mcp.controller';
-import { McpServerFactory } from './mcp-server.factory';
-import { McpTools } from './mcp-tools';
+import { AgentModule } from '../agents/index.js';
+import { ApiKeyModule } from '../api-key/index.js';
+import { EnvironmentModule } from '../environments/index.js';
+import { GithubModule } from '../github/github.module.js';
+import { OrgModule } from '../org/org.module.js';
+import { TasksModule } from '../tasks/index.js';
+import { ResearchModule } from '../research/index.js';
+import { McpController } from './mcp.controller.js';
+import { McpServerFactory } from './mcp-server.factory.js';
+import { McpTools } from './mcp-tools.js';
 
 @Module({
   imports: [

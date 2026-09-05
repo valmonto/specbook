@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Client, type ConnectConfig } from 'ssh2';
 import { createHash } from 'node:crypto';
-import { REMOTE_OPS, type RemoteOp } from './remote-ops';
+import { REMOTE_OPS, type RemoteOp } from './remote-ops.js';
 
 export interface SshTarget {
   host: string;
@@ -22,7 +22,7 @@ export interface SshCheckResult {
   detail?: string;
 }
 
-export type { RemoteOp } from './remote-ops';
+export type { RemoteOp } from './remote-ops.js';
 
 /**
  * Agentless SSH seam (the deliberate non-goal is a remote daemon — targets

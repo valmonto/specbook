@@ -17,7 +17,7 @@ import type {
   UpdateServerRequest,
 } from '@pkg/contracts';
 import type { Server } from '@pkg/database';
-import { ServerRepository } from './server.repository';
+import { ServerRepository } from './server.repository.js';
 
 const NAME_UNIQUE_INDEX = 'server_org_name_uq';
 

@@ -14,7 +14,7 @@ import type { FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { GithubWebhookProducer, InjectLogger, PinoLogger, PublicRoute } from '@pkg/server';
 import { k } from '@pkg/locales';
-import { normalizeGithubEvent } from './github-webhook.mapper';
+import { normalizeGithubEvent } from './github-webhook.mapper.js';
 
 /**
  * GitHub's delivery target — the repo's first unauthenticated non-health

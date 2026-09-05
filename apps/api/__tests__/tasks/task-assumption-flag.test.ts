@@ -13,12 +13,12 @@ import type { PinoLogger } from 'nestjs-pino';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { TaskService } from '@/tasks/task.service';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { TaskService } from '@/tasks/task.service.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 /**

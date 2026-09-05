@@ -11,7 +11,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { AgentRepository } from '@/agents/agent.repository';
+import { AgentRepository } from '@/agents/agent.repository.js';
 
 /**
  * The tenancy boundary on agents, proven against the real database: listing

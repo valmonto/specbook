@@ -13,10 +13,10 @@ import {
 import type { ActiveUser } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ResearchRepository } from '@/research/research.repository';
-import { ResearchService } from '@/research/research.service';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { TaskRepository } from '@/tasks/task.repository';
+import { ResearchRepository } from '@/research/research.repository.js';
+import { ResearchService } from '@/research/research.service.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * Research tenancy, keyset pagination and the ticket-cut lineage, proven

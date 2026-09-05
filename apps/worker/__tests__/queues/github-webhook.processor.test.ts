@@ -17,7 +17,7 @@ import type { Job } from 'bullmq';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import type { DeploymentProducer, GithubAppService, GithubWebhookJobPayload } from '@pkg/server';
 import { vi } from 'vitest';
-import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor';
+import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor.js';
 
 const jobOf = (data: GithubWebhookJobPayload): Job<GithubWebhookJobPayload> =>
   ({ id: `gh-${data.deliveryId}`, data }) as Job<GithubWebhookJobPayload>;

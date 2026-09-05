@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyEnvVarName, parseDotenv } from '../src/constants/environment';
+import { classifyEnvVarName, parseDotenv } from '../src/constants/environment.js';
 
 describe('classifyEnvVarName', () => {
   it('defaults credential-shaped names to secret, everything else to config', () => {

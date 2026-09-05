@@ -12,9 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { ENVIRONMENT_NAMES, PROVISION_STATUSES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { project } from './project';
-import { server } from './server';
+import { pk } from './helpers.js';
+import { project } from './project.js';
+import { server } from './server.js';
 
 /**
  * Where a project RUNS: an environment binds a project to a server and holds

@@ -3,7 +3,7 @@ import {
   AGENT_TASK_TRANSITIONS,
   ASSIGNEE_TASK_TRANSITIONS,
   HUMAN_TASK_TRANSITIONS,
-} from '../src';
+} from '../src/index.js';
 
 describe('the task status protocol — transition maps', () => {
   // The stranded-work recovery path: a task whose PR merged out-of-band can be

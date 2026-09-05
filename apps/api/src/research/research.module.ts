@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { QueuesModule } from '@pkg/server';
-import { TasksModule } from '../tasks';
-import { ResearchController } from './research.controller';
-import { ResearchRepository } from './research.repository';
-import { ResearchService } from './research.service';
+import { TasksModule } from '../tasks/index.js';
+import { ResearchController } from './research.controller.js';
+import { ResearchRepository } from './research.repository.js';
+import { ResearchService } from './research.service.js';
 
 /**
  * Research module. Imports TasksModule for the org-scoped ProjectRepository

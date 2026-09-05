@@ -1,30 +1,30 @@
 import { Controller, Delete, Get, Patch } from '@nestjs/common';
 import { ActiveUser, Permissions, ZodRequest } from '@pkg/server';
 import {
-  DeleteAllNotificationsRequest,
+  type DeleteAllNotificationsRequest,
   DeleteAllNotificationsRequestSchema,
   DeleteAllNotificationsResponse,
-  DeleteNotificationRequest,
+  type DeleteNotificationRequest,
   DeleteNotificationRequestSchema,
   DeleteNotificationResponse,
-  GetNotificationByIdRequest,
+  type GetNotificationByIdRequest,
   GetNotificationByIdRequestSchema,
   GetNotificationByIdResponse,
-  GetUnreadCountRequest,
+  type GetUnreadCountRequest,
   GetUnreadCountRequestSchema,
   GetUnreadCountResponse,
-  ListNotificationsRequest,
+  type ListNotificationsRequest,
   ListNotificationsRequestSchema,
   ListNotificationsResponse,
-  MarkAllNotificationsReadRequest,
+  type MarkAllNotificationsReadRequest,
   MarkAllNotificationsReadRequestSchema,
   MarkAllNotificationsReadResponse,
-  MarkNotificationReadRequest,
+  type MarkNotificationReadRequest,
   MarkNotificationReadRequestSchema,
   MarkNotificationReadResponse,
   type ActiveUser as ActiveUserType,
 } from '@pkg/contracts';
-import { NotificationService } from './notification.service';
+import { NotificationService } from './notification.service.js';
 
 /**
  * Every route takes its input through `@ZodRequest`. The static routes

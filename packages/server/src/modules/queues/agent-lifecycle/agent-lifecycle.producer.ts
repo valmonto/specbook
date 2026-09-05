@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { AGENT_LIFECYCLE_QUEUE } from './agent-lifecycle.constants';
+import { AGENT_LIFECYCLE_QUEUE } from './agent-lifecycle.constants.js';
 
 export interface AgentLifecycleJobPayload {
   agentId: string;

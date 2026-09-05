@@ -3,7 +3,7 @@ import {
   ATTACHMENT_KINDS,
   ATTACHMENT_STATUSES,
   ATTACHMENT_SUBJECT_TYPES,
-} from '../constants/attachment';
+} from '../constants/attachment.js';
 
 // --- Enums (value sets from ../constants, defined exactly once) ---
 export const AttachmentKindSchema = z.enum(ATTACHMENT_KINDS);

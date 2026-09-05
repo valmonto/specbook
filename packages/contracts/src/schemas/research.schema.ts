@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RESEARCH_STATUSES, TASK_AUTHOR_TYPES } from '../constants';
+import { RESEARCH_STATUSES, TASK_AUTHOR_TYPES } from '../constants/index.js';
 
 // --- Research Enums ---
 // Derived from ../constants — the same value sets the database CHECK

@@ -29,7 +29,7 @@ import type {
   UserEnvVar,
 } from '@pkg/contracts';
 import type { Deployment, Project, Server } from '@pkg/database';
-import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository';
+import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository.js';
 
 const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
 

@@ -28,9 +28,9 @@ import {
 } from '@pkg/contracts';
 import type { NewResearch, Research, ResearchMessage } from '@pkg/database';
 import { k } from '@pkg/locales';
-import { ProjectRepository } from '../tasks/project.repository';
-import { TaskRepository } from '../tasks/task.repository';
-import { ResearchRepository, type ResearchCursor } from './research.repository';
+import { ProjectRepository } from '../tasks/project.repository.js';
+import { TaskRepository } from '../tasks/task.repository.js';
+import { ResearchRepository, type ResearchCursor } from './research.repository.js';
 
 /** How many messages ride the initial get_research payload. */
 const MESSAGES_FIRST_PAGE = 50;

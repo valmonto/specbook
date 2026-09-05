@@ -8,8 +8,8 @@ import {
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { AgentLifecycleProducer, InjectLogger, PinoLogger, SecretsService } from '@pkg/server';
-import { ApiKeyService } from '../api-key/api-key.service';
-import { AgentRepository, type AgentWithContext } from './agent.repository';
+import { ApiKeyService } from '../api-key/api-key.service.js';
+import { AgentRepository, type AgentWithContext } from './agent.repository.js';
 
 /** What the MCP layer knows about the calling key — an agent's identity. */
 export interface AgentIdentity {

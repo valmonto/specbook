@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { SERVER_ROLES, SERVER_STATUSES } from '../constants';
-import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
+import { SERVER_ROLES, SERVER_STATUSES } from '../constants/index.js';
+import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema.js';
 
 export const ServerRoleSchema = z.enum(SERVER_ROLES);
 export const ServerStatusSchema = z.enum(SERVER_STATUSES);

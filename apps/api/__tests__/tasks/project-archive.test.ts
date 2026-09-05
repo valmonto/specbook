@@ -9,7 +9,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ProjectRepository } from '@/tasks/project.repository';
+import { ProjectRepository } from '@/tasks/project.repository.js';
 
 /**
  * The name boundary and the archive boundary, proven against the real

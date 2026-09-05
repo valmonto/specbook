@@ -9,7 +9,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * The human worker lane assignee on the read/write path: a task can be assigned

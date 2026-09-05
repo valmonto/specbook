@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { NotificationModule } from '../notifications';
-import { GithubModule } from '../github/github.module';
-import { OrgModule } from '../org/org.module';
-import { ProjectController } from './project.controller';
-import { ProjectRepository } from './project.repository';
-import { ProjectMemberRepository } from './project-member.repository';
-import { ProjectService } from './project.service';
-import { TaskController } from './task.controller';
-import { TaskRepository } from './task.repository';
-import { TaskService } from './task.service';
+import { NotificationModule } from '../notifications/index.js';
+import { GithubModule } from '../github/github.module.js';
+import { OrgModule } from '../org/org.module.js';
+import { ProjectController } from './project.controller.js';
+import { ProjectRepository } from './project.repository.js';
+import { ProjectMemberRepository } from './project-member.repository.js';
+import { ProjectService } from './project.service.js';
+import { TaskController } from './task.controller.js';
+import { TaskRepository } from './task.repository.js';
+import { TaskService } from './task.service.js';
 
 @Module({
   imports: [NotificationModule, GithubModule, OrgModule],

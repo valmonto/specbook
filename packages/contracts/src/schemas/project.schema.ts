@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { CI_FAILURE_KINDS, PROJECT_MODES } from '../constants';
-import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
+import { CI_FAILURE_KINDS, PROJECT_MODES } from '../constants/index.js';
+import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema.js';
 
 export const ProjectModeSchema = z.enum(PROJECT_MODES);
 export type ProjectMode = z.infer<typeof ProjectModeSchema>;

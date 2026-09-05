@@ -5,12 +5,12 @@ import {
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
   PROVISION_STATUSES,
-} from '../constants/environment';
+} from '../constants/environment.js';
 import {
   DEPLOYMENT_PHASES,
   DEPLOYMENT_STATUSES,
   DEPLOYMENT_TRIGGERS,
-} from '../constants/deployment';
+} from '../constants/deployment.js';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);

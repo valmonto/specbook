@@ -8,12 +8,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TaskService } from '@/tasks/task.service';
-import type { TaskRepository } from '@/tasks/task.repository';
-import type { ProjectRepository } from '@/tasks/project.repository';
-import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskService } from '@/tasks/task.service.js';
+import type { TaskRepository } from '@/tasks/task.repository.js';
+import type { ProjectRepository } from '@/tasks/project.repository.js';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';

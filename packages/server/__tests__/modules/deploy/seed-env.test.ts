@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { seedEnvDefaults } from '../../../src/modules/deploy/seed-env';
-import { renderDeployEnv } from '../../../src/modules/deploy/render';
+import { seedEnvDefaults } from '../../../src/modules/deploy/seed-env.js';
+import { renderDeployEnv } from '../../../src/modules/deploy/render.js';
 
 const generate = () => 'generated-password';
 

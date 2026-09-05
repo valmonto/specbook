@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   renderRunnerMcpJson,
   renderRunnerPrompt,
-} from '@/queues/agent-lifecycle/runner-render';
+} from '@/queues/agent-lifecycle/runner-render.js';
 
 describe('renderRunnerMcpJson', () => {
   it('points the specbook server at /api/mcp with the bearer key', () => {

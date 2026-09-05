@@ -1,12 +1,12 @@
 import { defineRelations } from 'drizzle-orm';
-import { user } from './user';
-import { organization } from './organization';
-import { organizationUser } from './organization-user';
-import { notification } from './notification';
-import { project } from './project';
-import { task, taskDependency } from './task';
-import { taskComment } from './task-comment';
-import { research, researchMessage } from './research';
+import { user } from './user.js';
+import { organization } from './organization.js';
+import { organizationUser } from './organization-user.js';
+import { notification } from './notification.js';
+import { project } from './project.js';
+import { task, taskDependency } from './task.js';
+import { taskComment } from './task-comment.js';
+import { research, researchMessage } from './research.js';
 
 /**
  * Relational config for the relational query builder (drizzle v1 API).

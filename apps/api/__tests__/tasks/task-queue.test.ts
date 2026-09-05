@@ -12,10 +12,10 @@ import {
 import { MERGE_DEBT_CAP } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { ProjectService } from '@/tasks/project.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { ProjectService } from '@/tasks/project.service.js';
 
 /**
  * The agent queue (`available: true`) under the merge-debt gate: a project

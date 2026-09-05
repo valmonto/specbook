@@ -12,9 +12,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { SERVER_STATUSES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { organization } from './organization';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { organization } from './organization.js';
+import { user } from './user.js';
 
 /**
  * An org's machine for the deploy platform (agentless — targets need only

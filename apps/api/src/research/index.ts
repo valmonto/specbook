@@ -1,3 +1,3 @@
-export { ResearchModule } from './research.module';
-export { ResearchService } from './research.service';
-export { ResearchRepository } from './research.repository';
+export { ResearchModule } from './research.module.js';
+export { ResearchService } from './research.service.js';
+export { ResearchRepository } from './research.repository.js';

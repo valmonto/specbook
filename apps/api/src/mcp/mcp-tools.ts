@@ -14,14 +14,14 @@ import {
   type McpScope,
   type McpToolName,
 } from '@pkg/contracts';
-import { AgentService } from '../agents';
-import { AttachmentsService } from '../attachments/attachments.service';
-import { EnvironmentService } from '../environments';
+import { AgentService } from '../agents/index.js';
+import { AttachmentsService } from '../attachments/attachments.service.js';
+import { EnvironmentService } from '../environments/index.js';
 import { GithubAppService } from '@pkg/server';
-import { OrgService } from '../org/org.service';
-import { ProjectService } from '../tasks/project.service';
-import { TaskService } from '../tasks/task.service';
-import { ResearchService } from '../research/research.service';
+import { OrgService } from '../org/org.service.js';
+import { ProjectService } from '../tasks/project.service.js';
+import { TaskService } from '../tasks/task.service.js';
+import { ResearchService } from '../research/research.service.js';
 
 export interface McpToolDef {
   name: string;

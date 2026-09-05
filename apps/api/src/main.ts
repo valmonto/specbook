@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-import { createApp } from './app.factory';
+import { createApp } from './app.factory.js';
 
 /**
  * Boots the api and listens. Everything that shapes the request pipeline lives

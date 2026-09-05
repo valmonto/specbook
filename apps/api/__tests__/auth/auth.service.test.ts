@@ -5,11 +5,11 @@ import { SECURITY_CONFIG } from '@pkg/server';
 import { getPermissionsForRole, type ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import * as bcrypt from 'bcryptjs';
-import type Redis from 'ioredis';
+import type { Redis } from 'ioredis';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthService } from '@/auth/auth.service';
-import type { AuthRepository } from '@/auth/auth.repository';
+import { AuthService } from '@/auth/auth.service.js';
+import type { AuthRepository } from '@/auth/auth.repository.js';
 
 const { LOGIN_MAX_ATTEMPTS, LOGIN_LOCKOUT_SECONDS } = SECURITY_CONFIG;
 

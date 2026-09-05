@@ -24,7 +24,7 @@ import {
 } from '@pkg/server';
 // Managed-agent rendering is specbook-domain (the dispatch runbook), so it
 // lives here next to its only consumer rather than in the shared deploy engine.
-import { renderRunnerMcpJson, renderRunnerPrompt } from './runner-render';
+import { renderRunnerMcpJson, renderRunnerPrompt } from './runner-render.js';
 
 /**
  * Managed-agent lifecycle: start = ensure the box can host a runner (CLI,

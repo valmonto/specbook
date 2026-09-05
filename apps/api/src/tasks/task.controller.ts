@@ -51,7 +51,7 @@ import {
   type UpdateTaskRequest,
   type UpdateTaskResponse,
 } from '@pkg/contracts';
-import { TaskService } from './task.service';
+import { TaskService } from './task.service.js';
 
 /**
  * The human-court surface: every route passes actor 'user' to the service,

@@ -10,7 +10,7 @@ import {
   type CreateManagedAgentResponse,
   type ListAgentsResponse,
 } from '@pkg/contracts';
-import { AgentService } from './agent.service';
+import { AgentService } from './agent.service.js';
 
 @Controller('agents')
 export class AgentController {
