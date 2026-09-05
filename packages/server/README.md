@@ -50,6 +50,15 @@ active organization. `systemRole` (`USER|MODERATOR|ADMIN`) belongs to the
 account and decides nothing inside one. `@Roles` and `@Permissions` read the
 first, `@SystemRoles` the second — never each other's.
 
+**Global guard order is scan order, and the root module scans first.** A
+global guard declared in the app's root module runs *before* every guard from
+an imported module, whatever the imports list says. The throttler
+(`ThrottlingModule`) depends on this: it must see `req.user`, so the app
+imports it *after* the IAM modules rather than declaring the `APP_GUARD` in
+`AppModule` — declared there, it ran before `AuthGuard` and keyed every caller
+by IP (specbook shipped that way until the pipeline suite caught it: two
+users on one IP shared a budget). The suite pins the order.
+
 A system role opens *dedicated* routes; it never widens an organization-scoped
 one. Every tenant route stays scoped to the caller's active organization
 whatever their platform standing, so there is one code path to reason about

@@ -79,6 +79,8 @@ test coverage.
 
 Integration tests (`describeIntegration`) run only when `DATABASE_URL` is set;
 without a database they skip silently, so a green run proves less. CI sets one.
+The in-process pipeline suite (`describeStack`, `apps/api/__tests__/pipeline`)
+additionally needs `IAM_REDIS_HOST`; CI provides a Redis service for it.
 The test step is serialized on purpose (api and worker suites share the test
 database) — do not re-parallelize it without giving each suite its own database.
 
