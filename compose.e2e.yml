@@ -31,8 +31,25 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: specbooke2e_api
+    # Migrate, then start. compose.staging.yml uses a one-shot `migrate`
+    # service instead, but this stack runs with --abort-on-container-exit,
+    # which treats that service's clean exit as "abort" and stops the api ten
+    # seconds after it boots. One replica here, so no migration race.
+    entrypoint:
+      ['sh', '-c', 'node /app/packages/database/dist/cli/migrate.cjs && exec /docker-entrypoint.sh']
     environment:
       NODE_ENV: production
+      # NODE_ENV=production fails boot without these (env.schema superRefine) —
+      # the gate was silently unbootable from the day that check landed until
+      # the stack was next run by hand.
+      SEED_INITIAL_EMAIL: e2e-seed@test.local
+      SEED_INITIAL_PASSWORD: E2eSeedPassword123!
+      WEB_APP_URL: https://web:3000
+      # The suite logs in and registers dozens of times from the runner's one
+      # IP (more with Playwright retries); the production 10/min spray limit
+      # would throttle the suite itself. Global RATE_LIMIT_MAX stays default
+      # so rate-limit.spec.ts still proves a real 429.
+      AUTH_RATE_LIMIT_MAX: '1000'
       DATABASE_URL: postgres://specbook:specbook@postgres:5432/specbook
       REDIS_HOST: redis
       REDIS_PORT: 6379
@@ -42,6 +59,8 @@ services:
       IAM_REDIS_PASSWORD: specbook
       IAM_JWT_SECRET: e2e-test-jwt-secret-must-be-32-chars-or-more
       IAM_COOKIE_SECRET: e2e-test-cookie-secret-must-be-32-chars
+      # 32 zero bytes, base64 — the schema refuses to boot without a key.
+      APP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       # The e2e specs exercise open signup; production posture stays closed.
       AUTH_REGISTRATION_ENABLED: 'true'
       PORT: 3001
