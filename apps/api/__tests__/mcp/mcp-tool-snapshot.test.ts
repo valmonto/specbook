@@ -5,6 +5,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { describe, expect, it } from 'vitest';
 import { McpServerFactory } from '@/mcp/mcp-server.factory.js';
 import { McpTools } from '@/mcp/mcp-tools.js';
+import type { DataPlaneExecutor } from '@/data-plane/index.js';
 
 /**
  * The wire contract every agent session depends on: the exact JSON Schema the
@@ -34,6 +35,7 @@ describe('MCP tools/list snapshot', () => {
       stub,
       stub,
       stub,
+      {} as DataPlaneExecutor,
       new FakeLogger().as<PinoLogger>(),
     );
     const factory = new McpServerFactory(tools, new FakeLogger().as<PinoLogger>());

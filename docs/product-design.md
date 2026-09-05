@@ -326,6 +326,13 @@ The agent-facing API. MVP set:
 `blocked` — the async Q&A channel between agent and human that generic
 trackers lack.
 
+**Data plane (scope `data-plane:agent`, shipped):** `data_plane_sql`,
+`data_plane_cache`, `data_plane_storage` — bounded, audited READS on a
+project environment's Postgres / Redis / object storage, and only while a
+human has opened a time-boxed window on that environment. Default denied,
+expiring, no extend; production allowed only behind a louder confirmation.
+Model, bounds and audit: [data-plane-access.md](data-plane-access.md).
+
 ## The human dashboard
 
 The daily view is not a kanban of everything. It is **"your move"**:

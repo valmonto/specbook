@@ -586,6 +586,67 @@ unit="\${1:?usage: cache-deprovision-unit <unit>}"
   exit 0
 }
 `,
+
+  /**
+   * Agent data-plane READ: one bounded SELECT against the unit's database, AS
+   * THE UNIT'S OWN ROLE (no superuser — the role reaches only its database),
+   * inside a read-only transaction with a statement timeout, wrapped in a
+   * LIMIT and json_agg so the result is one JSON array. The statement arrives
+   * on stdin (whole body); $2 = row cap, $3 = statement timeout in ms. The
+   * executor in the api validates the statement shape before it gets here;
+   * this op is the second wall, not the first.
+   */
+  'data-plane-read-sql': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: data-plane-read-sql <unit> <row-cap> <timeout-ms>}"
+cap="\${2:?usage: data-plane-read-sql <unit> <row-cap> <timeout-ms>}"
+timeout_ms="\${3:?usage: data-plane-read-sql <unit> <row-cap> <timeout-ms>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  [[ "$cap" =~ ^[0-9]{1,4}$ ]] || { echo "invalid row cap" >&2; exit 1; }
+  [[ "$timeout_ms" =~ ^[0-9]{3,6}$ ]] || { echo "invalid timeout" >&2; exit 1; }
+  statement="$(cat)"
+  [ -n "$statement" ] || { echo "data-plane-read-sql: missing statement on stdin" >&2; exit 1; }
+  # Strip one trailing semicolon so the statement nests as a subquery.
+  statement="\${statement%;}"
+  wrapped="SELECT COALESCE(json_agg(_sb_row), '[]'::json) FROM (SELECT * FROM ($statement) AS _sb_q LIMIT $cap) AS _sb_row;"
+  printf '%s\\n' "$wrapped" | docker exec -i \\
+    -e PGOPTIONS="-c default_transaction_read_only=on -c statement_timeout=$timeout_ms" \\
+    specbook-postgres psql -X -q -U "$unit" -d "$unit" -v ON_ERROR_STOP=1 -tA
+}
+`,
+
+  /**
+   * Agent data-plane READ on the unit's Redis: $2 = op (get|exists|type|ttl|
+   * scan), $3 = key or MATCH pattern, $4 = SCAN cursor, $5 = SCAN count. The
+   * per-unit password (empty for the co-located, auth-less Redis) arrives on
+   * stdin and reaches redis-cli through REDISCLI_AUTH — never argv. Output is
+   * redis-cli's raw text; the executor parses and caps it.
+   */
+  'data-plane-read-redis': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: data-plane-read-redis <unit> <op> <key-or-pattern> [cursor] [count]}"
+op="\${2:?usage: data-plane-read-redis <unit> <op> <key-or-pattern> [cursor] [count]}"
+key="\${3:?usage: data-plane-read-redis <unit> <op> <key-or-pattern> [cursor] [count]}"
+cursor="\${4:-0}"
+count="\${5:-100}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  [[ "$cursor" =~ ^[0-9]{1,20}$ ]] || { echo "invalid cursor" >&2; exit 1; }
+  [[ "$count" =~ ^[0-9]{1,4}$ ]] || { echo "invalid count" >&2; exit 1; }
+  IFS= read -r redis_pw || true
+  rc() { docker exec -i -e REDISCLI_AUTH="$redis_pw" "specbook-redis-$unit" redis-cli --no-auth-warning "$@"; }
+  case "$op" in
+    # Non-tty redis-cli prints nil and "" identically; disambiguate with EXISTS.
+    get)    if [ "$(rc EXISTS "$key")" = "0" ]; then echo "__SB_NIL__"; else rc GET "$key"; fi ;;
+    exists) rc EXISTS "$key" ;;
+    type)   rc TYPE "$key" ;;
+    ttl)    rc TTL "$key" ;;
+    scan)   rc SCAN "$cursor" MATCH "$key" COUNT "$count" ;;
+    *) echo "unsupported op: $op" >&2; exit 1 ;;
+  esac
+}
+`,
 } as const;
 
 export type RemoteOp = keyof typeof REMOTE_OPS;

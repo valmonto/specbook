@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AgentModule } from '../agents/index.js';
 import { ApiKeyModule } from '../api-key/index.js';
+import { DataPlaneModule } from '../data-plane/index.js';
 import { EnvironmentModule } from '../environments/index.js';
 import { GithubModule } from '../github/github.module.js';
 import { OrgModule } from '../org/org.module.js';
@@ -19,6 +20,7 @@ import { McpTools } from './mcp-tools.js';
     ResearchModule,
     AgentModule,
     EnvironmentModule,
+    DataPlaneModule,
   ],
   controllers: [McpController],
   providers: [McpServerFactory, McpTools],

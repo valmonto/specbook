@@ -6,6 +6,9 @@ import {
   project,
   projectEnvironment,
   server,
+  user,
+  dataAccessAudit,
+  agent,
   eq,
   and,
   asc,
@@ -19,12 +22,16 @@ import {
   type Project,
   type ProjectEnvironment,
   type Server,
+  type DataAccessAuditRow,
+  type NewDataAccessAuditRow,
 } from '@pkg/database';
 
 /** Aliased joins for the placement servers (each may be null = same as app server). */
 const dbServer = alias(server, 'database_server');
 const cacheServer = alias(server, 'cache_server');
 const storageServer = alias(server, 'storage_server');
+/** Who opened the current agent access window (display only). */
+const grantUser = alias(user, 'grant_user');
 
 const withServers = (row: {
   env: ProjectEnvironment;
@@ -33,6 +40,7 @@ const withServers = (row: {
   databaseServerName: string | null;
   cacheServerName: string | null;
   storageServerName: string | null;
+  mcpAccessByName: string | null;
 }): EnvironmentWithServer => ({
   ...row.env,
   serverName: row.serverName,
@@ -40,6 +48,7 @@ const withServers = (row: {
   databaseServerName: row.databaseServerName,
   cacheServerName: row.cacheServerName,
   storageServerName: row.storageServerName,
+  mcpAccessByName: row.mcpAccessByName,
 });
 
 /** An environment row joined with the display identity of its server. */
@@ -50,6 +59,8 @@ export type EnvironmentWithServer = ProjectEnvironment & {
   databaseServerName: string | null;
   cacheServerName: string | null;
   storageServerName: string | null;
+  /** Display name of whoever opened the agent access window; null when closed. */
+  mcpAccessByName: string | null;
 };
 
 /** One environment using a server for some role — the shared-instance view. */
@@ -80,6 +91,8 @@ export interface EnvironmentDiagnostics {
   serverHost: string;
   serverSshUser: string;
   serverPort: number;
+  mcpAccess: string;
+  mcpAccessUntil: Date | null;
 }
 
 /** Non-secret diagnosis projection of one deployment run (the `log` blob omitted). */
@@ -134,6 +147,7 @@ export class EnvironmentRepository {
         databaseServerName: dbServer.name,
         cacheServerName: cacheServer.name,
         storageServerName: storageServer.name,
+        mcpAccessByName: grantUser.name,
       })
       .from(projectEnvironment)
       .innerJoin(
@@ -144,6 +158,7 @@ export class EnvironmentRepository {
       .leftJoin(dbServer, eq(dbServer.id, projectEnvironment.databaseServerId))
       .leftJoin(cacheServer, eq(cacheServer.id, projectEnvironment.cacheServerId))
       .leftJoin(storageServer, eq(storageServer.id, projectEnvironment.storageServerId))
+      .leftJoin(grantUser, eq(grantUser.id, projectEnvironment.mcpAccessBy))
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(asc(projectEnvironment.name));
     return rows.map(withServers);
@@ -162,6 +177,7 @@ export class EnvironmentRepository {
         databaseServerName: dbServer.name,
         cacheServerName: cacheServer.name,
         storageServerName: storageServer.name,
+        mcpAccessByName: grantUser.name,
       })
       .from(projectEnvironment)
       .innerJoin(
@@ -172,6 +188,7 @@ export class EnvironmentRepository {
       .leftJoin(dbServer, eq(dbServer.id, projectEnvironment.databaseServerId))
       .leftJoin(cacheServer, eq(cacheServer.id, projectEnvironment.cacheServerId))
       .leftJoin(storageServer, eq(storageServer.id, projectEnvironment.storageServerId))
+      .leftJoin(grantUser, eq(grantUser.id, projectEnvironment.mcpAccessBy))
       .where(and(eq(projectEnvironment.id, id), eq(projectEnvironment.projectId, projectId)))
       .limit(1);
     return row ? withServers(row) : null;
@@ -296,6 +313,8 @@ export class EnvironmentRepository {
         serverHost: server.host,
         serverSshUser: server.sshUser,
         serverPort: server.port,
+        mcpAccess: projectEnvironment.mcpAccess,
+        mcpAccessUntil: projectEnvironment.mcpAccessUntil,
       })
       .from(projectEnvironment)
       .innerJoin(
@@ -362,6 +381,54 @@ export class EnvironmentRepository {
       .where(and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)))
       .limit(1);
     return row?.env ?? null;
+  }
+
+  // --- Agent data-plane access audit (append-only) ---
+
+  /** One audit line per executor call or grant/revoke. Never updated, never deleted. */
+  async insertAudit(row: NewDataAccessAuditRow): Promise<DataAccessAuditRow> {
+    const [result] = await this.dbClient.db.insert(dataAccessAudit).values(row).returning();
+    return result!;
+  }
+
+  /**
+   * The audit for one environment, newest first, org-scoped by the row's own
+   * org_id (the environment link may already be NULL once it is deleted —
+   * which is exactly when the audit still has to answer).
+   */
+  async findAuditForEnvironment(
+    environmentId: string,
+    orgId: string,
+    limit = 50,
+  ): Promise<DataAccessAuditRow[]> {
+    return this.dbClient.db
+      .select()
+      .from(dataAccessAudit)
+      .where(
+        and(eq(dataAccessAudit.environmentId, environmentId), eq(dataAccessAudit.orgId, orgId)),
+      )
+      .orderBy(desc(dataAccessAudit.createdAt))
+      .limit(limit);
+  }
+
+  /** Display name of a user, for audit rows written on a human's behalf. */
+  async findUserName(userId: string): Promise<string | null> {
+    const [row] = await this.dbClient.db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    return row?.name ?? null;
+  }
+
+  /** The task the calling key's agent currently holds, if its presence row says so. */
+  async findClaimForKey(apiKeyId: string): Promise<string | null> {
+    const [row] = await this.dbClient.db
+      .select({ currentTaskId: agent.currentTaskId })
+      .from(agent)
+      .where(eq(agent.apiKeyId, apiKeyId))
+      .limit(1);
+    return row?.currentTaskId ?? null;
   }
 
   /** Does the org own any build-capable server? (jsonb roles contain 'build') */

@@ -9,6 +9,12 @@ import type {
   DeleteEnvVarResponse,
   DeployEnvironmentRequest,
   DeployEnvironmentResponse,
+  GrantMcpAccessRequest,
+  GrantMcpAccessResponse,
+  ListDataAccessAuditRequest,
+  ListDataAccessAuditResponse,
+  RevokeMcpAccessRequest,
+  RevokeMcpAccessResponse,
   ListEnvironmentsRequest,
   ListEnvironmentsResponse,
   ProvisionEnvironmentRequest,
@@ -49,4 +55,20 @@ export const environmentsApi = {
   // On-demand decode of CONFIG values only — secrets are never returned.
   revealVars: (dto: RevealEnvVarsRequest): Promise<RevealEnvVarsResponse> =>
     http.get(`/api/projects/${dto.projectId}/environments/${dto.id}/env/reveal`),
+  // Agent data-plane access: the human-opened, expiring window (+ its audit).
+  grantMcpAccess: (dto: GrantMcpAccessRequest): Promise<GrantMcpAccessResponse> =>
+    http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/mcp-access`, {
+      mode: dto.mode,
+      minutes: dto.minutes,
+      reason: dto.reason,
+      confirm: dto.confirm,
+    }),
+  revokeMcpAccess: (dto: RevokeMcpAccessRequest): Promise<RevokeMcpAccessResponse> =>
+    http.delete(`/api/projects/${dto.projectId}/environments/${dto.id}/mcp-access`),
+  listAccessAudit: (dto: ListDataAccessAuditRequest): Promise<ListDataAccessAuditResponse> =>
+    http.get(
+      `/api/projects/${dto.projectId}/environments/${dto.id}/mcp-access/audit${
+        dto.limit ? `?limit=${dto.limit}` : ''
+      }`,
+    ),
 };

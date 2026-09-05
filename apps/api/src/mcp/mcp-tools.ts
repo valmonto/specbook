@@ -4,7 +4,10 @@ import { k } from '@pkg/locales';
 import { z, type ZodRawShape } from 'zod';
 import {
   ATTACHMENT_KINDS,
+  DATA_PLANE_CACHE_OPS,
+  DATA_PLANE_STORAGE_OPS,
   ENVIRONMENT_NAMES,
+  MCP_DATA_PLANE_LIMITS,
   MCP_TOOLS,
   TASK_COMMENT_KINDS,
   TASK_STATUSES,
@@ -14,6 +17,7 @@ import {
 } from '@pkg/contracts';
 import { AgentService } from '../agents/index.js';
 import { AttachmentsService } from '../attachments/attachments.service.js';
+import { DataPlaneExecutor } from '../data-plane/index.js';
 import { EnvironmentService } from '../environments/index.js';
 import { GithubAppService } from '@pkg/server';
 import { OrgService } from '../org/org.service.js';
@@ -78,6 +82,7 @@ export class McpTools {
     private readonly githubApp: GithubAppService,
     private readonly agentService: AgentService,
     private readonly environmentService: EnvironmentService,
+    private readonly dataPlane: DataPlaneExecutor,
     @InjectLogger() private readonly logger: PinoLogger,
   ) {}
 
@@ -446,6 +451,77 @@ export class McpTools {
             id: str(args.id),
             bodyMarkdown: str(args.bodyMarkdown),
             message: optStr(args.message),
+          }),
+      },
+      // --- Data plane: bounded reads on a GRANTED environment ---
+      // The tools are thin on purpose: the grant check, the caps, the scrub and
+      // the audit all live in DataPlaneExecutor, so a fourth tool added here
+      // later cannot reach the data plane any other way.
+      {
+        ...meta('data_plane_sql'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          environment: z.enum(ENVIRONMENT_NAMES),
+          sql: z.string().min(1).max(MCP_DATA_PLANE_LIMITS.sqlMaxLength),
+          limit: z.number().int().min(1).max(MCP_DATA_PLANE_LIMITS.sqlRowCap).optional(),
+          taskId: z.string().uuid().optional(),
+        },
+        handler: async (args, actor, auth) =>
+          this.dataPlane.execute(actor!, auth!, {
+            resource: 'database',
+            projectId: str(args.projectId),
+            environment: args.environment as (typeof ENVIRONMENT_NAMES)[number],
+            sql: str(args.sql),
+            limit: args.limit as number | undefined,
+            taskId: optStr(args.taskId),
+          }),
+      },
+      {
+        ...meta('data_plane_cache'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          environment: z.enum(ENVIRONMENT_NAMES),
+          op: z.enum(DATA_PLANE_CACHE_OPS),
+          key: z.string().min(1).max(1000).optional(),
+          pattern: z.string().min(1).max(1000).optional(),
+          cursor: z.string().max(20).optional(),
+          count: z.number().int().min(1).max(MCP_DATA_PLANE_LIMITS.cacheScanMaxCount).optional(),
+          taskId: z.string().uuid().optional(),
+        },
+        handler: async (args, actor, auth) =>
+          this.dataPlane.execute(actor!, auth!, {
+            resource: 'cache',
+            projectId: str(args.projectId),
+            environment: args.environment as (typeof ENVIRONMENT_NAMES)[number],
+            op: args.op as (typeof DATA_PLANE_CACHE_OPS)[number],
+            key: optStr(args.key),
+            pattern: optStr(args.pattern),
+            cursor: optStr(args.cursor),
+            count: args.count as number | undefined,
+            taskId: optStr(args.taskId),
+          }),
+      },
+      {
+        ...meta('data_plane_storage'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          environment: z.enum(ENVIRONMENT_NAMES),
+          op: z.enum(DATA_PLANE_STORAGE_OPS),
+          key: z.string().min(1).max(1024).optional(),
+          prefix: z.string().max(1024).optional(),
+          limit: z.number().int().min(1).max(MCP_DATA_PLANE_LIMITS.storageListMaxKeys).optional(),
+          taskId: z.string().uuid().optional(),
+        },
+        handler: async (args, actor, auth) =>
+          this.dataPlane.execute(actor!, auth!, {
+            resource: 'storage',
+            projectId: str(args.projectId),
+            environment: args.environment as (typeof ENVIRONMENT_NAMES)[number],
+            op: args.op as (typeof DATA_PLANE_STORAGE_OPS)[number],
+            key: optStr(args.key),
+            prefix: optStr(args.prefix),
+            limit: args.limit as number | undefined,
+            taskId: optStr(args.taskId),
           }),
       },
       {

@@ -13,7 +13,17 @@ import {
   SecretsService,
 } from '@pkg/server';
 import { k } from '@pkg/locales';
-import { classifyEnvVarName, type EnvVarClassification } from '@pkg/contracts';
+import {
+  classifyEnvVarName,
+  MCP_ACCESS_CONFIRMATION_REQUIRED,
+  MCP_ACCESS_MAX_MINUTES,
+  type DataAccessAuditEntry,
+  type EnvVarClassification,
+  type GrantMcpAccessRequest,
+  type ListDataAccessAuditRequest,
+  type ListDataAccessAuditResponse,
+  type RevokeMcpAccessRequest,
+} from '@pkg/contracts';
 import type {
   ActiveUser,
   BulkSetEnvVarsRequest,
@@ -31,8 +41,9 @@ import type {
   UpdateEnvironmentRequest,
   UserEnvVar,
 } from '@pkg/contracts';
-import type { Deployment, Project, Server } from '@pkg/database';
+import type { DataAccessAuditRow, Deployment, Project, Server } from '@pkg/database';
 import { EnvironmentRepository, type EnvironmentWithServer } from './environment.repository.js';
+import { effectiveMcpAccess } from './mcp-access.js';
 
 const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
 
@@ -46,6 +57,9 @@ export interface AgentEnvironmentView {
   provisionError: string | null;
   provisionedAt: string | null;
   server: { name: string; host: string; sshUser: string; port: number };
+  /** Agent data-plane access as it stands now: 'none' unless a human-opened window is live. */
+  mcpAccess: string;
+  mcpAccessUntil: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -379,6 +393,10 @@ export class EnvironmentService {
           sshUser: r.serverSshUser,
           port: r.serverPort,
         },
+        ...(() => {
+          const grant = effectiveMcpAccess(r, new Date());
+          return { mcpAccess: grant.mode, mcpAccessUntil: grant.until?.toISOString() ?? null };
+        })(),
         createdAt: r.createdAt.toISOString(),
         updatedAt: r.updatedAt.toISOString(),
       })),
@@ -415,6 +433,116 @@ export class EnvironmentService {
         createdAt: d.createdAt.toISOString(),
       })),
     };
+  }
+
+  /**
+   * Open an agent data-plane window — the human side of "default denied".
+   * Rules, all here so no tool can re-litigate them:
+   *  - only GRANTABLE modes ('read' today; 'write' is a later, separate decision);
+   *  - the window is capped per environment (MCP_ACCESS_MAX_MINUTES);
+   *  - there is no extend: an open window must be revoked before a new one
+   *    is opened, so every window is a decision someone made;
+   *  - PRODUCTION (the owner's call: allowed, but louder) additionally needs a
+   *    recorded reason and the environment name typed back as `confirm`.
+   * Who opened it and until when land on the row AND in the audit.
+   */
+  async grantMcpAccess(
+    activeUser: ActiveUser,
+    dto: GrantMcpAccessRequest,
+  ): Promise<EnvironmentDto> {
+    const proj = await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    if (dto.mode !== 'read') {
+      throw new BadRequestException(k.environments.errors.mcpAccessWriteUnsupported);
+    }
+    const name = existing.name as EnvironmentDto['name'];
+    const max = MCP_ACCESS_MAX_MINUTES[name];
+    if (dto.minutes > max) throw new BadRequestException(k.environments.errors.mcpAccessTooLong);
+    const reason = dto.reason?.trim() || null;
+    if (MCP_ACCESS_CONFIRMATION_REQUIRED.includes(name)) {
+      if (!reason) throw new BadRequestException(k.environments.errors.mcpAccessReasonRequired);
+      if (dto.confirm?.trim() !== name) {
+        throw new BadRequestException(k.environments.errors.mcpAccessConfirmRequired);
+      }
+    }
+    const now = new Date();
+    if (effectiveMcpAccess(existing, now).mode !== 'none') {
+      throw new BadRequestException(k.environments.errors.mcpAccessAlreadyOpen);
+    }
+    const until = new Date(now.getTime() + dto.minutes * 60_000);
+    await this.environmentRepository.update(dto.id, dto.projectId, {
+      mcpAccess: dto.mode,
+      mcpAccessUntil: until,
+      mcpAccessBy: activeUser.userId,
+      mcpAccessReason: reason,
+    });
+    await this.environmentRepository.insertAudit({
+      orgId: activeUser.orgId,
+      environmentId: existing.id,
+      projectName: proj.name,
+      environmentName: existing.name,
+      userId: activeUser.userId,
+      userName: await this.environmentRepository.findUserName(activeUser.userId),
+      resource: 'grant',
+      operation: 'grant',
+      target: `${dto.mode} until ${until.toISOString()}`,
+      outcome: 'allowed',
+      detail: reason,
+    });
+    this.logger.info(
+      { environmentId: existing.id, mode: dto.mode, until, by: activeUser.userId },
+      'Agent data-plane window opened',
+    );
+    return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /** Close the window now. Idempotent: closing a closed window is a no-op that still audits. */
+  async revokeMcpAccess(
+    activeUser: ActiveUser,
+    dto: RevokeMcpAccessRequest,
+  ): Promise<EnvironmentDto> {
+    const proj = await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const wasOpen = effectiveMcpAccess(existing, new Date()).mode !== 'none';
+    await this.environmentRepository.update(dto.id, dto.projectId, {
+      mcpAccess: 'none',
+      mcpAccessUntil: null,
+      mcpAccessBy: null,
+      mcpAccessReason: null,
+    });
+    await this.environmentRepository.insertAudit({
+      orgId: activeUser.orgId,
+      environmentId: existing.id,
+      projectName: proj.name,
+      environmentName: existing.name,
+      userId: activeUser.userId,
+      userName: await this.environmentRepository.findUserName(activeUser.userId),
+      resource: 'grant',
+      operation: 'revoke',
+      target: wasOpen ? 'open window closed' : 'already closed',
+      outcome: 'allowed',
+      detail: null,
+    });
+    this.logger.info(
+      { environmentId: existing.id, by: activeUser.userId },
+      'Agent data-plane window revoked',
+    );
+    return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /** Who read what, when — newest first. Human surface only (no MCP tool exposes it). */
+  async listAccessAudit(
+    activeUser: ActiveUser,
+    dto: ListDataAccessAuditRequest,
+  ): Promise<ListDataAccessAuditResponse> {
+    await this.getProjectOrThrow(dto.projectId, activeUser.orgId);
+    await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const rows = await this.environmentRepository.findAuditForEnvironment(
+      dto.id,
+      activeUser.orgId,
+      dto.limit ?? 50,
+    );
+    return { data: rows.map(serializeAudit) };
   }
 
   private async getById(
@@ -629,11 +757,40 @@ export class EnvironmentService {
       autoDeployPaused: computeAutoDeployPaused(recent),
       domainPending: (e.domain ?? null) !== liveDomain,
       publicUrl,
+      ...(() => {
+        const grant = effectiveMcpAccess(e, new Date());
+        return {
+          mcpAccess: grant.mode,
+          mcpAccessUntil: grant.until?.toISOString() ?? null,
+          mcpAccessBy: grant.by,
+          mcpAccessByName: grant.mode === 'none' ? null : (e.mcpAccessByName ?? null),
+          mcpAccessReason: grant.reason,
+        };
+      })(),
       createdAt: e.createdAt.toISOString(),
       updatedAt: e.updatedAt.toISOString(),
     };
   }
 }
+
+const serializeAudit = (row: DataAccessAuditRow): DataAccessAuditEntry => ({
+  id: row.id,
+  environmentId: row.environmentId,
+  projectName: row.projectName,
+  environmentName: row.environmentName,
+  apiKeyId: row.apiKeyId,
+  agentName: row.agentName,
+  userId: row.userId,
+  userName: row.userName,
+  taskId: row.taskId,
+  resource: row.resource as DataAccessAuditEntry['resource'],
+  operation: row.operation,
+  target: row.target,
+  outcome: row.outcome as DataAccessAuditEntry['outcome'],
+  detail: row.detail,
+  durationMs: row.durationMs,
+  createdAt: row.createdAt.toISOString(),
+});
 
 const serverRoles = (srv: Server): string[] =>
   Array.isArray(srv.roles) ? (srv.roles as string[]) : [];

@@ -202,15 +202,16 @@ still **no mobile UI**. See `docs/product-design.md` → Research and
 None of these exist. Each is a genuine build, listed so the shape of the
 boilerplate is honest about what it is not.
 
-| Missing                | Why it matters                                         | Rough cost |
-| ---------------------- | ------------------------------------------------------ | ---------- |
-| **Password reset**     | there is no recovery from a forgotten password         | ~1d        |
-| **Email sending**      | no transport at all, which is why the above is missing | ~4h        |
-| **Email verification** | any address can register                               | ~4h        |
-| **Billing**            | no Stripe, plans or subscriptions                      | ~1w        |
-| **File uploads**       | no S3 or multipart handling                            | ~1d        |
-| **Audit log**          | who changed what is unanswerable                       | ~1d        |
-| **2FA / SSO**          | expected by any business customer                      | ~1w        |
+| Missing                 | Why it matters                                                                                                                                                    | Rough cost |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **Password reset**      | there is no recovery from a forgotten password                                                                                                                    | ~1d        |
+| **Email sending**       | no transport at all, which is why the above is missing                                                                                                            | ~4h        |
+| **Email verification**  | any address can register                                                                                                                                          | ~4h        |
+| **Billing**             | no Stripe, plans or subscriptions                                                                                                                                 | ~1w        |
+| **File uploads**        | no S3 or multipart handling                                                                                                                                       | ~1d        |
+| **Audit log**           | who changed what is unanswerable — except agent data-plane access, which `data_access_audit` records (see [docs/data-plane-access.md](docs/data-plane-access.md)) | ~1d        |
+| **Agent write windows** | `mcp_access = 'write'` is in the vocabulary but not grantable; storage reads need the environment's own `S3_*` vars (no per-environment bucket provisioning yet)  | ~1d        |
+| **2FA / SSO**           | expected by any business customer                                                                                                                                 | ~1w        |
 
 Password reset is the one users notice first; email sending unblocks it and
 verification both.

@@ -1,9 +1,14 @@
 import { z } from 'zod';
 import {
+  DATA_ACCESS_OUTCOMES,
+  DATA_PLANE_RESOURCES,
   ENV_VAR_CLASSIFICATIONS,
   ENV_VAR_NAME_PATTERN,
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
+  GRANTABLE_MCP_ACCESS_MODES,
+  MCP_ACCESS_MIN_MINUTES,
+  MCP_ACCESS_MODES,
   PROVISION_STATUSES,
 } from '../constants/environment.js';
 import {
@@ -16,6 +21,7 @@ import { DATA_TRANSPORTS } from '../constants/server.js';
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
 export const DataTransportSchema = z.enum(DATA_TRANSPORTS);
+export const McpAccessModeSchema = z.enum(MCP_ACCESS_MODES);
 export const DeploymentStatusSchema = z.enum(DEPLOYMENT_STATUSES);
 
 /** One deployment run; environments expose their latest. */
@@ -101,6 +107,16 @@ export const EnvironmentSchema = z.object({
   domainPending: z.boolean(),
   /** Where the running staging answers (set while the latest deploy is healthy). */
   publicUrl: z.string().nullable(),
+  /**
+   * Agent data-plane access, as it stands NOW: a lapsed window reads as 'none'
+   * with every companion field null — the server computes this against the
+   * clock, so the UI never shows a dead grant as open.
+   */
+  mcpAccess: McpAccessModeSchema,
+  mcpAccessUntil: z.string().nullable(),
+  mcpAccessBy: z.string().uuid().nullable(),
+  mcpAccessByName: z.string().nullable(),
+  mcpAccessReason: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -244,3 +260,73 @@ export const DeleteEnvVarRequestSchema = z
 export const DeleteEnvVarResponseSchema = EnvironmentSchema;
 export type DeleteEnvVarRequest = z.infer<typeof DeleteEnvVarRequestSchema>;
 export type DeleteEnvVarResponse = z.infer<typeof DeleteEnvVarResponseSchema>;
+
+// --- Agent data-plane access: open a window / close it / read the audit ---
+/**
+ * Open an expiring grant. `minutes` is bounded per environment by
+ * MCP_ACCESS_MAX_MINUTES (checked in the service, which knows the environment).
+ * Production additionally requires `confirm` to equal the environment name and a
+ * `reason` — the louder confirmation the owner chose over a structural ban.
+ * Only GRANTABLE modes are accepted; 'write' is a later, separate decision.
+ */
+export const GrantMcpAccessRequestSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    id: z.string().uuid(),
+    mode: z.enum(GRANTABLE_MCP_ACCESS_MODES),
+    minutes: z
+      .number()
+      .int()
+      .min(MCP_ACCESS_MIN_MINUTES)
+      .max(24 * 60),
+    reason: z.string().trim().max(500).optional(),
+    /** Typed environment name; required for production. */
+    confirm: z.string().max(32).optional(),
+  })
+  .strict();
+export const GrantMcpAccessResponseSchema = EnvironmentSchema;
+export type GrantMcpAccessRequest = z.infer<typeof GrantMcpAccessRequestSchema>;
+export type GrantMcpAccessResponse = z.infer<typeof GrantMcpAccessResponseSchema>;
+
+export const RevokeMcpAccessRequestSchema = z
+  .object({ projectId: z.string().uuid(), id: z.string().uuid() })
+  .strict();
+export const RevokeMcpAccessResponseSchema = EnvironmentSchema;
+export type RevokeMcpAccessRequest = z.infer<typeof RevokeMcpAccessRequestSchema>;
+export type RevokeMcpAccessResponse = z.infer<typeof RevokeMcpAccessResponseSchema>;
+
+/** One audited data-plane call (or grant/revoke) — who, what, where, when, outcome. */
+export const DataAccessAuditEntrySchema = z.object({
+  id: z.string().uuid(),
+  environmentId: z.string().uuid().nullable(),
+  projectName: z.string(),
+  environmentName: z.string(),
+  /** The calling MCP key (null for human grant/revoke rows). */
+  apiKeyId: z.string().uuid().nullable(),
+  agentName: z.string().nullable(),
+  /** The human behind a grant/revoke row (null for agent calls). */
+  userId: z.string().uuid().nullable(),
+  userName: z.string().nullable(),
+  taskId: z.string().uuid().nullable(),
+  resource: z.enum([...DATA_PLANE_RESOURCES, 'grant']),
+  operation: z.string(),
+  target: z.string().nullable(),
+  outcome: z.enum(DATA_ACCESS_OUTCOMES),
+  detail: z.string().nullable(),
+  durationMs: z.number().int().nullable(),
+  createdAt: z.string(),
+});
+export type DataAccessAuditEntry = z.infer<typeof DataAccessAuditEntrySchema>;
+
+export const ListDataAccessAuditRequestSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    id: z.string().uuid(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
+export const ListDataAccessAuditResponseSchema = z.object({
+  data: z.array(DataAccessAuditEntrySchema),
+});
+export type ListDataAccessAuditRequest = z.infer<typeof ListDataAccessAuditRequestSchema>;
+export type ListDataAccessAuditResponse = z.infer<typeof ListDataAccessAuditResponseSchema>;

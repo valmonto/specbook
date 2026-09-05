@@ -6,7 +6,17 @@
  * IS choosing which functions it can reach. Zod-free: ships to clients for
  * the key-creation UI.
  */
-export const MCP_SCOPES = ['platform:read', 'orgs:read', 'tasks:agent', 'research:agent'] as const;
+export const MCP_SCOPES = [
+  'platform:read',
+  'orgs:read',
+  'tasks:agent',
+  'research:agent',
+  // The first MCP surface that touches APPLICATION data rather than specbook's
+  // own records. The scope says WHICH keys may ever ask; the per-environment,
+  // human-opened, expiring grant says WHEN (see MCP_ACCESS_MODES). An ordinary
+  // tasks:agent key never sees these tools.
+  'data-plane:agent',
+] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
 
 export interface McpToolDescriptor {
@@ -206,6 +216,31 @@ export const MCP_TOOLS = [
     needsOrgContext: true,
     description:
       'Reply into a research conversation AND publish a new draft: appends your message, replaces the document body with the markdown you pass, bumps the version, and moves the document to `needs_review` for the human. This is the research analogue of submitting for review.',
+  },
+  // --- Data plane: bounded, audited reads on a GRANTED environment ---
+  // Executors in specbook are the only path to the data plane and enforce the
+  // grant themselves (default denied, human-opened, expiring). Every call is
+  // audited: key, task, environment, operation, target, outcome.
+  {
+    name: 'data_plane_sql',
+    scope: 'data-plane:agent',
+    needsOrgContext: true,
+    description:
+      "Run ONE bounded read-only SQL statement (SELECT/WITH/EXPLAIN/SHOW) against a project environment's Postgres, as the environment's own database role. Hard row cap, statement timeout, read-only transaction; refused unless a human has opened a live 'read' window on that environment (see get_environment → mcpAccess). Every call is audited with your key, task and the statement.",
+  },
+  {
+    name: 'data_plane_cache',
+    scope: 'data-plane:agent',
+    needsOrgContext: true,
+    description:
+      "Inspect a project environment's Redis: op get | exists | type | ttl (pass `key`) or scan (pass `pattern`, optional `cursor`/`count` — one page per call). Values are size-capped. Refused unless a human has opened a live 'read' window on that environment. Audited.",
+  },
+  {
+    name: 'data_plane_storage',
+    scope: 'data-plane:agent',
+    needsOrgContext: true,
+    description:
+      "Inspect a project environment's object storage (its S3_* env vars, used server-side and never returned): op list (pass `prefix`, optional `limit`) | head (pass `key`) | get (pass `key`; text is returned inline, binary as base64, size-capped). Refused unless a human has opened a live 'read' window on that environment. Audited.",
   },
   {
     name: 'heartbeat',

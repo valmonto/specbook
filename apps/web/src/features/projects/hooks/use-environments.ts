@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
-import type { ListEnvironmentsResponse } from '@pkg/contracts';
+import type { ListDataAccessAuditResponse, ListEnvironmentsResponse } from '@pkg/contracts';
 import { useCachedRequest } from '@/shared/hooks/use-cached-request';
 import { useActionRequest } from '@/shared/hooks/use-action-request';
 import { environmentsApi } from '../api-environments';
@@ -54,3 +54,16 @@ export const useBulkSetEnvVars = (projectId: string) =>
 // it stays a plain action. The projectId is unused here — it rides the dto.
 export const useRevealEnvVars = (_projectId: string) =>
   useActionRequest(environmentsApi.revealVars);
+export const useGrantMcpAccess = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.grantMcpAccess);
+export const useRevokeMcpAccess = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.revokeMcpAccess);
+
+/** The audit trail of one environment; null id = not requested (collapsed). */
+export function useAccessAudit(projectId: string, environmentId: string | null) {
+  return useCachedRequest<ListDataAccessAuditResponse>({
+    key: environmentId ? `environments:${projectId}:${environmentId}:audit` : null,
+    fetcher: () => environmentsApi.listAccessAudit({ projectId, id: environmentId!, limit: 50 }),
+    config: { refreshInterval: 10_000 },
+  });
+}

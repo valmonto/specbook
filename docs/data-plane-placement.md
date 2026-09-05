@@ -90,3 +90,9 @@ best-effort — a dead box never blocks deletion.
 - Move the **database** when it wants its own disk, and put it on a private
   network you actually control.
 - Leave **storage** on the app server until its provisioning lands.
+
+## See also
+
+[data-plane-access.md](data-plane-access.md) — how an agent may READ an
+environment's database, cache and storage: a human-opened, expiring window
+enforced by executors that resolve placement the same way the provisioner does.
