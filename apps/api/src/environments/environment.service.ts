@@ -3,6 +3,9 @@ import {
   computeAutoDeployPaused,
   dataPlaneUnitName,
   derivePublicPort,
+  resolvePlacement,
+  serverSatisfies,
+  type PlacementRole,
   DeploymentProducer,
   EnvironmentProvisionProducer,
   InjectLogger,
@@ -99,14 +102,19 @@ export class EnvironmentService {
 
   async create(activeUser: ActiveUser, dto: CreateEnvironmentRequest): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
-    const srv = await this.assertAppServer(dto.serverId, activeUser.orgId);
+    await this.assertAppServer(dto.serverId, activeUser.orgId);
     if (dto.domain) {
       await this.assertDomainFree(dto.domain, dto.serverId, activeUser.orgId);
     }
+    const placement = normalizePlacement(dto);
+    const canProvision = await this.assertPlacement(
+      { serverId: dto.serverId, ...placement },
+      activeUser.orgId,
+    );
 
-    // Creation stays fast; provisioning is async. Auto-enqueue only when the
-    // server can actually host the data plane.
-    const autoProvision = serverRoles(srv).includes('data');
+    // Creation stays fast; provisioning is async. Auto-enqueue only when every
+    // role has a server that can actually host it.
+    const autoProvision = canProvision;
     let createdId: string;
     try {
       const created = await this.environmentRepository.create({
@@ -116,6 +124,7 @@ export class EnvironmentService {
         domain: dto.domain,
         deployPath: dto.deployPath,
         autoDeploy: dto.autoDeploy ?? false,
+        ...placement,
         ...(autoProvision ? { provisionStatus: 'provisioning' } : {}),
       });
       createdId = created.id;
@@ -139,8 +148,8 @@ export class EnvironmentService {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
     // Fast feedback at the API; the worker re-validates before acting.
-    const srv = await this.environmentRepository.findServer(existing.serverId, activeUser.orgId);
-    if (!srv || !serverRoles(srv).includes('data')) {
+    const canProvision = await this.assertPlacement(existing, activeUser.orgId);
+    if (!canProvision) {
       throw new BadRequestException(k.environments.errors.serverNotData);
     }
     await this.environmentRepository.update(dto.id, dto.projectId, {
@@ -156,6 +165,18 @@ export class EnvironmentService {
     const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
     if (dto.serverId !== undefined && dto.serverId !== existing.serverId) {
       await this.assertAppServer(dto.serverId, activeUser.orgId);
+    }
+    if (touchesPlacement(dto)) {
+      await this.assertPlacement(
+        {
+          serverId: dto.serverId ?? existing.serverId,
+          databaseServerId: dto.databaseServerId ?? existing.databaseServerId,
+          cacheServerId: dto.cacheServerId ?? existing.cacheServerId,
+          storageServerId: dto.storageServerId ?? existing.storageServerId,
+          dataTransport: dto.dataTransport ?? existing.dataTransport,
+        },
+        activeUser.orgId,
+      );
     }
     const nextDomain = dto.domain === undefined ? existing.domain : dto.domain;
     if (nextDomain) {
@@ -217,6 +238,7 @@ export class EnvironmentService {
       await this.provisioner.enqueueDeprovision(
         existing.serverId,
         dataPlaneUnitName(proj.name, existing.name),
+        { databaseServerId: existing.databaseServerId, cacheServerId: existing.cacheServerId },
       );
     }
     await this.environmentRepository.delete(dto.id, dto.projectId);
@@ -445,6 +467,70 @@ export class EnvironmentService {
     }
   }
 
+  /**
+   * Placement validation, at create/update time rather than at provision time.
+   * Every set placement must be an org-owned server holding the matching
+   * granular role (the legacy `data` role only counts on the app server
+   * itself); any role moved off the app server needs a transport, and only
+   * `private-network` is provisionable today — `tls` is refused here with the
+   * reason, so it is never discovered later. Storage placement is accepted by
+   * the schema but its provisioning is a follow-up, refused here too.
+   *
+   * Returns whether the environment can be provisioned as placed (false only
+   * for the legacy case of an app server without the `data` role, which is
+   * not an error — the environment simply is not auto-provisioned).
+   */
+  private async assertPlacement(
+    env: {
+      serverId: string;
+      databaseServerId: string | null;
+      cacheServerId: string | null;
+      storageServerId: string | null;
+      dataTransport: string | null;
+    },
+    orgId: string,
+  ): Promise<boolean> {
+    const ids = [env.serverId, env.databaseServerId, env.cacheServerId, env.storageServerId].filter(
+      (id): id is string => !!id,
+    );
+    const servers = await this.environmentRepository.findServers([...new Set(ids)], orgId);
+    for (const id of ids) {
+      // A foreign org's id reads as absent, like every other lookup.
+      if (!servers.some((s) => s.id === id)) throw new NotFoundException(k.servers.errors.notFound);
+    }
+    const placement = resolvePlacement(
+      env,
+      servers.map((s) => ({ id: s.id, name: s.name, host: s.host, roles: serverRoles(s) })),
+    );
+    const roleError: Record<PlacementRole, string> = {
+      database: k.environments.errors.serverNotDatabase,
+      cache: k.environments.errors.serverNotCache,
+      storage: k.environments.errors.serverNotStorage,
+    };
+    for (const resolved of [placement.database, placement.cache, placement.storage]) {
+      if (resolved.remote && !serverSatisfies(resolved.server, resolved.role, true)) {
+        throw new BadRequestException(roleError[resolved.role]);
+      }
+    }
+    if (placement.storage.remote) {
+      throw new BadRequestException(k.environments.errors.storageProvisionUnsupported);
+    }
+    if (placement.anyRemote) {
+      if (!placement.transport) {
+        throw new BadRequestException(k.environments.errors.transportRequired);
+      }
+      if (placement.transport === 'tls') {
+        throw new BadRequestException(k.environments.errors.transportTlsUnsupported);
+      }
+    }
+    // Local roles fall back to the legacy `data` role on the app server; if
+    // it is missing, the environment is valid but not (auto-)provisionable.
+    return (
+      serverSatisfies(placement.database.server, 'database', placement.database.remote) &&
+      serverSatisfies(placement.cache.server, 'cache', placement.cache.remote)
+    );
+  }
+
   /** An environment's server must be the org's own and hold the 'app' role. */
   private async assertAppServer(serverId: string, orgId: string): Promise<Server> {
     const found = await this.environmentRepository.findServer(serverId, orgId);
@@ -523,6 +609,13 @@ export class EnvironmentService {
       name: e.name as EnvironmentDto['name'],
       serverId: e.serverId,
       serverName: e.serverName,
+      databaseServerId: e.databaseServerId,
+      databaseServerName: e.databaseServerName,
+      cacheServerId: e.cacheServerId,
+      cacheServerName: e.cacheServerName,
+      storageServerId: e.storageServerId,
+      storageServerName: e.storageServerName,
+      dataTransport: (e.dataTransport ?? null) as EnvironmentDto['dataTransport'],
       domain: e.domain,
       deployPath: e.deployPath,
       autoDeploy: e.autoDeploy,
@@ -544,3 +637,30 @@ export class EnvironmentService {
 
 const serverRoles = (srv: Server): string[] =>
   Array.isArray(srv.roles) ? (srv.roles as string[]) : [];
+
+/** The placement fields of a create/update request, with omitted → null. */
+function normalizePlacement(dto: {
+  databaseServerId?: string | null;
+  cacheServerId?: string | null;
+  storageServerId?: string | null;
+  dataTransport?: string | null;
+}): {
+  databaseServerId: string | null;
+  cacheServerId: string | null;
+  storageServerId: string | null;
+  dataTransport: string | null;
+} {
+  return {
+    databaseServerId: dto.databaseServerId ?? null,
+    cacheServerId: dto.cacheServerId ?? null,
+    storageServerId: dto.storageServerId ?? null,
+    dataTransport: dto.dataTransport ?? null,
+  };
+}
+
+const touchesPlacement = (dto: UpdateEnvironmentRequest): boolean =>
+  dto.serverId !== undefined ||
+  dto.databaseServerId !== undefined ||
+  dto.cacheServerId !== undefined ||
+  dto.storageServerId !== undefined ||
+  dto.dataTransport !== undefined;

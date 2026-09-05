@@ -447,6 +447,145 @@ unit="\${1:?usage: data-plane-deprovision-unit <unit>}"
   exit 0
 }
 `,
+
+  /**
+   * Placement: the app server needs the shared docker network even when no
+   * data role runs on it — the compose file joins `specbook-data` regardless,
+   * and data-plane-ensure (which used to create it) may never run here.
+   */
+  'app-network-ensure': `#!/usr/bin/env bash
+set -euo pipefail
+docker network inspect specbook-data >/dev/null 2>&1 || docker network create specbook-data >/dev/null
+echo "app-network-ensure: ok"
+`,
+
+  /**
+   * Placement: a DATABASE-role server's shared Postgres, reachable from other
+   * boxes. Same instance shape as data-plane-ensure, plus 5432 published on
+   * $1 — the address the app server reaches this box on (its registered
+   * host), NEVER 0.0.0.0. Root password on stdin, first creation only. An
+   * instance created by the co-located path is left alone: re-running here
+   * only (re)publishes nothing and exits ok, so a box can hold both roles.
+   */
+  'data-plane-ensure-published': `#!/usr/bin/env bash
+set -euo pipefail
+bind="\${1:?usage: data-plane-ensure-published <bind-address>}"
+{
+  [[ "$bind" =~ ^[A-Za-z0-9.:-]+$ ]] || { echo "invalid bind address" >&2; exit 1; }
+  [ "$bind" != "0.0.0.0" ] && [ "$bind" != "::" ] || { echo "refusing to bind Postgres to every interface" >&2; exit 1; }
+  IFS= read -r root_pw
+  [ -n "$root_pw" ] || { echo "data-plane-ensure-published: missing password on stdin" >&2; exit 1; }
+  docker network inspect specbook-data >/dev/null 2>&1 || docker network create specbook-data >/dev/null
+  if ! docker inspect specbook-postgres >/dev/null 2>&1; then
+    docker run -d --name specbook-postgres --restart unless-stopped \\
+      --network specbook-data \\
+      -p "$bind:5432:5432" \\
+      -e POSTGRES_USER=specbook -e POSTGRES_PASSWORD="$root_pw" -e POSTGRES_DB=specbook \\
+      -v specbook-pgdata:/var/lib/postgresql \\
+      postgres:18 >/dev/null
+  fi
+  docker start specbook-postgres >/dev/null 2>&1 || true
+  for _ in $(seq 1 30); do
+    if docker exec specbook-postgres pg_isready -U specbook >/dev/null 2>&1; then
+      docker exec specbook-postgres psql -U specbook -v ON_ERROR_STOP=1 -tA \\
+        -c "REVOKE CONNECT ON DATABASE specbook FROM PUBLIC" \\
+        -c "REVOKE CONNECT ON DATABASE postgres FROM PUBLIC" >/dev/null
+      echo "data-plane-ensure-published: ok"
+      exit 0
+    fi
+    sleep 2
+  done
+  echo "data-plane-ensure-published: postgres not ready" >&2
+  exit 1
+}
+`,
+
+  /**
+   * Placement: only the DATABASE half of provision-unit — role + database on
+   * this box's shared Postgres, no Redis. Password on stdin; CREATE-or-ALTER
+   * keeps it idempotent.
+   */
+  'database-provision-unit': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: database-provision-unit <unit>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  IFS= read -r unit_pw
+  [ -n "$unit_pw" ] || { echo "database-provision-unit: missing password on stdin" >&2; exit 1; }
+  pgx() { docker exec specbook-postgres psql -U specbook -v ON_ERROR_STOP=1 -tA -c "$1"; }
+  if [ "$(pgx "SELECT 1 FROM pg_roles WHERE rolname='$unit'")" = "1" ]; then
+    pgx "ALTER ROLE \\"$unit\\" LOGIN PASSWORD '$unit_pw'" >/dev/null
+  else
+    pgx "CREATE ROLE \\"$unit\\" LOGIN PASSWORD '$unit_pw'" >/dev/null
+  fi
+  if [ "$(pgx "SELECT 1 FROM pg_database WHERE datname='$unit'")" != "1" ]; then
+    pgx "CREATE DATABASE \\"$unit\\" OWNER \\"$unit\\"" >/dev/null
+    pgx "REVOKE CONNECT ON DATABASE \\"$unit\\" FROM PUBLIC" >/dev/null
+  fi
+  echo "database-provision-unit: ok"
+  exit 0
+}
+`,
+
+  /**
+   * Placement: a CACHE-role server's per-environment Redis, reachable from
+   * the app box: published on $2 (the registered host address, never
+   * 0.0.0.0) at port $3, with a per-unit password on stdin — a Redis on a
+   * network must not be open. The co-located Redis is untouched by this op.
+   */
+  'cache-provision-unit': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: cache-provision-unit <unit> <bind-address> <port>}"
+bind="\${2:?usage: cache-provision-unit <unit> <bind-address> <port>}"
+port="\${3:?usage: cache-provision-unit <unit> <bind-address> <port>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  [[ "$bind" =~ ^[A-Za-z0-9.:-]+$ ]] || { echo "invalid bind address" >&2; exit 1; }
+  [ "$bind" != "0.0.0.0" ] && [ "$bind" != "::" ] || { echo "refusing to bind Redis to every interface" >&2; exit 1; }
+  [[ "$port" =~ ^[0-9]{4,5}$ ]] || { echo "invalid port" >&2; exit 1; }
+  IFS= read -r cache_pw
+  [ -n "$cache_pw" ] || { echo "cache-provision-unit: missing password on stdin" >&2; exit 1; }
+  # Recreate rather than ALTER: the password and the published port are both
+  # container config, and re-provision must converge on the current values.
+  docker rm -f "specbook-redis-$unit" >/dev/null 2>&1 || true
+  docker run -d --name "specbook-redis-$unit" --restart unless-stopped \\
+    -p "$bind:$port:6379" \\
+    redis:8-alpine redis-server --appendonly yes --requirepass "$cache_pw" >/dev/null
+  echo "cache-provision-unit: ok"
+  exit 0
+}
+`,
+
+  /**
+   * Placement teardown, per role: the DATABASE half (role + database on this
+   * box's shared Postgres) or the CACHE half (the unit's Redis container).
+   * Both tolerate absence — best-effort like data-plane-deprovision-unit.
+   */
+  'database-deprovision-unit': `#!/usr/bin/env bash
+set -uo pipefail
+unit="\${1:?usage: database-deprovision-unit <unit>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  if docker exec specbook-postgres true >/dev/null 2>&1; then
+    docker exec specbook-postgres psql -U specbook -tA -c \\
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$unit'" >/dev/null 2>&1 || true
+    docker exec specbook-postgres psql -U specbook -tA -c "DROP DATABASE IF EXISTS \\"$unit\\"" >/dev/null 2>&1 || true
+    docker exec specbook-postgres psql -U specbook -tA -c "DROP ROLE IF EXISTS \\"$unit\\"" >/dev/null 2>&1 || true
+  fi
+  echo "database-deprovision-unit: ok"
+  exit 0
+}
+`,
+  'cache-deprovision-unit': `#!/usr/bin/env bash
+set -uo pipefail
+unit="\${1:?usage: cache-deprovision-unit <unit>}"
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  docker rm -f "specbook-redis-$unit" >/dev/null 2>&1 || true
+  echo "cache-deprovision-unit: ok"
+  exit 0
+}
+`,
 } as const;
 
 export type RemoteOp = keyof typeof REMOTE_OPS;

@@ -11,7 +11,7 @@ import {
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { ENVIRONMENT_NAMES, PROVISION_STATUSES } from '@pkg/contracts';
+import { DATA_TRANSPORTS, ENVIRONMENT_NAMES, PROVISION_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers.js';
 import { project } from './project.js';
 import { server } from './server.js';
@@ -37,6 +37,22 @@ export const projectEnvironment = pgTable(
     serverId: uuid('server_id')
       .notNull()
       .references(() => server.id, { onDelete: 'restrict' }),
+    /**
+     * Data-plane placement, ADDITIVE: NULL keeps today's behaviour (the role
+     * lives on the app server under its combined `data` role, container-DNS
+     * wiring). Set = that role is provisioned on the named server, which must
+     * hold the matching granular role. RESTRICT for the same reason as
+     * serverId — a server hosting an environment's database cannot vanish.
+     */
+    databaseServerId: uuid('database_server_id').references(() => server.id, {
+      onDelete: 'restrict',
+    }),
+    cacheServerId: uuid('cache_server_id').references(() => server.id, { onDelete: 'restrict' }),
+    storageServerId: uuid('storage_server_id').references(() => server.id, {
+      onDelete: 'restrict',
+    }),
+    /** Values from @pkg/contracts DATA_TRANSPORTS; required when any placement is set. */
+    dataTransport: varchar('data_transport', { length: 16 }),
     domain: varchar('domain', { length: 255 }),
     deployPath: varchar('deploy_path', { length: 500 }),
     /** Declared now, inert until the auto-deploy task ships its behavior. */
@@ -70,10 +86,19 @@ export const projectEnvironment = pgTable(
   (table) => [
     index('project_environment_project_id_idx').on(table.projectId),
     index('project_environment_server_id_idx').on(table.serverId),
+    index('project_environment_database_server_id_idx').on(table.databaseServerId),
+    index('project_environment_cache_server_id_idx').on(table.cacheServerId),
+    index('project_environment_storage_server_id_idx').on(table.storageServerId),
     uniqueIndex('project_environment_project_name_uq').on(table.projectId, table.name),
     check(
       'project_environment_name_check',
       sql.raw(`name IN (${ENVIRONMENT_NAMES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check(
+      'project_environment_data_transport_check',
+      sql.raw(
+        `data_transport IS NULL OR data_transport IN (${DATA_TRANSPORTS.map((v) => `'${v}'`).join(', ')})`,
+      ),
     ),
     check(
       'project_environment_provision_status_check',

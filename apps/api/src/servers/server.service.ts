@@ -18,6 +18,9 @@ import type {
 } from '@pkg/contracts';
 import type { Server } from '@pkg/database';
 import { ServerRepository } from './server.repository.js';
+import { EnvironmentRepository } from '../environments/environment.repository.js';
+import type { HostedEnvironment, ServerEnvironmentsResponse } from '@pkg/contracts';
+import { dataPlaneUnitName } from '@pkg/server';
 
 const NAME_UNIQUE_INDEX = 'server_org_name_uq';
 
@@ -44,6 +47,7 @@ function isNameCollision(error: unknown): boolean {
 export class ServerService {
   constructor(
     private readonly serverRepository: ServerRepository,
+    private readonly environments: EnvironmentRepository,
     private readonly secrets: SecretsService,
     private readonly checks: ServerCheckProducer,
     @InjectLogger() private readonly logger: PinoLogger,
@@ -97,6 +101,43 @@ export class ServerService {
     const found = await this.serverRepository.findById(id, activeUser.orgId);
     if (!found) throw new NotFoundException(k.servers.errors.notFound);
     return this.serialize(found);
+  }
+
+  /**
+   * Every environment that uses this server, with the roles it plays for each
+   * and — when it hosts the database — the Postgres database name (the unit).
+   * The reuse already works per server; this is where it becomes visible.
+   */
+  async hostedEnvironments(
+    activeUser: ActiveUser,
+    serverId: string,
+  ): Promise<ServerEnvironmentsResponse> {
+    const srv = await this.serverRepository.findById(serverId, activeUser.orgId);
+    if (!srv) throw new NotFoundException(k.servers.errors.notFound);
+    const rows = await this.environments.findHostedBy(serverId, activeUser.orgId);
+    const data: HostedEnvironment[] = rows.map((r) => {
+      const roles: HostedEnvironment['roles'] = [];
+      if (r.serverId === serverId) roles.push('app');
+      // A NULL placement means the app server hosts that role (legacy `data`).
+      const hostsDatabase = r.databaseServerId
+        ? r.databaseServerId === serverId
+        : r.serverId === serverId;
+      const hostsCache = r.cacheServerId ? r.cacheServerId === serverId : r.serverId === serverId;
+      const hostsStorage = r.storageServerId === serverId;
+      if (hostsDatabase) roles.push('database');
+      if (hostsCache) roles.push('cache');
+      if (hostsStorage) roles.push('storage');
+      return {
+        environmentId: r.environmentId,
+        environmentName: r.environmentName,
+        projectId: r.projectId,
+        projectName: r.projectName,
+        roles,
+        databaseName: hostsDatabase ? dataPlaneUnitName(r.projectName, r.environmentName) : null,
+        provisionStatus: r.provisionStatus,
+      };
+    });
+    return { data };
   }
 
   async update(activeUser: ActiveUser, dto: UpdateServerRequest): Promise<ServerDto> {

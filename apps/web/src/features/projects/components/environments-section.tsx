@@ -22,6 +22,7 @@ import {
   classifyEnvVarName,
   parseDotenv,
   type DotenvParseError,
+  type DataTransport,
   type Environment,
   type EnvironmentName,
   type EnvVarClassification,
@@ -261,6 +262,21 @@ function EnvironmentRow({
             <HardDrive className="size-3" />
             {env.serverName}
           </span>
+          {(env.databaseServerName || env.cacheServerName) && (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground"
+              title={t(k.environments.placementTitle)}
+            >
+              {[
+                env.databaseServerName &&
+                  `${t(k.environments.placementDatabase)}: ${env.databaseServerName}`,
+                env.cacheServerName &&
+                  `${t(k.environments.placementCache)}: ${env.cacheServerName}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
           {env.domain &&
             (env.publicUrl === `https://${env.domain}` ? (
               <a
@@ -1016,6 +1032,10 @@ function AddEnvironmentDialog({
   const freeNames = ENVIRONMENT_NAMES.filter((n) => !taken.includes(n));
   const [name, setName] = useState<EnvironmentName | ''>('');
   const [serverId, setServerId] = useState('');
+  // Placement: '' = same as the app server (the legacy data path, no change).
+  const [databaseServerId, setDatabaseServerId] = useState('');
+  const [cacheServerId, setCacheServerId] = useState('');
+  const [dataTransport, setDataTransport] = useState<DataTransport | ''>('');
   const [domain, setDomain] = useState('');
   const [deployPath, setDeployPath] = useState('');
   const [autoDeploy, setAutoDeploy] = useState(false);
@@ -1024,6 +1044,7 @@ function AddEnvironmentDialog({
     const pickedName = name || freeNames[0];
     const pickedServer = serverId || appServers[0]?.id;
     if (!pickedName || !pickedServer) return;
+    const moved = [databaseServerId, cacheServerId].some((id) => id && id !== pickedServer);
     const res = await create.execute({
       projectId,
       name: pickedName,
@@ -1031,6 +1052,10 @@ function AddEnvironmentDialog({
       domain: domain.trim() || undefined,
       deployPath: deployPath.trim() || undefined,
       autoDeploy,
+      // Only the moved roles go on the wire; '' and "same server" are omitted.
+      ...(databaseServerId && databaseServerId !== pickedServer ? { databaseServerId } : {}),
+      ...(cacheServerId && cacheServerId !== pickedServer ? { cacheServerId } : {}),
+      ...(moved && dataTransport ? { dataTransport } : {}),
     });
     if (res.e) {
       toast.error(t(res.e.message));
@@ -1038,6 +1063,9 @@ function AddEnvironmentDialog({
     }
     setName('');
     setServerId('');
+    setDatabaseServerId('');
+    setCacheServerId('');
+    setDataTransport('');
     setDomain('');
     setDeployPath('');
     onOpenChange(false);
@@ -1088,6 +1116,86 @@ function AddEnvironmentDialog({
               <p className="text-xs text-muted-foreground">{t(k.environments.serverHint)}</p>
             </div>
           </div>
+          {(() => {
+            const pickedServer = serverId || appServers[0]?.id || '';
+            const all = serversData?.data ?? [];
+            const databaseServers = all.filter(
+              (s) => s.id !== pickedServer && s.roles.includes('database'),
+            );
+            const cacheServers = all.filter(
+              (s) => s.id !== pickedServer && s.roles.includes('cache'),
+            );
+            const moved = [databaseServerId, cacheServerId].some((id) => id && id !== pickedServer);
+            if (databaseServers.length === 0 && cacheServers.length === 0) return null;
+            return (
+              <fieldset className="space-y-2 rounded-lg border p-3">
+                <legend className="px-1 text-xs font-medium">
+                  {t(k.environments.placementTitle)}
+                </legend>
+                <p className="text-xs text-muted-foreground">{t(k.environments.placementHint)}</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="env-db-server">{t(k.environments.placementDatabase)}</Label>
+                    <NativeSelect
+                      id="env-db-server"
+                      value={databaseServerId}
+                      onChange={(e) => setDatabaseServerId(e.target.value)}
+                    >
+                      <NativeSelectOption value="">
+                        {t(k.environments.placementSameAsApp)}
+                      </NativeSelectOption>
+                      {databaseServers.map((s) => (
+                        <NativeSelectOption key={s.id} value={s.id}>
+                          {s.name}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="env-cache-server">{t(k.environments.placementCache)}</Label>
+                    <NativeSelect
+                      id="env-cache-server"
+                      value={cacheServerId}
+                      onChange={(e) => setCacheServerId(e.target.value)}
+                    >
+                      <NativeSelectOption value="">
+                        {t(k.environments.placementSameAsApp)}
+                      </NativeSelectOption>
+                      {cacheServers.map((s) => (
+                        <NativeSelectOption key={s.id} value={s.id}>
+                          {s.name}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                    <p className="text-xs text-muted-foreground">
+                      {t(k.environments.placementCacheHint)}
+                    </p>
+                  </div>
+                </div>
+                {moved && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="env-transport">{t(k.environments.dataTransport)}</Label>
+                    <NativeSelect
+                      id="env-transport"
+                      value={dataTransport}
+                      onChange={(e) => setDataTransport(e.target.value as DataTransport | '')}
+                    >
+                      <NativeSelectOption value="">—</NativeSelectOption>
+                      <NativeSelectOption value="private-network">
+                        {t(k.environments.transportPrivateNetwork)}
+                      </NativeSelectOption>
+                      <NativeSelectOption value="tls">
+                        {t(k.environments.transportTls)}
+                      </NativeSelectOption>
+                    </NativeSelect>
+                    <p className="text-xs text-muted-foreground">
+                      {t(k.environments.dataTransportHint)}
+                    </p>
+                  </div>
+                )}
+              </fieldset>
+            );
+          })()}
           <div className="space-y-1.5">
             <Label htmlFor="env-domain">{t(k.environments.domain)}</Label>
             <Input
@@ -1121,7 +1229,15 @@ function AddEnvironmentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={create.isLoading || freeNames.length === 0 || appServers.length === 0}
+              disabled={
+                create.isLoading ||
+                freeNames.length === 0 ||
+                appServers.length === 0 ||
+                ([databaseServerId, cacheServerId].some(
+                  (id) => id && id !== (serverId || appServers[0]?.id),
+                ) &&
+                  !dataTransport)
+              }
             >
               {t(k.environments.addEnvironment)}
             </Button>

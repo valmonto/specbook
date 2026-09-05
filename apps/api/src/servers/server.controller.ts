@@ -5,6 +5,7 @@ import {
   DeleteServerRequestSchema,
   GetServerByIdRequestSchema,
   ListServersRequestSchema,
+  ServerEnvironmentsRequestSchema,
   TestServerRequestSchema,
   UpdateServerRequestSchema,
   type ActiveUser as ActiveUserType,
@@ -16,6 +17,8 @@ import {
   type GetServerByIdResponse,
   type ListServersRequest,
   type ListServersResponse,
+  type ServerEnvironmentsRequest,
+  type ServerEnvironmentsResponse,
   type TestServerRequest,
   type TestServerResponse,
   type UpdateServerRequest,
@@ -52,6 +55,16 @@ export class ServerController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<GetServerByIdResponse> {
     return this.serverService.getById(activeUser, dto.id);
+  }
+
+  /** The shared-instance view: every environment using this server, and for which role. */
+  @Get(':id/environments')
+  @Permissions('settings:read')
+  async environments(
+    @ZodRequest(ServerEnvironmentsRequestSchema) dto: ServerEnvironmentsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ServerEnvironmentsResponse> {
+    return this.serverService.hostedEnvironments(activeUser, dto.id);
   }
 
   @Patch(':id')

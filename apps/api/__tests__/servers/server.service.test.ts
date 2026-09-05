@@ -7,6 +7,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ServerService } from '@/servers/server.service.js';
 import type { ServerRepository } from '@/servers/server.repository.js';
+import type { EnvironmentRepository } from '@/environments/environment.repository.js';
 import type { ServerCheckProducer } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -50,6 +51,7 @@ describe('ServerService — generated credentials, write-only by construction', 
     } as unknown as ConfigService);
     service = new ServerService(
       repository as unknown as ServerRepository,
+      { findHostedBy: vi.fn().mockResolvedValue([]) } as unknown as EnvironmentRepository,
       secrets,
       checks as unknown as ServerCheckProducer,
       new FakeLogger().as<PinoLogger>(),

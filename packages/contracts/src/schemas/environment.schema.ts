@@ -11,9 +11,11 @@ import {
   DEPLOYMENT_STATUSES,
   DEPLOYMENT_TRIGGERS,
 } from '../constants/deployment.js';
+import { DATA_TRANSPORTS } from '../constants/server.js';
 
 export const EnvironmentNameSchema = z.enum(ENVIRONMENT_NAMES);
 export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
+export const DataTransportSchema = z.enum(DATA_TRANSPORTS);
 export const DeploymentStatusSchema = z.enum(DEPLOYMENT_STATUSES);
 
 /** One deployment run; environments expose their latest. */
@@ -56,6 +58,20 @@ export const EnvironmentSchema = z.object({
   serverId: z.string().uuid(),
   /** Denormalized for display; the server row stays the source of truth. */
   serverName: z.string(),
+  /**
+   * Data-plane placement. NULL = today's behaviour: the role lives on the app
+   * server under its combined `data` role, wired over container DNS. Set =
+   * that role is provisioned on the named server (which must hold the
+   * matching granular role) and reached over `dataTransport`.
+   */
+  databaseServerId: z.string().uuid().nullable(),
+  databaseServerName: z.string().nullable(),
+  cacheServerId: z.string().uuid().nullable(),
+  cacheServerName: z.string().nullable(),
+  storageServerId: z.string().uuid().nullable(),
+  storageServerName: z.string().nullable(),
+  /** Required whenever any placement points at a server other than the app server. */
+  dataTransport: DataTransportSchema.nullable(),
   domain: z.string().nullable(),
   deployPath: z.string().nullable(),
   /** Inert until the auto-deploy task ships behavior for it. */
@@ -105,6 +121,11 @@ export const CreateEnvironmentRequestSchema = z
     domain: z.string().min(1).max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).optional(),
     deployPath: z.string().min(1).max(500).optional(),
     autoDeploy: z.boolean().optional(),
+    /** Omitted or null = same as the app server (the legacy `data` path). */
+    databaseServerId: z.string().uuid().nullable().optional(),
+    cacheServerId: z.string().uuid().nullable().optional(),
+    storageServerId: z.string().uuid().nullable().optional(),
+    dataTransport: DataTransportSchema.nullable().optional(),
   })
   .strict();
 export const CreateEnvironmentResponseSchema = EnvironmentSchema;
@@ -121,6 +142,10 @@ export const UpdateEnvironmentRequestSchema = z
     domain: z.string().max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).nullable().optional(),
     deployPath: z.string().max(500).nullable().optional(),
     autoDeploy: z.boolean().optional(),
+    databaseServerId: z.string().uuid().nullable().optional(),
+    cacheServerId: z.string().uuid().nullable().optional(),
+    storageServerId: z.string().uuid().nullable().optional(),
+    dataTransport: DataTransportSchema.nullable().optional(),
   })
   .strict();
 export const UpdateEnvironmentResponseSchema = EnvironmentSchema;

@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { Server } from '@pkg/contracts';
 import { ServersCard, serverPatch, resetsPin } from '@/features/servers/servers-card';
-import { render, screen, waitFor } from '../../mocks/providers';
+import { render, screen, waitFor, within } from '../../mocks/providers';
 import { installRadixDomShims, makeAction } from '../projects/helpers';
 
 /**
@@ -22,6 +22,7 @@ const hooks = vi.hoisted(() => ({
   useRemoveServer: vi.fn(),
   useTestServer: vi.fn(),
   useInvalidateServers: vi.fn(),
+  useServerEnvironments: vi.fn(),
 }));
 
 vi.mock('@/shared/servers/hooks', () => hooks);
@@ -55,6 +56,7 @@ beforeEach(() => {
   hooks.useUpdateServer.mockReturnValue(update);
   hooks.useRemoveServer.mockReturnValue(makeAction());
   hooks.useTestServer.mockReturnValue(makeAction());
+  hooks.useServerEnvironments.mockReturnValue({ data: undefined, isLoading: false });
 });
 
 async function openEdit() {
@@ -160,5 +162,53 @@ describe('ServersCard — edit dialog', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(name).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('servers.errors.nameTaken')).toBeInTheDocument();
+  });
+});
+
+describe('roles — the legacy data role converges out', () => {
+  it('the Add dialog offers the granular roles only; Edit keeps `data` valid with its legacy label', async () => {
+    const user = userEvent.setup();
+    render(<ServersCard />);
+    await user.click(screen.getByRole('button', { name: 'servers.add' }));
+    const add = await screen.findByRole('dialog');
+    expect(
+      within(add).getByRole('checkbox', { name: 'servers.role.database' }),
+    ).toBeInTheDocument();
+    expect(within(add).getByRole('checkbox', { name: 'servers.role.cache' })).toBeInTheDocument();
+    expect(within(add).getByRole('checkbox', { name: 'servers.role.storage' })).toBeInTheDocument();
+    expect(
+      within(add).queryByRole('checkbox', { name: 'servers.role.data' }),
+    ).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'servers.edit' }));
+    const edit = await screen.findByRole('dialog');
+    expect(
+      within(edit).getByRole('checkbox', { name: 'servers.legacyDataRole' }),
+    ).toBeInTheDocument();
+  });
+
+  it('the hosted-environments view lists who uses the server and as what', async () => {
+    hooks.useServerEnvironments.mockReturnValue({
+      isLoading: false,
+      data: {
+        data: [
+          {
+            environmentId: 'e1',
+            environmentName: 'staging',
+            projectId: 'p1',
+            projectName: 'specbook',
+            roles: ['database'],
+            databaseName: 'specbook_staging',
+            provisionStatus: 'provisioned',
+          },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    render(<ServersCard />);
+    await user.click(screen.getByRole('button', { name: 'servers.hostedEnvironments' }));
+    expect(screen.getByText('specbook · staging')).toBeInTheDocument();
+    expect(screen.getByText('db: specbook_staging')).toBeInTheDocument();
   });
 });
