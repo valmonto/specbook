@@ -6,7 +6,10 @@ import {
   DeleteEnvironmentRequestSchema,
   DeleteEnvVarRequestSchema,
   DeployEnvironmentRequestSchema,
+  GrantMcpAccessRequestSchema,
+  ListDataAccessAuditRequestSchema,
   ListEnvironmentsRequestSchema,
+  RevokeMcpAccessRequestSchema,
   ProvisionEnvironmentRequestSchema,
   RevealEnvVarsRequestSchema,
   SetEnvVarRequestSchema,
@@ -22,6 +25,12 @@ import {
   type DeleteEnvVarResponse,
   type DeployEnvironmentRequest,
   type DeployEnvironmentResponse,
+  type GrantMcpAccessRequest,
+  type GrantMcpAccessResponse,
+  type ListDataAccessAuditRequest,
+  type ListDataAccessAuditResponse,
+  type RevokeMcpAccessRequest,
+  type RevokeMcpAccessResponse,
   type ListEnvironmentsRequest,
   type ListEnvironmentsResponse,
   type ProvisionEnvironmentRequest,
@@ -94,6 +103,39 @@ export class EnvironmentController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<DeployEnvironmentResponse> {
     return this.environmentService.deploy(activeUser, dto);
+  }
+
+  /**
+   * Agent data-plane access: open an expiring read window (the human door in
+   * the default-denied model). Same permission as editing the environment.
+   */
+  @Post(':id/mcp-access')
+  @Permissions('project:update')
+  async grantMcpAccess(
+    @ZodRequest(GrantMcpAccessRequestSchema) dto: GrantMcpAccessRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<GrantMcpAccessResponse> {
+    return this.environmentService.grantMcpAccess(activeUser, dto);
+  }
+
+  /** Close the window immediately (lapsing needs no action). */
+  @Delete(':id/mcp-access')
+  @Permissions('project:update')
+  async revokeMcpAccess(
+    @ZodRequest(RevokeMcpAccessRequestSchema) dto: RevokeMcpAccessRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<RevokeMcpAccessResponse> {
+    return this.environmentService.revokeMcpAccess(activeUser, dto);
+  }
+
+  /** Who read what, when — the audit trail for one environment, newest first. */
+  @Get(':id/mcp-access/audit')
+  @Permissions('project:read')
+  async listAccessAudit(
+    @ZodRequest(ListDataAccessAuditRequestSchema) dto: ListDataAccessAuditRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<ListDataAccessAuditResponse> {
+    return this.environmentService.listAccessAudit(activeUser, dto);
   }
 
   /**

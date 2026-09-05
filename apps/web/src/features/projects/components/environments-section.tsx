@@ -55,6 +55,7 @@ import {
 import { useCan } from '@/shared/hooks/use-permissions';
 import { useServers } from '@/shared/servers/hooks';
 import { useProjectReadOnly } from './v2/read-only-context';
+import { McpAccessChip, McpAccessPanel } from './mcp-access-panel';
 import { Switch } from '@/components/ui/switch';
 import {
   useBulkSetEnvVars,
@@ -301,6 +302,7 @@ function EnvironmentRow({
               </span>
             ))}
           <AutoDeployChip env={env} projectId={projectId} canManage={canManage} />
+          <McpAccessChip env={env} />
           <span
             onClick={(e) => e.stopPropagation()}
             className={cn(
@@ -479,6 +481,8 @@ function EnvironmentRow({
           </div>
 
           <UserEnvEditor env={env} projectId={projectId} canManage={canManage} />
+
+          <McpAccessPanel env={env} projectId={projectId} canManage={canManage} />
         </div>
       )}
 

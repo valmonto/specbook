@@ -11,10 +11,16 @@ import {
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { DATA_TRANSPORTS, ENVIRONMENT_NAMES, PROVISION_STATUSES } from '@pkg/contracts';
+import {
+  DATA_TRANSPORTS,
+  ENVIRONMENT_NAMES,
+  MCP_ACCESS_MODES,
+  PROVISION_STATUSES,
+} from '@pkg/contracts';
 import { pk } from './helpers.js';
 import { project } from './project.js';
 import { server } from './server.js';
+import { user } from './user.js';
 
 /**
  * Where a project RUNS: an environment binds a project to a server and holds
@@ -77,6 +83,18 @@ export const projectEnvironment = pgTable(
     /** A k.* key or short detail from the last failed provision run. */
     provisionError: text('provision_error'),
     provisionedAt: timestamp('provisioned_at', { withTimezone: true }),
+    /**
+     * Agent (MCP) data-plane access — default DENIED. A human opens a window
+     * ('read', until mcp_access_until) and it closes by itself: the executor
+     * checks the clock on every call, so an expired grant IS 'none'. Values
+     * from @pkg/contracts MCP_ACCESS_MODES. Every existing row is 'none'.
+     */
+    mcpAccess: varchar('mcp_access', { length: 8 }).notNull().default('none'),
+    mcpAccessUntil: timestamp('mcp_access_until', { withTimezone: true }),
+    /** Who opened the window (SET NULL if that user goes; the audit keeps the name). */
+    mcpAccessBy: uuid('mcp_access_by').references(() => user.id, { onDelete: 'set null' }),
+    /** Recorded reason — required for production windows. */
+    mcpAccessReason: text('mcp_access_reason'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -99,6 +117,10 @@ export const projectEnvironment = pgTable(
       sql.raw(
         `data_transport IS NULL OR data_transport IN (${DATA_TRANSPORTS.map((v) => `'${v}'`).join(', ')})`,
       ),
+    ),
+    check(
+      'project_environment_mcp_access_check',
+      sql.raw(`mcp_access IN (${MCP_ACCESS_MODES.map((v) => `'${v}'`).join(', ')})`),
     ),
     check(
       'project_environment_provision_status_check',

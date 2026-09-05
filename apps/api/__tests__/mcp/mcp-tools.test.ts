@@ -4,6 +4,7 @@ import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import type { AgentService } from '@/agents/index.js';
 import { McpTools } from '@/mcp/mcp-tools.js';
+import type { DataPlaneExecutor } from '@/data-plane/index.js';
 import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service.js';
 import type { ProjectService } from '@/tasks/project.service.js';
@@ -36,6 +37,7 @@ describe('McpTools — attachment tools', () => {
     {} as GithubAppService,
     {} as AgentService,
     {} as EnvironmentService,
+    {} as DataPlaneExecutor,
     new FakeLogger().as<PinoLogger>(),
   );
   const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
@@ -98,6 +100,7 @@ describe('McpTools — update_task', () => {
     {} as GithubAppService,
     {} as AgentService,
     {} as EnvironmentService,
+    {} as DataPlaneExecutor,
     new FakeLogger().as<PinoLogger>(),
   );
   const updateTask = tools.catalog().find((tool) => tool.name === 'update_task')!;
@@ -162,6 +165,7 @@ describe('McpTools — list_research status filter', () => {
     {} as GithubAppService,
     {} as AgentService,
     {} as EnvironmentService,
+    {} as DataPlaneExecutor,
     new FakeLogger().as<PinoLogger>(),
   );
   const listResearch = tools.catalog().find((tool) => tool.name === 'list_research')!;
@@ -212,6 +216,7 @@ describe('McpTools — deploy diagnosis (get_environment / list_deployments)', (
     {} as GithubAppService,
     {} as AgentService,
     environment as unknown as EnvironmentService,
+    {} as DataPlaneExecutor,
     new FakeLogger().as<PinoLogger>(),
   );
   const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
@@ -251,5 +256,84 @@ describe('McpTools — deploy diagnosis (get_environment / list_deployments)', (
       projectId: PROJECT,
       limit: 5,
     });
+  });
+});
+
+/**
+ * The data-plane tools are the thinnest wrappers in the catalog ON PURPOSE:
+ * the grant check, caps, scrub and audit all live in DataPlaneExecutor. What
+ * a tool test can prove is the shape: the right scope (never tasks:agent),
+ * org context required, and the actor + calling key handed through untouched.
+ */
+describe('McpTools — data-plane tools', () => {
+  const PROJECT = '33333333-3333-4333-8333-333333333333';
+  const auth = { keyId: 'key-1', name: 'runner' };
+  const dataPlane = { execute: vi.fn().mockResolvedValue({ ok: true, data: {} }) };
+  const tools = new McpTools(
+    {} as OrgService,
+    {} as ProjectService,
+    {} as TaskService,
+    {} as ResearchService,
+    {} as AttachmentsService,
+    {} as GithubAppService,
+    {} as AgentService,
+    {} as EnvironmentService,
+    dataPlane as unknown as DataPlaneExecutor,
+    new FakeLogger().as<PinoLogger>(),
+  );
+  const byName = (name: string) => tools.catalog().find((tool) => tool.name === name)!;
+  beforeEach(() => dataPlane.execute.mockClear());
+
+  it('all three live behind data-plane:agent (NOT tasks:agent) with org context required', () => {
+    for (const name of ['data_plane_sql', 'data_plane_cache', 'data_plane_storage']) {
+      const tool = byName(name);
+      expect(tool).toBeDefined();
+      expect(tool.scope).toBe('data-plane:agent');
+      expect(tool.needsOrgContext).toBe(true);
+    }
+  });
+
+  it('data_plane_sql hands actor, calling key and the statement to the executor', async () => {
+    await byName('data_plane_sql').handler(
+      { projectId: PROJECT, environment: 'staging', sql: 'SELECT 1', limit: 5, taskId: TASK },
+      actor,
+      auth,
+    );
+    expect(dataPlane.execute).toHaveBeenCalledWith(actor, auth, {
+      resource: 'database',
+      projectId: PROJECT,
+      environment: 'staging',
+      sql: 'SELECT 1',
+      limit: 5,
+      taskId: TASK,
+    });
+  });
+
+  it('data_plane_cache and data_plane_storage carry their op + target through', async () => {
+    await byName('data_plane_cache').handler(
+      { projectId: PROJECT, environment: 'staging', op: 'scan', pattern: 'sess:*', count: 20 },
+      actor,
+      auth,
+    );
+    expect(dataPlane.execute).toHaveBeenLastCalledWith(
+      actor,
+      auth,
+      expect.objectContaining({ resource: 'cache', op: 'scan', pattern: 'sess:*', count: 20 }),
+    );
+    await byName('data_plane_storage').handler(
+      { projectId: PROJECT, environment: 'production', op: 'head', key: 'exports/a.csv' },
+      actor,
+      auth,
+    );
+    expect(dataPlane.execute).toHaveBeenLastCalledWith(
+      actor,
+      auth,
+      expect.objectContaining({
+        resource: 'storage',
+        environment: 'production',
+        op: 'head',
+        key: 'exports/a.csv',
+      }),
+    );
   });
 });

@@ -93,6 +93,8 @@ under ~1% of revenue at every stage.
 Data-plane placement — putting an environment's database or cache on another
 server, and the network rules that come with it — has its own page:
 [data-plane-placement.md](data-plane-placement.md).
+Agent (MCP) read access to that data plane — default denied, human-opened,
+expiring, audited — is described in [data-plane-access.md](data-plane-access.md).
 
 **Phase 1 — replicas on one box (€0).** Prerequisite: **Caddy moves into the
 compose file** and becomes the only service publishing ports; api replicas

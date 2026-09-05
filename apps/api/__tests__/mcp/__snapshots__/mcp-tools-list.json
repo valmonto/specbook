@@ -249,6 +249,163 @@
     }
   },
   {
+    "name": "data_plane_cache",
+    "description": "Inspect a project environment's Redis: op get | exists | type | ttl (pass `key`) or scan (pass `pattern`, optional `cursor`/`count` — one page per call). Values are size-capped. Refused unless a human has opened a live 'read' window on that environment. Audited.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "staging",
+            "production"
+          ]
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "get",
+            "exists",
+            "type",
+            "ttl",
+            "scan"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "cursor": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "taskId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "projectId",
+        "environment",
+        "op"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "data_plane_sql",
+    "description": "Run ONE bounded read-only SQL statement (SELECT/WITH/EXPLAIN/SHOW) against a project environment's Postgres, as the environment's own database role. Hard row cap, statement timeout, read-only transaction; refused unless a human has opened a live 'read' window on that environment (see get_environment → mcpAccess). Every call is audited with your key, task and the statement.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "staging",
+            "production"
+          ]
+        },
+        "sql": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "taskId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "projectId",
+        "environment",
+        "sql"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "data_plane_storage",
+    "description": "Inspect a project environment's object storage (its S3_* env vars, used server-side and never returned): op list (pass `prefix`, optional `limit`) | head (pass `key`) | get (pass `key`; text is returned inline, binary as base64, size-capped). Refused unless a human has opened a live 'read' window on that environment. Audited.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "staging",
+            "production"
+          ]
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "list",
+            "head",
+            "get"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "prefix": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "taskId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "projectId",
+        "environment",
+        "op"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "get_environment",
     "description": "A project's deploy environment(s) for diagnosis — the target server (name/host/ssh_user/port), deploy_path, domain, auto_deploy, and provisioning state (provision_status + provision_error). Read-only; NEVER returns secrets. Pass `name` (staging|production) to narrow to one.",
     "inputSchema": {

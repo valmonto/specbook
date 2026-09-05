@@ -6,6 +6,7 @@ import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentService } from '@/agents/index.js';
 import { McpTools } from '@/mcp/mcp-tools.js';
+import type { DataPlaneExecutor } from '@/data-plane/index.js';
 import type { GithubAppService } from '@pkg/server';
 import type { OrgService } from '@/org/org.service.js';
 import type { ProjectService } from '@/tasks/project.service.js';
@@ -62,6 +63,7 @@ describe('MCP get_repo_token', () => {
       github as unknown as GithubAppService,
       {} as AgentService,
       {} as EnvironmentService,
+      {} as DataPlaneExecutor,
       new FakeLogger().as<PinoLogger>(),
     );
     handler = tools.catalog().find((tool) => tool.name === 'get_repo_token')!.handler;

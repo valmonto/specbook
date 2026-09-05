@@ -28,6 +28,7 @@ export const admin = {
       'orgs:read': 'admin.apiKeys.scopeDesc.orgs-read',
       'tasks:agent': 'admin.apiKeys.scopeDesc.tasks-agent',
       'research:agent': 'admin.apiKeys.scopeDesc.research-agent',
+      'data-plane:agent': 'admin.apiKeys.scopeDesc.data-plane-agent',
     },
     prefix: 'admin.apiKeys.prefix',
     lastUsed: 'admin.apiKeys.lastUsed',
