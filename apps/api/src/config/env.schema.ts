@@ -132,7 +132,11 @@ export const envSchema = z
 
     // Public base URL of the web app, used to build copyable links the API hands
     // back (e.g. an invitation accept link). Dev default matches the Vite server.
-    WEB_APP_URL: z.string().url().default('http://localhost:5173'),
+    // REQUIRED in production — enforced by the superRefine below — because a
+    // silent dev default there ships broken http://localhost:5173 invite links
+    // to real users. The dev/test default (matching the Vite server) is applied
+    // by the transform below.
+    WEB_APP_URL: z.string().url().optional(),
 
     // Logging — show NestJS framework bootstrap logs (module/route mapping). Off by default.
     LOG_FRAMEWORK: z
@@ -181,7 +185,7 @@ export const envSchema = z
 
     if (env.NODE_ENV !== 'production') return;
 
-    for (const key of ['SEED_INITIAL_EMAIL', 'SEED_INITIAL_PASSWORD'] as const) {
+    for (const key of ['SEED_INITIAL_EMAIL', 'SEED_INITIAL_PASSWORD', 'WEB_APP_URL'] as const) {
       if (!env[key]) {
         ctx.addIssue({
           code: 'custom',
@@ -190,7 +194,13 @@ export const envSchema = z
         });
       }
     }
-  });
+  })
+  .transform((env) => ({
+    ...env,
+    // Retain the dev/test default only outside production; production already
+    // failed validation above if WEB_APP_URL was unset, so this never masks it.
+    WEB_APP_URL: env.WEB_APP_URL ?? 'http://localhost:5173',
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 
