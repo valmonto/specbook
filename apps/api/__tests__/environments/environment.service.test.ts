@@ -111,6 +111,9 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         .fn()
         .mockResolvedValue({ id: SERVER, orgId: ORG, roles: ['build', 'app', 'data'] }),
       findDomainClaim: vi.fn().mockResolvedValue(null),
+      insertAudit: vi.fn().mockImplementation(async (row: Record<string, unknown>) => row),
+      findAuditForEnvironment: vi.fn().mockResolvedValue([]),
+      findUserName: vi.fn().mockResolvedValue('Owner'),
     };
     provisioner = {
       enqueueProvision: vi.fn().mockResolvedValue(undefined),
@@ -724,6 +727,144 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
         cacheServerName: null,
         dataTransport: 'private-network',
       });
+    });
+  });
+
+  describe('agent data-plane access — the human door', () => {
+    const grant = (over: Record<string, unknown> = {}) =>
+      service.grantMcpAccess(actor, {
+        projectId: PROJECT,
+        id: ENV,
+        mode: 'read',
+        minutes: 30,
+        ...over,
+      } as never);
+
+    it('opens a read window: who, until when, why — and audits the grant', async () => {
+      const before = Date.now();
+      const dto = await grant({ reason: 'checking a stuck job' });
+      expect(stored).toMatchObject({
+        mcpAccess: 'read',
+        mcpAccessBy: 'u',
+        mcpAccessReason: 'checking a stuck job',
+      });
+      const until = (stored.mcpAccessUntil as Date).getTime();
+      expect(until).toBeGreaterThanOrEqual(before + 30 * 60_000 - 50);
+      expect(until).toBeLessThanOrEqual(Date.now() + 30 * 60_000 + 50);
+      expect(dto).toMatchObject({
+        mcpAccess: 'read',
+        mcpAccessBy: 'u',
+        mcpAccessReason: 'checking a stuck job',
+      });
+      expect(repository.insertAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource: 'grant',
+          operation: 'grant',
+          outcome: 'allowed',
+          userId: 'u',
+          environmentName: 'staging',
+          projectName: 'The Project',
+          detail: 'checking a stuck job',
+        }),
+      );
+    });
+
+    it("'write' is not grantable yet — a deliberate second decision", async () => {
+      await expect(grant({ mode: 'write' })).rejects.toThrow(
+        'environments.errors.mcpAccessWriteUnsupported',
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('the window is capped per environment (staging: 240 minutes)', async () => {
+      await expect(grant({ minutes: 241 })).rejects.toThrow('environments.errors.mcpAccessTooLong');
+      await grant({ minutes: 240 });
+      expect(stored.mcpAccess).toBe('read');
+    });
+
+    it('there is no extend: an open window must be revoked before a new one is opened', async () => {
+      stored = {
+        mcpAccess: 'read',
+        mcpAccessUntil: new Date(Date.now() + 60_000),
+        mcpAccessBy: 'u',
+      };
+      await expect(grant()).rejects.toThrow('environments.errors.mcpAccessAlreadyOpen');
+      // A LAPSED window is re-grantable — it is 'none' now.
+      stored = {
+        mcpAccess: 'read',
+        mcpAccessUntil: new Date(Date.now() - 60_000),
+        mcpAccessBy: 'u',
+      };
+      await grant();
+      expect((stored.mcpAccessUntil as Date).getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('PRODUCTION needs the louder door: a reason, the name typed back, and a 30-minute ceiling', async () => {
+      stored = { name: 'production' };
+      await expect(grant({ minutes: 15 })).rejects.toThrow(
+        'environments.errors.mcpAccessReasonRequired',
+      );
+      await expect(grant({ minutes: 15, reason: 'incident 42' })).rejects.toThrow(
+        'environments.errors.mcpAccessConfirmRequired',
+      );
+      await expect(
+        grant({ minutes: 15, reason: 'incident 42', confirm: 'staging' }),
+      ).rejects.toThrow('environments.errors.mcpAccessConfirmRequired');
+      await expect(
+        grant({ minutes: 31, reason: 'incident 42', confirm: 'production' }),
+      ).rejects.toThrow('environments.errors.mcpAccessTooLong');
+      const dto = await grant({ minutes: 15, reason: 'incident 42', confirm: 'production' });
+      expect(dto).toMatchObject({
+        name: 'production',
+        mcpAccess: 'read',
+        mcpAccessReason: 'incident 42',
+      });
+    });
+
+    it('revoke closes the window now, clears every companion field, and audits', async () => {
+      stored = {
+        mcpAccess: 'read',
+        mcpAccessUntil: new Date(Date.now() + 60_000),
+        mcpAccessBy: 'u',
+      };
+      const dto = await service.revokeMcpAccess(actor, { projectId: PROJECT, id: ENV });
+      expect(stored).toMatchObject({
+        mcpAccess: 'none',
+        mcpAccessUntil: null,
+        mcpAccessBy: null,
+        mcpAccessReason: null,
+      });
+      expect(dto).toMatchObject({ mcpAccess: 'none', mcpAccessUntil: null, mcpAccessBy: null });
+      expect(repository.insertAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource: 'grant',
+          operation: 'revoke',
+          target: 'open window closed',
+        }),
+      );
+    });
+
+    it('a lapsed window serializes as none — the UI never shows a dead grant as open', async () => {
+      stored = {
+        mcpAccess: 'read',
+        mcpAccessUntil: new Date(Date.now() - 1000),
+        mcpAccessBy: 'u',
+        mcpAccessByName: 'Owner',
+        mcpAccessReason: 'old',
+      };
+      const { data } = await service.list(actor, PROJECT);
+      expect(data[0]).toMatchObject({
+        mcpAccess: 'none',
+        mcpAccessUntil: null,
+        mcpAccessBy: null,
+        mcpAccessByName: null,
+        mcpAccessReason: null,
+      });
+    });
+
+    it('archived projects refuse to open a window', async () => {
+      repository.findProject!.mockResolvedValue(projectRow({ archivedAt: new Date() }));
+      await expect(grant()).rejects.toThrow('tasks.errors.projectArchivedReadonly');
     });
   });
 });

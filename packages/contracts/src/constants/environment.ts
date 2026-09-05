@@ -121,3 +121,74 @@ export function parseDotenv(blob: string): DotenvParseResult {
   if (errors.length) return { ok: false, errors };
   return { ok: true, entries };
 }
+
+/**
+ * Agent (MCP) access to an environment's DATA PLANE — default denied, a human
+ * opens a window, it closes by itself. Lives on the environment, not the
+ * project: staging and production are not the same risk, and every audit
+ * line stays self-describing ("read X on solmond·staging, grant expires…").
+ *
+ *   'none'  — the default; executors deny every call.
+ *   'read'  — bounded reads (SELECT with a row cap, Redis GET/SCAN, object
+ *             HEAD/list/download) until `mcpAccessUntil`.
+ *   'write' — reserved. The column accepts it so a later PR can add it as a
+ *             deliberate second decision; the grant API refuses it today.
+ *
+ * An EXPIRED grant is indistinguishable from 'none' — expiry is checked
+ * server-side against the clock on every executor call, and there is no
+ * "extend": a lapsed window is re-granted, so each window is a decision.
+ */
+export const MCP_ACCESS_MODES = ['none', 'read', 'write'] as const;
+export type McpAccessMode = (typeof MCP_ACCESS_MODES)[number];
+
+/** Modes a grant may be opened with today (see MCP_ACCESS_MODES). */
+export const GRANTABLE_MCP_ACCESS_MODES = ['read'] as const satisfies readonly McpAccessMode[];
+
+/**
+ * Longest window per environment. Production is allowed — the owner's call —
+ * but only with a LOUDER confirmation (typed environment name + recorded
+ * reason) and a much shorter ceiling; the shape of the door is the control.
+ */
+export const MCP_ACCESS_MAX_MINUTES: Record<EnvironmentName, number> = {
+  staging: 240,
+  production: 30,
+};
+export const MCP_ACCESS_DEFAULT_MINUTES: Record<EnvironmentName, number> = {
+  staging: 60,
+  production: 15,
+};
+/** Shortest window that is worth opening (also the grant form's floor). */
+export const MCP_ACCESS_MIN_MINUTES = 5;
+
+/** Which environments require the louder confirmation (reason + typed name). */
+export const MCP_ACCESS_CONFIRMATION_REQUIRED: readonly EnvironmentName[] = ['production'];
+
+/**
+ * Hard caps inside the executors — the control on an arbitrary read is the
+ * window and the log, but a single call still cannot pull a whole table or
+ * a whole bucket: rows per SELECT, keys per SCAN page, bytes per object read.
+ */
+export const MCP_DATA_PLANE_LIMITS = {
+  sqlRowCap: 200,
+  sqlDefaultRows: 50,
+  sqlStatementTimeoutMs: 5_000,
+  sqlMaxLength: 4_000,
+  cacheScanMaxCount: 200,
+  cacheValueMaxBytes: 64 * 1024,
+  storageListMaxKeys: 200,
+  storageObjectMaxBytes: 1024 * 1024,
+} as const;
+
+/** The three data-plane resources an executor can address. */
+export const DATA_PLANE_RESOURCES = ['database', 'cache', 'storage'] as const;
+export type DataPlaneResource = (typeof DATA_PLANE_RESOURCES)[number];
+
+/** Bounded operations per resource — never a shell, never arbitrary DDL. */
+export const DATA_PLANE_CACHE_OPS = ['get', 'exists', 'type', 'ttl', 'scan'] as const;
+export type DataPlaneCacheOp = (typeof DATA_PLANE_CACHE_OPS)[number];
+export const DATA_PLANE_STORAGE_OPS = ['list', 'head', 'get'] as const;
+export type DataPlaneStorageOp = (typeof DATA_PLANE_STORAGE_OPS)[number];
+
+/** Every executor call lands in the audit with one of these outcomes. */
+export const DATA_ACCESS_OUTCOMES = ['allowed', 'denied', 'failed'] as const;
+export type DataAccessOutcome = (typeof DATA_ACCESS_OUTCOMES)[number];
