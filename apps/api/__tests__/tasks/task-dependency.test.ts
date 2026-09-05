@@ -13,12 +13,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { describeIntegration, FakeLogger, truncate } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { TaskService } from '@/tasks/task.service';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { TaskService } from '@/tasks/task.service.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 /**
@@ -88,7 +88,14 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
   };
 
   beforeEach(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     const a = await makeOrg('dep-org-a');
     const b = await makeOrg('dep-org-b');
     orgA = a.orgId;
@@ -100,7 +107,14 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
   });
 
   afterAll(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     await client.close();
   });
 
@@ -188,9 +202,7 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
     // B carries a comment naming the cancelled dependency.
     const comments = await repo.findComments(b);
     expect(
-      comments.some(
-        (cm) => cm.body.includes('A') && cm.body.toLowerCase().includes('cancel'),
-      ),
+      comments.some((cm) => cm.body.includes('A') && cm.body.toLowerCase().includes('cancel')),
     ).toBe(true);
 
     // B no longer waits on anything, so it rejoins the queue (A/C are terminal).
@@ -222,12 +234,8 @@ describeIntegration('TaskService — dependency edges, org-scoped', () => {
     const { dependencies, dependents } = await repo.findEdgeSummaries(orgA, [a, b]);
 
     // B's dependency edge points at A; A's dependent edge points at B.
-    expect(dependencies).toEqual([
-      { ownerTaskId: b, id: a, title: 'A', status: 'ready' },
-    ]);
-    expect(dependents).toEqual([
-      { ownerTaskId: a, id: b, title: 'B', status: 'ready' },
-    ]);
+    expect(dependencies).toEqual([{ ownerTaskId: b, id: a, title: 'A', status: 'ready' }]);
+    expect(dependents).toEqual([{ ownerTaskId: a, id: b, title: 'B', status: 'ready' }]);
 
     // A foreign org sees no edges for the same ids — the far task is joined to
     // its project on org_id, so org B resolves nothing.

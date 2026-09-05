@@ -1,18 +1,18 @@
 import { Controller, Delete, Get, Post } from '@nestjs/common';
 import { ActiveUser, SystemRole, SystemRoles, ZodRequest } from '@pkg/server';
 import {
-  CreateApiKeyRequest,
+  type CreateApiKeyRequest,
   CreateApiKeyRequestSchema,
   CreateApiKeyResponse,
-  ListApiKeysRequest,
+  type ListApiKeysRequest,
   ListApiKeysRequestSchema,
   ListApiKeysResponse,
-  RevokeApiKeyRequest,
+  type RevokeApiKeyRequest,
   RevokeApiKeyRequestSchema,
   RevokeApiKeyResponse,
   type ActiveUser as ActiveUserType,
 } from '@pkg/contracts';
-import { ApiKeyService } from './api-key.service';
+import { ApiKeyService } from './api-key.service.js';
 
 /**
  * Platform surface: minting an MCP key is choosing what an agent can reach,

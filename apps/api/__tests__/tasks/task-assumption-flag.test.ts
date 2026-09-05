@@ -13,12 +13,12 @@ import type { PinoLogger } from 'nestjs-pino';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { TaskService } from '@/tasks/task.service';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { TaskService } from '@/tasks/task.service.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 /**
@@ -41,7 +41,11 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
     new FakeLogger().as<PinoLogger>(),
   );
 
-  const flag = { what: 'used soft-delete', why: 'matches the module convention', howToVerify: 'check the repo query' };
+  const flag = {
+    what: 'used soft-delete',
+    why: 'matches the module convention',
+    howToVerify: 'check the repo query',
+  };
 
   let orgA: string;
   let orgB: string;
@@ -151,10 +155,12 @@ describeIntegration('TaskService — assumption flag (agent sets, human clears)'
   it('cross-tenant: org B cannot CLEAR org A’s flag, nor read it (NotFound)', async () => {
     const id = await makeTask({ assumptionFlag: flag });
 
-    await expect(
-      service.clearAssumption(asUser(ownerB, orgB), id),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    await expect(service.getById(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.clearAssumption(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.getById(asUser(ownerB, orgB), id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
 
     // Org A's flag is untouched.
     expect((await repo.findById(id, orgA))?.assumptionFlag).toEqual(flag);

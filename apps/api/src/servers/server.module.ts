@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { SecretsModule } from '@pkg/server';
-import { ServerController } from './server.controller';
-import { ServerService } from './server.service';
-import { ServerRepository } from './server.repository';
+import { ServerController } from './server.controller.js';
+import { ServerService } from './server.service.js';
+import { ServerRepository } from './server.repository.js';
+import { EnvironmentRepository } from '../environments/environment.repository.js';
 
 /**
  * The org's machine inventory for the deploy platform. Registration mints
@@ -12,7 +13,7 @@ import { ServerRepository } from './server.repository';
 @Module({
   imports: [SecretsModule],
   controllers: [ServerController],
-  providers: [ServerService, ServerRepository],
+  providers: [ServerService, ServerRepository, EnvironmentRepository],
   exports: [ServerService],
 })
 export class ServerModule {}

@@ -7,8 +7,8 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AttachmentsService } from '@/attachments/attachments.service';
-import type { AttachmentRepository } from '@/attachments/attachment.repository';
+import { AttachmentsService } from '@/attachments/attachments.service.js';
+import type { AttachmentRepository } from '@/attachments/attachment.repository.js';
 import type { StorageService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -49,10 +49,14 @@ describe('AttachmentsService — the three-step protocol', () => {
 
   beforeEach(() => {
     repo = {
-      insert: vi.fn().mockImplementation(async (data) => ({ ...pendingRow, ...data, id: ATT, createdAt: now })),
+      insert: vi
+        .fn()
+        .mockImplementation(async (data) => ({ ...pendingRow, ...data, id: ATT, createdAt: now })),
       findById: vi.fn().mockResolvedValue(pendingRow),
       listUploadedBySubject: vi.fn().mockResolvedValue([]),
-      confirm: vi.fn().mockImplementation(async (_id, _org, patch) => row({ status: 'uploaded', ...patch })),
+      confirm: vi
+        .fn()
+        .mockImplementation(async (_id, _org, patch) => row({ status: 'uploaded', ...patch })),
       softDelete: vi.fn().mockResolvedValue(true),
       hardDelete: vi.fn().mockResolvedValue(undefined),
     };
@@ -76,7 +80,12 @@ describe('AttachmentsService — the three-step protocol', () => {
     service = new AttachmentsService(
       storage as unknown as StorageService,
       repo as unknown as AttachmentRepository,
-      { task: taskExists as unknown as (subjectId: string, activeUser: ActiveUser) => Promise<boolean> },
+      {
+        task: taskExists as unknown as (
+          subjectId: string,
+          activeUser: ActiveUser,
+        ) => Promise<boolean>,
+      },
       new FakeLogger().as<PinoLogger>(),
     );
   });
@@ -97,7 +106,9 @@ describe('AttachmentsService — the three-step protocol', () => {
     // ActiveUser so it can enforce the per-project visibility grant.
     expect(taskExists).toHaveBeenCalledWith(TASK, human);
     expect(result.uploadUrl).toContain(`org/${ORG}/task/${TASK}/`);
-    expect(repo.insert).toHaveBeenCalledWith(expect.objectContaining({ orgId: ORG, kind: 'image' }));
+    expect(repo.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ orgId: ORG, kind: 'image' }),
+    );
   });
 
   it('rejects a subject that does not exist in the org', async () => {
@@ -171,7 +182,11 @@ describe('AttachmentsService — the three-step protocol', () => {
     storage.headObject!.mockResolvedValue({ contentLength: 987 });
     const result = await service.confirm(human, { id: ATT });
 
-    expect(repo.confirm).toHaveBeenCalledWith(ATT, ORG, expect.objectContaining({ sizeBytes: 987 }));
+    expect(repo.confirm).toHaveBeenCalledWith(
+      ATT,
+      ORG,
+      expect.objectContaining({ sizeBytes: 987 }),
+    );
     expect(result.status).toBe('uploaded');
   });
 
@@ -196,12 +211,16 @@ describe('AttachmentsService — the three-step protocol', () => {
   });
 
   it('drops a promised-but-missing thumbnail instead of failing the confirm', async () => {
-    repo.findById!.mockResolvedValue(row({ thumbnailBlobId: '66666666-6666-4666-8666-666666666666' }));
-    storage.headObject!
-      .mockResolvedValueOnce({ contentLength: 1000 })
-      .mockResolvedValueOnce(null);
+    repo.findById!.mockResolvedValue(
+      row({ thumbnailBlobId: '66666666-6666-4666-8666-666666666666' }),
+    );
+    storage.headObject!.mockResolvedValueOnce({ contentLength: 1000 }).mockResolvedValueOnce(null);
     await service.confirm(human, { id: ATT });
-    expect(repo.confirm).toHaveBeenCalledWith(ATT, ORG, expect.objectContaining({ thumbnailBlobId: null }));
+    expect(repo.confirm).toHaveBeenCalledWith(
+      ATT,
+      ORG,
+      expect.objectContaining({ thumbnailBlobId: null }),
+    );
   });
 
   // --- Reads ---
@@ -218,7 +237,9 @@ describe('AttachmentsService — the three-step protocol', () => {
   // --- Bucket init resilience (the servicebook bug, fixed) ---
 
   it('retries bucket init after a failure instead of caching the rejection', async () => {
-    storage.ensureBucket!.mockRejectedValueOnce(new Error('boot blip')).mockResolvedValue(undefined);
+    storage
+      .ensureBucket!.mockRejectedValueOnce(new Error('boot blip'))
+      .mockResolvedValue(undefined);
     const dto = {
       subjectType: 'task' as const,
       subjectId: TASK,

@@ -5,7 +5,7 @@ import {
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
-} from '../../../src/modules/deploy/render';
+} from '../../../src/modules/deploy/render.js';
 
 describe('derivePublicPort', () => {
   it('is deterministic and stays in [20000, 27999]', () => {

@@ -23,11 +23,8 @@ import {
 } from '@pkg/contracts';
 import type { AttachmentRow } from '@pkg/database';
 import { k } from '@pkg/locales';
-import { AttachmentRepository } from './attachment.repository';
-import {
-  ATTACHMENT_SUBJECT_RESOLVERS,
-  type SubjectResolvers,
-} from './attachment.tokens';
+import { AttachmentRepository } from './attachment.repository.js';
+import { ATTACHMENT_SUBJECT_RESOLVERS, type SubjectResolvers } from './attachment.tokens.js';
 
 /**
  * The three-step upload protocol (docs/storage.md): declare → client PUTs
@@ -155,12 +152,18 @@ export class AttachmentsService {
     });
     if (!confirmed) throw new NotFoundException(k.attachments.errors.notFound);
 
-    this.logger.info({ attachmentId: row.id, sizeBytes: head.contentLength }, 'Attachment confirmed');
+    this.logger.info(
+      { attachmentId: row.id, sizeBytes: head.contentLength },
+      'Attachment confirmed',
+    );
 
     return this.serialize(confirmed);
   }
 
-  async list(activeUser: ActiveUser, dto: ListAttachmentsRequest): Promise<ListAttachmentsResponse> {
+  async list(
+    activeUser: ActiveUser,
+    dto: ListAttachmentsRequest,
+  ): Promise<ListAttachmentsResponse> {
     await this.requireSubject(dto.subjectType, dto.subjectId, activeUser);
 
     const rows = await this.repository.listUploadedBySubject(
@@ -172,7 +175,10 @@ export class AttachmentsService {
     return { data: await Promise.all(rows.map((row) => this.withReadUrls(row))) };
   }
 
-  async readUrl(activeUser: ActiveUser, dto: GetAttachmentReadUrlRequest): Promise<AttachmentWithUrls> {
+  async readUrl(
+    activeUser: ActiveUser,
+    dto: GetAttachmentReadUrlRequest,
+  ): Promise<AttachmentWithUrls> {
     const row = await this.repository.findById(dto.id, activeUser.orgId);
     if (!row || row.status !== 'uploaded') {
       throw new NotFoundException(k.attachments.errors.notFound);
@@ -195,7 +201,10 @@ export class AttachmentsService {
     try {
       await this.storage.deleteFile({ bucket: row.bucket, key: this.keyOf(row) });
       if (row.thumbnailBlobId) {
-        await this.storage.deleteFile({ bucket: row.bucket, key: this.keyOf(row, row.thumbnailBlobId) });
+        await this.storage.deleteFile({
+          bucket: row.bucket,
+          key: this.keyOf(row, row.thumbnailBlobId),
+        });
       }
     } catch (error) {
       this.logger.warn({ attachmentId: row.id, error }, 'Attachment object delete failed');

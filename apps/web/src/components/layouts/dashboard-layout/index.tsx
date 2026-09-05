@@ -83,9 +83,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <Hexagon className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate text-sm font-semibold tracking-tight">
-                    specbook
-                  </span>
+                  <span className="truncate text-sm font-semibold tracking-tight">specbook</span>
                   <span className="truncate text-[11px] text-sidebar-foreground/45">
                     {t(k.common.nav.workspace)}
                   </span>

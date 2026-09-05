@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeAutoDeployPaused } from '../../../src/modules/deploy/auto-deploy';
+import { computeAutoDeployPaused } from '../../../src/modules/deploy/auto-deploy.js';
 
 const failedAuto = { status: 'failed', trigger: 'auto' };
 const failedManual = { status: 'failed', trigger: 'manual' };
@@ -23,6 +23,8 @@ describe('computeAutoDeployPaused (newest-first)', () => {
   });
 
   it('an in-flight run defers judgement', () => {
-    expect(computeAutoDeployPaused([{ status: 'building', trigger: 'auto' }, failedAuto, failedAuto])).toBe(false);
+    expect(
+      computeAutoDeployPaused([{ status: 'building', trigger: 'auto' }, failedAuto, failedAuto]),
+    ).toBe(false);
   });
 });

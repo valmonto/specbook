@@ -118,13 +118,19 @@ export function classifyTarget(target, worktreesRoot, selfCwd) {
   const rel = relative(root, wt);
   const under = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
   if (!under) {
-    return { action: 'refuse', reason: 'target is not strictly under the worktrees root (main checkout / outside)' };
+    return {
+      action: 'refuse',
+      reason: 'target is not strictly under the worktrees root (main checkout / outside)',
+    };
   }
   if (selfCwd) {
     const inSelf = relative(wt, resolve(selfCwd));
     const runningInside = inSelf === '' || (!inSelf.startsWith('..') && !isAbsolute(inSelf));
     if (runningInside) {
-      return { action: 'refuse', reason: 'refusing to remove the worktree this process is running inside' };
+      return {
+        action: 'refuse',
+        reason: 'refusing to remove the worktree this process is running inside',
+      };
     }
   }
   return { action: 'remove', reason: 'orphaned build worktree under the worktrees root' };
@@ -250,7 +256,9 @@ function main() {
     log('no --worktree given — nothing to tear down');
     return;
   }
-  const worktreesRoot = opts.worktreesRoot ? resolve(opts.worktreesRoot) : join(repoRoot(), '.claude', 'worktrees');
+  const worktreesRoot = opts.worktreesRoot
+    ? resolve(opts.worktreesRoot)
+    : join(repoRoot(), '.claude', 'worktrees');
   const target = resolve(opts.worktree);
   log(`${opts.dryRun ? 'DRY-RUN' : 'teardown'} — ${decision.reason}`);
   log(`target worktree: ${target}`);

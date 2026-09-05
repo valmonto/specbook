@@ -1,13 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, type OnModuleInit } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
-import {
-  DATABASE_CLIENT,
-  type DatabaseClient,
-  server,
-  eq,
-  type Server,
-} from '@pkg/database';
+import { DATABASE_CLIENT, type DatabaseClient, server, eq, type Server } from '@pkg/database';
 import {
   InjectLogger,
   PinoLogger,
@@ -40,11 +34,12 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
     super();
   }
 
+  /** Self-scheduling, like every sweep (bullmq 6 dropped the legacy `repeat` option). */
   async onModuleInit(): Promise<void> {
-    await this.queue.add(
-      'sweep-all',
-      { sweep: true },
-      { repeat: { every: SWEEP_EVERY_MS }, jobId: 'server-check-sweep' },
+    await this.queue.upsertJobScheduler(
+      'server-check-sweep',
+      { every: SWEEP_EVERY_MS },
+      { name: 'sweep-all', data: { sweep: true } },
     );
   }
 
@@ -80,12 +75,18 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
         patch.hostFingerprint = result.fingerprint; // pin on first contact
       }
     } else {
-      patch.status = result.reason === 'fingerprint_mismatch' ? 'fingerprint_mismatch' : 'unreachable';
+      patch.status =
+        result.reason === 'fingerprint_mismatch' ? 'fingerprint_mismatch' : 'unreachable';
     }
 
     await this.dbClient.db.update(server).set(patch).where(eq(server.id, id));
     this.logger.info(
-      { serverId: id, host: row.host, status: patch.status, pinned: Boolean(patch.hostFingerprint) },
+      {
+        serverId: id,
+        host: row.host,
+        status: patch.status,
+        pinned: Boolean(patch.hostFingerprint),
+      },
       'Server check finished',
     );
   }

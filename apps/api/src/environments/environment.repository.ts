@@ -10,6 +10,9 @@ import {
   and,
   asc,
   desc,
+  inArray,
+  or,
+  alias,
   type Deployment,
   type NewDeployment,
   type NewProjectEnvironment,
@@ -18,11 +21,49 @@ import {
   type Server,
 } from '@pkg/database';
 
+/** Aliased joins for the placement servers (each may be null = same as app server). */
+const dbServer = alias(server, 'database_server');
+const cacheServer = alias(server, 'cache_server');
+const storageServer = alias(server, 'storage_server');
+
+const withServers = (row: {
+  env: ProjectEnvironment;
+  serverName: string;
+  serverHost: string;
+  databaseServerName: string | null;
+  cacheServerName: string | null;
+  storageServerName: string | null;
+}): EnvironmentWithServer => ({
+  ...row.env,
+  serverName: row.serverName,
+  serverHost: row.serverHost,
+  databaseServerName: row.databaseServerName,
+  cacheServerName: row.cacheServerName,
+  storageServerName: row.storageServerName,
+});
+
 /** An environment row joined with the display identity of its server. */
 export type EnvironmentWithServer = ProjectEnvironment & {
   serverName: string;
   serverHost: string;
+  /** Display names of the placement servers; null when the role stays on the app server. */
+  databaseServerName: string | null;
+  cacheServerName: string | null;
+  storageServerName: string | null;
 };
+
+/** One environment using a server for some role — the shared-instance view. */
+export interface HostedEnvironmentRow {
+  environmentId: string;
+  environmentName: string;
+  projectId: string;
+  projectName: string;
+  serverId: string;
+  databaseServerId: string | null;
+  cacheServerId: string | null;
+  storageServerId: string | null;
+  provisionStatus: string;
+}
 
 /** Non-secret diagnosis projection of an environment + its server's connection identity. */
 export interface EnvironmentDiagnostics {
@@ -86,24 +127,97 @@ export class EnvironmentRepository {
 
   async findForProject(projectId: string, orgId: string): Promise<EnvironmentWithServer[]> {
     const rows = await this.dbClient.db
-      .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
+      .select({
+        env: projectEnvironment,
+        serverName: server.name,
+        serverHost: server.host,
+        databaseServerName: dbServer.name,
+        cacheServerName: cacheServer.name,
+        storageServerName: storageServer.name,
+      })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
+      .leftJoin(dbServer, eq(dbServer.id, projectEnvironment.databaseServerId))
+      .leftJoin(cacheServer, eq(cacheServer.id, projectEnvironment.cacheServerId))
+      .leftJoin(storageServer, eq(storageServer.id, projectEnvironment.storageServerId))
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(asc(projectEnvironment.name));
-    return rows.map((r) => ({ ...r.env, serverName: r.serverName, serverHost: r.serverHost }));
+    return rows.map(withServers);
   }
 
-  async findById(id: string, projectId: string, orgId: string): Promise<EnvironmentWithServer | null> {
+  async findById(
+    id: string,
+    projectId: string,
+    orgId: string,
+  ): Promise<EnvironmentWithServer | null> {
     const [row] = await this.dbClient.db
-      .select({ env: projectEnvironment, serverName: server.name, serverHost: server.host })
+      .select({
+        env: projectEnvironment,
+        serverName: server.name,
+        serverHost: server.host,
+        databaseServerName: dbServer.name,
+        cacheServerName: cacheServer.name,
+        storageServerName: storageServer.name,
+      })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
+      .leftJoin(dbServer, eq(dbServer.id, projectEnvironment.databaseServerId))
+      .leftJoin(cacheServer, eq(cacheServer.id, projectEnvironment.cacheServerId))
+      .leftJoin(storageServer, eq(storageServer.id, projectEnvironment.storageServerId))
       .where(and(eq(projectEnvironment.id, id), eq(projectEnvironment.projectId, projectId)))
       .limit(1);
-    return row ? { ...row.env, serverName: row.serverName, serverHost: row.serverHost } : null;
+    return row ? withServers(row) : null;
+  }
+
+  /** Several org-scoped servers at once (placement validation loads them together). */
+  async findServers(serverIds: string[], orgId: string): Promise<Server[]> {
+    if (serverIds.length === 0) return [];
+    return this.dbClient.db
+      .select()
+      .from(server)
+      .where(and(inArray(server.id, serverIds), eq(server.orgId, orgId)));
+  }
+
+  /**
+   * Every environment that uses `serverId` for ANY role — as its app server or
+   * as the placement of its database, cache or storage. Org-scoped through
+   * the project join; the caller derives which roles apply from the ids.
+   */
+  async findHostedBy(serverId: string, orgId: string): Promise<HostedEnvironmentRow[]> {
+    return this.dbClient.db
+      .select({
+        environmentId: projectEnvironment.id,
+        environmentName: projectEnvironment.name,
+        projectId: project.id,
+        projectName: project.name,
+        serverId: projectEnvironment.serverId,
+        databaseServerId: projectEnvironment.databaseServerId,
+        cacheServerId: projectEnvironment.cacheServerId,
+        storageServerId: projectEnvironment.storageServerId,
+        provisionStatus: projectEnvironment.provisionStatus,
+      })
+      .from(projectEnvironment)
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
+      .where(
+        or(
+          eq(projectEnvironment.serverId, serverId),
+          eq(projectEnvironment.databaseServerId, serverId),
+          eq(projectEnvironment.cacheServerId, serverId),
+          eq(projectEnvironment.storageServerId, serverId),
+        ),
+      )
+      .orderBy(asc(project.name), asc(projectEnvironment.name));
   }
 
   async create(data: NewProjectEnvironment): Promise<ProjectEnvironment> {
@@ -184,7 +298,10 @@ export class EnvironmentRepository {
         serverPort: server.port,
       })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .innerJoin(server, eq(server.id, projectEnvironment.serverId))
       .where(and(...conds))
       .orderBy(asc(projectEnvironment.name));
@@ -216,7 +333,10 @@ export class EnvironmentRepository {
       })
       .from(deployment)
       .innerJoin(projectEnvironment, eq(projectEnvironment.id, deployment.environmentId))
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
+      )
       .where(eq(projectEnvironment.projectId, projectId))
       .orderBy(desc(deployment.createdAt))
       .limit(limit);
@@ -235,10 +355,11 @@ export class EnvironmentRepository {
     const [row] = await this.dbClient.db
       .select({ env: projectEnvironment })
       .from(projectEnvironment)
-      .innerJoin(project, and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)))
-      .where(
-        and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)),
+      .innerJoin(
+        project,
+        and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
       )
+      .where(and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)))
       .limit(1);
     return row?.env ?? null;
   }

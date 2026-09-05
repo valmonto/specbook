@@ -214,10 +214,7 @@ export class DeploymentProcessor extends WorkerHost {
     const userEnv = env.userEnvEnc
       ? (JSON.parse(this.secrets.open(env.userEnvEnc)) as Record<string, string>)
       : {};
-    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(
-      env,
-      Object.keys(userEnv),
-    );
+    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env, Object.keys(userEnv));
     const envFile = renderDeployEnv([
       platformEnv,
       userEnv,
@@ -225,6 +222,10 @@ export class DeploymentProcessor extends WorkerHost {
         NODE_ENV: 'production',
         WORKER_PORT: '3001',
         IAM_REDIS_HOST: platformEnv.REDIS_HOST ?? 'localhost',
+        // A moved (or password-protected) cache carries its port + password;
+        // the co-located default has neither, so both stay absent there.
+        ...(platformEnv.REDIS_PORT ? { IAM_REDIS_PORT: platformEnv.REDIS_PORT } : {}),
+        ...(platformEnv.REDIS_PASSWORD ? { IAM_REDIS_PASSWORD: platformEnv.REDIS_PASSWORD } : {}),
         PUBLIC_PORT: String(publicPort),
         ...(firstDeploy ? { SEED_ON_STARTUP: 'true' } : {}),
       },
@@ -267,10 +268,7 @@ export class DeploymentProcessor extends WorkerHost {
     sink.line('deploy complete — healthy');
     await sink.flush();
     await this.finish(row.id, 'healthy', null);
-    this.logger.info(
-      { deploymentId: row.id, unit, sha, port: publicPort },
-      'Deployment healthy',
-    );
+    this.logger.info({ deploymentId: row.id, unit, sha, port: publicPort }, 'Deployment healthy');
   }
 
   /**

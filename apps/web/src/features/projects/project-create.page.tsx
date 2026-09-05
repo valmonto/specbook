@@ -53,8 +53,7 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const SECTION =
-  'text-xs font-medium tracking-wide text-muted-foreground uppercase';
+const SECTION = 'text-xs font-medium tracking-wide text-muted-foreground uppercase';
 const SEAMLESS_INPUT =
   'w-full rounded-md bg-transparent px-1.5 py-1 text-sm outline-none transition-colors hover:bg-muted/40 focus:bg-muted/50';
 
@@ -100,8 +99,11 @@ export default function ProjectCreatePage() {
   // that live outside the filtered collection, so they never filter away.
   type RepoItem = (typeof repos)[number];
   type RepoOption = RepoItem | typeof CREATE_NEW | typeof MANUAL;
-  const repoValue: RepoOption =
-    creating ? CREATE_NEW : repoChoice === MANUAL ? MANUAL : (pickedRepo ?? MANUAL);
+  const repoValue: RepoOption = creating
+    ? CREATE_NEW
+    : repoChoice === MANUAL
+      ? MANUAL
+      : (pickedRepo ?? MANUAL);
 
   // Branches load live once an existing repo is picked; its default wins
   // unless the user picks another.
@@ -124,7 +126,11 @@ export default function ProjectCreatePage() {
   const repoShort = creating
     ? newRepoName.trim()
     : (pickedRepo?.fullName.split('/')[1] ??
-      repoUrl.replace(/\/+$/, '').split('/').pop()?.replace(/\.git$/, '') ??
+      repoUrl
+        .replace(/\/+$/, '')
+        .split('/')
+        .pop()
+        ?.replace(/\.git$/, '') ??
       '');
   const derivedWorkdir = repoShort ? `/opt/${repoShort}` : '';
   const workdir = workdirLocked ? derivedWorkdir : workdirCustom;
@@ -183,8 +189,7 @@ export default function ProjectCreatePage() {
       workdir: workdir.trim() || undefined,
       context: context.trim() || undefined,
       mode,
-      maxParallel:
-        mode === 'manual' ? null : Math.max(1, Math.min(10, Number(maxParallel) || 1)),
+      maxParallel: mode === 'manual' ? null : Math.max(1, Math.min(10, Number(maxParallel) || 1)),
       ...(creating
         ? {
             newRepoName: newRepoName.trim(),
@@ -336,7 +341,12 @@ export default function ProjectCreatePage() {
                 </a>
               </Button>
             )}
-            <Button size="sm" variant="outline" disabled={rechecking} onClick={() => void recheckAndBind()}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={rechecking}
+              onClick={() => void recheckAndBind()}
+            >
               {rechecking && <Loader2 className="size-3.5 animate-spin" />}
               {t(k.tasks.repoGrantRecheck)}
             </Button>
@@ -489,11 +499,7 @@ export default function ProjectCreatePage() {
         </Button>
         {!canSubmit && !create.isLoading && (
           <span className="text-xs text-muted-foreground">
-            {!name.trim()
-              ? t(k.tasks.projectName)
-              : creating
-                ? t(k.tasks.repoNewName)
-                : null}
+            {!name.trim() ? t(k.tasks.projectName) : creating ? t(k.tasks.repoNewName) : null}
           </span>
         )}
       </div>

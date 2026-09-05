@@ -8,8 +8,8 @@ import {
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { AgentLifecycleProducer, InjectLogger, PinoLogger, SecretsService } from '@pkg/server';
-import { ApiKeyService } from '../api-key/api-key.service';
-import { AgentRepository, type AgentWithContext } from './agent.repository';
+import { ApiKeyService } from '../api-key/api-key.service.js';
+import { AgentRepository, type AgentWithContext } from './agent.repository.js';
 
 /** What the MCP layer knows about the calling key — an agent's identity. */
 export interface AgentIdentity {
@@ -52,20 +52,14 @@ export class AgentService {
    * second needs the explicit confirm (memory sizing is documented, the
    * operator decides).
    */
-  async createManaged(
-    activeUser: ActiveUser,
-    dto: CreateManagedAgentRequest,
-  ): Promise<AgentDto> {
+  async createManaged(activeUser: ActiveUser, dto: CreateManagedAgentRequest): Promise<AgentDto> {
     const srv = await this.agentRepository.findServer(dto.serverId, activeUser.orgId);
     if (!srv) throw new NotFoundException(k.servers.errors.notFound);
     const roles = Array.isArray(srv.roles) ? (srv.roles as string[]) : [];
     if (!roles.includes('runner')) {
       throw new BadRequestException(k.agents.errors.serverNotRunner);
     }
-    const existing = await this.agentRepository.findManagedByServer(
-      dto.serverId,
-      activeUser.orgId,
-    );
+    const existing = await this.agentRepository.findManagedByServer(dto.serverId, activeUser.orgId);
     if (existing.length > 0 && !dto.confirmAdditional) {
       throw new BadRequestException(k.agents.errors.serverBusy);
     }
@@ -210,8 +204,7 @@ export class AgentService {
    * AGENT_OFFLINE_AFTER_MS reads as offline whatever it last claimed to be.
    */
   private serialize(r: AgentWithContext): AgentDto {
-    const stale =
-      !r.lastSeenAt || Date.now() - r.lastSeenAt.getTime() > AGENT_OFFLINE_AFTER_MS;
+    const stale = !r.lastSeenAt || Date.now() - r.lastSeenAt.getTime() > AGENT_OFFLINE_AFTER_MS;
     const presence = ['idle', 'working'].includes(r.status);
     return {
       id: r.id,

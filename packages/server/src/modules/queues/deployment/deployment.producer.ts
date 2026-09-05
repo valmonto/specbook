@@ -1,8 +1,8 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { DEPLOYMENT_JOB_NAMES, DEPLOYMENT_QUEUE } from './deployment.constants';
-import type { DeploymentJobPayload } from './deployment.types';
+import { DEPLOYMENT_JOB_NAMES, DEPLOYMENT_QUEUE } from './deployment.constants.js';
+import type { DeploymentJobPayload } from './deployment.types.js';
 
 @Injectable()
 export class DeploymentProducer {

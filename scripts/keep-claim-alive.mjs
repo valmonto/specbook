@@ -107,7 +107,12 @@ export function resolveHeartbeatConfig(env = {}) {
   if (apiKey === '') return null;
   const explicitUrl = (env.SPECBOOK_MCP_URL ?? '').trim();
   const base = (env.SPECBOOK_BASE_URL ?? '').trim();
-  const url = explicitUrl !== '' ? explicitUrl : base !== '' ? `${base.replace(/\/+$/, '')}/api/mcp` : DEFAULT_MCP_URL;
+  const url =
+    explicitUrl !== ''
+      ? explicitUrl
+      : base !== ''
+        ? `${base.replace(/\/+$/, '')}/api/mcp`
+        : DEFAULT_MCP_URL;
   return { url, apiKey };
 }
 

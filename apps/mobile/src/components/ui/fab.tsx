@@ -5,7 +5,12 @@ import * as Haptics from 'expo-haptics';
 import { type LucideIcon } from 'lucide-react-native';
 import * as React from 'react';
 import { Platform, Pressable, type GestureResponderEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 type FabProps = React.ComponentProps<typeof Pressable> & {
   icon: LucideIcon;
@@ -23,12 +28,13 @@ function Fab({ icon, label, className, onPressIn, onPressOut, ...props }: FabPro
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const handlePressIn = (e: GestureResponderEvent) => {
-    scale.value = withTiming(0.92, { duration: 80 });
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    scale.set(withTiming(0.92, { duration: 80 }));
+    if (Platform.OS !== 'web')
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onPressIn?.(e);
   };
   const handlePressOut = (e: GestureResponderEvent) => {
-    scale.value = withSpring(1, { damping: 14, stiffness: 320, mass: 0.5 });
+    scale.set(withSpring(1, { damping: 14, stiffness: 320, mass: 0.5 }));
     onPressOut?.(e);
   };
 
@@ -40,11 +46,14 @@ function Fab({ icon, label, className, onPressIn, onPressOut, ...props }: FabPro
         accessibilityRole="button"
         className={cn(
           'bg-primary flex-row items-center justify-center gap-2 shadow-lg shadow-black/30',
-          label ? 'h-14 rounded-full px-5' : 'size-14 rounded-full'
+          label ? 'h-14 rounded-full px-5' : 'size-14 rounded-full',
         )}
-        {...props}>
+        {...props}
+      >
         <Icon as={icon} size={24} className="text-primary-foreground" />
-        {label ? <Text className="text-primary-foreground text-base font-semibold">{label}</Text> : null}
+        {label ? (
+          <Text className="text-primary-foreground text-base font-semibold">{label}</Text>
+        ) : null}
       </Pressable>
     </Animated.View>
   );

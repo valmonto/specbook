@@ -1,17 +1,17 @@
 {
   "name": "@pkg/api",
+  "type": "module",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "start": "node dist/main",
-    "start:prod": "node dist/main",
-    "seed": "node --env-file-if-exists=../../.env dist/seed/seed.cli",
-    "seed:dev": "SEED_STRATEGY=development node --env-file-if-exists=../../.env dist/seed/seed.cli",
-    "seed:prod": "SEED_STRATEGY=production node --env-file-if-exists=../../.env dist/seed/seed.cli",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "seed": "node --env-file-if-exists=../../.env dist/seed/seed.cli.js",
+    "seed:dev": "SEED_STRATEGY=development node --env-file-if-exists=../../.env dist/seed/seed.cli.js",
+    "seed:prod": "SEED_STRATEGY=production node --env-file-if-exists=../../.env dist/seed/seed.cli.js",
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "vitest run",
@@ -42,22 +42,18 @@
     "pino-http": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
-    "zod": "catalog:",
-    "zod-v3": "npm:zod@3.25.76"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@nestjs/cli": "catalog:",
     "@nestjs/testing": "catalog:",
-    "@pkg/eslint-config": "workspace:*",
     "@pkg/testing": "workspace:*",
     "@pkg/tsconfig": "workspace:*",
     "@pkg/vitest-config": "workspace:*",
     "@types/node": "catalog:",
-    "eslint": "catalog:",
     "fastify": "catalog:",
-    "globals": "catalog:",
     "pino-pretty": "catalog:",
-    "typescript": "catalog:",
+    "typescript": "catalog:ts6",
     "vitest": "catalog:"
   }
 }

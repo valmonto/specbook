@@ -12,7 +12,8 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { EnvironmentRepository } from '@/environments/environment.repository';
+import { EnvironmentRepository } from '@/environments/environment.repository.js';
+import { ServerRepository } from '@/servers/server.repository.js';
 
 /**
  * The tenancy boundary on environments, proven against the real database.
@@ -61,7 +62,15 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     return { orgId: org!.id, projectId: proj!.id, serverId: srv!.id };
   }
 
-  const tables = [deployment, projectEnvironment, server, project, organizationUser, organization, user];
+  const tables = [
+    deployment,
+    projectEnvironment,
+    server,
+    project,
+    organizationUser,
+    organization,
+    user,
+  ];
 
   beforeEach(async () => {
     await truncate(client.db, tables);
@@ -97,7 +106,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
   });
 
-  it("user env vars (sealed values + classification) never cross the org boundary", async () => {
+  it('user env vars (sealed values + classification) never cross the org boundary', async () => {
     const mine = await repo.create({
       projectId: projectA,
       name: 'staging',
@@ -141,9 +150,7 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     // The provision endpoint resolves the row through findById(org) — which
     // refuses — and the write itself is keyed by the owning project.
     expect(await repo.findById(mine.id, projectA, orgB)).toBeNull();
-    expect(
-      await repo.update(mine.id, projectB, { provisionStatus: 'provisioning' }),
-    ).toBeNull();
+    expect(await repo.update(mine.id, projectB, { provisionStatus: 'provisioning' })).toBeNull();
     const still = await repo.findById(mine.id, projectA, orgA);
     expect(still?.provisionStatus).toBe('unprovisioned');
   });
@@ -186,5 +193,84 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
+  });
+
+  it('a server that hosts an environment can still be EDITED — only DELETE is blocked by RESTRICT', async () => {
+    await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
+    const servers = new ServerRepository(client);
+
+    // The edit path the UI takes: roles + name via PATCH semantics, no pin fields.
+    const edited = await servers.update(serverA, orgA, {
+      roles: ['app', 'data'],
+      name: 'org-a-box-2',
+    });
+    expect(edited?.roles).toEqual(['app', 'data']);
+    expect(edited?.name).toBe('org-a-box-2');
+
+    // The environment still points at the same server row.
+    const [env] = await client.db
+      .select()
+      .from(projectEnvironment)
+      .where(eq(projectEnvironment.serverId, serverA));
+    expect(env?.serverId).toBe(serverA);
+
+    // Deleting is what the FK refuses, exactly as documented on the schema.
+    await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();
+  });
+
+  it('placement: an environment can put its database on a second server; deleting that server is then refused', async () => {
+    const owner = await client.db.select({ id: user.id }).from(user).limit(1);
+    const [dbBox] = await client.db
+      .insert(server)
+      .values({
+        orgId: orgA,
+        name: 'org-a-pg',
+        host: '192.168.122.20',
+        roles: ['database'],
+        publicKey: 'ssh-ed25519 AAAA test',
+        privateKeyEnc: 'v1:sealed',
+        createdBy: owner[0]!.id,
+      })
+      .returning();
+    const created = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      databaseServerId: dbBox!.id,
+      dataTransport: 'private-network',
+    });
+    expect(created.databaseServerId).toBe(dbBox!.id);
+    expect(created.cacheServerId).toBeNull();
+
+    // Read back with both display names — the app server and the database server.
+    const found = await repo.findById(created.id, projectA, orgA);
+    expect(found?.serverName).toBe('org-a-box');
+    expect(found?.databaseServerName).toBe('org-a-pg');
+    expect(found?.cacheServerName).toBeNull();
+
+    // The shared-instance view: the database box hosts this environment's database ONLY.
+    const hosted = await repo.findHostedBy(dbBox!.id, orgA);
+    expect(hosted).toHaveLength(1);
+    expect(hosted[0]).toMatchObject({
+      environmentName: 'staging',
+      serverId: serverA,
+      databaseServerId: dbBox!.id,
+    });
+    // …and another org sees nothing on it.
+    expect(await repo.findHostedBy(dbBox!.id, orgB)).toEqual([]);
+
+    // RESTRICT protects the placement server exactly like the app server.
+    await expect(client.db.delete(server).where(eq(server.id, dbBox!.id))).rejects.toThrow();
+  });
+
+  it('placement: the transport CHECK refuses values outside the contract', async () => {
+    await expect(
+      repo.create({
+        projectId: projectA,
+        name: 'staging',
+        serverId: serverA,
+        dataTransport: 'carrier-pigeon',
+      }),
+    ).rejects.toThrow();
   });
 });

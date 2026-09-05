@@ -165,8 +165,7 @@ export function useResearchSearch(q: string) {
   const last = pages.at(-1);
   const hasMore = last ? last.meta.nextCursor !== null : true;
   const isLoadingInitial = isLoading && pages.length === 0;
-  const isLoadingMore =
-    isValidating && pages.length > 0 && typeof data?.[size - 1] === 'undefined';
+  const isLoadingMore = isValidating && pages.length > 0 && typeof data?.[size - 1] === 'undefined';
 
   return {
     items,

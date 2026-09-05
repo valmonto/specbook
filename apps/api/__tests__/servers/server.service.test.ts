@@ -5,8 +5,9 @@ import { SecretsService } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ServerService } from '@/servers/server.service';
-import type { ServerRepository } from '@/servers/server.repository';
+import { ServerService } from '@/servers/server.service.js';
+import type { ServerRepository } from '@/servers/server.repository.js';
+import type { EnvironmentRepository } from '@/environments/environment.repository.js';
 import type { ServerCheckProducer } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -50,6 +51,7 @@ describe('ServerService — generated credentials, write-only by construction', 
     } as unknown as ConfigService);
     service = new ServerService(
       repository as unknown as ServerRepository,
+      { findHostedBy: vi.fn().mockResolvedValue([]) } as unknown as EnvironmentRepository,
       secrets,
       checks as unknown as ServerCheckProducer,
       new FakeLogger().as<PinoLogger>(),
@@ -93,6 +95,23 @@ describe('ServerService — generated credentials, write-only by construction', 
     await service.update(actor, { id: 's1', name: 'renamed' });
     const patch = repository.update!.mock.calls[0]![2] as Record<string, unknown>;
     expect('hostFingerprint' in patch).toBe(false);
+  });
+
+  it('changing only roles or the SSH user keeps the pin — the UI edit path must never re-verify a working server', async () => {
+    await service.update(actor, { id: 's1', roles: ['app', 'runner'], sshUser: 'ops' });
+    const patch = repository.update!.mock.calls[0]![2] as Record<string, unknown>;
+    expect(patch).toEqual({ roles: ['app', 'runner'], sshUser: 'ops' });
+    expect(patch).not.toHaveProperty('hostFingerprint');
+    expect(patch).not.toHaveProperty('status');
+  });
+
+  it('changing the port alone resets the pin, like a host change', async () => {
+    await service.update(actor, { id: 's1', port: 2222 });
+    expect(repository.update).toHaveBeenCalledWith(
+      's1',
+      actor.orgId,
+      expect.objectContaining({ port: 2222, hostFingerprint: null, status: 'unverified' }),
+    );
   });
 
   it('test enqueues the worker check — the API opens no sockets', async () => {

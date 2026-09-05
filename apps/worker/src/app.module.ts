@@ -11,8 +11,8 @@ import {
   RedisModule,
   TelemetryModule,
 } from '@pkg/server';
-import { WorkerQueuesModule } from './queues';
-import { validateEnv } from './config';
+import { WorkerQueuesModule } from './queues/index.js';
+import { validateEnv } from './config/index.js';
 
 @Module({
   imports: [

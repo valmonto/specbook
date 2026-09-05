@@ -1,11 +1,11 @@
 import { pgTable, uuid, varchar, text, timestamp, check, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { AGENT_KINDS, AGENT_STATUSES } from '@pkg/contracts';
-import { pk } from './helpers';
-import { apiKey } from './api-key';
-import { organization } from './organization';
-import { server } from './server';
-import { task } from './task';
+import { pk } from './helpers.js';
+import { apiKey } from './api-key.js';
+import { organization } from './organization.js';
+import { server } from './server.js';
+import { task } from './task.js';
 
 /**
  * An agent is a WORKER — distinct from server (a machine). Identity is the

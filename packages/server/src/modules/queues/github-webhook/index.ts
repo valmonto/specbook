@@ -1,3 +1,3 @@
-export * from './github-webhook.constants';
-export * from './github-webhook.producer';
-export * from './github-webhook.types';
+export * from './github-webhook.constants.js';
+export * from './github-webhook.producer.js';
+export * from './github-webhook.types.js';

@@ -66,6 +66,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     container_name: specbookmigrate
     env_file:
       - .env
@@ -86,6 +89,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     # No container_name: it must be unique, which blocks `--scale api=N`.
     # Compose auto-names replicas (valmatic-dev-api-1, -2, …).
     env_file:
@@ -98,11 +104,11 @@ services:
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
       # Public storage endpoint (see rustfs service note) — set in .env.
-      STORAGE_ENDPOINT: "${STORAGE_ENDPOINT:-http://rustfs:9000}"
-      STORAGE_ACCESS_KEY_ID: "${STORAGE_ACCESS_KEY_ID:-specbook}"
-      STORAGE_SECRET_ACCESS_KEY: "${STORAGE_SECRET_ACCESS_KEY:-specbook}"
-      STORAGE_BUCKET: "${STORAGE_BUCKET:-specbook-attachments}"
-      STORAGE_CORS_ALLOWED_ORIGINS: "${CORS_ORIGINS:-https://specbook.valmonto.com}"
+      STORAGE_ENDPOINT: '${STORAGE_ENDPOINT:-http://rustfs:9000}'
+      STORAGE_ACCESS_KEY_ID: '${STORAGE_ACCESS_KEY_ID:-specbook}'
+      STORAGE_SECRET_ACCESS_KEY: '${STORAGE_SECRET_ACCESS_KEY:-specbook}'
+      STORAGE_BUCKET: '${STORAGE_BUCKET:-specbook-attachments}'
+      STORAGE_CORS_ALLOWED_ORIGINS: '${CORS_ORIGINS:-https://specbook.valmonto.com}'
     # Single instance for now — one upstream for the host proxy. To scale:
     # widen to '127.0.0.1:3031-3035:3000' and run compose up --scale api=N
     # (the range gives each replica its own loopback port).
@@ -160,6 +166,9 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     # No container_name so the worker can also scale (--scale worker=N).
     # It publishes no host port, so replicas don't conflict.
     env_file:
@@ -171,11 +180,11 @@ services:
       REDIS_HOST: redis
       IAM_REDIS_HOST: redis
       # Public storage endpoint (see rustfs service note) — set in .env.
-      STORAGE_ENDPOINT: "${STORAGE_ENDPOINT:-http://rustfs:9000}"
-      STORAGE_ACCESS_KEY_ID: "${STORAGE_ACCESS_KEY_ID:-specbook}"
-      STORAGE_SECRET_ACCESS_KEY: "${STORAGE_SECRET_ACCESS_KEY:-specbook}"
-      STORAGE_BUCKET: "${STORAGE_BUCKET:-specbook-attachments}"
-      STORAGE_CORS_ALLOWED_ORIGINS: "${CORS_ORIGINS:-https://specbook.valmonto.com}"
+      STORAGE_ENDPOINT: '${STORAGE_ENDPOINT:-http://rustfs:9000}'
+      STORAGE_ACCESS_KEY_ID: '${STORAGE_ACCESS_KEY_ID:-specbook}'
+      STORAGE_SECRET_ACCESS_KEY: '${STORAGE_SECRET_ACCESS_KEY:-specbook}'
+      STORAGE_BUCKET: '${STORAGE_BUCKET:-specbook-attachments}'
+      STORAGE_CORS_ALLOWED_ORIGINS: '${CORS_ORIGINS:-https://specbook.valmonto.com}'
     networks:
       - staging_network
     depends_on:

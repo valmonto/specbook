@@ -50,7 +50,11 @@ describe('triageTasks', () => {
     const b = triageTasks(
       [
         makeTask({ id: 'fresh', status: 'done', statusChangedAt: iso(NOW - 3 * 60 * 60 * 1000) }),
-        makeTask({ id: 'stale', status: 'done', statusChangedAt: iso(NOW - TRIAGE_WINDOW_MS - 1000) }),
+        makeTask({
+          id: 'stale',
+          status: 'done',
+          statusChangedAt: iso(NOW - TRIAGE_WINDOW_MS - 1000),
+        }),
       ],
       NOW,
     );

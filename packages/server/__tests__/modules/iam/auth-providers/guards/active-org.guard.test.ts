@@ -2,7 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
-import { ActiveOrgGuard } from '../../../../../src/modules/iam/auth-providers/guards/active-org.guard';
+import { ActiveOrgGuard } from '../../../../../src/modules/iam/auth-providers/guards/active-org.guard.js';
 
 const ORG = 'org-1';
 
@@ -15,7 +15,9 @@ function contextFor(request: unknown): ExecutionContext {
 }
 
 function guardWith(isPublic = false): ActiveOrgGuard {
-  const reflector = { getAllAndOverride: vi.fn().mockReturnValue(isPublic) } as unknown as Reflector;
+  const reflector = {
+    getAllAndOverride: vi.fn().mockReturnValue(isPublic),
+  } as unknown as Reflector;
   return new ActiveOrgGuard(reflector);
 }
 

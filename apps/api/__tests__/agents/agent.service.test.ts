@@ -5,9 +5,9 @@ import { AGENT_OFFLINE_AFTER_MS, type ActiveUser } from '@pkg/contracts';
 import { SecretsService, type AgentLifecycleProducer } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentService } from '@/agents/agent.service';
-import type { AgentRepository } from '@/agents/agent.repository';
-import type { ApiKeyService } from '@/api-key/api-key.service';
+import { AgentService } from '@/agents/agent.service.js';
+import type { AgentRepository } from '@/agents/agent.repository.js';
+import type { ApiKeyService } from '@/api-key/api-key.service.js';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const KEY = '22222222-2222-4222-8222-222222222222';
@@ -54,17 +54,23 @@ describe('AgentService — presence by API-key identity', () => {
       currentClaim: vi.fn().mockResolvedValue(null),
       listForOrg: vi.fn().mockResolvedValue([]),
       findById: vi.fn().mockImplementation(() => stored),
-      findServer: vi.fn().mockResolvedValue({ id: SERVER, orgId: ORG, name: 'box', roles: ['runner'] }),
+      findServer: vi
+        .fn()
+        .mockResolvedValue({ id: SERVER, orgId: ORG, name: 'box', roles: ['runner'] }),
       findManagedByServer: vi.fn().mockResolvedValue([]),
     };
     apiKeys = {
-      create: vi.fn().mockResolvedValue({ id: 'key-2', name: 'agent:runner-2', key: 'sk_plaintext_secret' }),
+      create: vi
+        .fn()
+        .mockResolvedValue({ id: 'key-2', name: 'agent:runner-2', key: 'sk_plaintext_secret' }),
     };
     lifecycle = { enqueue: vi.fn().mockResolvedValue(undefined) };
     service = new AgentService(
       repository as unknown as AgentRepository,
       apiKeys as unknown as ApiKeyService,
-      new SecretsService({ get: () => randomBytes(32).toString('base64') } as unknown as ConfigService),
+      new SecretsService({
+        get: () => randomBytes(32).toString('base64'),
+      } as unknown as ConfigService),
       lifecycle as unknown as AgentLifecycleProducer,
       new FakeLogger().as<PinoLogger>(),
     );
@@ -96,8 +102,8 @@ describe('AgentService — presence by API-key identity', () => {
   });
 
   it('an (org, name) collision falls back to a key-suffixed name instead of failing', async () => {
-    repository.create!
-      .mockRejectedValueOnce({ code: '23505' })
+    repository
+      .create!.mockRejectedValueOnce({ code: '23505' })
       .mockImplementation((data: Record<string, unknown>) => row(data));
     const created = await service.touch(identity);
     expect(created.name).toBe(`runner-1-${KEY.slice(0, 6)}`);
@@ -119,9 +125,7 @@ describe('AgentService — presence by API-key identity', () => {
   });
 
   it('no response ever carries the API key identity', async () => {
-    repository.listForOrg!.mockResolvedValue([
-      row({ serverName: null, currentTaskTitle: null }),
-    ]);
+    repository.listForOrg!.mockResolvedValue([row({ serverName: null, currentTaskTitle: null })]);
     const flat = JSON.stringify([await service.touch(identity), await service.list(actor)]);
     expect(flat).not.toContain('apiKeyId');
     expect(flat).not.toContain(KEY);
@@ -147,7 +151,12 @@ describe('AgentService — presence by API-key identity', () => {
   });
 
   it('refuses a server without the runner role', async () => {
-    repository.findServer!.mockResolvedValue({ id: SERVER, orgId: ORG, name: 'box', roles: ['app'] });
+    repository.findServer!.mockResolvedValue({
+      id: SERVER,
+      orgId: ORG,
+      name: 'box',
+      roles: ['app'],
+    });
     await expect(service.createManaged(actor, createDto)).rejects.toThrow(
       'agents.errors.serverNotRunner',
     );

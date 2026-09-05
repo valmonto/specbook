@@ -1,3 +1,3 @@
-export * from './github-app.service';
-export * from './github.module';
-export * from './ci-classify';
+export * from './github-app.service.js';
+export * from './github.module.js';
+export * from './ci-classify.js';

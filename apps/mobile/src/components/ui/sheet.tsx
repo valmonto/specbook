@@ -61,23 +61,34 @@ function Sheet({ trigger, open, onOpenChange, title, description, footer, childr
   const didEnter = React.useRef(false);
 
   const finishClose = React.useCallback(() => {
-    didEnter.current = false;
-    sheetH.current = 0;
     setRendered(false);
     if (open === undefined) setInternalOpen(false);
     onOpenChange?.(false);
   }, [open, onOpenChange]);
 
   const animateOut = React.useCallback(() => {
-    translateY.value = withTiming(winH, { duration: 220 }, (finished) => {
-      'worklet';
-      if (finished) scheduleOnRN(finishClose);
-    });
+    translateY.set(
+      withTiming(winH, { duration: 220 }, (finished) => {
+        'worklet';
+        if (finished) scheduleOnRN(finishClose);
+      }),
+    );
   }, [winH, finishClose, translateY]);
 
+  // Derived during render, not in an effect: opening mounts the panel at once.
+  if (isOpen && !rendered) setRendered(true);
+
+  // Reset the enter-animation bookkeeping once the panel is gone. Kept out of
+  // finishClose so nothing reachable from the gesture callbacks touches a ref.
   React.useEffect(() => {
-    if (isOpen) setRendered(true);
-    else if (rendered) animateOut();
+    if (!rendered) {
+      didEnter.current = false;
+      sheetH.current = 0;
+    }
+  }, [rendered]);
+
+  React.useEffect(() => {
+    if (!isOpen && rendered) animateOut();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -86,8 +97,8 @@ function Sheet({ trigger, open, onOpenChange, title, description, footer, childr
     sheetH.current = h;
     if (!didEnter.current && h > 0) {
       didEnter.current = true;
-      translateY.value = h;
-      translateY.value = withSpring(0, SPRING);
+      translateY.set(h);
+      translateY.set(withSpring(0, SPRING));
     }
   };
 
@@ -95,19 +106,21 @@ function Sheet({ trigger, open, onOpenChange, title, description, footer, childr
     () =>
       Gesture.Pan()
         .onUpdate((e) => {
-          translateY.value = Math.max(0, e.translationY);
+          translateY.set(Math.max(0, e.translationY));
         })
         .onEnd((e) => {
           if (e.translationY > 120 || e.velocityY > 900) {
-            translateY.value = withTiming(winH, { duration: 220 }, (finished) => {
-              'worklet';
-              if (finished) scheduleOnRN(finishClose);
-            });
+            translateY.set(
+              withTiming(winH, { duration: 220 }, (finished) => {
+                'worklet';
+                if (finished) scheduleOnRN(finishClose);
+              }),
+            );
           } else {
-            translateY.value = withSpring(0, SPRING);
+            translateY.set(withSpring(0, SPRING));
           }
         }),
-    [winH, finishClose, translateY]
+    [winH, finishClose, translateY],
   );
 
   const panelStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
@@ -135,11 +148,13 @@ function Sheet({ trigger, open, onOpenChange, title, description, footer, childr
               />
               <View
                 pointerEvents="box-none"
-                style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}
+              >
                 <Animated.View
                   onLayout={onPanelLayout}
                   style={[panelStyle, { maxHeight: winH * 0.9, backgroundColor: tint }]}
-                  className="border-border overflow-hidden rounded-t-3xl border-t">
+                  className="border-border overflow-hidden rounded-t-3xl border-t"
+                >
                   {/* Liquid-glass sheen (subtle in dark). */}
                   <LinearGradient
                     pointerEvents="none"
@@ -178,14 +193,16 @@ function Sheet({ trigger, open, onOpenChange, title, description, footer, childr
                       paddingHorizontal: 20,
                       paddingTop: 4,
                       paddingBottom: footer ? 8 : insets.bottom + 16,
-                    }}>
+                    }}
+                  >
                     {children}
                   </ScrollView>
 
                   {footer ? (
                     <View
                       className="border-border/60 flex-row justify-end gap-2 border-t px-5 pt-4"
-                      style={{ paddingBottom: insets.bottom + 12 }}>
+                      style={{ paddingBottom: insets.bottom + 12 }}
+                    >
                       {footer}
                     </View>
                   ) : null}

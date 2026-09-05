@@ -13,10 +13,10 @@ import {
 import type { ActiveUser } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ResearchRepository } from '@/research/research.repository';
-import { ResearchService } from '@/research/research.service';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { TaskRepository } from '@/tasks/task.repository';
+import { ResearchRepository } from '@/research/research.repository.js';
+import { ResearchService } from '@/research/research.service.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * Research tenancy, keyset pagination and the ticket-cut lineage, proven
@@ -30,12 +30,11 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
   // cutTickets and appendMessage are service logic; a real service over real
   // repositories does the org scoping (the logger is an inert stub).
   const taskRepo = new TaskRepository(client);
-  const service = new ResearchService(
-    repo,
-    new ProjectRepository(client),
-    taskRepo,
-    { info: () => {}, warn: () => {}, error: () => {} } as never,
-  );
+  const service = new ResearchService(repo, new ProjectRepository(client), taskRepo, {
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+  } as never);
 
   let orgA: string;
   let orgB: string;
@@ -211,9 +210,9 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
 
     // Org-scoped: org B's needs_review doc is invisible to org A's status query.
     expect(review.data.some((r) => r.title === 'other-org-review')).toBe(false);
-    expect((await repo.list(orgB, { limit: 20, status: 'needs_review' })).data.map((r) => r.title)).toEqual([
-      'other-org-review',
-    ]);
+    expect(
+      (await repo.list(orgB, { limit: 20, status: 'needs_review' })).data.map((r) => r.title),
+    ).toEqual(['other-org-review']);
   });
 
   it('cutTickets creates DRAFT tasks with lineage AND area, defaulting the target to the research project', async () => {

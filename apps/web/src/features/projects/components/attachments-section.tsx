@@ -85,7 +85,13 @@ function AttachmentTile({
  * drop-zone; with files, a ghost "+" tile joins the grid. Both open the
  * picker on click.
  */
-export function AttachmentsSection({ taskId, readOnly = false }: { taskId: string; readOnly?: boolean }) {
+export function AttachmentsSection({
+  taskId,
+  readOnly = false,
+}: {
+  taskId: string;
+  readOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const { data, mutate } = useTaskAttachments(taskId);
   const uploadCtl = useUploadAttachment(() => mutate());
@@ -127,18 +133,18 @@ export function AttachmentsSection({ taskId, readOnly = false }: { taskId: strin
 
       {items.length === 0 ? (
         readOnly ? null : (
-        <button
-          type="button"
-          disabled={uploadCtl.isUploading}
-          onClick={() => fileInput.current?.click()}
-          className={cn(
-            'flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
-            dragging && 'border-primary/60 bg-primary/5 text-foreground',
-          )}
-        >
-          <Plus className="size-4" />
-          {t(k.attachments.dropHint)}
-        </button>
+          <button
+            type="button"
+            disabled={uploadCtl.isUploading}
+            onClick={() => fileInput.current?.click()}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
+              dragging && 'border-primary/60 bg-primary/5 text-foreground',
+            )}
+          >
+            <Plus className="size-4" />
+            {t(k.attachments.dropHint)}
+          </button>
         )
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
@@ -152,23 +158,23 @@ export function AttachmentsSection({ taskId, readOnly = false }: { taskId: strin
             />
           ))}
           {readOnly ? null : (
-          <button
-            type="button"
-            disabled={uploadCtl.isUploading}
-            onClick={() => fileInput.current?.click()}
-            aria-label={t(k.attachments.add)}
-            title={t(k.attachments.dropHint)}
-            className={cn(
-              'flex min-h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
-              dragging && 'border-primary/60 bg-primary/5',
-            )}
-          >
-            {uploadCtl.isUploading ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Plus className="size-5" />
-            )}
-          </button>
+            <button
+              type="button"
+              disabled={uploadCtl.isUploading}
+              onClick={() => fileInput.current?.click()}
+              aria-label={t(k.attachments.add)}
+              title={t(k.attachments.dropHint)}
+              className={cn(
+                'flex min-h-24 items-center justify-center rounded-lg border border-dashed text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground',
+                dragging && 'border-primary/60 bg-primary/5',
+              )}
+            >
+              {uploadCtl.isUploading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <Plus className="size-5" />
+              )}
+            </button>
           )}
         </div>
       )}
@@ -180,9 +186,7 @@ export function AttachmentsSection({ taskId, readOnly = false }: { taskId: strin
         onSelect={setGalleryIndex}
       />
 
-      {uploadCtl.error && (
-        <p className="text-sm text-destructive">{t(uploadCtl.error.message)}</p>
-      )}
+      {uploadCtl.error && <p className="text-sm text-destructive">{t(uploadCtl.error.message)}</p>}
 
       <input
         ref={fileInput}

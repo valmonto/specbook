@@ -1,3 +1,3 @@
-export * from './server-check.constants';
-export * from './server-check.types';
-export * from './server-check.producer';
+export * from './server-check.constants.js';
+export * from './server-check.types.js';
+export * from './server-check.producer.js';

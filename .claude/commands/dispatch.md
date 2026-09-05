@@ -96,12 +96,12 @@ gate that clears a merge — so scoping the local check loses no real coverage.*
 
 **Local verify — pick the scope by what changed:**
 
-| Change type | Local check | Database |
-| --- | --- | --- |
-| Web-only / leaf (`apps/web`, `apps/mobile`, `apps/e2e`) | `pnpm verify:affected` — web typecheck + lint + component tests, no DB/integration suites | skipped |
-| Backend-only (`apps/api`, `apps/worker`) | `pnpm verify:affected` — includes the DB-backed suites | run it with `DATABASE_URL` set |
+| Change type                                                            | Local check                                                                                                      | Database                       |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Web-only / leaf (`apps/web`, `apps/mobile`, `apps/e2e`)                | `pnpm verify:affected` — web typecheck + lint + component tests, no DB/integration suites                        | skipped                        |
+| Backend-only (`apps/api`, `apps/worker`)                               | `pnpm verify:affected` — includes the DB-backed suites                                                           | run it with `DATABASE_URL` set |
 | **Shared package** (`@pkg/contracts`, `database`, `server`, `locales`) | **escalate to the full `pnpm verify`** — it fans out to api/worker/web; `verify:affected` warns the DB is needed | run it with `DATABASE_URL` set |
-| Root-wide (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig*`) | full `pnpm verify` (`verify:affected` already fans out to all workspaces) | run it with `DATABASE_URL` set |
+| Root-wide (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig*`)       | full `pnpm verify` (`verify:affected` already fans out to all workspaces)                                        | run it with `DATABASE_URL` set |
 
 `pnpm verify:affected` (`scripts/verify/affected.mjs`) is the runner default: it
 resolves the workspaces changed since `origin/main` plus their transitive
@@ -145,6 +145,7 @@ teardown in four layers.
    before its own trap could drop it. It **refuses to remove the worktree it is
    running inside** (no self-delete) — so the parent runner still removes the
    CURRENT build's worktree (layer 3); this hook reaps finished/OTHER builds.
+
 2. **Dev stack — trap-based, not happy-path.** Boot the browser-check stack via
    `scripts/dev-stack.sh` (api + vite on a throwaway port set + a throwaway
    `sb_*` DB). It installs `trap cleanup EXIT INT TERM`, so the stack is killed
@@ -301,13 +302,12 @@ section), never buried in prose.
   holding 3 `approved` (merged-pending) tasks stops feeding the queue until
   the human merges. Nothing for you to do there — just wait.
 
-
 ## The merge / human-court gate — the one carve-out
 
 The rule above ("never transition to ready/approved/done; the dispatch, review and merge
 gates are the human's") holds for the **autonomous** loop choosing its own work. It does
 **not** forbid following a **direct, explicit owner instruction**: if the human tells you
 in-conversation to merge or close a specific PR on their own repo, execute it (the repo
-token can merge) — the gate prevents *unsupervised self-merging*, not obeying an order.
+token can merge) — the gate prevents _unsupervised self-merging_, not obeying an order.
 Still never fabricate the specbook task `approved`/`done` transition yourself — the API
 enforces that (agent→`done` = `invalidTransition`); the PR merging is what advances the task.

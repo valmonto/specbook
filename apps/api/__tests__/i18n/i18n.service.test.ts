@@ -1,7 +1,7 @@
 import { REQUEST } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
-import { I18nService } from '@/i18n/i18n.service';
+import { I18nService } from '@/i18n/i18n.service.js';
 
 /**
  * Example of testing a REQUEST-scoped Nest provider: supply a stub request and
@@ -10,7 +10,10 @@ import { I18nService } from '@/i18n/i18n.service';
  */
 async function serviceFor(acceptLanguage?: string): Promise<I18nService> {
   const moduleRef = await Test.createTestingModule({
-    providers: [I18nService, { provide: REQUEST, useValue: { headers: { 'accept-language': acceptLanguage } } }],
+    providers: [
+      I18nService,
+      { provide: REQUEST, useValue: { headers: { 'accept-language': acceptLanguage } } },
+    ],
   }).compile();
 
   return moduleRef.resolve(I18nService);

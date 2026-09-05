@@ -1,11 +1,7 @@
 import { vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { fireEvent, waitFor, within } from '@testing-library/react';
-import {
-  ApprovedCard,
-  PlainCard,
-  ReviewCard,
-} from '@/features/projects/components/v2/stage-cards';
+import { ApprovedCard, PlainCard, ReviewCard } from '@/features/projects/components/v2/stage-cards';
 import { render, screen } from '../../mocks/providers';
 import { deferred, installRadixDomShims, makeAction, makeTask } from './helpers';
 
@@ -68,9 +64,7 @@ const noop = () => {};
 describe('accordion body', () => {
   it('collapsed rows render no detail sections; expanded rows render them all', () => {
     const task = makeTask({ acceptanceCriteria: [{ text: 'One', done: false }] });
-    const { rerender } = render(
-      <PlainCard task={task} expanded={false} onToggle={noop} />,
-    );
+    const { rerender } = render(<PlainCard task={task} expanded={false} onToggle={noop} />);
     expect(screen.queryByText('tasks.taskContext')).not.toBeInTheDocument();
 
     rerender(<PlainCard task={task} expanded onToggle={noop} />);
@@ -189,9 +183,7 @@ describe('dependency editor on the board', () => {
     hooks.useTask.mockReturnValue({
       data: {
         ...task,
-        dependencies: [
-          { id: 'dep-1', title: 'Upstream task', status: 'ready' as const },
-        ],
+        dependencies: [{ id: 'dep-1', title: 'Upstream task', status: 'ready' as const }],
         dependents: [],
         comments: [],
       },
@@ -208,9 +200,7 @@ describe('dependency editor on the board', () => {
     expect(
       screen.getByRole('button', { name: 'tasks.detail.removeDependency' }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'tasks.detail.addDependency' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'tasks.detail.addDependency' })).toBeInTheDocument();
   });
 });
 
@@ -243,7 +233,11 @@ describe('optimistic inline save', () => {
     );
     hooks.useUpdateTask.mockReturnValue(update);
     render(
-      <PlainCard task={makeTask({ status: 'draft', context: 'Old context' })} expanded onToggle={noop} />,
+      <PlainCard
+        task={makeTask({ status: 'draft', context: 'Old context' })}
+        expanded
+        onToggle={noop}
+      />,
     );
 
     await userEvent.click(screen.getByText('Old context'));
@@ -293,16 +287,12 @@ describe('review card', () => {
     render(<ReviewCard task={reviewTask()} expanded onToggle={noop} />);
 
     await userEvent.click(screen.getByRole('button', { name: /^tasks\.actions\.approve$/ }));
-    await waitFor(() =>
-      expect(hooks.useTransitionTask.mock.results.length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(hooks.useTransitionTask.mock.results.length).toBeGreaterThan(0));
     expect(merge.execute).not.toHaveBeenCalled();
   });
 
   it('failing CI removes Approve & merge and states why', () => {
-    render(
-      <ReviewCard task={{ ...reviewTask(), ciState: 'failing' }} expanded onToggle={noop} />,
-    );
+    render(<ReviewCard task={{ ...reviewTask(), ciState: 'failing' }} expanded onToggle={noop} />);
     expect(
       screen.queryByRole('button', { name: /tasks\.actions\.approveMerge/ }),
     ).not.toBeInTheDocument();
@@ -323,11 +313,7 @@ describe('approved card (merge queue)', () => {
     expect(merge.execute).toHaveBeenCalledWith({ id: green.id });
 
     rerender(
-      <ApprovedCard
-        task={{ ...green, ciState: 'failing' }}
-        expanded={false}
-        onToggle={noop}
-      />,
+      <ApprovedCard task={{ ...green, ciState: 'failing' }} expanded={false} onToggle={noop} />,
     );
     expect(screen.getByRole('button', { name: 'tasks.actions.merge' })).toBeDisabled();
   });
@@ -343,9 +329,7 @@ describe('approved card (merge queue)', () => {
     });
     render(<ApprovedCard task={closed} expanded={false} onToggle={noop} />);
 
-    expect(
-      screen.queryByRole('button', { name: 'tasks.actions.merge' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'tasks.actions.merge' })).not.toBeInTheDocument();
     expect(screen.getByText('tasks.v2.prClosedHint')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'tasks.actions.markMerged' }));
     expect(transition.execute).toHaveBeenCalledWith({ id: closed.id, to: 'done' });

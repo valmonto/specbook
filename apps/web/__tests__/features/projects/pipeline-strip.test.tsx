@@ -16,10 +16,10 @@ describe('PipelineStrip', () => {
   });
 
   it('hides rare stages at zero and shows them when occupied', () => {
-    const { rerender } = render(
-      <PipelineStrip counts={{}} selected="ready" onSelect={vi.fn()} />,
-    );
-    expect(screen.queryByRole('button', { name: /tasks\.status\.blocked/ })).not.toBeInTheDocument();
+    const { rerender } = render(<PipelineStrip counts={{}} selected="ready" onSelect={vi.fn()} />);
+    expect(
+      screen.queryByRole('button', { name: /tasks\.status\.blocked/ }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /tasks\.status\.changes_requested/ }),
     ).not.toBeInTheDocument();
@@ -39,7 +39,9 @@ describe('PipelineStrip', () => {
 
   it('marks the selected stage pressed and reports clicks', async () => {
     const onSelect = vi.fn();
-    render(<PipelineStrip counts={{ needs_review: 1 }} selected="needs_review" onSelect={onSelect} />);
+    render(
+      <PipelineStrip counts={{ needs_review: 1 }} selected="needs_review" onSelect={onSelect} />,
+    );
 
     expect(screen.getByRole('button', { name: /tasks\.status\.needs_review/ })).toHaveAttribute(
       'aria-pressed',

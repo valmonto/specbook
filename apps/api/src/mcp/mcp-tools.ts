@@ -1,9 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import { k } from '@pkg/locales';
-// The MCP SDK is built against zod v3; the workspace is v4. Tool input schemas
-// use the aliased v3 so they match the SDK's ZodRawShape at runtime.
-import { z, type ZodRawShape } from 'zod-v3';
+import { z, type ZodRawShape } from 'zod';
 import {
   ATTACHMENT_KINDS,
   ENVIRONMENT_NAMES,
@@ -14,14 +12,14 @@ import {
   type McpScope,
   type McpToolName,
 } from '@pkg/contracts';
-import { AgentService } from '../agents';
-import { AttachmentsService } from '../attachments/attachments.service';
-import { EnvironmentService } from '../environments';
+import { AgentService } from '../agents/index.js';
+import { AttachmentsService } from '../attachments/attachments.service.js';
+import { EnvironmentService } from '../environments/index.js';
 import { GithubAppService } from '@pkg/server';
-import { OrgService } from '../org/org.service';
-import { ProjectService } from '../tasks/project.service';
-import { TaskService } from '../tasks/task.service';
-import { ResearchService } from '../research/research.service';
+import { OrgService } from '../org/org.service.js';
+import { ProjectService } from '../tasks/project.service.js';
+import { TaskService } from '../tasks/task.service.js';
+import { ResearchService } from '../research/research.service.js';
 
 export interface McpToolDef {
   name: string;

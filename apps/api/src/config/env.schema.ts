@@ -4,184 +4,203 @@ import { z } from 'zod';
  * Environment variable validation schema.
  * Validates all required and optional env vars at startup.
  */
-export const envSchema = z.object({
-  // Node environment
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+export const envSchema = z
+  .object({
+    // Node environment
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
-  // Database
-  // `.url()` alone accepts anything with a scheme — "A:" passes — so a typo'd
-  // connection string survives startup and only fails on the first query.
-  DATABASE_URL: z
-    .string()
-    .regex(/^postgres(ql)?:\/\/.+/, 'DATABASE_URL must be a valid postgres:// connection URL'),
-  DATABASE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(100).default(10),
+    // Database
+    // `.url()` alone accepts anything with a scheme — "A:" passes — so a typo'd
+    // connection string survives startup and only fails on the first query.
+    DATABASE_URL: z
+      .string()
+      .regex(/^postgres(ql)?:\/\/.+/, 'DATABASE_URL must be a valid postgres:// connection URL'),
+    DATABASE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(100).default(10),
 
-  // IAM / Auth
-  IAM_AUTH_PROVIDER: z.enum(['local']).default('local'),
-  // Seals values the database holds but no API may return (server SSH keys,
-  // environment secrets). 32 bytes, base64: `openssl rand -base64 32`.
-  APP_ENCRYPTION_KEY: z
-    .string()
-    .refine((v) => Buffer.from(v, 'base64').length === 32, 'APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
-  IAM_JWT_SECRET: z.string().min(32, 'IAM_JWT_SECRET must be at least 32 characters'),
-  IAM_COOKIE_SECRET: z.string().min(32, 'IAM_COOKIE_SECRET must be at least 32 characters'),
-  IAM_ACCESS_TOKEN_TTL: z.coerce.number().int().min(60).default(900), // 15 minutes in seconds
-  // Absolute session lifetime — how long between typed passwords. Security is
-  // carried by the short access token + revocation, not by forcing re-logins.
-  IAM_MAX_SESSION_TTL: z.coerce.number().int().min(3600).default(2_592_000), // 30 days in seconds
-  // How long a just-rotated refresh token still answers with its successor
-  // pair (idempotent refresh) — covers concurrent refreshes and lost responses.
-  IAM_REFRESH_GRACE_TTL: z.coerce.number().int().min(5).max(600).default(60),
+    // IAM / Auth
+    IAM_AUTH_PROVIDER: z.enum(['local']).default('local'),
+    // Seals values the database holds but no API may return (server SSH keys,
+    // environment secrets). 32 bytes, base64: `openssl rand -base64 32`.
+    APP_ENCRYPTION_KEY: z
+      .string()
+      .refine(
+        (v) => Buffer.from(v, 'base64').length === 32,
+        'APP_ENCRYPTION_KEY must be 32 bytes, base64-encoded',
+      ),
+    IAM_JWT_SECRET: z.string().min(32, 'IAM_JWT_SECRET must be at least 32 characters'),
+    IAM_COOKIE_SECRET: z.string().min(32, 'IAM_COOKIE_SECRET must be at least 32 characters'),
+    IAM_ACCESS_TOKEN_TTL: z.coerce.number().int().min(60).default(900), // 15 minutes in seconds
+    // Absolute session lifetime — how long between typed passwords. Security is
+    // carried by the short access token + revocation, not by forcing re-logins.
+    IAM_MAX_SESSION_TTL: z.coerce.number().int().min(3600).default(2_592_000), // 30 days in seconds
+    // How long a just-rotated refresh token still answers with its successor
+    // pair (idempotent refresh) — covers concurrent refreshes and lost responses.
+    IAM_REFRESH_GRACE_TTL: z.coerce.number().int().min(5).max(600).default(60),
 
-  // IAM Redis
-  IAM_REDIS_HOST: z.string().default('localhost'),
-  IAM_REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
-  IAM_REDIS_PASSWORD: z.string().optional(),
+    // IAM Redis
+    IAM_REDIS_HOST: z.string().default('localhost'),
+    IAM_REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+    IAM_REDIS_PASSWORD: z.string().optional(),
 
-  // BullMQ Redis (for job queues)
-  REDIS_HOST: z.string().default('localhost'),
-  REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
-  REDIS_PASSWORD: z.string().optional(),
+    // BullMQ Redis (for job queues)
+    REDIS_HOST: z.string().default('localhost'),
+    REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+    REDIS_PASSWORD: z.string().optional(),
 
-  // Registration posture. CLOSED by default: most products gate account
-  // creation behind onboarding/billing, and accounts otherwise come from the
-  // seed or from org admins (user:create). Flip to 'true' for open signup.
-  AUTH_REGISTRATION_ENABLED: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
+    // Registration posture. CLOSED by default: most products gate account
+    // creation behind onboarding/billing, and accounts otherwise come from the
+    // seed or from org admins (user:create). Flip to 'true' for open signup.
+    AUTH_REGISTRATION_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
 
-  // Behind a reverse proxy the client IP arrives in X-Forwarded-For; without
-  // this every request appears to come from the proxy and rate limiting
-  // throttles all users as one. Set 'true' in any proxied deployment.
-  TRUST_PROXY: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
+    // Behind a reverse proxy the client IP arrives in X-Forwarded-For; without
+    // this every request appears to come from the proxy and rate limiting
+    // throttles all users as one. Set 'true' in any proxied deployment.
+    TRUST_PROXY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
 
-  // Rate limiting (Redis-backed, so limits hold across replicas and restarts).
-  // Disabled under NODE_ENV=test.
-  // Optional dedicated Redis for the limiter. Unset → the IAM Redis is
-  // reused, which is fine until the limiter's per-request INCRs deserve
-  // isolation from session traffic. Counters are 60-second ephemera, so
-  // pointing this at a fresh instance later migrates nothing.
-  RATE_LIMIT_REDIS_HOST: z.string().optional(),
-  RATE_LIMIT_REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
-  RATE_LIMIT_REDIS_PASSWORD: z.string().optional(),
+    // Rate limiting (Redis-backed, so limits hold across replicas and restarts).
+    // Disabled under NODE_ENV=test.
+    // Optional dedicated Redis for the limiter. Unset → the IAM Redis is
+    // reused, which is fine until the limiter's per-request INCRs deserve
+    // isolation from session traffic. Counters are 60-second ephemera, so
+    // pointing this at a fresh instance later migrates nothing.
+    RATE_LIMIT_REDIS_HOST: z.string().optional(),
+    RATE_LIMIT_REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+    RATE_LIMIT_REDIS_PASSWORD: z.string().optional(),
 
-  // The global default budget. Stricter per-route limits are declared at the
-  // routes themselves with @Throttle (login/register: 10/min).
-  RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
+    // The global default budget. Stricter per-route limits are declared at the
+    // routes themselves with @Throttle (login/register: 10/min).
+    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1000).default(60_000),
+    // The spray limit on login/register, per IP per minute (see AUTH_THROTTLE).
+    // Production keeps the default; only a test stack that drives dozens of
+    // logins from one address (the e2e runner) has a reason to raise it.
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
 
-  // MCP endpoint (/mcp) for agent access via API keys. OFF by default like
-  // every capability here; keys are minted at /admin/api-keys, and each key's
-  // scopes decide which tools it can see.
-  // Object storage (rustfs locally; any S3-compatible endpoint in general).
-  STORAGE_ENDPOINT: z.string().url().default('http://localhost:9000'),
-  STORAGE_REGION: z.string().default('us-east-1'),
-  STORAGE_ACCESS_KEY_ID: z.string().default('specbook'),
-  STORAGE_SECRET_ACCESS_KEY: z.string().default('specbook'),
-  STORAGE_BUCKET: z.string().default('specbook-attachments'),
-  STORAGE_CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
-  MCP_ENABLED: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
+    // MCP endpoint (/mcp) for agent access via API keys. OFF by default like
+    // every capability here; keys are minted at /admin/api-keys, and each key's
+    // scopes decide which tools it can see.
+    // Object storage (rustfs locally; any S3-compatible endpoint in general).
+    STORAGE_ENDPOINT: z.string().url().default('http://localhost:9000'),
+    STORAGE_REGION: z.string().default('us-east-1'),
+    STORAGE_ACCESS_KEY_ID: z.string().default('specbook'),
+    STORAGE_SECRET_ACCESS_KEY: z.string().default('specbook'),
+    STORAGE_BUCKET: z.string().default('specbook-attachments'),
+    STORAGE_CORS_ALLOWED_ORIGINS: z.string().default('http://localhost:5173'),
+    MCP_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
 
-  // GitHub App ("Specbook") — all optional; absent means the GitHub
-  // connection feature is a no-op (settings card reports "not configured").
-  // The private key is the single server-side secret of the integration; it
-  // arrives base64-encoded (a PEM is multiline, .env files are not) and is
-  // decoded here. GITHUB_API_BASE exists so tests and local verification can
-  // point the whole integration at a stub server.
-  GITHUB_APP_ID: z.string().regex(/^\d+$/, 'GITHUB_APP_ID must be numeric').optional(),
-  GITHUB_APP_SLUG: z.string().optional(),
-  GITHUB_APP_PRIVATE_KEY: z
-    .string()
-    .optional()
-    .transform((v) => {
-      if (!v) return undefined;
-      return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
-    }),
-  GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
-  // NOTE: the provisioning template is deliberately NOT env config — it is an
-  // org setting (organization.github_template_repo), edited in the GitHub
-  // card, because a template must live in that org's installation grant.
-  // Signs webhook deliveries (independent of the App trio: the endpoint only
-  // needs this). Absent → the webhook endpoint refuses everything.
-  GITHUB_WEBHOOK_SECRET: z.string().min(16).optional(),
+    // GitHub App ("Specbook") — all optional; absent means the GitHub
+    // connection feature is a no-op (settings card reports "not configured").
+    // The private key is the single server-side secret of the integration; it
+    // arrives base64-encoded (a PEM is multiline, .env files are not) and is
+    // decoded here. GITHUB_API_BASE exists so tests and local verification can
+    // point the whole integration at a stub server.
+    GITHUB_APP_ID: z.string().regex(/^\d+$/, 'GITHUB_APP_ID must be numeric').optional(),
+    GITHUB_APP_SLUG: z.string().optional(),
+    GITHUB_APP_PRIVATE_KEY: z
+      .string()
+      .optional()
+      .transform((v) => {
+        if (!v) return undefined;
+        return v.includes('-----BEGIN') ? v : Buffer.from(v, 'base64').toString('utf8');
+      }),
+    GITHUB_API_BASE: z.string().url().default('https://api.github.com'),
+    // NOTE: the provisioning template is deliberately NOT env config — it is an
+    // org setting (organization.github_template_repo), edited in the GitHub
+    // card, because a template must live in that org's installation grant.
+    // Signs webhook deliveries (independent of the App trio: the endpoint only
+    // needs this). Absent → the webhook endpoint refuses everything.
+    GITHUB_WEBHOOK_SECRET: z.string().min(16).optional(),
 
-  // Telemetry — all optional; absent means the corresponding service is a
-  // no-op. SENTRY_DSN wakes backend error reporting, POSTHOG_KEY wakes
-  // product analytics and feature flags.
-  SENTRY_DSN: z.string().url().optional(),
-  POSTHOG_KEY: z.string().optional(),
-  POSTHOG_HOST: z.string().url().default('https://eu.i.posthog.com'),
+    // Telemetry — all optional; absent means the corresponding service is a
+    // no-op. SENTRY_DSN wakes backend error reporting, POSTHOG_KEY wakes
+    // product analytics and feature flags.
+    SENTRY_DSN: z.string().url().optional(),
+    POSTHOG_KEY: z.string().optional(),
+    POSTHOG_HOST: z.string().url().default('https://eu.i.posthog.com'),
 
-  // Server
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    // Server
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 
-  // Public base URL of the web app, used to build copyable links the API hands
-  // back (e.g. an invitation accept link). Dev default matches the Vite server.
-  WEB_APP_URL: z.string().url().default('http://localhost:5173'),
+    // Public base URL of the web app, used to build copyable links the API hands
+    // back (e.g. an invitation accept link). Dev default matches the Vite server.
+    // REQUIRED in production — enforced by the superRefine below — because a
+    // silent dev default there ships broken http://localhost:5173 invite links
+    // to real users. The dev/test default (matching the Vite server) is applied
+    // by the transform below.
+    WEB_APP_URL: z.string().url().optional(),
 
-  // Logging — show NestJS framework bootstrap logs (module/route mapping). Off by default.
-  LOG_FRAMEWORK: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
+    // Logging — show NestJS framework bootstrap logs (module/route mapping). Off by default.
+    LOG_FRAMEWORK: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
 
-  // Seeding (initial login). Optional in dev (safe defaults applied by the seeder),
-  // required in production — enforced by the superRefine below.
-  SEED_INITIAL_EMAIL: z.string().email('SEED_INITIAL_EMAIL must be a valid email').optional(),
-  SEED_INITIAL_PASSWORD: z
-    .string()
-    .min(8, 'SEED_INITIAL_PASSWORD must be at least 8 characters')
-    .optional(),
-  SEED_INITIAL_NAME: z.string().min(1).default('Initial Owner'),
-  SEED_INITIAL_ORG_NAME: z.string().min(1).default('Valmonto'),
-  /** When true, the API runs the seeder automatically on startup (handy for dev). */
-  SEED_ON_STARTUP: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((v) => v === 'true'),
-}).superRefine((env, ctx) => {
-  // GitHub App config is all-or-nothing: a partial set means a typo'd deploy,
-  // not a choice — fail loudly at startup rather than half-working at runtime.
-  const githubKeys = ['GITHUB_APP_ID', 'GITHUB_APP_SLUG', 'GITHUB_APP_PRIVATE_KEY'] as const;
-  const githubSet = githubKeys.filter((key) => env[key]);
-  if (githubSet.length > 0 && githubSet.length < githubKeys.length) {
-    for (const key of githubKeys) {
+    // Seeding (initial login). Optional in dev (safe defaults applied by the seeder),
+    // required in production — enforced by the superRefine below.
+    SEED_INITIAL_EMAIL: z.string().email('SEED_INITIAL_EMAIL must be a valid email').optional(),
+    SEED_INITIAL_PASSWORD: z
+      .string()
+      .min(8, 'SEED_INITIAL_PASSWORD must be at least 8 characters')
+      .optional(),
+    SEED_INITIAL_NAME: z.string().min(1).default('Initial Owner'),
+    SEED_INITIAL_ORG_NAME: z.string().min(1).default('Valmonto'),
+    /** When true, the API runs the seeder automatically on startup (handy for dev). */
+    SEED_ON_STARTUP: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+  })
+  .superRefine((env, ctx) => {
+    // GitHub App config is all-or-nothing: a partial set means a typo'd deploy,
+    // not a choice — fail loudly at startup rather than half-working at runtime.
+    const githubKeys = ['GITHUB_APP_ID', 'GITHUB_APP_SLUG', 'GITHUB_APP_PRIVATE_KEY'] as const;
+    const githubSet = githubKeys.filter((key) => env[key]);
+    if (githubSet.length > 0 && githubSet.length < githubKeys.length) {
+      for (const key of githubKeys) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} is required when any GITHUB_APP_* variable is set`,
+          });
+        }
+      }
+    }
+    if (env.GITHUB_APP_PRIVATE_KEY && !env.GITHUB_APP_PRIVATE_KEY.includes('-----BEGIN')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GITHUB_APP_PRIVATE_KEY'],
+        message: 'GITHUB_APP_PRIVATE_KEY must be a PEM or a base64-encoded PEM',
+      });
+    }
+
+    if (env.NODE_ENV !== 'production') return;
+
+    for (const key of ['SEED_INITIAL_EMAIL', 'SEED_INITIAL_PASSWORD', 'WEB_APP_URL'] as const) {
       if (!env[key]) {
         ctx.addIssue({
           code: 'custom',
           path: [key],
-          message: `${key} is required when any GITHUB_APP_* variable is set`,
+          message: `${key} is required in production`,
         });
       }
     }
-  }
-  if (env.GITHUB_APP_PRIVATE_KEY && !env.GITHUB_APP_PRIVATE_KEY.includes('-----BEGIN')) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['GITHUB_APP_PRIVATE_KEY'],
-      message: 'GITHUB_APP_PRIVATE_KEY must be a PEM or a base64-encoded PEM',
-    });
-  }
-
-  if (env.NODE_ENV !== 'production') return;
-
-  for (const key of ['SEED_INITIAL_EMAIL', 'SEED_INITIAL_PASSWORD'] as const) {
-    if (!env[key]) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [key],
-        message: `${key} is required in production`,
-      });
-    }
-  }
-});
+  })
+  .transform((env) => ({
+    ...env,
+    // Retain the dev/test default only outside production; production already
+    // failed validation above if WEB_APP_URL was unset, so this never masks it.
+    WEB_APP_URL: env.WEB_APP_URL ?? 'http://localhost:5173',
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

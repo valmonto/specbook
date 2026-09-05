@@ -32,12 +32,7 @@ export class ProjectMemberRepository {
   constructor(@Inject(DATABASE_CLIENT) private readonly dbClient: DatabaseClient) {}
 
   /** Idempotent grant: a repeat grant is a no-op, not a duplicate-key error. */
-  async grant(
-    orgId: string,
-    projectId: string,
-    userId: string,
-    grantedBy: string,
-  ): Promise<void> {
+  async grant(orgId: string, projectId: string, userId: string, grantedBy: string): Promise<void> {
     await this.dbClient.db
       .insert(projectMember)
       .values({ orgId, projectId, userId, grantedBy })
@@ -85,10 +80,7 @@ export class ProjectMemberRepository {
       // the same org, so a stale grant for a since-removed member yields no role.
       .innerJoin(
         organizationUser,
-        and(
-          eq(organizationUser.userId, projectMember.userId),
-          eq(organizationUser.orgId, orgId),
-        ),
+        and(eq(organizationUser.userId, projectMember.userId), eq(organizationUser.orgId, orgId)),
       )
       .where(and(eq(projectMember.orgId, orgId), eq(projectMember.projectId, projectId)))
       .orderBy(asc(projectMember.createdAt));

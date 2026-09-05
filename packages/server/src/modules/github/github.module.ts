@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GithubAppService } from './github-app.service';
+import { GithubAppService } from './github-app.service.js';
 
 /**
  * The GitHub App seam as a shared module: the api uses it for connection,

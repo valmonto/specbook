@@ -8,12 +8,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TaskService } from '@/tasks/task.service';
-import type { TaskRepository } from '@/tasks/task.repository';
-import type { ProjectRepository } from '@/tasks/project.repository';
-import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskService } from '@/tasks/task.service.js';
+import type { TaskRepository } from '@/tasks/task.repository.js';
+import type { ProjectRepository } from '@/tasks/project.repository.js';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -67,7 +67,9 @@ describe('TaskService — the status protocol', () => {
       findForOrg: vi.fn().mockResolvedValue({ data: [baseTask], total: 1 }),
       findById: vi.fn().mockResolvedValue(baseTask),
       update: vi.fn().mockImplementation(async (_id, _org, patch) => taskInState(patch)),
-      casUpdateStatus: vi.fn().mockImplementation(async (_id, _org, _from, patch) => taskInState(patch)),
+      casUpdateStatus: vi
+        .fn()
+        .mockImplementation(async (_id, _org, _from, patch) => taskInState(patch)),
       delete: vi.fn().mockResolvedValue(true),
       createComment: vi.fn().mockImplementation(async (data) => ({
         id: OTHER,
@@ -138,8 +140,8 @@ describe('TaskService — the status protocol', () => {
 
     it('mode=auto: an agent submission whose CI is ALREADY green approves and merges itself', async () => {
       projectRepo.findById!.mockResolvedValue(autoProject());
-      repo.findById!
-        .mockResolvedValueOnce(greenSubmission()) // transition's own read
+      repo
+        .findById!.mockResolvedValueOnce(greenSubmission()) // transition's own read
         .mockResolvedValue(greenSubmission({ status: 'approved' })); // merge's read
       // Status writes keep the task's live GitHub state (the generic mock
       // overlays plain baseTask, which would drop ciState).
@@ -217,8 +219,8 @@ describe('TaskService — the status protocol', () => {
         prUrl: 'https://github.com/x/y/pull/13',
         prNumber: 13,
       });
-      repo.findById!
-        .mockResolvedValueOnce(round2)
+      repo
+        .findById!.mockResolvedValueOnce(round2)
         .mockResolvedValue(greenSubmission({ ...round2, status: 'approved' }));
       repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) =>
         taskInState({ ...round2, ...patch }),
@@ -233,7 +235,11 @@ describe('TaskService — the status protocol', () => {
     });
 
     it('mode=auto: a green submission carrying an assumption flag auto-approves but is NOT auto-merged', async () => {
-      const flag = { what: 'used soft-delete', why: 'matches the module convention', howToVerify: 'check the repo query' };
+      const flag = {
+        what: 'used soft-delete',
+        why: 'matches the module convention',
+        howToVerify: 'check the repo query',
+      };
       projectRepo.findById!.mockResolvedValue(autoProject());
       repo.findById!.mockResolvedValue(greenSubmission({ assumptionFlag: flag }));
       // The transition write (→needs_review) and the auto-approve write both
@@ -330,7 +336,10 @@ describe('TaskService — the status protocol', () => {
       expect(repo.update).toHaveBeenCalledWith(
         TASK,
         ORG,
-        expect.objectContaining({ prNumber: 99, prUrl: 'https://github.com/valmonto/specbook/pull/99' }),
+        expect.objectContaining({
+          prNumber: 99,
+          prUrl: 'https://github.com/valmonto/specbook/pull/99',
+        }),
       );
     });
 
@@ -405,14 +414,18 @@ describe('TaskService — the status protocol', () => {
 
     it('an agent that does not hold the claim is refused', async () => {
       repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: USER }));
-      await expect(service.setAssumption(agent, 'agent', { id: TASK, ...flag })).rejects.toMatchObject({
+      await expect(
+        service.setAssumption(agent, 'agent', { id: TASK, ...flag }),
+      ).rejects.toMatchObject({
         message: 'tasks.errors.assumptionNotClaimant',
       });
     });
 
     it('a terminal task cannot be flagged', async () => {
       repo.findById!.mockResolvedValue(taskInState({ status: 'done', claimedBy: AGENT }));
-      await expect(service.setAssumption(agent, 'agent', { id: TASK, ...flag })).rejects.toMatchObject({
+      await expect(
+        service.setAssumption(agent, 'agent', { id: TASK, ...flag }),
+      ).rejects.toMatchObject({
         message: 'tasks.errors.terminalTask',
       });
     });
@@ -526,22 +539,22 @@ describe('TaskService — the status protocol', () => {
     it('rejects any caller not holding the claim — including nobody-claimed', async () => {
       repo.addCost = vi.fn();
       repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', claimedBy: USER }));
-      await expect(
-        service.reportCost(agent, { taskId: TASK, tokensIn: 1 }),
-      ).rejects.toMatchObject({ message: 'tasks.errors.costNotClaimant' });
+      await expect(service.reportCost(agent, { taskId: TASK, tokensIn: 1 })).rejects.toMatchObject({
+        message: 'tasks.errors.costNotClaimant',
+      });
 
       repo.findById!.mockResolvedValue(taskInState({ status: 'ready', claimedBy: null }));
-      await expect(
-        service.reportCost(agent, { taskId: TASK, tokensIn: 1 }),
-      ).rejects.toMatchObject({ message: 'tasks.errors.costNotClaimant' });
+      await expect(service.reportCost(agent, { taskId: TASK, tokensIn: 1 })).rejects.toMatchObject({
+        message: 'tasks.errors.costNotClaimant',
+      });
       expect(repo.addCost).not.toHaveBeenCalled();
     });
 
     it('rejects on terminal tasks', async () => {
       repo.findById!.mockResolvedValue(taskInState({ status: 'done', claimedBy: AGENT }));
-      await expect(service.reportCost(agent, { taskId: TASK, tokensIn: 1 })).rejects.toMatchObject(
-        { message: 'tasks.errors.terminalTask' },
-      );
+      await expect(service.reportCost(agent, { taskId: TASK, tokensIn: 1 })).rejects.toMatchObject({
+        message: 'tasks.errors.terminalTask',
+      });
     });
   });
 
@@ -574,9 +587,9 @@ describe('TaskService — the status protocol', () => {
   it('refuses a human-task ASSIGNEE (executor court) draft → done', async () => {
     repo.findById!.mockResolvedValue(taskInState({ isHumanTask: true, assignee: AGENT }));
     const assignee: ActiveUser = { ...agent };
-    await expect(
-      service.transition(assignee, 'user', { id: TASK, to: 'done' }),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.transition(assignee, 'user', { id: TASK, to: 'done' })).rejects.toThrow(
+      BadRequestException,
+    );
     expect(repo.casUpdateStatus).not.toHaveBeenCalled();
   });
 
@@ -612,9 +625,9 @@ describe('TaskService — the status protocol', () => {
       taskInState({ status: 'cancelled', isHumanTask: true, assignee: AGENT }),
     );
     const assignee: ActiveUser = { ...agent };
-    await expect(
-      service.transition(assignee, 'user', { id: TASK, to: 'done' }),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.transition(assignee, 'user', { id: TASK, to: 'done' })).rejects.toThrow(
+      BadRequestException,
+    );
     expect(repo.casUpdateStatus).not.toHaveBeenCalled();
   });
 
@@ -650,9 +663,9 @@ describe('TaskService — the status protocol', () => {
 
   it('refuses the human ready → in_progress — pulling work is the agent move', async () => {
     repo.findById!.mockResolvedValue(taskInState({ status: 'ready' }));
-    await expect(service.transition(human, 'user', { id: TASK, to: 'in_progress' })).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      service.transition(human, 'user', { id: TASK, to: 'in_progress' }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   // The design's central invariant: no self-approval.
@@ -965,9 +978,7 @@ describe('TaskService — the status protocol', () => {
     repo.findById!.mockImplementation(async (id: string) =>
       taskInState({ id, projectId: PROJECT }),
     );
-    repo.findProjectDependencyEdges!.mockResolvedValue([
-      { taskId: OTHER, dependsOnTaskId: TASK },
-    ]);
+    repo.findProjectDependencyEdges!.mockResolvedValue([{ taskId: OTHER, dependsOnTaskId: TASK }]);
     await expect(
       service.addDependency(human, { id: TASK, dependsOnTaskId: OTHER }),
     ).rejects.toThrow(BadRequestException);
@@ -1083,7 +1094,12 @@ describe('TaskService — the status protocol', () => {
 
     it('the assignee may submit their in-progress human task for review with a linked PR', async () => {
       repo.findById!.mockResolvedValue(
-        humanTask({ status: 'in_progress', claimedBy: AGENT, branch: 'feat/x', prUrl: 'https://gh/pr/1' }),
+        humanTask({
+          status: 'in_progress',
+          claimedBy: AGENT,
+          branch: 'feat/x',
+          prUrl: 'https://gh/pr/1',
+        }),
       );
       const res = await service.transition(member, 'user', { id: TASK, to: 'needs_review' });
       expect(res.status).toBe('needs_review');
@@ -1101,7 +1117,9 @@ describe('TaskService — the status protocol', () => {
     });
 
     it('the assignee cannot approve their own human task (not in their transition map)', async () => {
-      repo.findById!.mockResolvedValue(humanTask({ status: 'needs_review', prUrl: 'https://gh/pr/1' }));
+      repo.findById!.mockResolvedValue(
+        humanTask({ status: 'needs_review', prUrl: 'https://gh/pr/1' }),
+      );
       await expect(
         service.transition(member, 'user', { id: TASK, to: 'approved' }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -1124,7 +1142,10 @@ describe('TaskService — the status protocol', () => {
         ciState: 'passing',
       });
       repo.findById!.mockResolvedValue(green);
-      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) => ({ ...green, ...patch }));
+      repo.casUpdateStatus!.mockImplementation(async (_id, _org, _from, patch) => ({
+        ...green,
+        ...patch,
+      }));
 
       const res = await service.transition(human, 'user', { id: TASK, to: 'approved' });
       expect(res.status).toBe('approved');
@@ -1138,9 +1159,9 @@ describe('TaskService — the status protocol', () => {
         service.create(human, { projectId: PROJECT, title: 'T', assignee: OTHER }),
       ).rejects.toBeInstanceOf(BadRequestException);
       repo.findById!.mockResolvedValue(humanTask({ status: 'ready' }));
-      await expect(
-        service.update(human, { id: TASK, assignee: OTHER }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.update(human, { id: TASK, assignee: OTHER })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 
@@ -1159,8 +1180,13 @@ describe('TaskService — the status protocol', () => {
     });
 
     it('a merged PR advances the task to done and records a sync comment', async () => {
-      repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review', prNumber: 7, branch: 'feat/x' }));
-      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ number: 7, state: 'merged' });
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'needs_review', prNumber: 7, branch: 'feat/x' }),
+      );
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        number: 7,
+        state: 'merged',
+      });
       const res = await service.syncPr(human, { id: TASK });
       expect(res.status).toBe('done');
       expect(res.prState).toBe('merged');
@@ -1168,8 +1194,13 @@ describe('TaskService — the status protocol', () => {
     });
 
     it('a closed-unmerged PR is flagged, NOT completed', async () => {
-      repo.findById!.mockResolvedValue(taskInState({ status: 'needs_review', prNumber: 8, branch: 'feat/x' }));
-      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ number: 8, state: 'closed' });
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'needs_review', prNumber: 8, branch: 'feat/x' }),
+      );
+      (githubApp.getPullRequest as ReturnType<typeof vi.fn>).mockResolvedValue({
+        number: 8,
+        state: 'closed',
+      });
       const res = await service.syncPr(human, { id: TASK });
       expect(res.status).not.toBe('done');
       expect(res.prState).toBe('closed');
@@ -1177,7 +1208,9 @@ describe('TaskService — the status protocol', () => {
     });
 
     it('refuses to sync a task with no linked branch or PR', async () => {
-      repo.findById!.mockResolvedValue(taskInState({ status: 'in_progress', prNumber: null, branch: null }));
+      repo.findById!.mockResolvedValue(
+        taskInState({ status: 'in_progress', prNumber: null, branch: null }),
+      );
       await expect(service.syncPr(human, { id: TASK })).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );

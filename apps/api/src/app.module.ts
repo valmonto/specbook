@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { DatabaseModule } from '@pkg/database';
 import {
-  AppThrottlerGuard,
+  ThrottlingModule,
   StorageModule,
   EventsModule,
   GlobalExceptionFilter,
@@ -16,26 +16,26 @@ import {
   TelemetryModule,
   ThrottlerRedisStorage,
 } from '@pkg/server';
-import { AuthModule } from './auth/auth.module';
-import { UserModule } from './user/user.module';
-import { OrgModule } from './org/org.module';
-import { JobsModule } from './jobs';
-import { NotificationModule } from './notifications';
-import { TasksModule } from './tasks';
-import { ResearchModule } from './research';
-import { ServerModule } from './servers';
-import { EnvironmentModule } from './environments';
-import { AgentModule } from './agents';
-import { AttachmentsModule } from './attachments';
+import { AuthModule } from './auth/auth.module.js';
+import { UserModule } from './user/user.module.js';
+import { OrgModule } from './org/org.module.js';
+import { JobsModule } from './jobs/index.js';
+import { NotificationModule } from './notifications/index.js';
+import { TasksModule } from './tasks/index.js';
+import { ResearchModule } from './research/index.js';
+import { ServerModule } from './servers/index.js';
+import { EnvironmentModule } from './environments/index.js';
+import { AgentModule } from './agents/index.js';
+import { AttachmentsModule } from './attachments/index.js';
 import { isProjectScopedIdentity } from '@pkg/contracts';
-import type { SubjectResolvers } from './attachments/attachment.tokens';
-import { TaskRepository } from './tasks/task.repository';
-import { ApiKeyModule } from './api-key';
-import { InvitationModule } from './invitations';
-import { McpModule } from './mcp';
-import { I18nModule } from './i18n';
-import { SeedModule } from './seed/seed.module';
-import { validateEnv } from './config';
+import type { SubjectResolvers } from './attachments/attachment.tokens.js';
+import { TaskRepository } from './tasks/task.repository.js';
+import { ApiKeyModule } from './api-key/index.js';
+import { InvitationModule } from './invitations/index.js';
+import { McpModule } from './mcp/index.js';
+import { I18nModule } from './i18n/index.js';
+import { SeedModule } from './seed/seed.module.js';
+import { validateEnv } from './config/index.js';
 
 @Module({
   imports: [
@@ -60,6 +60,11 @@ import { validateEnv } from './config';
     // Redis is the IAM one unless RATE_LIMIT_REDIS_HOST points elsewhere;
     // counters are namespaced and ephemeral, so switching migrates nothing.
     ThrottlerModule.forRootAsync({
+      // Nest 12 dropped the deep `@nestjs/common/interfaces` export that
+      // throttler's emitted types import, so under NodeNext `imports` stops
+      // being optional (nestjs/throttler#2671). Harmless here; delete when
+      // #2672 ships.
+      imports: [],
       inject: [ConfigService, IAM_REDIS],
       useFactory: (config: ConfigService, iamRedis: Redis) => {
         const dedicatedHost = config.get<string>('RATE_LIMIT_REDIS_HOST');
@@ -142,15 +147,14 @@ import { validateEnv } from './config';
     InvitationModule,
     McpModule,
     SeedModule.forApp(),
+    // LAST on purpose: the global throttler guard must be scanned after the
+    // IAM guards so it keys by the verified user (see ThrottlingModule).
+    ThrottlingModule,
   ],
   controllers: [],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggerErrorInterceptor },
-    // Runs after the auth chain (imported modules register their guards
-    // first), so the tracker keys by VERIFIED userId — and a 429 still fires
-    // before any handler or bcrypt work.
-    { provide: APP_GUARD, useClass: AppThrottlerGuard },
   ],
 })
 export class AppModule {}

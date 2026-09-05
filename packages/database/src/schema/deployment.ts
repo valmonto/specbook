@@ -1,9 +1,9 @@
 import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { DEPLOYMENT_PHASES, DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '@pkg/contracts';
-import { pk } from './helpers';
-import { projectEnvironment } from './environment';
-import { user } from './user';
+import { pk } from './helpers.js';
+import { projectEnvironment } from './environment.js';
+import { user } from './user.js';
 
 /**
  * One build-and-deploy run of an environment. Rollback is just deploying an

@@ -46,7 +46,7 @@ function Slider({
       const stepped = Math.round((c - min) / step) * step + min;
       return Math.min(max, Math.max(min, stepped));
     },
-    [min, max, step]
+    [min, max, step],
   );
 
   const commit = React.useCallback(
@@ -55,14 +55,14 @@ function Slider({
       if (value == null) setInternal(v);
       onValueChange?.(v);
     },
-    [clampToStep, onValueChange, value]
+    [clampToStep, onValueChange, value],
   );
 
   // Shared value = thumb-centre offset in px (0..usable).
   const posX = useSharedValue(0);
   const pct = max > min ? (current - min) / (max - min) : 0;
   React.useEffect(() => {
-    posX.value = pct * usable;
+    posX.set(pct * usable);
   }, [pct, usable, posX]);
 
   const setFromX = React.useCallback(
@@ -71,7 +71,7 @@ function Slider({
       const ratio = Math.min(1, Math.max(0, (x - THUMB / 2) / usable));
       commit(min + ratio * (max - min));
     },
-    [usable, commit, min, max]
+    [usable, commit, min, max],
   );
 
   const pan = React.useMemo(
@@ -81,15 +81,15 @@ function Slider({
         // Move the thumb on the UI thread for immediate feedback; report the
         // (step-snapped) value back to JS. onBegin also handles tap-to-set.
         .onBegin((e) => {
-          posX.value = Math.min(usable, Math.max(0, e.x - THUMB / 2));
+          posX.set(Math.min(usable, Math.max(0, e.x - THUMB / 2)));
           scheduleOnRN(setFromX, e.x);
         })
         .onChange((e) => {
-          posX.value = Math.min(usable, Math.max(0, e.x - THUMB / 2));
+          posX.set(Math.min(usable, Math.max(0, e.x - THUMB / 2)));
           scheduleOnRN(setFromX, e.x);
         }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [disabled, usable, setFromX]
+    [disabled, usable, setFromX],
   );
 
   const onLayout = (e: LayoutChangeEvent) => setTrackW(e.nativeEvent.layout.width);
@@ -103,7 +103,8 @@ function Slider({
         onLayout={onLayout}
         className={cn('w-full justify-center', disabled && 'opacity-50', className)}
         style={{ height: THUMB }}
-        hitSlop={{ top: 12, bottom: 12 }}>
+        hitSlop={{ top: 12, bottom: 12 }}
+      >
         {/* Track */}
         <View className="bg-muted w-full rounded-full" style={{ height: TRACK_H }} />
         {/* Fill */}

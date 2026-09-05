@@ -124,7 +124,13 @@ function SearchPane({ onBack, onOpen }: { onBack: () => void; onOpen: (id: strin
           ))}
           <div ref={sentinel} />
           {hasMore ? (
-            <Button variant="ghost" size="sm" className="w-full" onClick={loadMore} disabled={isLoadingMore}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={loadMore}
+              disabled={isLoadingMore}
+            >
               {t(k.research.search.loadingMore)}
             </Button>
           ) : (

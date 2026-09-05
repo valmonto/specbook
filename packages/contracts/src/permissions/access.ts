@@ -1,4 +1,4 @@
-import type { OrganizationUserRole } from '../schemas/organization.schema';
+import type { OrganizationUserRole } from '../schemas/organization.schema.js';
 
 /**
  * The project-visibility rule, in one Zod-free place so both the API

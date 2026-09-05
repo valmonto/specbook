@@ -1,9 +1,9 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue, type JobsOptions } from 'bullmq';
-import { GITHUB_WEBHOOK_JOB_NAMES, GITHUB_WEBHOOK_QUEUE } from './github-webhook.constants';
-import type { GithubWebhookJobPayload } from './github-webhook.types';
-import { InjectLogger, PinoLogger } from '../../logging';
+import { GITHUB_WEBHOOK_JOB_NAMES, GITHUB_WEBHOOK_QUEUE } from './github-webhook.constants.js';
+import type { GithubWebhookJobPayload } from './github-webhook.types.js';
+import { InjectLogger, PinoLogger } from '../../logging/index.js';
 
 @Injectable()
 export class GithubWebhookProducer {

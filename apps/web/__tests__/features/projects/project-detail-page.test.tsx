@@ -127,8 +127,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'draft',
+            title: 'Draft one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done one',
+          }),
         ],
       },
     });
@@ -149,8 +159,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'draft',
+            title: 'Draft one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done one',
+          }),
         ],
       },
     });
@@ -170,8 +190,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'draft', title: 'Draft one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'draft',
+            title: 'Draft one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done one',
+          }),
         ],
       },
     });
@@ -201,8 +231,16 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', title: 'Bill one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: null, title: 'Untagged one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            title: 'Bill one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: null,
+            title: 'Untagged one',
+          }),
         ],
       },
     });
@@ -232,8 +270,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Live one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'in_progress',
+            title: 'Live one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done one',
+          }),
         ],
       },
     });
@@ -267,8 +315,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Live one' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done one' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'in_progress',
+            title: 'Live one',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done one',
+          }),
         ],
       },
     });
@@ -287,9 +345,24 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'done', title: 'Done A' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Done B' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000003', area: 'Billing', status: 'in_progress', title: 'Live C' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done A',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Done B',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000003',
+            area: 'Billing',
+            status: 'in_progress',
+            title: 'Live C',
+          }),
         ],
       },
     });
@@ -308,8 +381,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'in_progress', title: 'Keepme alpha' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Dropme beta' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'in_progress',
+            title: 'Keepme alpha',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Dropme beta',
+          }),
         ],
       },
     });
@@ -356,8 +439,18 @@ describe('ProjectDetailPage', () => {
       isLoading: false,
       data: {
         data: [
-          makeTask({ id: '11111111-0000-4000-8000-000000000001', area: 'Billing', status: 'done', title: 'Row A' }),
-          makeTask({ id: '11111111-0000-4000-8000-000000000002', area: 'Billing', status: 'done', title: 'Row B' }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000001',
+            area: 'Billing',
+            status: 'done',
+            title: 'Row A',
+          }),
+          makeTask({
+            id: '11111111-0000-4000-8000-000000000002',
+            area: 'Billing',
+            status: 'done',
+            title: 'Row B',
+          }),
         ],
       },
     });
@@ -371,9 +464,7 @@ describe('ProjectDetailPage', () => {
 
     await userEvent.click(screen.getByText('Row B'));
     expect(screen.getByRole('button', { name: 'Row B', expanded: true })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Row A', expanded: true }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Row A', expanded: true })).not.toBeInTheDocument();
   });
 
   it('an archived project renders the read-only banner and hides "+ New task"', () => {
@@ -383,7 +474,11 @@ describe('ProjectDetailPage', () => {
     });
     hooks.useProjectTasks.mockReturnValue({
       isLoading: false,
-      data: { data: [makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'done', title: 'Row A' })] },
+      data: {
+        data: [
+          makeTask({ id: '11111111-0000-4000-8000-000000000001', status: 'done', title: 'Row A' }),
+        ],
+      },
     });
     renderPage();
 
@@ -427,8 +522,6 @@ describe('ProjectDetailPage', () => {
       title: 'tasks.v2.untitled',
     });
     // The fresh row mounts with its title as an editable input.
-    await waitFor(() =>
-      expect(screen.getByDisplayValue('tasks.v2.untitled')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByDisplayValue('tasks.v2.untitled')).toBeInTheDocument());
   });
 });

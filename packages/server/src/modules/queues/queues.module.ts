@@ -1,18 +1,18 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DEFAULT_JOB_OPTIONS } from './queues.config';
-import { EXAMPLE_QUEUE, ExampleProducer } from './example';
-import { AGENT_LIFECYCLE_QUEUE, AgentLifecycleProducer } from './agent-lifecycle';
-import { AGENT_SWEEP_QUEUE } from './agent-sweep';
-import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep';
-import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook';
-import { SERVER_CHECK_QUEUE, ServerCheckProducer } from './server-check';
+import { DEFAULT_JOB_OPTIONS } from './queues.config.js';
+import { EXAMPLE_QUEUE, ExampleProducer } from './example/index.js';
+import { AGENT_LIFECYCLE_QUEUE, AgentLifecycleProducer } from './agent-lifecycle/index.js';
+import { AGENT_SWEEP_QUEUE } from './agent-sweep/index.js';
+import { ATTACHMENTS_SWEEP_QUEUE } from './attachments-sweep/index.js';
+import { GITHUB_WEBHOOK_QUEUE, GithubWebhookProducer } from './github-webhook/index.js';
+import { SERVER_CHECK_QUEUE, ServerCheckProducer } from './server-check/index.js';
 import {
   ENVIRONMENT_PROVISION_QUEUE,
   EnvironmentProvisionProducer,
-} from './environment-provision';
-import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment';
+} from './environment-provision/index.js';
+import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment/index.js';
 
 /**
  * Shared queues module.
@@ -56,7 +56,14 @@ import { DEPLOYMENT_QUEUE, DeploymentProducer } from './deployment';
     BullModule.registerQueue({ name: ENVIRONMENT_PROVISION_QUEUE.name }),
     BullModule.registerQueue({ name: DEPLOYMENT_QUEUE.name }),
   ],
-  providers: [ExampleProducer, GithubWebhookProducer, ServerCheckProducer, EnvironmentProvisionProducer, DeploymentProducer, AgentLifecycleProducer],
+  providers: [
+    ExampleProducer,
+    GithubWebhookProducer,
+    ServerCheckProducer,
+    EnvironmentProvisionProducer,
+    DeploymentProducer,
+    AgentLifecycleProducer,
+  ],
   exports: [
     BullModule,
     ExampleProducer,

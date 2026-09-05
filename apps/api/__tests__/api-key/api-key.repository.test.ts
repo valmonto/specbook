@@ -1,12 +1,7 @@
-import {
-  createDatabaseClient,
-  apiKey,
-  user,
-  type DatabaseClient,
-} from '@pkg/database';
+import { createDatabaseClient, apiKey, user, type DatabaseClient } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { ApiKeyRepository } from '@/api-key/api-key.repository';
+import { ApiKeyRepository } from '@/api-key/api-key.repository.js';
 
 /**
  * touchLastUsed is fire-and-forget, but it must still HIT THE DATABASE. A

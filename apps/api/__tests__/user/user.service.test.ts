@@ -4,8 +4,8 @@ import { FakeLogger } from '@pkg/testing';
 import * as bcrypt from 'bcryptjs';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserService } from '@/user/user.service';
-import type { UserRepository } from '@/user/user.repository';
+import { UserService } from '@/user/user.service.js';
+import type { UserRepository } from '@/user/user.repository.js';
 
 const ORG = 'org-1';
 const OTHER_ORG = 'org-2';
@@ -162,9 +162,9 @@ describe('UserService', () => {
     it('refuses an OWNER changing their own role', async () => {
       repository.findUserInOrg!.mockResolvedValue({ ...ownerRecord, id: owner.userId });
 
-      await expect(
-        service.updateUser(owner, { id: owner.userId, role: 'MEMBER' }),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.updateUser(owner, { id: owner.userId, role: 'MEMBER' })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('lets an OWNER change their own name', async () => {

@@ -5,6 +5,8 @@ import type {
   DeleteServerResponse,
   ListServersRequest,
   ListServersResponse,
+  ServerEnvironmentsRequest,
+  ServerEnvironmentsResponse,
   TestServerRequest,
   TestServerResponse,
   UpdateServerRequest,
@@ -23,4 +25,6 @@ export const serversApi = {
     http.delete(`/api/servers/${dto.id}`),
   test: (dto: TestServerRequest): Promise<TestServerResponse> =>
     http.post(`/api/servers/${dto.id}/test`, {}),
+  environments: (dto: ServerEnvironmentsRequest): Promise<ServerEnvironmentsResponse> =>
+    http.get(`/api/servers/${dto.id}/environments`),
 };

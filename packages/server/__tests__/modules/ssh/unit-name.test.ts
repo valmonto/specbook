@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataPlaneUnitName } from '../../../src/modules/ssh/unit-name';
+import { dataPlaneUnitName } from '../../../src/modules/ssh/unit-name.js';
 
 /**
  * The unit name is spliced verbatim into SQL identifiers and container names

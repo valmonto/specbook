@@ -7,7 +7,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { OrgRepository } from '@/org/org.repository';
+import { OrgRepository } from '@/org/org.repository.js';
 
 /**
  * The GitHub installation column is the tenancy boundary of the whole

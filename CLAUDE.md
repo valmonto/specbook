@@ -5,7 +5,10 @@ agent-built features out, agents connect via the MCP endpoint. Built from the
 valmatic template; its conventions apply unchanged.
 
 pnpm monorepo (valmatic-descended). `apps/{api,web,worker,mobile,e2e}`,
-`packages/{contracts,database,server,locales,utils,testing,vitest-config,eslint-config,tsconfig}`.
+`packages/{contracts,database,server,locales,utils,testing,vitest-config,tsconfig}`.
+Lint is oxlint, configured once in the root `.oxlintrc.json` (type-aware on the
+Nest trees); there is no per-workspace lint config to keep in sync. Formatting
+is oxfmt (`.oxfmtrc.json`): `pnpm format` / `pnpm format:check`.
 Every workspace has a README that explains it; `packages/README.md` is the index.
 `GAPS.md` is the honest list of what is missing.
 
@@ -79,6 +82,8 @@ test coverage.
 
 Integration tests (`describeIntegration`) run only when `DATABASE_URL` is set;
 without a database they skip silently, so a green run proves less. CI sets one.
+The in-process pipeline suite (`describeStack`, `apps/api/__tests__/pipeline`)
+additionally needs `IAM_REDIS_HOST`; CI provides a Redis service for it.
 The test step is serialized on purpose (api and worker suites share the test
 database) — do not re-parallelize it without giving each suite its own database.
 
@@ -95,6 +100,12 @@ spans the whole repo belongs here.
   `@Permissions`/`@Roles`. `systemRole` (USER|MODERATOR|ADMIN) is platform
   standing and drives `@SystemRoles` only. A system role opens dedicated
   routes (`/admin/*`); it never widens an org-scoped route.
+- **Relative imports carry a `.js` suffix everywhere** (`./x.js`,
+  `./dir/index.js`, and `@/x.js` in app tests). Every package and both Nest
+  apps are ESM under NodeNext resolution; the suffix is the compiled name and
+  tooling maps it to the `.ts` source. (`apps/web` and `apps/mobile` bundle
+  with Vite/Metro and keep bundler resolution.) See
+  `packages/tsconfig/README.md`.
 - **Dependency versions live in the `pnpm-workspace.yaml` catalog.** Never
   `pnpm add` a version into a package.json directly — add an exact pin to the
   catalog section it belongs to and reference it as `catalog:`.
@@ -136,7 +147,6 @@ The user stops the runner by saying so.
 The specbook MCP server is registered at user scope on this machine — the
 tools (list_tasks, claim_task, list_attachments, …) are already connected.
 
-
 ## Working with the human operator (agent conduct)
 
 Applies to any coding agent (including the specbook runner) acting on this repo. The
@@ -144,9 +154,9 @@ Applies to any coding agent (including the specbook runner) acting on this repo.
 auto-inherit template changes, so this block is copied into each repo on purpose.
 
 - **Act on an explicit instruction — don't hand it back.** When the owner explicitly tells
-  you to do a *reversible* action on their own repo (merge a green PR, close a PR,
+  you to do a _reversible_ action on their own repo (merge a green PR, close a PR,
   re-trigger CI), do it — the repo token's `PRs` scope can merge. The "human-gated"
-  defaults are for the *unattended* runner choosing its own work; they never override a
+  defaults are for the _unattended_ runner choosing its own work; they never override a
   direct, in-conversation owner instruction. (Genuinely irreversible/destructive actions
   still get confirmed first.)
 - **The user's ground truth beats a blind API.** The installation token here lacks

@@ -7,13 +7,7 @@ import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
-function Bubble({
-  message,
-  showDocMarker,
-}: {
-  message: ResearchMessage;
-  showDocMarker: boolean;
-}) {
+function Bubble({ message, showDocMarker }: { message: ResearchMessage; showDocMarker: boolean }) {
   const { t } = useTranslation();
   const isUser = message.authorType === 'user';
   return (

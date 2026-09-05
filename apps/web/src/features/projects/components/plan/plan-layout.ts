@@ -243,12 +243,7 @@ export function buildPlanLayout(tasks: Task[], opts: PlanLayoutOpts = {}): PlanL
 }
 
 /** Clamp a dragged card so it can be nudged but never leaves its own lane. */
-export function clampToLane(
-  rect: LaneRect,
-  x: number,
-  y: number,
-  cardH: number,
-): PlanPoint {
+export function clampToLane(rect: LaneRect, x: number, y: number, cardH: number): PlanPoint {
   return {
     x: Math.max(rect.left + 12, Math.min(rect.left + rect.width - PLAN_NODE_W - 12, x)),
     y: Math.max(rect.top + LANE_TOP_PAD - 8, Math.min(rect.top + rect.height - cardH - 10, y)),

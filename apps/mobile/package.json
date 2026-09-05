@@ -91,13 +91,12 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
-    "@pkg/eslint-config": "workspace:*",
     "@pkg/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "catalog:mobile",
     "@types/react": "catalog:mobile",
     "eslint": "catalog:mobile",
     "eslint-config-expo": "catalog:mobile",
     "tailwindcss": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:ts6"
   }
 }

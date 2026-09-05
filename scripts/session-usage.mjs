@@ -46,7 +46,15 @@
  * Subagent context comes from CLAUDE_CODE_CHILD_SESSION + CLAUDE_CODE_SESSION_ID
  * (set by Claude Code); tests drive the same knobs.
  */
-import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createInterface } from 'node:readline';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';

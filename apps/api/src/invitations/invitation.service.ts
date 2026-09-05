@@ -25,9 +25,13 @@ import {
   type ListInvitationsResponse,
   type PreviewInvitationResponse,
 } from '@pkg/contracts';
-import { UserRepository } from '../user/user.repository';
-import { NotificationService } from '../notifications/notification.service';
-import { InvitationRepository, type InvitationRecord, type InvitationWithOrg } from './invitation.repository';
+import { UserRepository } from '../user/user.repository.js';
+import { NotificationService } from '../notifications/notification.service.js';
+import {
+  InvitationRepository,
+  type InvitationRecord,
+  type InvitationWithOrg,
+} from './invitation.repository.js';
 
 const { BCRYPT_ROUNDS } = SECURITY_CONFIG;
 

@@ -11,7 +11,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { AgentRepository } from '@/agents/agent.repository';
+import { AgentRepository } from '@/agents/agent.repository.js';
 
 /**
  * The tenancy boundary on agents, proven against the real database: listing
@@ -84,7 +84,12 @@ describeIntegration('AgentRepository — two-tenant boundary', () => {
   });
 
   it('update is org-keyed: another org cannot write the row', async () => {
-    const mine = await repo.create({ orgId: orgA, name: 'a-runner', apiKeyId: keyA, kind: 'external' });
+    const mine = await repo.create({
+      orgId: orgA,
+      name: 'a-runner',
+      apiKeyId: keyA,
+      kind: 'external',
+    });
     expect(await repo.update(mine.id, orgB, { status: 'error' })).toBeNull();
     const [still] = await repo.listForOrg(orgA);
     expect(still!.status).toBe('offline');

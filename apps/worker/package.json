@@ -1,14 +1,14 @@
 {
   "name": "@pkg/worker",
+  "type": "module",
   "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "start": "node dist/main",
-    "start:prod": "node dist/main",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "test": "vitest run",
@@ -38,17 +38,14 @@
   "devDependencies": {
     "@nestjs/cli": "catalog:",
     "@nestjs/testing": "catalog:",
-    "@pkg/eslint-config": "workspace:*",
     "@pkg/testing": "workspace:*",
     "@pkg/tsconfig": "workspace:*",
     "@pkg/vitest-config": "workspace:*",
     "@types/node": "catalog:",
-    "eslint": "catalog:",
     "fast-check": "catalog:",
     "fastify": "catalog:",
-    "globals": "catalog:",
     "pino-pretty": "catalog:",
-    "typescript": "catalog:",
+    "typescript": "catalog:ts6",
     "vitest": "catalog:"
   }
 }

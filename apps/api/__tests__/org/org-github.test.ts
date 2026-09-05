@@ -4,8 +4,8 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OrgService } from '@/org/org.service';
-import type { OrgRepository } from '@/org/org.repository';
+import { OrgService } from '@/org/org.service.js';
+import type { OrgRepository } from '@/org/org.repository.js';
 import type { GithubAppService } from '@pkg/server';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
@@ -47,7 +47,9 @@ describe('OrgService — GitHub connection', () => {
     github = {
       enabled: true,
       templateRepo: 'valmonto/valmatic',
-      installUrl: vi.fn().mockReturnValue('https://github.com/apps/valmonto-specbook/installations/new'),
+      installUrl: vi
+        .fn()
+        .mockReturnValue('https://github.com/apps/valmonto-specbook/installations/new'),
       getInstallation: vi
         .fn()
         .mockResolvedValue({ id: 777, accountLogin: 'valmonto', canCreateRepos: true }),

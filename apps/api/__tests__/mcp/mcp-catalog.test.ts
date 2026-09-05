@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { MCP_SCOPES, MCP_TOOLS, type McpToolDescriptor } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
-import type { AgentService } from '@/agents';
-import { McpTools } from '@/mcp/mcp-tools';
+import type { AgentService } from '@/agents/index.js';
+import { McpTools } from '@/mcp/mcp-tools.js';
 import type { GithubAppService } from '@pkg/server';
-import type { OrgService } from '@/org/org.service';
-import type { ProjectService } from '@/tasks/project.service';
-import type { TaskService } from '@/tasks/task.service';
-import type { ResearchService } from '@/research/research.service';
-import type { AttachmentsService } from '@/attachments/attachments.service';
-import type { EnvironmentService } from '@/environments';
+import type { OrgService } from '@/org/org.service.js';
+import type { ProjectService } from '@/tasks/project.service.js';
+import type { TaskService } from '@/tasks/task.service.js';
+import type { ResearchService } from '@/research/research.service.js';
+import type { AttachmentsService } from '@/attachments/attachments.service.js';
+import type { EnvironmentService } from '@/environments/index.js';
 
 /**
  * The contracts descriptors are what the key-creation UI shows the human;

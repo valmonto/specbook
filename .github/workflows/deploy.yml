@@ -37,8 +37,23 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # The in-process pipeline suite (describeStack) boots the whole api —
+      # sessions, throttling and queues all need Redis. Without it that suite
+      # skips and a framework change to guards/filters goes unproven.
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       DATABASE_URL: postgresql://valmatic:valmatic@localhost:5432/valmatic_test
+      IAM_REDIS_HOST: 127.0.0.1
+      IAM_REDIS_PORT: 6379
 
     steps:
       - uses: actions/checkout@v4
@@ -154,6 +169,14 @@ jobs:
               echo "MISMATCH: checkout is $(git rev-parse HEAD), this run is ${DEPLOY_SHA}"
               exit 1
             fi
+            # Build identity for /health. Read from the tree that is ACTUALLY
+            # being built (after the reset above), never from the workflow's
+            # notion of the commit: if the two ever disagree the image knows
+            # and /health will say so (that is the point: a green deploy that
+            # shipped the old build must be diagnosable from outside).
+            export GIT_SHA=$(git rev-parse HEAD)
+            export BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            echo "Building $GIT_SHA at $BUILT_AT"
             # --wait blocks until services are healthy and exits non-zero if any
             # container is unhealthy or crash-looping (so a bad deploy is RED, not a
             # silently-green deploy hiding a rebooting api). On failure, dump status +
@@ -170,3 +193,15 @@ jobs:
               exit 1
             fi
             echo "Deploy healthy."
+            # Prove the running api is the build we just made, not a survivor.
+            # The container's own GIT_SHA is baked in at build time, so the
+            # expected value is passed in separately. `node` runs in the image
+            # (the host may not have curl/jq).
+            if ! docker compose -f compose.staging.yml exec -T -e EXPECTED_SHA="$GIT_SHA" api node -e "
+              fetch('http://127.0.0.1:3000/health').then(r => r.json()).then(h => {
+                console.log('running sha=' + h.sha + ' uptime=' + h.uptime + 's');
+                if (h.sha !== process.env.EXPECTED_SHA) { console.error('expected ' + process.env.EXPECTED_SHA); process.exit(1); }
+              })"; then
+              echo "===== DEPLOYED CODE DOES NOT MATCH THE SHA JUST BUILT ====="
+              exit 1
+            fi

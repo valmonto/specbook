@@ -118,19 +118,21 @@ describe('GithubAppService', () => {
     const service = configured();
     const http = { get: vi.fn(), post: vi.fn() };
     Object.assign(service, { http });
-    http.post
-      .mockResolvedValueOnce({ data: { token: 'ghs_admin' } })
-      .mockResolvedValueOnce({
-        data: {
-          id: 99,
-          full_name: 'valmonto/bare',
-          html_url: 'https://github.com/valmonto/bare',
-          private: true,
-          default_branch: 'main',
-        },
-      });
+    http.post.mockResolvedValueOnce({ data: { token: 'ghs_admin' } }).mockResolvedValueOnce({
+      data: {
+        id: 99,
+        full_name: 'valmonto/bare',
+        html_url: 'https://github.com/valmonto/bare',
+        private: true,
+        default_branch: 'main',
+      },
+    });
 
-    await service.createProjectRepo(777, { owner: 'valmonto', name: 'bare', templateFullName: null });
+    await service.createProjectRepo(777, {
+      owner: 'valmonto',
+      name: 'bare',
+      templateFullName: null,
+    });
     expect(http.post).toHaveBeenNthCalledWith(
       2,
       '/orgs/valmonto/repos',
@@ -232,7 +234,9 @@ describe('GithubAppService', () => {
     expect(http.post).toHaveBeenCalledWith(
       '/app/installations/777/access_tokens',
       {},
-      expect.objectContaining({ headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Bearer /) }) }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Bearer /) }),
+      }),
     );
     expect(http.get).toHaveBeenCalledWith(
       '/installation/repositories',

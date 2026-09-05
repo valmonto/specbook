@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCiFailure, type CiJob } from '../../../src/modules/github/ci-classify';
+import { classifyCiFailure, type CiJob } from '../../../src/modules/github/ci-classify.js';
 
 const job = (name: string, conclusion: string, steps: Array<[string, string]> = []): CiJob => ({
   name,
@@ -61,10 +61,7 @@ describe('classifyCiFailure', () => {
   it('a hard failure alongside a cancelled job is NOT retryable', () => {
     const c = classifyCiFailure({
       runConclusion: 'failure',
-      jobs: [
-        job('verify', 'failure', [['Run tests', 'failure']]),
-        job('e2e', 'cancelled'),
-      ],
+      jobs: [job('verify', 'failure', [['Run tests', 'failure']]), job('e2e', 'cancelled')],
     });
     expect(c).toBeNull();
   });

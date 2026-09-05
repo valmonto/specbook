@@ -9,7 +9,7 @@ import {
 } from '@pkg/database';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
+import { TaskRepository } from '@/tasks/task.repository.js';
 
 /**
  * The task `area` tag on the read/write path: a free-text feature label that
@@ -101,7 +101,12 @@ describeIntegration('TaskRepository — the area tag and distinct-areas read', (
   });
 
   it('distinctAreas is org-scoped: a foreign org sees nothing', async () => {
-    await repo.create({ projectId: projectA, title: 'secret area', area: 'Billing', createdBy: ownerA });
+    await repo.create({
+      projectId: projectA,
+      title: 'secret area',
+      area: 'Billing',
+      createdBy: ownerA,
+    });
 
     // Org B reading org A's project id resolves no areas (scoped through the
     // owning project), and its own empty project resolves none either.

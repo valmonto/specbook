@@ -9,6 +9,22 @@ packages:
 # found ()"). Pin until NativeWind v5 catches up to newer lightningcss.
 overrides:
   lightningcss: 1.30.1
+  # @nestjs/platform-fastify pins fastify EXACTLY (5.12.1 at v12.0.1), so a
+  # catalog bump alone would leave the adapter's instance unpatched next to a
+  # second copy of ours. Forcing one version here keeps a single Fastify and
+  # lets security patches (5.12.2 fixed four advisories) reach the running
+  # server. Keep this equal to the catalog pin below; drop it if platform-fastify
+  # ever moves to a range.
+  fastify: 5.12.3
+
+# @nestjs/throttler 6.5.0 declares peers up to ^11 while its runtime is what
+# upstream ships as v12-compatible (see the catalog comment). Acknowledge the
+# label so the install stays warning-free and the exception is greppable.
+# REMOVE when @nestjs/throttler >= 6.5.1 is on npm.
+peerDependencyRules:
+  allowedVersions:
+    '@nestjs/throttler>@nestjs/common': '12'
+    '@nestjs/throttler>@nestjs/core': '12'
 
 # ---------------------------------------------------------------------------
 # Catalog — single source of truth for dependency versions across the
@@ -21,68 +37,65 @@ overrides:
 #   • E2E                 — apps/e2e
 # ---------------------------------------------------------------------------
 catalog:
-  '@aws-sdk/client-s3': 3.1063.0
+  '@aws-sdk/client-s3': 3.1125.0
   ssh2: 1.17.0
-  '@types/ssh2': 1.15.5
-  '@aws-sdk/s3-request-presigner': 3.1063.0
+  '@types/ssh2': 1.15.6
+  '@aws-sdk/s3-request-presigner': 3.1125.0
   # ═══════════════════════════════════════════════════════════════════════
   #  REPO TOOLING  (root devDependencies)
   #  Release automation, changelog, git hooks, commit linting, formatting.
   # ═══════════════════════════════════════════════════════════════════════
-  '@commitlint/cli': 21.0.2
-  '@commitlint/config-conventional': 21.0.2
+  '@commitlint/cli': 21.2.2
+  '@commitlint/config-conventional': 21.2.2
   git-cliff: 2.13.1
   husky: 9.1.7
-  prettier: 3.8.4
-  release-it: 20.2.0
+  oxfmt: 0.66.0
+  release-it: 21.0.2
 
   # ═══════════════════════════════════════════════════════════════════════
   #  SHARED TOOLCHAIN  (TS / lint / test — used by every package)
   # ═══════════════════════════════════════════════════════════════════════
-  typescript: 6.0.3
-  typescript-eslint: 8.60.1
-  eslint: 10.4.1
-  '@eslint/js': 10.0.1
-  eslint-config-prettier: 10.1.8
-  eslint-plugin-prettier: 5.5.6
-  eslint-plugin-react-hooks: 7.1.1
-  eslint-plugin-boundaries: 6.0.2
-  globals: 17.6.0
-  '@types/node': 25.9.2
-  vitest: 4.1.8
-  '@vitest/coverage-v8': 4.1.8
-  tsdown: 0.22.2 # library bundler for packages/*
+  typescript: 7.0.2
+  oxlint: 1.81.0
+  oxlint-tsgolint: 7.0.2001 # type-aware rules on the TS 7 engine
+  '@types/node': 26.4.1
+  vitest: 5.0.0
+  '@vitest/coverage-v8': 5.0.0
+  tsdown: 0.22.14 # library bundler for packages/*
 
   # ═══════════════════════════════════════════════════════════════════════
   #  SHARED RUNTIME  (imported by both frontend and backend app code)
   # ═══════════════════════════════════════════════════════════════════════
-  axios: 1.17.0
-  zod: 4.4.3
+  axios: 1.20.0
+  zod: 4.5.4
 
   # ═══════════════════════════════════════════════════════════════════════
   #  BACKEND  (apps/api, apps/worker, packages/server, packages/database)
   # ═══════════════════════════════════════════════════════════════════════
 
   # NestJS + Fastify
-  '@nestjs/common': 11.1.26
-  '@nestjs/core': 11.1.26
-  '@nestjs/cli': 11.0.23
-  '@nestjs/config': 4.0.4
-  '@nestjs/event-emitter': 3.1.0
-  '@nestjs/jwt': 11.0.2
-  '@nestjs/platform-fastify': 11.1.26
-  '@nestjs/testing': 11.1.26
-  '@fastify/cookie': 11.0.2
-  '@fastify/helmet': 13.1.0
+  '@nestjs/common': 12.0.1
+  '@nestjs/core': 12.0.1
+  '@nestjs/cli': 12.0.0
+  '@nestjs/config': 12.0.0
+  '@nestjs/event-emitter': 12.0.0
+  '@nestjs/jwt': 12.0.1
+  '@nestjs/platform-fastify': 12.0.1
+  '@nestjs/testing': 12.0.1
+  '@fastify/cookie': 11.1.2
+  '@fastify/helmet': 13.1.1
+  # 6.5.0 IS the v12 runtime: upstream's v12 change (nestjs/throttler#2670)
+  # altered only the peer range and is unpublished. The peerDependencyRules
+  # block above acknowledges the stale label; drop both when 6.5.1 ships.
   '@nestjs/throttler': 6.5.0
-  fastify: 5.8.5
+  fastify: 5.12.3
   reflect-metadata: 0.2.2
   rxjs: 7.8.2
 
   # Queues / cache
-  '@nestjs/bullmq': 11.0.4
-  bullmq: 5.78.0
-  ioredis: 5.11.1
+  '@nestjs/bullmq': 12.0.0
+  bullmq: 6.3.4
+  ioredis: 6.0.0
 
   # Database (Drizzle + Postgres)
   drizzle-orm: 1.0.0-rc.3
@@ -93,52 +106,55 @@ catalog:
   bcryptjs: 3.0.3
 
   # MCP — agent access to a deployed instance, env-gated off
-  '@modelcontextprotocol/sdk': 1.20.0
+  # 1.30 accepts zod 4 natively; the zod-v3 alias the api carried for the SDK is gone.
+  '@modelcontextprotocol/sdk': 1.30.0
 
   # Telemetry (server) — error reporting + product analytics, env-gated no-ops
-  '@sentry/node': 10.69.0
-  posthog-node: 5.46.1
+  '@sentry/node': 10.73.0
+  posthog-node: 5.51.6
 
   # Logging (Pino)
-  nestjs-pino: 4.6.1
+  nestjs-pino: 5.1.0
   pino: 10.3.1
   pino-http: 11.0.0
   pino-pretty: 13.1.3
 
   # i18n (server-side)
-  nestjs-i18n: 10.8.4
+  nestjs-i18n: 10.8.5
 
   # ═══════════════════════════════════════════════════════════════════════
   #  FRONTEND  (apps/web)
   # ═══════════════════════════════════════════════════════════════════════
 
   # React core + routing
-  react: 19.2.7
-  react-dom: 19.2.7
-  react-router: 7.17.0
-  '@types/react': 19.2.17
-  '@types/react-dom': 19.2.3
+  react: 19.2.8
+  react-dom: 19.2.8
+  react-router: 8.3.1
+  '@types/react': 19.2.18
+  '@types/react-dom': 19.2.6
 
   # Data / state / forms
-  swr: 2.4.1
-  zustand: 5.0.14
-  react-hook-form: 7.78.0
-  react-error-boundary: 6.1.2
+  swr: 2.5.1
+  zustand: 5.0.15
+  react-hook-form: 7.87.0
+  react-error-boundary: 6.1.4
   date-fns: 4.4.0
 
   # UI components / primitives
-  radix-ui: 1.5.0
-  '@base-ui/react': 1.5.0
-  lucide-react: 1.17.0
+  radix-ui: 1.6.7
+  '@base-ui/react': 1.7.0
+  lucide-react: 1.40.0
+  '@fontsource-variable/inter': 5.3.0
+  '@fontsource-variable/jetbrains-mono': 5.3.0
   cmdk: 1.1.1
-  sonner: 2.0.7
+  sonner: 2.0.8
   vaul: 1.1.2
-  input-otp: 1.4.2
+  input-otp: 1.5.0
   next-themes: 0.4.6
   embla-carousel-react: 8.6.0
   react-day-picker: 10.0.1
-  react-resizable-panels: 4.11.2
-  recharts: 3.8.1
+  react-resizable-panels: 4.12.3
+  recharts: 3.10.1
   framer-motion: 12.40.0
 
   # Markdown rendering (research living document) — react-markdown renders to
@@ -148,30 +164,30 @@ catalog:
   remark-gfm: 4.0.1
 
   # Styling
-  tailwindcss: 4.3.0
-  '@tailwindcss/vite': 4.3.0
+  tailwindcss: 4.3.3
+  '@tailwindcss/vite': 4.3.3
   tailwind-merge: 3.6.0
   tw-animate-css: 1.4.0
   class-variance-authority: 0.7.1
   clsx: 2.1.1
 
   # i18n (client-side)
-  i18next: 26.3.1
+  i18next: 26.4.1
   i18next-browser-languagedetector: 8.2.1
-  react-i18next: 17.0.8
+  react-i18next: 17.0.13
 
   # Telemetry (web) — analytics, session replay, frontend errors; env-gated
-  posthog-js: 1.407.6
+  posthog-js: 1.425.1
 
   # Build + test (web)
-  vite: 8.0.16
-  '@vitejs/plugin-react-swc': 4.3.1
-  jsdom: 29.1.1
-  msw: 2.14.6
+  vite: 8.2.2
+  '@vitejs/plugin-react-swc': 4.3.3
+  jsdom: 30.0.1
+  msw: 2.15.0
   fast-check: 4.9.0
-  '@testing-library/react': 16.3.2
-  '@testing-library/jest-dom': 6.9.1
-  '@testing-library/user-event': 14.6.1
+  '@testing-library/react': 16.3.3
+  '@testing-library/jest-dom': 7.0.1
+  '@testing-library/user-event': 14.6.7
 
   # ═══════════════════════════════════════════════════════════════════════
   #  MOBILE  (apps/mobile) — Expo + React Native
@@ -185,12 +201,22 @@ catalog:
   # ═══════════════════════════════════════════════════════════════════════
   #  E2E  (apps/e2e)
   # ═══════════════════════════════════════════════════════════════════════
-  '@playwright/test': 1.60.0
+  '@playwright/test': 1.62.1
 
 # ---------------------------------------------------------------------------
 # Named catalogs — version groups that can't share the default catalog.
 # ---------------------------------------------------------------------------
 catalogs:
+  # TypeScript 6 for the workspaces whose tooling still needs the programmatic
+  # compiler API that TypeScript 7.0 does not ship: the Nest CLI (`nest build`,
+  # `nest start`) refuses 7.0 outright and expects the API back in 7.1;
+  # mobile's Expo lint stack (typescript-eslint) has the same dependency.
+  # Everything else is on the default catalog's TypeScript 7. Delete this
+  # catalog and move the three consumers back to `catalog:` when @nestjs/cli
+  # and eslint-config-expo accept 7.x.
+  ts6:
+    typescript: 6.0.3
+
   # apps/mobile (Expo SDK 57). Referenced as `catalog:mobile`.
   #
   # Expo-managed packages (expo, expo-*, react-native*, react) are versioned by
@@ -243,7 +269,7 @@ catalogs:
     react-native-css: ^3.0.7 # NW5 peer (formerly react-native-css-interop; at 3.x)
     '@tailwindcss/postcss': 4.3.0 # Tailwind v4 via PostCSS in Metro (web uses @tailwindcss/vite)
 
-    # Lint — kept out of the default catalog (which is on ESLint 10): eslint-config-expo
+    # Lint — kept out of the default catalog (which no longer carries ESLint — lint there is oxlint): eslint-config-expo
     # 57 only supports ESLint 9, so the mobile app needs its own ESLint 9 here.
     eslint: ^9.39.4
     eslint-config-expo: ~57.0.0
@@ -305,61 +331,20 @@ allowBuilds:
   ssh2: true # builds its optional native bindings; JS fallback exists
   unrs-resolver: true
 
-# Supply-chain cooldown: wait 2 days (2880 min) before a newly published
-# version is installable, so yanked/malicious releases are caught first.
-# Listed packages are exempt from the cooldown.
+# Supply-chain cooldown, ENFORCED: a version published less than 2 days
+# (2880 min) ago is not installable, so a yanked or malicious release is
+# caught by the ecosystem before it lands here. Until this key was set the
+# comment above the list was policy only — same-day releases installed
+# silently.
+minimumReleaseAge: 2880
+# Exceptions below name exact versions that were younger than the window when
+# they were needed. pnpm appends the entries it needs on install and, with
+# prune on, drops each one itself once the version has aged past the window —
+# so this list is a record of recent exceptions, not a permanent allowlist.
+# A deliberate exception (a security patch we will not wait two days for) is
+# annotated with why.
+minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
-  - '@nestjs/cli@11.0.23'
-  - prettier@3.8.4
-  - '@expo/cli@57.0.4'
-  - '@expo/config-plugins@57.0.2'
-  - '@expo/config@57.0.2'
-  - '@expo/env@2.4.1'
-  - '@expo/fingerprint@0.20.2'
-  - '@expo/image-utils@0.11.1'
-  - '@expo/local-build-cache-provider@57.0.2'
-  - '@expo/metro-config@57.0.3'
-  - '@expo/metro-runtime@57.0.3'
-  - '@expo/prebuild-config@57.0.4'
-  - '@expo/require-utils@57.0.1'
-  - '@expo/schema-utils@57.0.1'
-  - '@expo/ui@57.0.3'
-  - expo-asset@57.0.3
-  - expo-constants@57.0.3
-  - expo-modules-autolinking@57.0.4
-  - expo-modules-core@57.0.2
-  - expo-router@57.0.3
-  - expo-splash-screen@57.0.2
-  - expo@57.0.2
-  - '@rn-primitives/label@1.5.2'
-  - '@rn-primitives/slot@1.5.2'
-  - '@rn-primitives/types@1.5.2'
-  - '@rn-primitives/accordion@1.5.2'
-  - '@rn-primitives/alert-dialog@1.5.2'
-  - '@rn-primitives/aspect-ratio@1.5.2'
-  - '@rn-primitives/avatar@1.5.2'
-  - '@rn-primitives/checkbox@1.5.2'
-  - '@rn-primitives/collapsible@1.5.2'
-  - '@rn-primitives/context-menu@1.5.2'
-  - '@rn-primitives/dialog@1.5.2'
-  - '@rn-primitives/dropdown-menu@1.5.2'
-  - '@rn-primitives/hooks@1.5.2'
-  - '@rn-primitives/hover-card@1.5.2'
-  - '@rn-primitives/menubar@1.5.2'
-  - '@rn-primitives/popover@1.5.2'
-  - '@rn-primitives/portal@1.5.2'
-  - '@rn-primitives/progress@1.5.2'
-  - '@rn-primitives/radio-group@1.5.2'
-  - '@rn-primitives/select@1.5.2'
-  - '@rn-primitives/separator@1.5.2'
-  - '@rn-primitives/switch@1.5.2'
-  - '@rn-primitives/tabs@1.5.2'
-  - '@rn-primitives/toggle-group@1.5.2'
-  - '@rn-primitives/toggle@1.5.2'
-  - '@rn-primitives/tooltip@1.5.2'
-  - '@rn-primitives/utils@1.5.2'
-  - '@expo/env@2.3.1'
-  - '@expo/fingerprint@0.19.6'
-  - '@expo/image-utils@0.10.2'
-  - '@expo/inline-modules@0.0.13'
-  - '@fastify/rate-limit@11.2.0'
+  # Security patch (5.12.2 fixed four advisories) taken the day after it shipped —
+  # the one case where waiting is the riskier choice. Prunes itself after 2 days.
+  - fastify@5.12.3

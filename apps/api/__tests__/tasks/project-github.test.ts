@@ -3,12 +3,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProjectService } from '@/tasks/project.service';
-import type { ProjectRepository } from '@/tasks/project.repository';
-import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import type { OrgService } from '@/org/org.service';
+import { ProjectService } from '@/tasks/project.service.js';
+import type { ProjectRepository } from '@/tasks/project.repository.js';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
-import type { TaskService } from '@/tasks/task.service';
+import type { TaskService } from '@/tasks/task.service.js';
 
 const ORG = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';
@@ -47,7 +47,11 @@ describe('ProjectService — GitHub repo binding', () => {
   beforeEach(() => {
     repository = {
       create: vi.fn().mockImplementation((data: Record<string, unknown>) => row(data)),
-      update: vi.fn().mockImplementation((_id: string, _org: string, data: Record<string, unknown>) => row(data)),
+      update: vi
+        .fn()
+        .mockImplementation((_id: string, _org: string, data: Record<string, unknown>) =>
+          row(data),
+        ),
       // update() reads the project first — the archive boundary guard.
       findById: vi.fn().mockResolvedValue(row({ archivedAt: null })),
     };
@@ -85,24 +89,24 @@ describe('ProjectService — GitHub repo binding', () => {
   });
 
   it('refuses a repo outside the installation grant', async () => {
-    await expect(
-      service.create(actor, { name: 'p', githubRepoId: 999 }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.create(actor, { name: 'p', githubRepoId: 999 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
     expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('refuses a binding when the org has no connection', async () => {
     orgService.githubConnection.mockResolvedValue(null);
-    await expect(
-      service.create(actor, { name: 'p', githubRepoId: 42 }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.create(actor, { name: 'p', githubRepoId: 42 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('refuses a binding on an unconfigured deploy', async () => {
     github.enabled = false;
-    await expect(
-      service.create(actor, { name: 'p', githubRepoId: 42 }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.create(actor, { name: 'p', githubRepoId: 42 })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('create without a binding keeps the free-text URL path untouched', async () => {

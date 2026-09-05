@@ -3,12 +3,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProjectService } from '@/tasks/project.service';
-import type { ProjectRepository } from '@/tasks/project.repository';
-import type { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import type { OrgService } from '@/org/org.service';
+import { ProjectService } from '@/tasks/project.service.js';
+import type { ProjectRepository } from '@/tasks/project.repository.js';
+import type { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
-import type { TaskService } from '@/tasks/task.service';
+import type { TaskService } from '@/tasks/task.service.js';
 
 const ORG_A = '11111111-1111-4111-8111-111111111111';
 const actor: ActiveUser = { userId: 'u', orgId: ORG_A, orgRole: 'ADMIN', systemRole: 'USER' };
@@ -146,7 +146,10 @@ describe('ProjectService — repo provisioning', () => {
   it('a duplicate repo name gets its own message — the one failure the user fixes themselves', async () => {
     github.createProjectRepo.mockRejectedValue(
       Object.assign(new Error('422'), {
-        response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+        response: {
+          status: 422,
+          data: { errors: [{ message: 'name already exists on this account' }] },
+        },
       }),
     );
     await expect(service.create(actor, dto)).rejects.toThrow('tasks.errors.repoNameTaken');
@@ -215,7 +218,10 @@ describe('ProjectService — repo provisioning', () => {
       )
       .mockRejectedValueOnce(
         Object.assign(new Error('422'), {
-          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+          response: {
+            status: 422,
+            data: { errors: [{ message: 'name already exists on this account' }] },
+          },
         }),
       );
     github.listRepositories.mockResolvedValue([NEW_REPO]); // grant knows it by name
@@ -245,7 +251,10 @@ describe('ProjectService — repo provisioning', () => {
       )
       .mockRejectedValueOnce(
         Object.assign(new Error('422'), {
-          response: { status: 422, data: { errors: [{ message: 'name already exists on this account' }] } },
+          response: {
+            status: 422,
+            data: { errors: [{ message: 'name already exists on this account' }] },
+          },
         }),
       );
     github.listRepositories.mockResolvedValue([]);

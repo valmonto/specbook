@@ -1,7 +1,9 @@
 import { Throttle } from '@nestjs/throttler';
+
+import { AUTH_THROTTLE } from '../config/index.js';
 import { Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { InjectLogger, PinoLogger } from '@pkg/server';
-import { AuthService } from './auth.service';
+import { AuthService } from './auth.service.js';
 import {
   PublicRoute,
   ActiveUser,
@@ -16,25 +18,25 @@ import { k } from '@pkg/locales';
 import { tryCatch } from '@pkg/utils';
 import {
   type AuthTokens,
-  ChangePasswordRequest,
+  type ChangePasswordRequest,
   ChangePasswordRequestSchema,
   ChangePasswordResponse,
-  CurrentUserRequest,
+  type CurrentUserRequest,
   CurrentUserRequestSchema,
   CurrentUserResponse,
-  LoginRequest,
+  type LoginRequest,
   LoginRequestSchema,
   LoginResponse,
-  LogoutAllRequest,
+  type LogoutAllRequest,
   LogoutAllRequestSchema,
   LogoutAllResponse,
-  LogoutRequest,
+  type LogoutRequest,
   LogoutRequestSchema,
   LogoutResponse,
-  RefreshRequest,
+  type RefreshRequest,
   RefreshRequestSchema,
   RefreshResponse,
-  RegisterRequest,
+  type RegisterRequest,
   RegisterRequestSchema,
   RegisterResponse,
   type ActiveUser as ActiveUserType,
@@ -98,7 +100,7 @@ export class AuthController {
   // Strict spray limit, declared where the route lives. Unauthenticated, so
   // the throttler keys these buckets by IP alone — nothing client-controlled.
   @Post('login')
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   async login(
     @ZodRequest(LoginRequestSchema) dto: LoginRequest,
     @Req() req: FastifyRequest,
@@ -110,7 +112,7 @@ export class AuthController {
 
   @PublicRoute()
   @Post('register')
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle(AUTH_THROTTLE)
   async register(
     @ZodRequest(RegisterRequestSchema) dto: RegisterRequest,
     @Req() req: FastifyRequest,

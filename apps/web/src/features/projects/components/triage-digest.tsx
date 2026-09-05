@@ -1,6 +1,13 @@
 import { useMemo, type ComponentType, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Eye, GitMerge, MessageCircleQuestion, RotateCcw, Sunrise, TriangleAlert } from 'lucide-react';
+import {
+  Eye,
+  GitMerge,
+  MessageCircleQuestion,
+  RotateCcw,
+  Sunrise,
+  TriangleAlert,
+} from 'lucide-react';
 import type { Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
@@ -45,18 +52,41 @@ export function TriageDigest({
   const buckets = useMemo(() => triageTasks(tasks), [tasks]);
 
   // Latest clarification question per blocked task — reuses the dashboard hook.
-  const blockedIds = useMemo(() => buckets.blocked.map((task) => task.id).sort(), [buckets.blocked]);
+  const blockedIds = useMemo(
+    () => buckets.blocked.map((task) => task.id).sort(),
+    [buckets.blocked],
+  );
   const { data: questions } = useBlockedQuestions(blockedIds);
 
   // Nothing since last night → no panel; the board below tells the full story.
   if (triageTotal(buckets) === 0) return null;
 
   const summary = [
-    { n: buckets.merged.length, label: t(k.tasks.triage.summaryMerged, { n: buckets.merged.length }), cls: 'text-emerald-600 dark:text-emerald-300' },
-    { n: buckets.needsReview.length, label: t(k.tasks.triage.summaryReview, { n: buckets.needsReview.length }), cls: 'text-violet-700 dark:text-violet-300' },
-    { n: buckets.blocked.length, label: t(k.tasks.triage.summaryBlocked, { n: buckets.blocked.length }), cls: 'text-amber-700 dark:text-amber-300' },
-    { n: buckets.changesRequested.length, label: t(k.tasks.triage.summaryChanges, { n: buckets.changesRequested.length }), cls: 'text-rose-600 dark:text-rose-300' },
-    { n: buckets.assumed.length, label: t(k.tasks.triage.summaryAssumed, { n: buckets.assumed.length }), cls: 'text-amber-700 dark:text-amber-300' },
+    {
+      n: buckets.merged.length,
+      label: t(k.tasks.triage.summaryMerged, { n: buckets.merged.length }),
+      cls: 'text-emerald-600 dark:text-emerald-300',
+    },
+    {
+      n: buckets.needsReview.length,
+      label: t(k.tasks.triage.summaryReview, { n: buckets.needsReview.length }),
+      cls: 'text-violet-700 dark:text-violet-300',
+    },
+    {
+      n: buckets.blocked.length,
+      label: t(k.tasks.triage.summaryBlocked, { n: buckets.blocked.length }),
+      cls: 'text-amber-700 dark:text-amber-300',
+    },
+    {
+      n: buckets.changesRequested.length,
+      label: t(k.tasks.triage.summaryChanges, { n: buckets.changesRequested.length }),
+      cls: 'text-rose-600 dark:text-rose-300',
+    },
+    {
+      n: buckets.assumed.length,
+      label: t(k.tasks.triage.summaryAssumed, { n: buckets.assumed.length }),
+      cls: 'text-amber-700 dark:text-amber-300',
+    },
   ].filter((s) => s.n > 0);
 
   const hintFor = (bucket: TriageBucket, task: Task): ReactNode => {
@@ -88,7 +118,12 @@ export function TriageDigest({
     label: string;
     caption?: string;
   }[] = [
-    { key: 'assumed', icon: TriangleAlert, label: t(k.tasks.triage.assumed), caption: t(k.tasks.triage.assumedHint) },
+    {
+      key: 'assumed',
+      icon: TriangleAlert,
+      label: t(k.tasks.triage.assumed),
+      caption: t(k.tasks.triage.assumedHint),
+    },
     { key: 'blocked', icon: MessageCircleQuestion, label: t(k.tasks.triage.blocked) },
     { key: 'needsReview', icon: Eye, label: t(k.tasks.triage.needsReview) },
     { key: 'changesRequested', icon: RotateCcw, label: t(k.tasks.triage.changesRequested) },

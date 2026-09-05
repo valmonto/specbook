@@ -3,7 +3,7 @@ import {
   appendDeployLog,
   LOG_TRUNCATION_MARKER,
   scrubDeployText,
-} from '../../../src/modules/deploy/deploy-log';
+} from '../../../src/modules/deploy/deploy-log.js';
 
 describe('scrubDeployText', () => {
   it('removes registered literals and the x-access-token pattern anywhere', () => {
@@ -33,7 +33,8 @@ describe('appendDeployLog', () => {
   });
 
   it('over the cap keeps the TAIL, cut on a line boundary, marker first', () => {
-    const lines = Array.from({ length: 50 }, (_, i) => `line-${String(i).padStart(3, '0')}`).join('\n') + '\n';
+    const lines =
+      Array.from({ length: 50 }, (_, i) => `line-${String(i).padStart(3, '0')}`).join('\n') + '\n';
     const out = appendDeployLog('', lines, 200);
     expect(out.startsWith(`${LOG_TRUNCATION_MARKER}\n`)).toBe(true);
     expect(out).toContain('line-049');

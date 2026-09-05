@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { SERVER_ROLES, SERVER_STATUSES } from '../constants';
-import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema';
+import { SERVER_ROLES, SERVER_STATUSES } from '../constants/index.js';
+import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema.js';
 
 export const ServerRoleSchema = z.enum(SERVER_ROLES);
 export const ServerStatusSchema = z.enum(SERVER_STATUSES);
@@ -76,3 +76,24 @@ export const TestServerRequestSchema = z.object({ id: z.string().uuid() }).stric
 export const TestServerResponseSchema = ServerSchema;
 export type TestServerRequest = z.infer<typeof TestServerRequestSchema>;
 export type TestServerResponse = z.infer<typeof TestServerResponseSchema>;
+
+// --- Hosted environments (the shared-instance view) ---
+export const ServerEnvironmentsRequestSchema = z.object({ id: z.string().uuid() }).strict();
+/** One environment that uses this server for some role; `roles` says which. */
+export const HostedEnvironmentSchema = z.object({
+  environmentId: z.string().uuid(),
+  environmentName: z.string(),
+  projectId: z.string().uuid(),
+  projectName: z.string(),
+  /** Which of this server's capabilities the environment uses. */
+  roles: z.array(z.enum(['app', 'database', 'cache', 'storage'])),
+  /** The Postgres role + database name when this server hosts its database. */
+  databaseName: z.string().nullable(),
+  provisionStatus: z.string(),
+});
+export const ServerEnvironmentsResponseSchema = z.object({
+  data: z.array(HostedEnvironmentSchema),
+});
+export type ServerEnvironmentsRequest = z.infer<typeof ServerEnvironmentsRequestSchema>;
+export type HostedEnvironment = z.infer<typeof HostedEnvironmentSchema>;
+export type ServerEnvironmentsResponse = z.infer<typeof ServerEnvironmentsResponseSchema>;

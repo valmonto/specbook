@@ -4,8 +4,8 @@ import { Queue } from 'bullmq';
 import {
   ENVIRONMENT_PROVISION_JOB_NAMES,
   ENVIRONMENT_PROVISION_QUEUE,
-} from './environment-provision.constants';
-import type { EnvironmentProvisionJobPayload } from './environment-provision.types';
+} from './environment-provision.constants.js';
+import type { EnvironmentProvisionJobPayload } from './environment-provision.types.js';
 
 @Injectable()
 export class EnvironmentProvisionProducer {
@@ -23,10 +23,14 @@ export class EnvironmentProvisionProducer {
     );
   }
 
-  /** Best-effort teardown from a pre-delete snapshot. */
-  async enqueueDeprovision(serverId: string, unit: string) {
+  /** Best-effort teardown from a pre-delete snapshot; placement servers get their role torn down too. */
+  async enqueueDeprovision(
+    serverId: string,
+    unit: string,
+    placement: { databaseServerId?: string | null; cacheServerId?: string | null } = {},
+  ) {
     return this.queue.add(ENVIRONMENT_PROVISION_JOB_NAMES.DEPROVISION, {
-      deprovision: { serverId, unit },
+      deprovision: { serverId, unit, ...placement },
     });
   }
 }

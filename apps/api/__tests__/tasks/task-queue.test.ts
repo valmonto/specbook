@@ -12,10 +12,10 @@ import {
 import { MERGE_DEBT_CAP } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { ProjectService } from '@/tasks/project.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { ProjectService } from '@/tasks/project.service.js';
 
 /**
  * The agent queue (`available: true`) under the merge-debt gate: a project
@@ -102,10 +102,7 @@ describeIntegration('TaskRepository — the agent queue and its gates', () => {
 
   it('a changes_requested task obeys the same gates — archived project feeds none', async () => {
     const archived = await makeProject(orgA, ownerA, 'attic');
-    await client.db
-      .update(project)
-      .set({ archivedAt: new Date() })
-      .where(eq(project.id, archived));
+    await client.db.update(project).set({ archivedAt: new Date() }).where(eq(project.id, archived));
     await makeTask(archived, ownerA, 'changes_requested', 'attic-sent-back');
     const { data } = await queue();
     expect(data).toHaveLength(0);

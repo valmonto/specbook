@@ -21,10 +21,10 @@ import type { IamService } from '@pkg/server';
 import type { ConfigService } from '@nestjs/config';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it, vi } from 'vitest';
-import { InvitationRepository } from '@/invitations/invitation.repository';
-import { InvitationService } from '@/invitations/invitation.service';
-import { UserRepository } from '@/user/user.repository';
-import type { NotificationService } from '@/notifications/notification.service';
+import { InvitationRepository } from '@/invitations/invitation.repository.js';
+import { InvitationService } from '@/invitations/invitation.service.js';
+import { UserRepository } from '@/user/user.repository.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
 
 /**
  * Invitations are an IAM boundary: a link bound to org A must never mint a
@@ -40,7 +40,9 @@ describeIntegration('InvitationService', () => {
   const notifications = { create: vi.fn().mockResolvedValue(undefined) };
   const issueTokens = vi.fn().mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
   const iam = { auth: { issueTokens } } as unknown as IamService;
-  const config = { get: (_k: string, d?: unknown) => d ?? 'http://localhost:5173' } as unknown as ConfigService;
+  const config = {
+    get: (_k: string, d?: unknown) => d ?? 'http://localhost:5173',
+  } as unknown as ConfigService;
 
   const service = new InvitationService(
     invitationRepo,
@@ -244,9 +246,9 @@ describeIntegration('InvitationService', () => {
     });
     await service.revoke(activeOwnerA(), created.id);
 
-    await expect(service.acceptAsMember(activeOwnerB(), { token: created.token })).rejects.toBeInstanceOf(
-      GoneException,
-    );
+    await expect(
+      service.acceptAsMember(activeOwnerB(), { token: created.token }),
+    ).rejects.toBeInstanceOf(GoneException);
   });
 
   it('rejects an expired invite cleanly', async () => {
@@ -260,9 +262,9 @@ describeIntegration('InvitationService', () => {
       .set({ expiresAt: new Date(Date.now() - 1000) })
       .where(eq(invitation.id, created.id));
 
-    await expect(service.acceptAsMember(activeOwnerB(), { token: created.token })).rejects.toBeInstanceOf(
-      GoneException,
-    );
+    await expect(
+      service.acceptAsMember(activeOwnerB(), { token: created.token }),
+    ).rejects.toBeInstanceOf(GoneException);
     // And preview reports it as expired.
     expect((await service.preview(created.token)).status).toBe('expired');
   });

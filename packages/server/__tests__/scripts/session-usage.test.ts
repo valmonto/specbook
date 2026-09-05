@@ -34,10 +34,8 @@ describe('session-usage.mjs', () => {
     return JSON.parse(stdout.trim()) as Record<string, unknown>;
   };
 
-  const usageLine = (
-    id: string,
-    usage: Record<string, number>,
-  ): string => JSON.stringify({ type: 'assistant', message: { id, usage } }) + '\n';
+  const usageLine = (id: string, usage: Record<string, number>): string =>
+    JSON.stringify({ type: 'assistant', message: { id, usage } }) + '\n';
 
   afterAll(() => {
     rmSync(workdir, { recursive: true, force: true });
@@ -83,12 +81,12 @@ describe('session-usage.mjs', () => {
       // Newline first: the previous test left a torn line mid-write, which
       // the real writer would complete before appending the next entry.
       '\n' +
-      usageLine('msg_4', {
-        input_tokens: 7,
-        output_tokens: 70,
-        cache_creation_input_tokens: 700,
-        cache_read_input_tokens: 7_000,
-      }),
+        usageLine('msg_4', {
+          input_tokens: 7,
+          output_tokens: 70,
+          cache_creation_input_tokens: 700,
+          cache_read_input_tokens: 7_000,
+        }),
     );
 
     const report = await run('report', 'task-1');
@@ -124,10 +122,14 @@ describe('session-usage.mjs', () => {
 describe('session-usage.mjs — subagent sidechain resolution', () => {
   const projects = mkdtempSync(join(tmpdir(), 'su-sub-projects-'));
   const SESSION = 'parent-session-xyz';
-  // The worktree the subagent runs in; its basename is the subagent id.
-  const workdir = '/opt/specbook/.claude/worktrees/agent-abc123';
+  // The runner checkout and the worktree the subagent runs in (its basename is
+  // the subagent id). Both live under a temp root: the script mkdirs
+  // `<workdir>/.claude` for the baseline file, so a fixed `/opt/specbook`
+  // path only passes on the one box where that directory is writable.
+  const runnerDir = mkdtempSync(join(tmpdir(), 'su-sub-runner-'));
+  const workdir = join(runnerDir, '.claude', 'worktrees', 'agent-abc123');
   // The sidechain lives under the RUNNER's project-encoded dir, not the worktree.
-  const subagentsDir = join(projects, '-opt-specbook', SESSION, 'subagents');
+  const subagentsDir = join(projects, runnerDir.replace(/[/.]/g, '-'), SESSION, 'subagents');
   mkdirSync(subagentsDir, { recursive: true });
   const ownTranscript = join(subagentsDir, 'agent-abc123.jsonl');
 
@@ -143,9 +145,17 @@ describe('session-usage.mjs — subagent sidechain resolution', () => {
     return JSON.parse(stdout.trim()) as Record<string, unknown>;
   };
   const usageLine = (id: string, usage: Record<string, number>): string =>
-    JSON.stringify({ type: 'assistant', isSidechain: true, agentId: 'abc123', message: { id, usage } }) + '\n';
+    JSON.stringify({
+      type: 'assistant',
+      isSidechain: true,
+      agentId: 'abc123',
+      message: { id, usage },
+    }) + '\n';
 
-  afterAll(() => rmSync(projects, { recursive: true, force: true }));
+  afterAll(() => {
+    rmSync(projects, { recursive: true, force: true });
+    rmSync(runnerDir, { recursive: true, force: true });
+  });
 
   it('measures the subagent OWN sidechain, not the (absent) worktree-encoded path', async () => {
     writeFileSync(
@@ -198,8 +208,14 @@ describe('session-usage.mjs — subagent sidechain resolution', () => {
     const orphanProjects = mkdtempSync(join(tmpdir(), 'su-orphan-'));
     const dir = join(orphanProjects, '-opt-specbook', SESSION, 'subagents');
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, 'agent-one.jsonl'), usageLine('o1', { input_tokens: 1, output_tokens: 1 }));
-    writeFileSync(join(dir, 'agent-two.jsonl'), usageLine('o2', { input_tokens: 2, output_tokens: 2 }));
+    writeFileSync(
+      join(dir, 'agent-one.jsonl'),
+      usageLine('o1', { input_tokens: 1, output_tokens: 1 }),
+    );
+    writeFileSync(
+      join(dir, 'agent-two.jsonl'),
+      usageLine('o2', { input_tokens: 2, output_tokens: 2 }),
+    );
     await expect(
       exec('node', [SCRIPT], {
         env: { ...subEnv, CLAUDE_PROJECTS_DIR: orphanProjects },

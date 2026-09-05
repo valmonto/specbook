@@ -139,7 +139,11 @@ are the only ones that do — and register is additionally CLOSED by default
 admins via `user:create`, or from a product's own onboarding. Login and
 register sit behind strict per-IP rate limits declared AT the routes
 (`@Throttle`); everything else gets a generous Redis-backed default budget per
-verified user. `@SkipThrottle()` opts a route out — health does. Volumetric
+verified user (the guard lives in `ThrottlingModule`, imported LAST so it runs
+after the auth chain and sees the user — see `packages/server`'s README).
+`@SkipThrottle()` opts a route out — health does. `AUTH_RATE_LIMIT_MAX` raises
+the login/register limit for a stack that drives many logins from one address
+(the e2e runner); production keeps the default. Volumetric
 floods are the edge's job, not Node's: see `docs/edge-protection.md`.
 
 Service errors are Nest exceptions carrying **translation keys**, not sentences:
@@ -182,9 +186,15 @@ then wrap a SERVICE method, never raw SQL — tools inherit the same rules and
 logging the HTTP surface has. Connect with:
 
 ```json
-{ "mcpServers": { "myapp": {
-  "type": "http", "url": "https://api.example.com/api/mcp",
-  "headers": { "Authorization": "Bearer sk_…" } } } }
+{
+  "mcpServers": {
+    "myapp": {
+      "type": "http",
+      "url": "https://api.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer sk_…" }
+    }
+  }
+}
 ```
 
 ## GitHub App — the org ↔ repository connection
@@ -424,7 +434,7 @@ one organization, development adds demo users from
 
 ## Testing
 
-Two layers, one per kind of failure ([`@pkg/testing`](../../packages/testing/README.md)
+Three layers, one per kind of failure ([`@pkg/testing`](../../packages/testing/README.md)
 is the guide):
 
 - **Service tests** (`__tests__/*/**.service.test.ts`) — business rules over a
@@ -435,8 +445,19 @@ is the guide):
   without a database proves less than it looks. CI always sets one.
 
 The split earns its keep: the service tests asserted the repository was
-*called* with an org while the query ignored it — only the integration layer
-caught the cross-tenant write.
+_called_ with an org while the query ignored it — only the integration layer
+caught the cross-tenant write. And the guard unit tests hand-build their
+`ExecutionContext`, so they pass whether or not the framework still invokes
+the guard — only the pipeline layer can tell.
+
+- **Pipeline tests** (`__tests__/pipeline/`, via `describeStack`) — the whole
+  api booted in-process by the same `createApp()` that `main.ts` uses, driven
+  with `app.inject()`: prefix, 401/403/404/400 bodies from the exception
+  filter, cookies and bearer auth, a cross-tenant read, the permissions guard,
+  the throttler's 429, two users on one IP keeping separate budgets, and the
+  startup seeder. Needs `DATABASE_URL` **and** `IAM_REDIS_HOST`; CI sets both.
+  This is the only layer in `verify` where Nest actually calls our guards and
+  filters — a framework upgrade is proven here, not by the mocked unit tests.
 
 ## Commands
 
@@ -444,6 +465,7 @@ caught the cross-tenant write.
 pnpm dev --filter @pkg/api
 pnpm --filter @pkg/api test
 DATABASE_URL=postgresql://… pnpm --filter @pkg/api test   # + integration
+DATABASE_URL=… IAM_REDIS_HOST=127.0.0.1 pnpm --filter @pkg/api test   # + pipeline
 pnpm db:seed
 ```
 

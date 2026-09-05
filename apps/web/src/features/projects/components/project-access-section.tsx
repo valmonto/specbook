@@ -79,9 +79,7 @@ export function ProjectAccessSection({ projectId }: { projectId: string }) {
         </span>
         {!open && (
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground/70">
-            {members.length
-              ? members.map((m) => m.name).join(' · ')
-              : t(k.tasks.access.noMembers)}
+            {members.length ? members.map((m) => m.name).join(' · ') : t(k.tasks.access.noMembers)}
           </span>
         )}
       </button>

@@ -17,7 +17,7 @@ import type { Job } from 'bullmq';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import type { DeploymentProducer, GithubAppService, GithubWebhookJobPayload } from '@pkg/server';
 import { vi } from 'vitest';
-import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor';
+import { GithubWebhookProcessor } from '@/queues/github-webhook/github-webhook.processor.js';
 
 const jobOf = (data: GithubWebhookJobPayload): Job<GithubWebhookJobPayload> =>
   ({ id: `gh-${data.deliveryId}`, data }) as Job<GithubWebhookJobPayload>;
@@ -92,7 +92,16 @@ describeIntegration('GithubWebhookProcessor', () => {
   }
 
   beforeEach(async () => {
-    await truncate(client.db, [deployment, projectEnvironment, server, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      deployment,
+      projectEnvironment,
+      server,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     taskA = await makeOrg('org-a', 777);
     taskB = await makeOrg('org-b', 888);
     githubApp.getPullRequest.mockReset().mockResolvedValue(null);
@@ -103,7 +112,16 @@ describeIntegration('GithubWebhookProcessor', () => {
   });
 
   afterAll(async () => {
-    await truncate(client.db, [deployment, projectEnvironment, server, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      deployment,
+      projectEnvironment,
+      server,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     await client.close();
   });
 
@@ -447,10 +465,12 @@ describeIntegration('GithubWebhookProcessor', () => {
 
   // --- auto-deploy on merge -------------------------------------------------
 
-  async function makeEnvironment(opts: {
-    autoDeploy?: boolean;
-    provisionStatus?: string;
-  } = {}): Promise<{ environmentId: string; projectId: string; creator: string }> {
+  async function makeEnvironment(
+    opts: {
+      autoDeploy?: boolean;
+      provisionStatus?: string;
+    } = {},
+  ): Promise<{ environmentId: string; projectId: string; creator: string }> {
     const [proj] = await client.db.select().from(project).limit(1);
     const [srv] = await client.db
       .insert(server)
@@ -527,7 +547,13 @@ describeIntegration('GithubWebhookProcessor', () => {
 
   it('two consecutive failed auto-deploys trip the breaker; a success resets it', async () => {
     const { environmentId, creator } = await makeEnvironment();
-    const failed = { environmentId, sha: 'x', status: 'failed', trigger: 'auto', createdBy: creator };
+    const failed = {
+      environmentId,
+      sha: 'x',
+      status: 'failed',
+      trigger: 'auto',
+      createdBy: creator,
+    };
     await client.db.insert(deployment).values(failed);
     await client.db.insert(deployment).values(failed);
 

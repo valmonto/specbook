@@ -13,12 +13,12 @@ import type { ActiveUser } from '@pkg/contracts';
 import { describeIntegration, FakeLogger, truncate } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it } from 'vitest';
-import { TaskRepository } from '@/tasks/task.repository';
-import { ProjectRepository } from '@/tasks/project.repository';
-import { ProjectMemberRepository } from '@/tasks/project-member.repository';
-import { TaskService } from '@/tasks/task.service';
-import type { NotificationService } from '@/notifications/notification.service';
-import type { OrgService } from '@/org/org.service';
+import { TaskRepository } from '@/tasks/task.repository.js';
+import { ProjectRepository } from '@/tasks/project.repository.js';
+import { ProjectMemberRepository } from '@/tasks/project-member.repository.js';
+import { TaskService } from '@/tasks/task.service.js';
+import type { NotificationService } from '@/notifications/notification.service.js';
+import type { OrgService } from '@/org/org.service.js';
 import type { GithubAppService } from '@pkg/server';
 
 /**
@@ -92,15 +92,19 @@ describeIntegration('TaskService — bulk mark-ready, cascade + org-scoped', () 
     ({ userId, orgId, orgRole: 'OWNER', systemRole: 'USER' }) as const;
 
   const statusOf = async (id: string): Promise<string> => {
-    const [row] = await client.db
-      .select({ status: task.status })
-      .from(task)
-      .where(eq(task.id, id));
+    const [row] = await client.db.select({ status: task.status }).from(task).where(eq(task.id, id));
     return row!.status;
   };
 
   beforeEach(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     const a = await makeOrg('mr-org-a');
     const b = await makeOrg('mr-org-b');
     orgA = a.orgId;
@@ -112,7 +116,14 @@ describeIntegration('TaskService — bulk mark-ready, cascade + org-scoped', () 
   });
 
   afterAll(async () => {
-    await truncate(client.db, [taskDependency, task, project, organizationUser, organization, user]);
+    await truncate(client.db, [
+      taskDependency,
+      task,
+      project,
+      organizationUser,
+      organization,
+      user,
+    ]);
     await client.close();
   });
 

@@ -14,7 +14,7 @@ import type { FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { GithubWebhookProducer, InjectLogger, PinoLogger, PublicRoute } from '@pkg/server';
 import { k } from '@pkg/locales';
-import { normalizeGithubEvent } from './github-webhook.mapper';
+import { normalizeGithubEvent } from './github-webhook.mapper.js';
 
 /**
  * GitHub's delivery target — the repo's first unauthenticated non-health
@@ -52,7 +52,11 @@ export class GithubWebhookController {
     }
 
     const signature = req.headers['x-hub-signature-256'];
-    if (typeof signature !== 'string' || !req.rawBody || !this.verify(req.rawBody, signature, secret)) {
+    if (
+      typeof signature !== 'string' ||
+      !req.rawBody ||
+      !this.verify(req.rawBody, signature, secret)
+    ) {
       this.logger.warn(
         { ip: req.ip, event: req.headers['x-github-event'], hasSignature: Boolean(signature) },
         'GitHub webhook rejected: missing or invalid signature',
