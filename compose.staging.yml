@@ -66,6 +66,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     container_name: specbookmigrate
     env_file:
       - .env
@@ -86,6 +89,9 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     # No container_name: it must be unique, which blocks `--scale api=N`.
     # Compose auto-names replicas (valmatic-dev-api-1, -2, …).
     env_file:
@@ -160,6 +166,9 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+        BUILT_AT: ${BUILT_AT:-}
     # No container_name so the worker can also scale (--scale worker=N).
     # It publishes no host port, so replicas don't conflict.
     env_file:
