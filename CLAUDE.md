@@ -7,7 +7,8 @@ valmatic template; its conventions apply unchanged.
 pnpm monorepo (valmatic-descended). `apps/{api,web,worker,mobile,e2e}`,
 `packages/{contracts,database,server,locales,utils,testing,vitest-config,tsconfig}`.
 Lint is oxlint, configured once in the root `.oxlintrc.json` (type-aware on the
-Nest trees); there is no per-workspace lint config to keep in sync.
+Nest trees); there is no per-workspace lint config to keep in sync. Formatting
+is oxfmt (`.oxfmtrc.json`): `pnpm format` / `pnpm format:check`.
 Every workspace has a README that explains it; `packages/README.md` is the index.
 `GAPS.md` is the honest list of what is missing.
 
