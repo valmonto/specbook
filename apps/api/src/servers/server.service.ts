@@ -60,19 +60,32 @@ export class ServerService {
    * FROM the client and none is ever returned to it.
    */
   async create(activeUser: ActiveUser, dto: CreateServerRequest): Promise<CreateServerResponse> {
+    // A keypair is generated for EVERY server, external included. It costs
+    // nothing, keeps the row shape uniform, and means a server that is later
+    // converted to managed does not need one minted retroactively — it is
+    // simply never used while the server is external.
     const keypair = generateSshKeypair(`specbook:${dto.name}`);
+    const mode = dto.mode ?? 'specbook';
 
     let created: Server;
     try {
       created = await this.serverRepository.create({
         orgId: activeUser.orgId,
         name: dto.name,
+        mode,
         host: dto.host,
         port: dto.port,
         sshUser: dto.sshUser,
         roles: dto.roles,
         publicKey: keypair.publicKey,
         privateKeyEnc: this.secrets.seal(keypair.privateKey),
+        // Sealed before it reaches the database, like the private key above.
+        // The CA certificate is deliberately NOT sealed: it is public material
+        // and clients need to read it back to verify the server.
+        adminUser: mode === 'external' ? (dto.adminUser ?? null) : null,
+        adminSecretEnc:
+          mode === 'external' && dto.adminSecret ? this.secrets.seal(dto.adminSecret) : null,
+        caCert: mode === 'external' ? (dto.caCert ?? null) : null,
         createdBy: activeUser.userId,
       });
     } catch (error) {
@@ -82,7 +95,10 @@ export class ServerService {
       throw error;
     }
 
-    this.logger.info({ serverId: created.id, host: created.host }, 'Server registered');
+    this.logger.info(
+      { serverId: created.id, host: created.host, mode: created.mode },
+      'Server registered',
+    );
     return this.serialize(created);
   }
 
@@ -141,7 +157,7 @@ export class ServerService {
   }
 
   async update(activeUser: ActiveUser, dto: UpdateServerRequest): Promise<ServerDto> {
-    const { id, ...patch } = dto;
+    const { id, adminSecret, ...patch } = dto;
     // Host/port/user changes invalidate the pinned fingerprint on purpose:
     // a "new" machine must re-earn trust on the next check.
     const resetsPin = patch.host !== undefined || patch.port !== undefined;
@@ -149,6 +165,9 @@ export class ServerService {
     try {
       updated = await this.serverRepository.update(id, activeUser.orgId, {
         ...patch,
+        // Absent means "leave the stored password alone" — the form cannot
+        // read it back, so an untouched field must never blank it.
+        ...(adminSecret ? { adminSecretEnc: this.secrets.seal(adminSecret) } : {}),
         ...(resetsPin ? { hostFingerprint: null, status: 'unverified' } : {}),
       });
     } catch (error) {
@@ -187,7 +206,10 @@ export class ServerService {
       host: s.host,
       port: s.port,
       sshUser: s.sshUser,
+      mode: s.mode as ServerDto['mode'],
       roles: s.roles as ServerDto['roles'],
+      adminUser: s.adminUser,
+      caCert: s.caCert,
       publicKey: s.publicKey,
       hostFingerprint: s.hostFingerprint,
       status: s.status as ServerDto['status'],

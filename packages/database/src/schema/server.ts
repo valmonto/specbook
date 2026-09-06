@@ -11,7 +11,7 @@ import {
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { SERVER_STATUSES } from '@pkg/contracts';
+import { SERVER_MODES, SERVER_STATUSES } from '@pkg/contracts';
 import { pk } from './helpers.js';
 import { organization } from './organization.js';
 import { user } from './user.js';
@@ -30,6 +30,18 @@ export const server = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     name: varchar('name', { length: 255 }).notNull(),
+    /**
+     * How specbook reaches this box — @pkg/contracts SERVER_MODES. Defaults to
+     * 'specbook' so every pre-existing row keeps its exact meaning.
+     */
+    mode: varchar('mode', { length: 16 }).notNull().default('specbook'),
+    /**
+     * Where the server is. For a 'specbook' server that is its SSH endpoint;
+     * for an 'external' one there is no SSH, so it is the address and port
+     * APPLICATIONS connect to (e.g. a Postgres published on a non-default
+     * port). One field, because an external server has only one address that
+     * specbook cares about.
+     */
     host: varchar('host', { length: 255 }).notNull(),
     port: integer('port').notNull().default(22),
     sshUser: varchar('ssh_user', { length: 64 }).notNull().default('deploy'),
@@ -45,6 +57,20 @@ export const server = pgTable(
      * (generated at first provision). Write-only like every sealed column.
      */
     dataRootEnvEnc: text('data_root_env_enc'),
+    /**
+     * EXTERNAL servers only — the role specbook authenticates as to provision
+     * tenants (CREATEDB + CREATEROLE; never a superuser). Its password is
+     * sealed like every other credential and never serialized outward.
+     */
+    adminUser: varchar('admin_user', { length: 64 }),
+    adminSecretEnc: text('admin_secret_enc'),
+    /**
+     * PEM of the CA that signed the server's certificate, so connections can
+     * use sslmode=verify-full. A certificate is PUBLIC by design — it is
+     * stored and returned in the clear, unlike everything above it. The CA's
+     * private key never enters specbook.
+     */
+    caCert: text('ca_cert'),
     status: varchar('status', { length: 32 }).notNull().default('unverified'),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     createdBy: uuid('created_by')
@@ -62,6 +88,17 @@ export const server = pgTable(
     check(
       'server_status_check',
       sql.raw(`status IN (${SERVER_STATUSES.map((v) => `'${v}'`).join(', ')})`),
+    ),
+    check('server_mode_check', sql.raw(`mode IN (${SERVER_MODES.map((v) => `'${v}'`).join(', ')})`)),
+    // An external server is useless without the credential it authenticates
+    // with, and a managed one must never carry one. Enforced here rather than
+    // only in the service, so no code path can write a half-configured row.
+    check(
+      'server_external_credential_check',
+      sql.raw(
+        `(mode = 'external' AND admin_user IS NOT NULL AND admin_secret_enc IS NOT NULL) OR ` +
+          `(mode <> 'external' AND admin_user IS NULL AND admin_secret_enc IS NULL)`,
+      ),
     ),
   ],
 );
