@@ -15,6 +15,7 @@ export const servers = {
   caCert: 'servers.caCert',
   caCertHint: 'servers.caCertHint',
   rolesNeedSsh: 'servers.rolesNeedSsh',
+  viaTls: 'servers.viaTls',
   mode: {
     label: 'servers.mode.label',
     specbook: 'servers.mode.specbook',

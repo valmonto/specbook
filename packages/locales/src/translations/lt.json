@@ -620,6 +620,7 @@
   "servers.test": "Tikrinti ryšį",
   "servers.testQueued": "Patikra eilėje — būsena netrukus atsinaujins",
   "servers.title": "Serveriai",
+  "servers.viaTls": "postgres · TLS",
   "tasks.acceptanceCriteria": "Priėmimo kriterijai",
   "tasks.access.addMember": "Suteikti prieigą",
   "tasks.access.allProjects": "visi projektai",

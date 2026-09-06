@@ -224,7 +224,7 @@ export function ServersCard() {
     });
     setMode('specbook');
     setRoles(['app']);
-    setRevealed(res.d);
+    if (res.d.mode !== 'external') setRevealed(res.d);
   };
 
   /**
@@ -301,7 +301,15 @@ export function ServersCard() {
                     </span>
                   </p>
                   <p className="truncate font-mono text-xs text-muted-foreground">
-                    {s.sshUser}@{s.host}:{s.port}
+                    {s.mode === 'external' ? (
+                      <>
+                        {s.host}:{s.port} · {t(k.servers.viaTls)}
+                      </>
+                    ) : (
+                      <>
+                        {s.sshUser}@{s.host}:{s.port}
+                      </>
+                    )}
                     <span className="ml-2">
                       {(s.roles ?? []).map((r) => t(k.servers.role[r])).join(' · ')}
                     </span>

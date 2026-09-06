@@ -620,6 +620,7 @@
   "servers.test": "Test connection",
   "servers.testQueued": "Check queued — the status updates shortly",
   "servers.title": "Servers",
+  "servers.viaTls": "postgres · TLS",
   "tasks.acceptanceCriteria": "Acceptance criteria",
   "tasks.access.addMember": "Grant access",
   "tasks.access.allProjects": "all projects",
