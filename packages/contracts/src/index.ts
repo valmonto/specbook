@@ -55,6 +55,9 @@ export {
   type DataPlaneRole,
   DATA_TRANSPORTS,
   type DataTransport,
+  SERVER_MODES,
+  type ServerMode,
+  EXTERNAL_SERVER_ROLES,
 } from './constants/server.js';
 export {
   AGENT_KINDS,

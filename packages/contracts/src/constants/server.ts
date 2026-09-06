@@ -41,6 +41,25 @@ export type DataPlaneRole = (typeof DATA_PLANE_ROLES)[number];
 export const DATA_TRANSPORTS = ['private-network', 'tls'] as const;
 export type DataTransport = (typeof DATA_TRANSPORTS)[number];
 
+/**
+ * How specbook reaches a server. `specbook` boxes are agentless targets it
+ * owns: it SSHes in and runs the workload as containers. An `external` server
+ * already exists and specbook is only a CLIENT of it — no SSH, no key to
+ * install, nothing provisioned on the box; it connects over TLS with a
+ * credential the operator supplies and issues SQL. Because there is no SSH,
+ * `host`/`port` on an external server mean the address APPLICATIONS connect
+ * to, which is the only address that server has as far as specbook cares.
+ */
+export const SERVER_MODES = ['specbook', 'external'] as const;
+export type ServerMode = (typeof SERVER_MODES)[number];
+
+/**
+ * Roles an EXTERNAL server may hold. Everything else (app, build, runner)
+ * needs specbook to run something on the box, which needs SSH — so those are
+ * managed-only by construction, not by convention.
+ */
+export const EXTERNAL_SERVER_ROLES = ['database', 'cache'] as const satisfies readonly ServerRole[];
+
 export const SERVER_STATUSES = [
   'unverified',
   'reachable',

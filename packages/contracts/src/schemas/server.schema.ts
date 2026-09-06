@@ -1,9 +1,77 @@
 import { z } from 'zod';
-import { SERVER_ROLES, SERVER_STATUSES } from '../constants/index.js';
+import {
+  EXTERNAL_SERVER_ROLES,
+  SERVER_MODES,
+  SERVER_ROLES,
+  SERVER_STATUSES,
+} from '../constants/index.js';
 import { PaginatedRequestSchema, PaginatedResponseSchema } from './pagination.schema.js';
 
 export const ServerRoleSchema = z.enum(SERVER_ROLES);
 export const ServerStatusSchema = z.enum(SERVER_STATUSES);
+export const ServerModeSchema = z.enum(SERVER_MODES);
+
+/** PEM is pasted by a human — accept surrounding whitespace, reject anything else. */
+const CaCertSchema = z
+  .string()
+  .trim()
+  .max(16_384)
+  .refine(
+    (v) => v.startsWith('-----BEGIN CERTIFICATE-----') && v.includes('-----END CERTIFICATE-----'),
+    'must be a PEM certificate',
+  );
+
+/**
+ * An external server is reached over the network, not over SSH: it needs the
+ * credential specbook authenticates with, and it may only hold the roles that
+ * require no local execution. Shared by create and update so the rule cannot
+ * drift between them.
+ */
+const externalShape = {
+  mode: ServerModeSchema.optional(),
+  adminUser: z.string().min(1).max(64).optional(),
+  adminSecret: z.string().min(1).max(512).optional(),
+  caCert: CaCertSchema.optional(),
+};
+
+interface ModeShape {
+  mode?: string;
+  adminUser?: string;
+  adminSecret?: string;
+  caCert?: string;
+  roles?: readonly string[];
+}
+
+function refineMode<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
+  return schema.superRefine((value, ctx) => {
+    const v = value as ModeShape;
+    const external = v.mode === 'external';
+    if (external && !v.adminUser) {
+      ctx.addIssue({ code: 'custom', path: ['adminUser'], message: 'required for an external server' });
+    }
+    if (external && !v.adminSecret) {
+      ctx.addIssue({ code: 'custom', path: ['adminSecret'], message: 'required for an external server' });
+    }
+    if (!external && (v.adminUser || v.adminSecret || v.caCert)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['mode'],
+        message: 'credentials and CA apply only to an external server',
+      });
+    }
+    const roles = v.roles;
+    if (external && roles) {
+      const bad = roles.filter((r) => !(EXTERNAL_SERVER_ROLES as readonly string[]).includes(r));
+      if (bad.length) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['roles'],
+          message: `an external server cannot hold ${bad.join(', ')} — those need SSH`,
+        });
+      }
+    }
+  });
+}
 
 // --- Server Entity (public shape — key material NEVER appears here) ---
 export const ServerSchema = z.object({
@@ -13,7 +81,13 @@ export const ServerSchema = z.object({
   host: z.string(),
   port: z.number().int(),
   sshUser: z.string(),
+  /** How specbook reaches it. Pre-existing servers read as 'specbook'. */
+  mode: ServerModeSchema,
   roles: z.array(ServerRoleSchema),
+  /** External only — the provisioning role. Its password is never returned. */
+  adminUser: z.string().nullable(),
+  /** Public by design: a certificate is meant to be distributed. */
+  caCert: z.string().nullable(),
   /** Installed into authorized_keys on the target — safe to show freely. */
   publicKey: z.string(),
   /** SHA256 fingerprint pinned on first successful connect; null before. */
@@ -27,15 +101,19 @@ export const ServerSchema = z.object({
 export type Server = z.infer<typeof ServerSchema>;
 
 // --- Create ---
-export const CreateServerRequestSchema = z
-  .object({
-    name: z.string().min(1).max(255),
-    host: z.string().min(1).max(255),
-    port: z.number().int().min(1).max(65535).optional(),
-    sshUser: z.string().min(1).max(64).optional(),
-    roles: z.array(ServerRoleSchema).min(1),
-  })
-  .strict();
+export const CreateServerRequestSchema = refineMode(
+  z
+    .object({
+      name: z.string().min(1).max(255),
+      /** SSH endpoint when managed; the address applications dial when external. */
+      host: z.string().min(1).max(255),
+      port: z.number().int().min(1).max(65535).optional(),
+      sshUser: z.string().min(1).max(64).optional(),
+      roles: z.array(ServerRoleSchema).min(1),
+      ...externalShape,
+    })
+    .strict(),
+);
 export const CreateServerResponseSchema = ServerSchema;
 export type CreateServerRequest = z.infer<typeof CreateServerRequestSchema>;
 export type CreateServerResponse = z.infer<typeof CreateServerResponseSchema>;
@@ -49,6 +127,10 @@ export const UpdateServerRequestSchema = z
     port: z.number().int().min(1).max(65535).optional(),
     sshUser: z.string().min(1).max(64).optional(),
     roles: z.array(ServerRoleSchema).min(1).optional(),
+    /** Omit to leave the stored password untouched; a value replaces it. */
+    adminUser: z.string().min(1).max(64).optional(),
+    adminSecret: z.string().min(1).max(512).optional(),
+    caCert: CaCertSchema.optional(),
   })
   .strict();
 export const UpdateServerResponseSchema = ServerSchema;

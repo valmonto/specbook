@@ -14,7 +14,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import {
+  EXTERNAL_SERVER_ROLES,
   REGISTERABLE_SERVER_ROLES,
+  SERVER_MODES,
+  type ServerMode,
   SERVER_ROLES,
   type Server,
   type ServerRole,
@@ -169,8 +172,18 @@ export function ServersCard() {
   const update = useUpdateServer();
 
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: '', host: '', port: '22', sshUser: 'deploy' });
+  const [form, setForm] = useState({
+    name: '',
+    host: '',
+    port: '22',
+    sshUser: 'deploy',
+    adminUser: '',
+    adminSecret: '',
+    caCert: '',
+  });
+  const [mode, setMode] = useState<ServerMode>('specbook');
   const [roles, setRoles] = useState<ServerRole[]>(['app']);
+  const isExternal = mode === 'external';
   /** Set right after creation: the one moment the key ceremony happens. */
   const [revealed, setRevealed] = useState<Server | null>(null);
   const [removing, setRemoving] = useState<Server | null>(null);
@@ -184,15 +197,49 @@ export function ServersCard() {
     const res = await create.execute({
       name: form.name.trim(),
       host: form.host.trim(),
-      port: Math.max(1, Math.min(65535, Number(form.port) || 22)),
+      port: Math.max(1, Math.min(65535, Number(form.port) || (isExternal ? 5432 : 22))),
       sshUser: form.sshUser.trim() || 'deploy',
+      mode,
       roles,
+      // Credentials and CA belong to an external server only — the request
+      // schema rejects them otherwise, so they are omitted rather than blanked.
+      ...(isExternal
+        ? {
+            adminUser: form.adminUser.trim(),
+            adminSecret: form.adminSecret,
+            ...(form.caCert.trim() ? { caCert: form.caCert.trim() } : {}),
+          }
+        : {}),
     });
     if (res.e || !res.d) return;
     setAdding(false);
-    setForm({ name: '', host: '', port: '22', sshUser: 'deploy' });
+    setForm({
+      name: '',
+      host: '',
+      port: '22',
+      sshUser: 'deploy',
+      adminUser: '',
+      adminSecret: '',
+      caCert: '',
+    });
+    setMode('specbook');
     setRoles(['app']);
     setRevealed(res.d);
+  };
+
+  /**
+   * Switching mode rewrites the fields that only make sense in the one being
+   * left: the default port differs, and an external server may hold only the
+   * roles that need no local execution.
+   */
+  const switchMode = (next: ServerMode) => {
+    setMode(next);
+    setForm((f) => ({ ...f, port: next === 'external' ? '5432' : '22' }));
+    setRoles((prev) =>
+      next === 'external'
+        ? prev.filter((r) => (EXTERNAL_SERVER_ROLES as readonly string[]).includes(r))
+        : prev,
+    );
   };
 
   const editPatch = editing ? serverPatch(editing.server, editing.form) : {};
@@ -328,9 +375,34 @@ export function ServersCard() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </div>
+            {/* The mode decides every field under it, so it is asked first:
+                a managed box is reached over SSH, an external one is a
+                database that already exists and specbook is only its client. */}
+            <div className="grid gap-1.5">
+              <Label>{t(k.servers.mode.label)}</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {SERVER_MODES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => switchMode(m)}
+                    aria-pressed={mode === m}
+                    className={cn(
+                      'rounded-lg border p-3 text-left transition-colors',
+                      mode === m ? 'border-primary bg-primary/5' : 'hover:bg-muted',
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{t(k.servers.mode[m])}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {t(k.servers.mode[`${m}Hint` as const])}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-[1fr_6rem] gap-3">
               <div className="grid gap-1.5">
-                <Label>{t(k.servers.host)}</Label>
+                <Label>{isExternal ? t(k.servers.dataHost) : t(k.servers.host)}</Label>
                 <Input
                   value={form.host}
                   onChange={(e) => setForm({ ...form, host: e.target.value })}
@@ -344,36 +416,92 @@ export function ServersCard() {
                 />
               </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label>{t(k.servers.sshUser)}</Label>
-              <Input
-                value={form.sshUser}
-                onChange={(e) => setForm({ ...form, sshUser: e.target.value })}
-              />
-            </div>
+            {isExternal ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label>{t(k.servers.adminUser)}</Label>
+                    <Input
+                      value={form.adminUser}
+                      onChange={(e) => setForm({ ...form, adminUser: e.target.value })}
+                      placeholder="specbook_provisioner"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>{t(k.servers.adminSecret)}</Label>
+                    <Input
+                      type="password"
+                      value={form.adminSecret}
+                      onChange={(e) => setForm({ ...form, adminSecret: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>{t(k.servers.caCert)}</Label>
+                  <textarea
+                    value={form.caCert}
+                    onChange={(e) => setForm({ ...form, caCert: e.target.value })}
+                    spellCheck={false}
+                    rows={5}
+                    placeholder="-----BEGIN CERTIFICATE-----"
+                    className="border-input bg-background min-h-24 rounded-md border px-3 py-2 font-mono text-xs"
+                  />
+                  <p className="text-muted-foreground text-xs">{t(k.servers.caCertHint)}</p>
+                </div>
+              </>
+            ) : (
+              <div className="grid gap-1.5">
+                <Label>{t(k.servers.sshUser)}</Label>
+                <Input
+                  value={form.sshUser}
+                  onChange={(e) => setForm({ ...form, sshUser: e.target.value })}
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label>{t(k.servers.roles)}</Label>
               {/* New servers get the granular roles only; the combined legacy
-                  `data` role stays valid on existing servers (see the Edit dialog). */}
+                  `data` role stays valid on existing servers (see the Edit dialog).
+                  Roles needing local execution are DISABLED rather than hidden on
+                  an external server, with the reason attached — the constraint
+                  teaches the model instead of leaving a checkbox unexplained. */}
               <div className="flex flex-wrap gap-4">
-                {REGISTERABLE_SERVER_ROLES.map((role) => (
-                  <label key={role} className="flex items-center gap-1.5 text-sm">
-                    <Checkbox
-                      checked={roles.includes(role)}
-                      onCheckedChange={(v) =>
-                        setRoles((prev) => (v ? [...prev, role] : prev.filter((r) => r !== role)))
-                      }
-                    />
-                    {t(k.servers.role[role])}
-                  </label>
-                ))}
+                {REGISTERABLE_SERVER_ROLES.map((role) => {
+                  const blocked =
+                    isExternal && !(EXTERNAL_SERVER_ROLES as readonly string[]).includes(role);
+                  return (
+                    <label
+                      key={role}
+                      className={cn(
+                        'flex items-center gap-1.5 text-sm',
+                        blocked && 'text-muted-foreground opacity-60',
+                      )}
+                    >
+                      <Checkbox
+                        checked={roles.includes(role)}
+                        disabled={blocked}
+                        onCheckedChange={(v) =>
+                          setRoles((prev) => (v ? [...prev, role] : prev.filter((r) => r !== role)))
+                        }
+                      />
+                      {t(k.servers.role[role])}
+                      {blocked && (
+                        <span className="text-xs">{t(k.servers.rolesNeedSsh)}</span>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button
               disabled={
-                !form.name.trim() || !form.host.trim() || roles.length === 0 || create.isLoading
+                !form.name.trim() ||
+                !form.host.trim() ||
+                roles.length === 0 ||
+                (isExternal && (!form.adminUser.trim() || !form.adminSecret)) ||
+                create.isLoading
               }
               onClick={() => void submit()}
             >
