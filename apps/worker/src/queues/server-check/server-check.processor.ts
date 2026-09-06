@@ -1,6 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, type OnModuleInit } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
+import { probeExternalDatabase } from './external-probe.js';
 import { DATABASE_CLIENT, type DatabaseClient, server, eq, type Server } from '@pkg/database';
 import {
   InjectLogger,
@@ -60,6 +61,14 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
     const [row] = await this.dbClient.db.select().from(server).where(eq(server.id, id)).limit(1);
     if (!row) return;
 
+    // An external server is reached over the network, not over SSH. Probing it
+    // with sshd asks the wrong question of the wrong port and reports a healthy
+    // database as unreachable.
+    if (row.mode === 'external') {
+      await this.checkExternal(row);
+      return;
+    }
+
     const result = await this.ssh.testConnection({
       host: row.host,
       port: row.port,
@@ -88,6 +97,46 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
         pinned: Boolean(patch.hostFingerprint),
       },
       'Server check finished',
+    );
+  }
+
+  /**
+   * Reachability for an external data server: connect over TLS as the stored
+   * provisioning role and confirm it still holds the privileges provisioning
+   * needs. A row with no credential cannot be probed at all — the CHECK
+   * constraint makes that unreachable in practice, but the guard keeps this
+   * honest rather than crashing on a null.
+   */
+  private async checkExternal(row: Server): Promise<void> {
+    let status: Server['status'] = 'unreachable';
+    let detail = 'no credential stored';
+
+    if (row.adminUser && row.adminSecretEnc) {
+      const result = await probeExternalDatabase({
+        host: row.host,
+        port: row.port,
+        user: row.adminUser,
+        password: this.secrets.open(row.adminSecretEnc),
+        caCert: row.caCert,
+      });
+      if (result.ok) {
+        // Authenticating is not enough: a role that cannot CREATEDB/CREATEROLE
+        // would fail at the first provision, so it is not "reachable" for our
+        // purposes.
+        status = result.canProvision ? 'reachable' : 'unreachable';
+        detail = result.canProvision ? 'ok' : 'role lacks CREATEDB/CREATEROLE';
+      } else {
+        detail = result.reason;
+      }
+    }
+
+    await this.dbClient.db
+      .update(server)
+      .set({ status, lastCheckedAt: new Date() })
+      .where(eq(server.id, row.id));
+    this.logger.info(
+      { serverId: row.id, host: row.host, port: row.port, status, detail },
+      'External server check finished',
     );
   }
 }
