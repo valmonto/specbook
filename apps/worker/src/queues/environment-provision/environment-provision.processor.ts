@@ -131,7 +131,18 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
         await this.fail(environmentId, k.environments.errors.storageProvisionUnsupported);
         return;
       }
-      if (placement.anyRemote && placement.transport !== 'private-network') {
+      // An EXTERNAL database presents its own certificate from a machine
+      // specbook does not administer: TLS there is a fact, not one of two
+      // provisionable shapes, and nothing needs installing. The gate below is
+      // for specbook-OWNED boxes, where `private-network` is all that works.
+      //
+      // This mirrors assertPlacement in the API. It is duplicated because the
+      // rows can change between the request and the job — and it was missed
+      // when the API's copy was lifted, which is precisely how a two-copy rule
+      // fails.
+      const externalDatabase =
+        placement.database.remote && placement.database.server.mode === 'external';
+      if (placement.anyRemote && !externalDatabase && placement.transport !== 'private-network') {
         // `tls` is accepted by the schema but nothing installs certificates yet.
         await this.fail(
           environmentId,
@@ -155,7 +166,6 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
       const cachePassword = platformEnv.REDIS_PASSWORD ?? generatePassword();
 
       // --- database ---
-      const externalDatabase = placement.database.remote && dbServer.mode === 'external';
       // An external server's Postgres is not ours: there is no root credential
       // to mint, and minting one would store a secret for a cluster specbook
       // does not administer.
