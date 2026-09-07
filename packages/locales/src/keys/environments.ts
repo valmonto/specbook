@@ -35,6 +35,7 @@ export const environments = {
 
   // Deployments
   deployAction: 'environments.deployAction',
+  cancelDeployAction: 'environments.cancelDeployAction',
   deployedLine: 'environments.deployedLine',
   openStaging: 'environments.openStaging',
   deploymentStatus: {
@@ -43,6 +44,7 @@ export const environments = {
     deploying: 'environments.deploymentStatus.deploying',
     healthy: 'environments.deploymentStatus.healthy',
     failed: 'environments.deploymentStatus.failed',
+    cancelled: 'environments.deploymentStatus.cancelled',
   },
   deploymentPhase: {
     resolve: 'environments.deploymentPhase.resolve',
@@ -147,6 +149,7 @@ export const environments = {
     serverNotStorage: 'environments.errors.serverNotStorage',
     transportRequired: 'environments.errors.transportRequired',
     transportTlsUnsupported: 'environments.errors.transportTlsUnsupported',
+    noActiveDeployment: 'environments.errors.noActiveDeployment',
     storageProvisionUnsupported: 'environments.errors.storageProvisionUnsupported',
     notProvisioned: 'environments.errors.notProvisioned',
     noBuildServer: 'environments.errors.noBuildServer',

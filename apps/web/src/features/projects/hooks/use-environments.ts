@@ -42,6 +42,9 @@ export const useProvisionEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.provision);
 export const useDeployEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.deploy);
+
+export const useCancelDeployment = (projectId: string) =>
+  useEnvironmentsAction(projectId, environmentsApi.cancelDeploy);
 export const useRemoveEnvironment = (projectId: string) =>
   useEnvironmentsAction(projectId, environmentsApi.remove);
 export const useSetEnvVar = (projectId: string) =>

@@ -1,0 +1,2 @@
+ALTER TABLE "deployment" ADD COLUMN "cancel_requested" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "deployment" DROP CONSTRAINT "deployment_status_check", ADD CONSTRAINT "deployment_status_check" CHECK (status IN ('queued', 'building', 'deploying', 'healthy', 'failed', 'cancelled'));

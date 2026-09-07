@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, text, timestamp, index, check } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  timestamp,
+  index,
+  check,
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { DEPLOYMENT_PHASES, DEPLOYMENT_STATUSES, DEPLOYMENT_TRIGGERS } from '@pkg/contracts';
 import { pk } from './helpers.js';
@@ -33,6 +42,14 @@ export const deployment = pgTable(
     log: text('log'),
     /** Failure detail — a k.* key or a scrubbed logs excerpt. */
     error: text('error'),
+    /**
+     * A human asked for this run to stop. A flag rather than a status because
+     * the worker is usually BLOCKED inside a remote command when the request
+     * arrives — it polls this while it runs and tears the connection down, then
+     * writes the terminal status itself. Setting the status here instead would
+     * be a lie until the worker actually noticed.
+     */
+    cancelRequested: boolean('cancel_requested').notNull().default(false),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     createdBy: uuid('created_by')

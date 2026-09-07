@@ -30,6 +30,7 @@ import type {
   CreateEnvironmentRequest,
   DeleteEnvironmentRequest,
   DeleteEnvVarRequest,
+  CancelDeploymentRequest,
   DeployEnvironmentRequest,
   Deployment as DeploymentDto,
   Environment as EnvironmentDto,
@@ -171,6 +172,31 @@ export class EnvironmentService {
       provisionError: null,
     });
     await this.provisioner.enqueueProvision(dto.id);
+    return this.getById(activeUser, dto.projectId, dto.id);
+  }
+
+  /**
+   * Ask the in-flight run to stop. This only RAISES A FLAG — the worker is
+   * almost always blocked inside a remote command when the request lands, so
+   * it polls this while it runs, tears the connection down, and writes the
+   * terminal status itself. Marking the row cancelled here would claim the
+   * remote build had stopped when it is still running on someone's machine.
+   */
+  async cancelDeployment(
+    activeUser: ActiveUser,
+    dto: CancelDeploymentRequest,
+  ): Promise<EnvironmentDto> {
+    await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
+    const existing = await this.findOrThrow(dto.id, dto.projectId, activeUser.orgId);
+    const active = await this.environmentRepository.findActiveDeployment(existing.id);
+    if (!active) {
+      throw new BadRequestException(k.environments.errors.noActiveDeployment);
+    }
+    await this.environmentRepository.requestDeploymentCancel(active.id);
+    this.logger.info(
+      { environmentId: existing.id, deploymentId: active.id },
+      'Deploy cancel requested',
+    );
     return this.getById(activeUser, dto.projectId, dto.id);
   }
 

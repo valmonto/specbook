@@ -57,6 +57,13 @@ interface DeployLogSink {
  * The rendered .env is the ONLY place user-secret values ever materialize,
  * and it exists solely on the target box (0600).
  */
+/**
+ * How often a running deploy checks whether a human asked it to stop. Short
+ * enough that the button feels immediate, long enough that a 40-minute build
+ * costs a few hundred trivial queries rather than thousands.
+ */
+const CANCEL_POLL_MS = 3_000;
+
 @Processor(DEPLOYMENT_QUEUE.name, DEPLOYMENT_QUEUE.workerOptions)
 export class DeploymentProcessor extends WorkerHost {
   constructor(
@@ -78,15 +85,52 @@ export class DeploymentProcessor extends WorkerHost {
     if (!row || row.status === 'healthy') return; // gone or already done
 
     const sink = this.createLogSink(row.id);
+    // A cancel arrives while this job is BLOCKED inside a remote command —
+    // usually a build or an image transfer that runs for minutes. Polling and
+    // aborting is what makes the button act on the running command rather than
+    // on the next phase boundary, which might be twenty minutes away.
+    const cancel = new AbortController();
+    const watcher = setInterval(() => {
+      void this.pollCancel(row.id, cancel);
+    }, CANCEL_POLL_MS);
     try {
-      await this.run(row, sink);
+      await this.run(row, sink, cancel.signal);
+      clearInterval(watcher);
     } catch (error) {
+      clearInterval(watcher);
+      if (cancel.signal.aborted) {
+        // Not a failure: nothing was wrong, a human changed their mind. Keeping
+        // the two apart is what makes a deploy history readable.
+        sink.line('\nCANCELLED by request');
+        await sink.flush();
+        await this.finish(row.id, 'cancelled', null);
+        this.logger.info({ deploymentId: row.id }, 'Deployment cancelled');
+        return;
+      }
       // Tokens may ride inside the clone URL — scrub before recording.
       const detail = sink.scrub((error as Error).message ?? 'deploy failed');
       sink.line(`\nERROR: ${detail}`);
       await sink.flush();
       await this.finish(row.id, 'failed', detail.slice(0, 2000));
       this.logger.error({ deploymentId: row.id, err: detail.slice(0, 300) }, 'Deployment failed');
+    } finally {
+      clearInterval(watcher);
+    }
+  }
+
+  /** Read the flag the API raises; abort the in-flight remote command on it. */
+  private async pollCancel(deploymentId: string, cancel: AbortController): Promise<void> {
+    if (cancel.signal.aborted) return;
+    try {
+      const [row] = await this.dbClient.db
+        .select({ cancelRequested: deployment.cancelRequested })
+        .from(deployment)
+        .where(eq(deployment.id, deploymentId))
+        .limit(1);
+      if (row?.cancelRequested) cancel.abort();
+    } catch {
+      // A transient database blip must not kill a healthy deploy; the next
+      // tick will see the flag.
     }
   }
 
@@ -126,7 +170,7 @@ export class DeploymentProcessor extends WorkerHost {
     };
   }
 
-  private async run(row: Deployment, sink: DeployLogSink): Promise<void> {
+  private async run(row: Deployment, sink: DeployLogSink, signal: AbortSignal): Promise<void> {
     const [env] = await this.dbClient.db
       .select()
       .from(projectEnvironment)
@@ -164,8 +208,8 @@ export class DeploymentProcessor extends WorkerHost {
     // mistake fails in seconds with a named cause, not after minutes.
     if (env.domain) {
       sink.line(`== preflight: ingress plane + dns for ${env.domain} ==`);
-      await this.ssh.exec(appTarget, 'ensure-caddy', [], '', sink.chunk);
-      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host], '', sink.chunk);
+      await this.ssh.exec(appTarget, 'ensure-caddy', [], '', sink.chunk, signal);
+      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host], '', sink.chunk, signal);
     }
 
     await this.update(row.id, { status: 'building', startedAt: new Date(), phase: 'resolve' });
@@ -177,6 +221,7 @@ export class DeploymentProcessor extends WorkerHost {
         [proj.defaultBranch],
         cloneUrl + '\n',
         sink.chunk,
+        signal,
       )
     ).trim();
     await this.update(row.id, { sha, phase: 'build' });
@@ -201,6 +246,7 @@ export class DeploymentProcessor extends WorkerHost {
           [`${unit}-${app}:${sha}`],
           appTarget,
           'image-import',
+          signal,
         );
       }
     }
@@ -342,7 +388,7 @@ export class DeploymentProcessor extends WorkerHost {
     await this.dbClient.db.update(deployment).set(patch).where(eq(deployment.id, id));
   }
 
-  private async finish(id: string, status: 'healthy' | 'failed', error: string | null) {
+  private async finish(id: string, status: 'healthy' | 'failed' | 'cancelled', error: string | null) {
     await this.update(id, { status, error, finishedAt: new Date() });
   }
 

@@ -108,11 +108,23 @@ export class SshService {
     args: string[] = [],
     stdin = '',
     onOutput?: (chunk: string) => void,
+    /**
+     * Aborting ends the REMOTE command, not just this promise. A caller that
+     * merely stopped awaiting would leave a build or an image load running on
+     * someone else's machine with nothing left to reap it.
+     */
+    signal?: AbortSignal,
   ): Promise<string> {
     const script = REMOTE_OPS[op];
+    if (signal?.aborted) throw new Error('aborted');
     const { client } = await this.connect(target);
     try {
       return await new Promise<string>((resolve, reject) => {
+        const onAbort = (): void => {
+          client.end();
+          reject(new Error('aborted'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
         const quoted = args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
         client.exec(`bash -s -- ${quoted}`, (err, stream) => {
           if (err) return reject(err);
@@ -168,7 +180,10 @@ export class SshService {
     sourceArgs: string[],
     dest: SshTarget,
     destOp: RemoteOp,
+    /** Ends both remote commands, not just the wait — see exec. */
+    signal?: AbortSignal,
   ): Promise<void> {
+    if (signal?.aborted) throw new Error('aborted');
     const quoted = (args: string[]) => args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
     const { client: src } = await this.connect(source);
     try {
@@ -211,6 +226,17 @@ export class SshService {
           // swallowed whole. They land here now.
           src.on('error', (e: Error) => finish(new Error(`source connection failed: ${e.message}`)));
           dst.on('error', (e: Error) => finish(new Error(`dest connection failed: ${e.message}`)));
+          // Ending both clients stops `docker save` and `docker load` on the
+          // remote boxes; without that a cancel would abandon a running load.
+          signal?.addEventListener(
+            'abort',
+            () => {
+              src.end();
+              dst.end();
+              finish(new Error('aborted'));
+            },
+            { once: true },
+          );
 
           dst.exec(`bash -s`, (destErr, destStream) => {
             if (destErr) return finish(destErr);

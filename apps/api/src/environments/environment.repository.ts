@@ -269,6 +269,33 @@ export class EnvironmentRepository {
 
   // --- Deployments (reached only through org-scoped environment lookups) ---
 
+  /**
+   * The run a cancel would act on: the one that has not finished. Only one is
+   * ever in flight per environment, so this is unambiguous without an id.
+   */
+  async findActiveDeployment(environmentId: string): Promise<{ id: string } | null> {
+    const [row] = await this.dbClient.db
+      .select({ id: deployment.id })
+      .from(deployment)
+      .where(
+        and(
+          eq(deployment.environmentId, environmentId),
+          inArray(deployment.status, ['queued', 'building', 'deploying']),
+        ),
+      )
+      .orderBy(desc(deployment.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Raise the flag only; the worker owns the terminal status. */
+  async requestDeploymentCancel(deploymentId: string): Promise<void> {
+    await this.dbClient.db
+      .update(deployment)
+      .set({ cancelRequested: true })
+      .where(eq(deployment.id, deploymentId));
+  }
+
   async createDeployment(data: NewDeployment): Promise<Deployment> {
     const [result] = await this.dbClient.db.insert(deployment).values(data).returning();
     return result!;
