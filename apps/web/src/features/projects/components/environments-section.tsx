@@ -243,7 +243,11 @@ function EnvironmentRow({
 
   return (
     <div>
-      <div className="flex items-center gap-2 px-3 py-2">
+      {/* Wraps on purpose: this row carries a name, three or four chips, a
+          status and up to four actions. Held on one line it does not merely
+          crowd — flex children shrink past their content and the text overlaps,
+          which is what a phone showed. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2">
         {/* role=button instead of <button>: the domain chip nests a real <a>,
             which HTML forbids inside a native button. */}
         <div
@@ -257,7 +261,7 @@ function EnvironmentRow({
             }
           }}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+          className="flex min-w-0 flex-1 shrink cursor-pointer flex-wrap items-center gap-x-2 gap-y-1.5 text-left"
         >
           <ChevronRight
             className={cn(
@@ -265,14 +269,14 @@ function EnvironmentRow({
               expanded && 'rotate-90',
             )}
           />
-          <span className="text-sm font-medium">{env.name}</span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
+          <span className="shrink-0 text-sm font-medium">{env.name}</span>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
             <HardDrive className="size-3" />
             {env.serverName}
           </span>
           {(env.databaseServerName || env.cacheServerName) && (
             <span
-              className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground"
+              className="inline-flex max-w-full shrink-0 items-center gap-1 truncate rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground"
               title={t(k.environments.placementTitle)}
             >
               {[
@@ -292,7 +296,7 @@ function EnvironmentRow({
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 hover:underline dark:text-emerald-400"
+                className="inline-flex min-w-0 max-w-full shrink items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 hover:underline dark:text-emerald-400"
               >
                 <Globe className="size-3" />
                 <span className="truncate font-mono">{env.domain}</span>
@@ -368,81 +372,86 @@ function EnvironmentRow({
             </span>
           )}
         </div>
-        {env.publicUrl && (
-          <a
-            href={env.publicUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ExternalLink className="size-3" />
-            {t(k.environments.openStaging)}
-          </a>
-        )}
-        {canManage && env.provisionStatus === 'provisioned' && !deployInFlight && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
-            disabled={deploy.isLoading}
-            onClick={(e) => {
-              e.stopPropagation();
-              runDeploy();
-            }}
-          >
-            <Rocket className="size-3" />
-            {t(k.environments.deployAction)}
-          </Button>
-        )}
-        {canManage && deployInFlight && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-destructive h-7 gap-1 px-2 text-xs"
-            disabled={cancelDeploy.isLoading}
-            onClick={(e) => {
-              e.stopPropagation();
-              void cancelDeploy.execute({ projectId, id: env.id });
-            }}
-          >
-            <X className="size-3" />
-            {t(k.environments.cancelDeployAction)}
-          </Button>
-        )}
-        {canManage && env.provisionStatus !== 'provisioning' && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
-            disabled={provision.isLoading}
-            onClick={(e) => {
-              e.stopPropagation();
-              runProvision();
-            }}
-          >
-            <RefreshCw className="size-3" />
-            {t(
-              env.provisionStatus === 'unprovisioned'
-                ? k.environments.provisionAction
-                : k.environments.reprovisionAction,
-            )}
-          </Button>
-        )}
-        {canManage && (
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={t(k.environments.removeEnvironment)}
-            className="size-7 text-muted-foreground"
-            onClick={(e) => {
-              e.stopPropagation();
-              setConfirmingRemove(true);
-            }}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        )}
+        {/* One group, so the actions stay together when the row wraps instead
+            of scattering an odd button onto its own line. `ml-auto` keeps them
+            right-aligned on a wide row and harmless on a narrow one. */}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {env.publicUrl && (
+            <a
+              href={env.publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="size-3" />
+              {t(k.environments.openStaging)}
+            </a>
+          )}
+          {canManage && env.provisionStatus === 'provisioned' && !deployInFlight && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+              disabled={deploy.isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                runDeploy();
+              }}
+            >
+              <Rocket className="size-3" />
+              {t(k.environments.deployAction)}
+            </Button>
+          )}
+          {canManage && deployInFlight && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive h-7 gap-1 px-2 text-xs"
+              disabled={cancelDeploy.isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                void cancelDeploy.execute({ projectId, id: env.id });
+              }}
+            >
+              <X className="size-3" />
+              {t(k.environments.cancelDeployAction)}
+            </Button>
+          )}
+          {canManage && env.provisionStatus !== 'provisioning' && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+              disabled={provision.isLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                runProvision();
+              }}
+            >
+              <RefreshCw className="size-3" />
+              {t(
+                env.provisionStatus === 'unprovisioned'
+                  ? k.environments.provisionAction
+                  : k.environments.reprovisionAction,
+              )}
+            </Button>
+          )}
+          {canManage && (
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t(k.environments.removeEnvironment)}
+              className="size-7 text-muted-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmingRemove(true);
+              }}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {latest?.status === 'failed' && latest.error && (
