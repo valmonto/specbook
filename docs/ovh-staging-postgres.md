@@ -186,31 +186,48 @@ postgresql://<unit>:<pw>@198.244.200.168:35427/<unit>?sslmode=verify-full
 - **`REVOKE` silently does nothing** when the caller does not own the object —
   it warns (`no privileges could be revoked`) and returns `REVOKE`.
 
-## What specbook still needs
+## How specbook uses it
 
-specbook cannot use this server today. Its data-plane ops assume it owns the
-database and shells into its own container:
+specbook provisions this server over the wire — no SSH to it, ever. When an
+environment names it as its database server, the worker connects as
+`specbook_provisioner` over TLS and runs the three statements above, then
+renders the app's connection string:
 
-```bash
-docker exec specbook-postgres psql -U specbook …
+```
+DATABASE_URL=postgresql://<unit>:<generated>@198.244.200.168:35427/<unit>?sslmode=verify-full
+DATABASE_CA_CERT=<the PEM>
 ```
 
-Against a natively-installed Postgres that fails, and
-`data-plane-ensure-published` would try to `docker run` a second Postgres
-alongside this one. Two further blockers:
+The port comes from the server record, not a hardcoded 5432 — this Postgres is
+published on 35427 and a hardcoded default would produce a connection string
+that is silently unreachable. The CA travels as its own variable because a
+certificate authority **cannot be carried in a connection URL**: postgres.js
+accepts it only as a JS option (see `packages/database/README.md`).
 
-- `data-plane-ensure-published` binds `-p "$host:5432:5432"` using the server's
-  registered SSH host. `198.244.200.168` is not an address the guest holds, so
-  the bind fails.
-- `assertPlacement` refuses `tls` transport — only `private-network` is
-  provisionable, and that means unencrypted.
+### Deleting an environment does not delete its data
 
-Closing this needs an **external database server** mode: a server marked
-external, carrying its data host/port and the `specbook_provisioner` credential
-sealed with `APP_ENCRYPTION_KEY`; a provisioning path that runs the three
-statements above over TLS with a Postgres client instead of `docker exec`; the
-`tls` transport allowed; and `postgres-ca.crt` delivered to app containers so
-`sslmode=verify-full` can resolve.
+On a specbook-owned box the data plane is torn down with the environment. Here
+the database sits on a machine serving other projects and outlives us, so
+deprovisioning only revokes the login:
 
-See [data-plane-placement.md](data-plane-placement.md) for the placement model
-this would plug into.
+```sql
+ALTER ROLE "<unit>" NOLOGIN;
+```
+
+The database and its contents stay. Dropping them is a deliberate human act,
+never a side effect of removing an environment. This also makes an accidental
+deletion recoverable — recreating the environment derives the same unit name,
+and provisioning is CREATE-or-ALTER, so the role is re-enabled over its own
+data.
+
+It sidesteps a mechanical trap too: `DROP ROLE` fails while the role owns
+objects, so a naive drop would error on the database it had just created.
+
+## Still to do
+
+- Orphaned units (a role left `NOLOGIN` by a deleted environment) are not yet
+  surfaced anywhere, so cleaning them up means looking at the server by hand.
+- Redis has no external equivalent: the cache stays co-located on the app
+  server, which is fine but means this box carries only the database half.
+- Certificate expiry is not monitored. A private CA's server certificate
+  expiring takes down every app on this database at once.

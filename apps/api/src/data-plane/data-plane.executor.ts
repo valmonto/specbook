@@ -337,7 +337,15 @@ export class DataPlaneExecutor {
     const servers = await this.environments.findServers([...new Set(ids)], orgId);
     const placement = resolvePlacement(
       env,
-      servers.map((s) => ({ id: s.id, name: s.name, host: s.host, roles: rolesOf(s) })),
+      servers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        host: s.host,
+        port: s.port,
+        mode: s.mode,
+        caCert: s.caCert,
+        roles: rolesOf(s),
+      })),
     );
     const chosen = placement[role].server;
     const srv = servers.find((s) => s.id === chosen.id)!;

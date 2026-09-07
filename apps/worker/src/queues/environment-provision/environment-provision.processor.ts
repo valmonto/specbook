@@ -1,4 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
+import {
+  provisionUnitExternal,
+  retireUnitExternal,
+  type ExternalTarget,
+} from './external-executor.js';
 import { Inject } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { type Job } from 'bullmq';
@@ -90,7 +95,15 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
 
       const placement = resolvePlacement(
         env,
-        servers.map((s) => ({ id: s.id, name: s.name, host: s.host, roles: rolesOf(s) })),
+        servers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        host: s.host,
+        port: s.port,
+        mode: s.mode,
+        caCert: s.caCert,
+        roles: rolesOf(s),
+      })),
       );
 
       // Eligibility, re-checked here because the API's check is fast feedback
@@ -142,8 +155,16 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
       const cachePassword = platformEnv.REDIS_PASSWORD ?? generatePassword();
 
       // --- database ---
-      const dbRootPassword = await this.ensureRootPassword(dbServer);
-      if (placement.database.remote) {
+      const externalDatabase = placement.database.remote && dbServer.mode === 'external';
+      // An external server's Postgres is not ours: there is no root credential
+      // to mint, and minting one would store a secret for a cluster specbook
+      // does not administer.
+      const dbRootPassword = externalDatabase ? '' : await this.ensureRootPassword(dbServer);
+      if (externalDatabase) {
+        // Nothing to install and no shell to install it from: specbook does not
+        // own this box. The unit is created over the wire instead.
+        await provisionUnitExternal(this.externalTargetFor(dbServer), unit, databasePassword);
+      } else if (placement.database.remote) {
         await this.ssh.exec(
           this.targetFor(dbServer),
           'data-plane-ensure-published',
@@ -265,10 +286,49 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
     // the whole co-located data plane (the original op, unchanged).
     await this.bestEffort(serverId, 'data-plane-deprovision-unit', [unit], { unit });
     if (databaseServerId && databaseServerId !== serverId) {
-      await this.bestEffort(databaseServerId, 'database-deprovision-unit', [unit], { unit });
+      await this.retireOrDropDatabaseUnit(databaseServerId, unit);
     }
     if (cacheServerId && cacheServerId !== serverId) {
       await this.bestEffort(cacheServerId, 'cache-deprovision-unit', [unit], { unit });
+    }
+  }
+
+  /**
+   * Removing an environment must not destroy data that outlives it.
+   *
+   * On a specbook-owned box the data plane is torn down with the environment,
+   * so dropping the unit changes nothing. On an EXTERNAL server the database
+   * sits on a machine serving other projects and survives us — dropping it is a
+   * separate, irreversible decision that deleting an environment does not
+   * justify. So the login is revoked and the data is left in place, which also
+   * makes an accidental deletion recoverable: recreating the environment
+   * derives the same unit name and re-enables the role over its own data.
+   *
+   * Orphaned units are a human's call to clean up, not a side effect.
+   */
+  private async retireOrDropDatabaseUnit(serverId: string, unit: string): Promise<void> {
+    const [srv] = await this.dbClient.db
+      .select()
+      .from(server)
+      .where(eq(server.id, serverId))
+      .limit(1);
+    if (!srv) return; // server gone — nothing left to clean
+    if (srv.mode !== 'external') {
+      await this.bestEffort(serverId, 'database-deprovision-unit', [unit], { unit });
+      return;
+    }
+    try {
+      await retireUnitExternal(this.externalTargetFor(srv), unit);
+      this.logger.info(
+        { serverId, unit },
+        'External unit retired — login revoked, database left intact',
+      );
+    } catch (error) {
+      // Best-effort by contract: an unreachable box must never block deletion.
+      this.logger.warn(
+        { serverId, unit, err: (error as Error).message },
+        'External unit retire failed',
+      );
     }
   }
 
@@ -329,6 +389,24 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
     if (!url) return null;
     const match = new RegExp(`^postgresql://${unit}:([A-Za-z0-9]+)@`).exec(url);
     return match?.[1] ?? null;
+  }
+
+  /**
+   * The connection facts for an EXTERNAL data server. `host`/`port` on such a
+   * server are the address applications dial — it has no SSH endpoint, so there
+   * is no second address to confuse them with.
+   */
+  private externalTargetFor(srv: Server): ExternalTarget {
+    if (!srv.adminUser || !srv.adminSecretEnc) {
+      throw new Error(`server ${srv.id} is external but carries no provisioning credential`);
+    }
+    return {
+      host: srv.host,
+      port: srv.port,
+      adminUser: srv.adminUser,
+      adminPassword: this.secrets.open(srv.adminSecretEnc),
+      caCert: srv.caCert,
+    };
   }
 
   private targetFor(srv: Server): SshTarget {
