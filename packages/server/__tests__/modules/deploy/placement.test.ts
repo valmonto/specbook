@@ -17,24 +17,28 @@ const app: PlacementServer = {
   id: 'app',
   name: 'app-box',
   host: 'app.internal',
+  port: 22,
   roles: ['app', 'data'],
 };
 const db: PlacementServer = {
   id: 'db',
   name: 'pg-box',
   host: '192.168.122.20',
+  port: 22,
   roles: ['database'],
 };
 const cache: PlacementServer = {
   id: 'cache',
   name: 'redis-box',
   host: '192.168.122.30',
+  port: 22,
   roles: ['cache'],
 };
 const legacyOnly: PlacementServer = {
   id: 'legacy',
   name: 'old-box',
   host: 'old.internal',
+  port: 22,
   roles: ['data'],
 };
 

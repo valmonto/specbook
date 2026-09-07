@@ -628,7 +628,15 @@ export class EnvironmentService {
     }
     const placement = resolvePlacement(
       env,
-      servers.map((s) => ({ id: s.id, name: s.name, host: s.host, roles: serverRoles(s) })),
+      servers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        host: s.host,
+        port: s.port,
+        mode: s.mode,
+        caCert: s.caCert,
+        roles: serverRoles(s),
+      })),
     );
     const roleError: Record<PlacementRole, string> = {
       database: k.environments.errors.serverNotDatabase,
@@ -644,10 +652,16 @@ export class EnvironmentService {
       throw new BadRequestException(k.environments.errors.storageProvisionUnsupported);
     }
     if (placement.anyRemote) {
-      if (!placement.transport) {
+      // An EXTERNAL database is reached over TLS by definition — it is a
+      // Postgres on someone else's machine, presenting its own certificate. The
+      // transport is a fact about it, not a choice, so neither the requirement
+      // nor the `tls` refusal below applies. Both exist for specbook-owned
+      // boxes, where `private-network` is the only shape that provisions.
+      const externalDatabase = placement.database.remote && placement.database.server.mode === 'external';
+      if (!placement.transport && !externalDatabase) {
         throw new BadRequestException(k.environments.errors.transportRequired);
       }
-      if (placement.transport === 'tls') {
+      if (placement.transport === 'tls' && !externalDatabase) {
         throw new BadRequestException(k.environments.errors.transportTlsUnsupported);
       }
     }

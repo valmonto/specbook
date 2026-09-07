@@ -16,6 +16,16 @@ export interface PlacementServer {
   id: string;
   name: string;
   host: string;
+  /**
+   * For an EXTERNAL server this is the port applications dial, which is often
+   * NOT 5432 — the address and port are the only ones such a server has, since
+   * specbook never SSHes to it.
+   */
+  port: number;
+  /** @pkg/contracts SERVER_MODES. Absent on older callers ⇒ 'specbook'. */
+  mode?: string;
+  /** PEM of the CA that signed its certificate; external + TLS only. */
+  caCert?: string | null;
   roles: readonly string[];
 }
 
@@ -130,8 +140,20 @@ export function renderPlatformWiring(input: WiringInput): Record<string, string>
   const wired: Record<string, string> = {};
 
   if (placement.database.remote) {
-    const ssl = placement.transport === 'tls' ? '?sslmode=verify-full' : '';
-    wired.DATABASE_URL = `postgresql://${unit}:${databasePassword}@${placement.database.server.host}:5432/${unit}${ssl}`;
+    const db = placement.database.server;
+    // An external server is reached over TLS by definition — it is a database
+    // on someone else's machine — so verification is not optional there.
+    const external = db.mode === 'external';
+    const ssl = external || placement.transport === 'tls' ? '?sslmode=verify-full' : '';
+    // The port is the server's own, NOT a hardcoded 5432: a published external
+    // Postgres commonly sits on a non-default port, and getting this wrong
+    // produces a connection string that is silently unreachable.
+    const port = external ? db.port : 5432;
+    wired.DATABASE_URL = `postgresql://${unit}:${databasePassword}@${db.host}:${port}/${unit}${ssl}`;
+    // verify-full needs the CA, and a CA cannot be carried in a connection
+    // URL — postgres.js takes it as a JS option, so it travels as its own
+    // variable and @pkg/database picks it up. See its README.
+    if (external && db.caCert) wired.DATABASE_CA_CERT = db.caCert;
   } else {
     wired.DATABASE_URL = `postgresql://${unit}:${databasePassword}@specbook-postgres:5432/${unit}`;
   }
