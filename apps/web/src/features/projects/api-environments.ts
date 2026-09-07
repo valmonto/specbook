@@ -7,6 +7,8 @@ import type {
   DeleteEnvironmentResponse,
   DeleteEnvVarRequest,
   DeleteEnvVarResponse,
+  CancelDeploymentRequest,
+  CancelDeploymentResponse,
   DeployEnvironmentRequest,
   DeployEnvironmentResponse,
   GrantMcpAccessRequest,
@@ -41,6 +43,8 @@ export const environmentsApi = {
     http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/provision`, {}),
   deploy: (dto: DeployEnvironmentRequest): Promise<DeployEnvironmentResponse> =>
     http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/deploy`, {}),
+  cancelDeploy: (dto: CancelDeploymentRequest): Promise<CancelDeploymentResponse> =>
+    http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/deploy/cancel`, {}),
   // The value rides the body; secrets are write-only, config is revealable.
   setVar: (dto: SetEnvVarRequest): Promise<SetEnvVarResponse> =>
     http.put(`/api/projects/${dto.projectId}/environments/${dto.id}/env/${dto.name}`, {

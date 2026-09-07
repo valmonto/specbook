@@ -16,6 +16,7 @@ import {
   Rocket,
   Save,
   Trash2,
+  X,
 } from 'lucide-react';
 import {
   ENVIRONMENT_NAMES,
@@ -60,6 +61,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   useBulkSetEnvVars,
   useCreateEnvironment,
+  useCancelDeployment,
   useDeployEnvironment,
   useEnvironments,
   useProvisionEnvironment,
@@ -88,6 +90,9 @@ const deploymentStyles: Record<NonNullable<Environment['latestDeployment']>['sta
   deploying: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
   healthy: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
   failed: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  // Muted, not red: a cancel is a decision, not a fault, and colouring it like
+  // a failure makes real failures harder to spot in a list.
+  cancelled: 'bg-muted text-muted-foreground',
 };
 
 const deploymentLabels: Record<NonNullable<Environment['latestDeployment']>['status'], string> = {
@@ -96,6 +101,7 @@ const deploymentLabels: Record<NonNullable<Environment['latestDeployment']>['sta
   deploying: k.environments.deploymentStatus.deploying,
   healthy: k.environments.deploymentStatus.healthy,
   failed: k.environments.deploymentStatus.failed,
+  cancelled: k.environments.deploymentStatus.cancelled,
 };
 
 /** "2m ago"-class recency, coarse on purpose. */
@@ -216,6 +222,7 @@ function EnvironmentRow({
   const remove = useRemoveEnvironment(projectId);
   const provision = useProvisionEnvironment(projectId);
   const deploy = useDeployEnvironment(projectId);
+  const cancelDeploy = useCancelDeployment(projectId);
 
   const platformNames = Object.keys(env.platformEnv).sort();
   const latest = env.latestDeployment;
@@ -386,6 +393,21 @@ function EnvironmentRow({
           >
             <Rocket className="size-3" />
             {t(k.environments.deployAction)}
+          </Button>
+        )}
+        {canManage && deployInFlight && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive h-7 gap-1 px-2 text-xs"
+            disabled={cancelDeploy.isLoading}
+            onClick={(e) => {
+              e.stopPropagation();
+              void cancelDeploy.execute({ projectId, id: env.id });
+            }}
+          >
+            <X className="size-3" />
+            {t(k.environments.cancelDeployAction)}
           </Button>
         )}
         {canManage && env.provisionStatus !== 'provisioning' && (

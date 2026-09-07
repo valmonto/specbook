@@ -249,6 +249,18 @@ export const DeployEnvironmentResponseSchema = EnvironmentSchema;
 export type DeployEnvironmentRequest = z.infer<typeof DeployEnvironmentRequestSchema>;
 export type DeployEnvironmentResponse = z.infer<typeof DeployEnvironmentResponseSchema>;
 
+/**
+ * Stop the environment's in-flight run. Addressed by ENVIRONMENT rather than
+ * deployment id: only one run is ever in flight, and the operator cancelling
+ * it is looking at the environment, not at a run they have an id for.
+ */
+export const CancelDeploymentRequestSchema = z
+  .object({ projectId: z.string().uuid(), id: z.string().uuid() })
+  .strict();
+export const CancelDeploymentResponseSchema = EnvironmentSchema;
+export type CancelDeploymentRequest = z.infer<typeof CancelDeploymentRequestSchema>;
+export type CancelDeploymentResponse = z.infer<typeof CancelDeploymentResponseSchema>;
+
 // --- Delete a user env var ---
 export const DeleteEnvVarRequestSchema = z
   .object({

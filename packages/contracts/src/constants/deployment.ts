@@ -8,6 +8,12 @@ export const DEPLOYMENT_STATUSES = [
   'deploying',
   'healthy',
   'failed',
+  /**
+   * Stopped on purpose by a human. Distinct from 'failed' because nothing was
+   * wrong — conflating them makes a deploy history unreadable, and hides the
+   * real failures among the changed minds.
+   */
+  'cancelled',
 ] as const;
 export type DeploymentStatus = (typeof DEPLOYMENT_STATUSES)[number];
 

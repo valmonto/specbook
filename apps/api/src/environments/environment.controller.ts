@@ -5,6 +5,7 @@ import {
   CreateEnvironmentRequestSchema,
   DeleteEnvironmentRequestSchema,
   DeleteEnvVarRequestSchema,
+  CancelDeploymentRequestSchema,
   DeployEnvironmentRequestSchema,
   GrantMcpAccessRequestSchema,
   ListDataAccessAuditRequestSchema,
@@ -23,6 +24,8 @@ import {
   type DeleteEnvironmentResponse,
   type DeleteEnvVarRequest,
   type DeleteEnvVarResponse,
+  type CancelDeploymentRequest,
+  type CancelDeploymentResponse,
   type DeployEnvironmentRequest,
   type DeployEnvironmentResponse,
   type GrantMcpAccessRequest,
@@ -103,6 +106,16 @@ export class EnvironmentController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<DeployEnvironmentResponse> {
     return this.environmentService.deploy(activeUser, dto);
+  }
+
+  /** Stop the in-flight run. The worker writes the terminal status. */
+  @Post(':id/deploy/cancel')
+  @Permissions('project:update')
+  async cancelDeployment(
+    @ZodRequest(CancelDeploymentRequestSchema) dto: CancelDeploymentRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<CancelDeploymentResponse> {
+    return this.environmentService.cancelDeployment(activeUser, dto);
   }
 
   /**
