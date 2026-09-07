@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+import { checkServerIdentity as defaultCheckServerIdentity } from 'node:tls';
 import postgres from 'postgres';
 
 export interface ExternalProbeInput {
@@ -24,22 +26,51 @@ export type ExternalProbeResult =
  * CREATEROLE and still fail at `CREATE DATABASE ... OWNER` for want of SET —
  * so the privileges are part of the check, not an assumption.
  */
+export type SslOptions =
+  | 'require'
+  | {
+      ca: string;
+      rejectUnauthorized: true;
+      servername?: string;
+      checkServerIdentity: (servername: string, cert: never) => Error | undefined;
+    };
+
+/**
+ * TLS options for one probe. Exported because the rules below are the whole
+ * risk surface and are far easier to assert directly than through a live
+ * server — the bug this replaced shipped precisely because the test connected
+ * to a closed port and never reached the TLS handshake.
+ *
+ * Two rules, and they pull in opposite directions:
+ *
+ *  - SNI cannot carry an IP literal. Node THROWS on `servername` set to an IP,
+ *    and it throws from inside the driver's socket upgrade — where it is an
+ *    uncaught exception that kills the process, not a rejected promise this
+ *    function could turn into a result. So an IP host must not set it at all.
+ *  - Identity must still be checked against the host actually dialed.
+ *    Left alone, Node checks whatever `servername` says, defaulting to
+ *    'localhost' over a socket the driver already opened — verifying a name
+ *    nobody asked for.
+ *
+ * Passing checkServerIdentity explicitly satisfies both: the comparison is
+ * pinned to `host` (Node matches an IP against the certificate's iPAddress
+ * SANs, a DNS name against its dNSNames) whatever SNI ends up carrying.
+ */
+export function buildSslOptions(host: string, caCert: string | null): SslOptions {
+  // No CA means TLS is still required, but nothing identifies who answered.
+  if (!caCert) return 'require';
+  return {
+    ca: caCert,
+    rejectUnauthorized: true,
+    ...(isIP(host) ? {} : { servername: host }),
+    checkServerIdentity: (_servername, cert) => defaultCheckServerIdentity(host, cert),
+  };
+}
+
 export async function probeExternalDatabase(
   input: ExternalProbeInput,
 ): Promise<ExternalProbeResult> {
-  // verify-full when a CA is supplied: the server must present a certificate
-  // this CA signed AND its identity must match the address we dialed. Without
-  // a CA we still require TLS, but cannot verify who answered.
-  //
-  // `servername` is not optional here. postgres.js hands this object straight
-  // to tls.connect() over a socket it already opened, so Node has no host of
-  // its own to check against and falls back to 'localhost' — which fails
-  // against every real certificate with a message that reads like the cert is
-  // wrong ("Host: localhost. is not cert's CN: ..."). Naming the host we dialed
-  // is what makes the identity check verify what we actually think it does.
-  const ssl = input.caCert
-    ? { ca: input.caCert, rejectUnauthorized: true, servername: input.host }
-    : 'require';
+  const ssl = buildSslOptions(input.host, input.caCert);
 
   const sql = postgres({
     host: input.host,
