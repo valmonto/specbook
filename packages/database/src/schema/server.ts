@@ -72,6 +72,13 @@ export const server = pgTable(
      */
     caCert: text('ca_cert'),
     status: varchar('status', { length: 32 }).notNull().default('unverified'),
+    /**
+     * Why the last check failed, in the words of whatever refused us — an SSH
+     * refusal, a TLS rejection, `permission denied for database "postgres"`.
+     * Cleared on success. Without it "Unreachable" sends someone to the worker
+     * logs to read a reason the check already had in hand.
+     */
+    lastCheckError: text('last_check_error'),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     createdBy: uuid('created_by')
       .notNull()

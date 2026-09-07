@@ -99,3 +99,19 @@ export async function probeExternalDatabase(
     await sql.end({ timeout: 5 }).catch(() => {});
   }
 }
+
+/** Longest failure reason stored on a server row. */
+export const CHECK_ERROR_MAX = 300;
+
+/**
+ * Trim a failure reason to something a row can carry. Reasons come from the
+ * far end — sshd, Node's TLS layer, Postgres — so they are useful but not
+ * ours to trust: they can be long, multi-line, or absent. Nothing sensitive is
+ * ever added here; the probe never puts the password in a message, and the
+ * host and port it might mention are already on screen.
+ */
+export function describeCheckFailure(reason: string | undefined | null): string {
+  const flat = (reason ?? '').replace(/\s+/g, ' ').trim();
+  if (!flat) return 'check failed for an unreported reason';
+  return flat.length > CHECK_ERROR_MAX ? `${flat.slice(0, CHECK_ERROR_MAX - 1)}…` : flat;
+}

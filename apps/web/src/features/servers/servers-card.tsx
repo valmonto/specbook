@@ -354,6 +354,11 @@ export function ServersCard() {
                     </Button>
                   </div>
                 )}
+                {s.lastCheckError && s.status !== 'reachable' && (
+                  /* The check already knew why. Showing it here is the
+                     difference between "Unreachable" and a fixable fact. */
+                  <p className="text-destructive mt-1 text-xs break-words">{s.lastCheckError}</p>
+                )}
                 <HostedEnvironments server={s} />
               </li>
             ))}

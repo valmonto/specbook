@@ -41,6 +41,7 @@ const box: Server = {
   caCert: null,
   publicKey: 'ssh-ed25519 AAAA test',
   hostFingerprint: 'SHA256:pinned',
+  lastCheckError: null,
   status: 'reachable',
   lastCheckedAt: '2026-09-05T10:00:00.000Z',
   createdBy: '33333333-3333-4333-8333-333333333333',
