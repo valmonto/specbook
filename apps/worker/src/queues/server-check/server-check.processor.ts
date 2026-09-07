@@ -1,7 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, type OnModuleInit } from '@nestjs/common';
 import { Queue, type Job } from 'bullmq';
-import { probeExternalDatabase } from './external-probe.js';
+import { describeCheckFailure, probeExternalDatabase } from './external-probe.js';
 import { DATABASE_CLIENT, type DatabaseClient, server, eq, type Server } from '@pkg/database';
 import {
   InjectLogger,
@@ -77,7 +77,9 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
       hostFingerprint: row.hostFingerprint,
     });
 
-    const patch: Partial<Server> = { lastCheckedAt: new Date() };
+    // Always write the reason field, null included — a stale explanation next
+    // to a green status is worse than none.
+    const patch: Partial<Server> = { lastCheckedAt: new Date(), lastCheckError: null };
     if (result.ok) {
       patch.status = 'reachable';
       if (!row.hostFingerprint && result.fingerprint) {
@@ -86,6 +88,7 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
     } else {
       patch.status =
         result.reason === 'fingerprint_mismatch' ? 'fingerprint_mismatch' : 'unreachable';
+      patch.lastCheckError = describeCheckFailure(result.reason);
     }
 
     await this.dbClient.db.update(server).set(patch).where(eq(server.id, id));
@@ -132,7 +135,11 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
 
     await this.dbClient.db
       .update(server)
-      .set({ status, lastCheckedAt: new Date() })
+      .set({
+        status,
+        lastCheckedAt: new Date(),
+        lastCheckError: status === 'reachable' ? null : describeCheckFailure(detail),
+      })
       .where(eq(server.id, row.id));
     this.logger.info(
       { serverId: row.id, host: row.host, port: row.port, status, detail },

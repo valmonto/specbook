@@ -1,0 +1,1 @@
+ALTER TABLE "server" ADD COLUMN "last_check_error" text;

@@ -213,6 +213,7 @@ export class ServerService {
       publicKey: s.publicKey,
       hostFingerprint: s.hostFingerprint,
       status: s.status as ServerDto['status'],
+      lastCheckError: s.lastCheckError,
       lastCheckedAt: s.lastCheckedAt?.toISOString() ?? null,
       createdBy: s.createdBy,
       createdAt: s.createdAt.toISOString(),

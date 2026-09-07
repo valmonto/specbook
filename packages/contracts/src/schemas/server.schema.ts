@@ -93,6 +93,8 @@ export const ServerSchema = z.object({
   /** SHA256 fingerprint pinned on first successful connect; null before. */
   hostFingerprint: z.string().nullable(),
   status: ServerStatusSchema,
+  /** Why the last check failed; null when it passed or has not run. */
+  lastCheckError: z.string().nullable(),
   lastCheckedAt: z.string().nullable(),
   createdBy: z.string().uuid(),
   createdAt: z.string(),

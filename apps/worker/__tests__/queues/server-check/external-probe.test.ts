@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSslOptions,
+  CHECK_ERROR_MAX,
+  describeCheckFailure,
   probeExternalDatabase,
 } from '../../../src/queues/server-check/external-probe.js';
 
@@ -55,4 +57,30 @@ describe('probeExternalDatabase', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(typeof result.reason).toBe('string');
   }, 20_000);
+});
+
+describe('describeCheckFailure', () => {
+  it('keeps the far end\'s own words — that is the whole point of storing it', () => {
+    expect(describeCheckFailure('permission denied for database "postgres"')).toBe(
+      'permission denied for database "postgres"',
+    );
+  });
+
+  it('flattens multi-line reasons so a row can render one', () => {
+    expect(describeCheckFailure('connect failed\n  at Socket.secure\n  at process')).toBe(
+      'connect failed at Socket.secure at process',
+    );
+  });
+
+  it('caps length rather than letting a stack trace into the column', () => {
+    const out = describeCheckFailure('x'.repeat(CHECK_ERROR_MAX * 2));
+    expect(out.length).toBe(CHECK_ERROR_MAX);
+    expect(out.endsWith('…')).toBe(true);
+  });
+
+  it('says something rather than nothing when the reason is missing', () => {
+    for (const empty of [undefined, null, '', '   ']) {
+      expect(describeCheckFailure(empty)).toBe('check failed for an unreported reason');
+    }
+  });
 });
