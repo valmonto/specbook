@@ -30,7 +30,16 @@ export async function probeExternalDatabase(
   // verify-full when a CA is supplied: the server must present a certificate
   // this CA signed AND its identity must match the address we dialed. Without
   // a CA we still require TLS, but cannot verify who answered.
-  const ssl = input.caCert ? { ca: input.caCert, rejectUnauthorized: true } : 'require';
+  //
+  // `servername` is not optional here. postgres.js hands this object straight
+  // to tls.connect() over a socket it already opened, so Node has no host of
+  // its own to check against and falls back to 'localhost' — which fails
+  // against every real certificate with a message that reads like the cert is
+  // wrong ("Host: localhost. is not cert's CN: ..."). Naming the host we dialed
+  // is what makes the identity check verify what we actually think it does.
+  const ssl = input.caCert
+    ? { ca: input.caCert, rejectUnauthorized: true, servername: input.host }
+    : 'require';
 
   const sql = postgres({
     host: input.host,
