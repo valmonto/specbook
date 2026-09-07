@@ -312,13 +312,22 @@ domain="\${4:-}"
   'image-export': `#!/usr/bin/env bash
 set -euo pipefail
 image="\${1:?usage: image-export <image>}"
-docker save "$image"
+# gzip -1, not raw: \`docker save\` emits an uncompressed tar and these images
+# run to gigabytes, every byte of which crosses a WAN on each deploy. Level 1
+# is nearly free on CPU and still removes a large fraction of the bytes — the
+# bottleneck here is the link, never the compressor.
+docker save "$image" | gzip -1
 `,
 
   /** v1: load an image tarball from stdin (binary; used by pipeOp). */
   'image-import': `#!/usr/bin/env bash
 set -euo pipefail
-docker load
+# Both halves of this pipe are shipped by the same worker on every run, so they
+# cannot be out of step — no fallback is needed, and a fallback would not work
+# anyway: stdin is consumed by the first reader and cannot be replayed.
+# pipefail matters here: without it a gzip failure is masked by docker load's
+# exit code and a truncated transfer reports success.
+gzip -dc | docker load
 `,
 
   /**

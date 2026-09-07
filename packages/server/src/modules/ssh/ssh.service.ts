@@ -34,6 +34,16 @@ export type { RemoteOp } from './remote-ops.js';
  * Callers hold the unsealed key only for the duration of the call; this
  * service never stores anything.
  */
+/**
+ * No bytes at all for this long means the far end is gone. Deliberately keyed
+ * on PROGRESS, not wall-clock: a 2 GB image over a poor link is slow, and slow
+ * must not be treated as broken.
+ */
+const PIPE_STALL_MS = 120_000;
+
+/** Ceiling on one transfer, so an unforeseen stall cannot park a deploy forever. */
+const PIPE_MAX_MS = 45 * 60_000;
+
 @Injectable()
 export class SshService {
   private connect(target: SshTarget): Promise<{ client: Client; fingerprint: string }> {
@@ -46,6 +56,15 @@ export class SshService {
         username: target.user,
         privateKey: target.privateKey,
         readyTimeout: 10_000,
+        // Without these a connection that dies mid-transfer is never noticed:
+        // the stream simply stops producing bytes and the far end waits on it
+        // forever. That is not hypothetical — a stalled image transfer parked a
+        // deploy indefinitely, with `docker load` blocked on stdin that would
+        // never arrive. Three missed keepalives is ~30s to detect a dead peer,
+        // which matters most here because the build box sits behind NAT and
+        // conntrack drops a flow long before TCP would.
+        keepaliveInterval: 10_000,
+        keepaliveCountMax: 3,
         hostVerifier: (key: Buffer) => {
           fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64')}`;
           // Pin-on-first-use: accept unknown hosts once, then hold the pin.
@@ -128,6 +147,21 @@ export class SshService {
    * `dest` — the registry-less image transport (docker save | ssh | load).
    * Binary-safe: the bytes never land on the worker's disk or in a string.
    */
+  /**
+   * Stream one remote op's stdout into another host's stdin — used to move a
+   * built image from the build server to the app server without it ever
+   * touching disk here.
+   *
+   * The failure this guards against is not a slow transfer, it is a SILENT
+   * one. If the source connection dies mid-stream the stream simply stops
+   * producing bytes: no `close`, no error worth the name, and the destination
+   * sits on `docker load` waiting for stdin that will never arrive. A deploy
+   * parked that way never fails, never retries, and never tells anyone.
+   *
+   * So three things are true here that were not before: both connections are
+   * watched for death (see `keepaliveInterval` in connect), a stall with no
+   * bytes at all is fatal, and the whole transfer has a ceiling.
+   */
   async pipeOp(
     source: SshTarget,
     sourceOp: RemoteOp,
@@ -141,26 +175,69 @@ export class SshService {
       const { client: dst } = await this.connect(dest);
       try {
         await new Promise<void>((resolve, reject) => {
+          let settled = false;
+          const finish = (err?: Error): void => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(overall);
+            clearInterval(stallCheck);
+            err ? reject(err) : resolve();
+          };
+
+          // A transfer that produces NO bytes for this long is dead. Keyed on
+          // progress rather than wall-clock so a genuinely slow link is fine —
+          // a 2 GB image over a poor connection is slow, not stalled.
+          let moved = 0;
+          let seenAtLastCheck = -1;
+          const stallCheck = setInterval(() => {
+            if (moved === seenAtLastCheck) {
+              finish(
+                new Error(
+                  `transfer stalled: no data for ${PIPE_STALL_MS / 1000}s after ${moved} bytes`,
+                ),
+              );
+              return;
+            }
+            seenAtLastCheck = moved;
+          }, PIPE_STALL_MS);
+
+          const overall = setTimeout(
+            () => finish(new Error(`transfer exceeded ${PIPE_MAX_MS / 60_000}m (${moved} bytes)`)),
+            PIPE_MAX_MS,
+          );
+
+          // Post-`ready` connection failures used to reject an already-settled
+          // promise inside connect(), which is a no-op — so a dropped link was
+          // swallowed whole. They land here now.
+          src.on('error', (e: Error) => finish(new Error(`source connection failed: ${e.message}`)));
+          dst.on('error', (e: Error) => finish(new Error(`dest connection failed: ${e.message}`)));
+
           dst.exec(`bash -s`, (destErr, destStream) => {
-            if (destErr) return reject(destErr);
+            if (destErr) return finish(destErr);
             let destErrOut = '';
             destStream.stderr.on('data', (d: Buffer) => (destErrOut += d.toString()));
             destStream.on('close', (code: number) =>
-              code === 0
-                ? resolve()
-                : reject(new Error(`remote-op ${destOp} exited ${code}: ${destErrOut}`)),
+              finish(
+                code === 0
+                  ? undefined
+                  : new Error(`remote-op ${destOp} exited ${code}: ${destErrOut}`),
+              ),
             );
             // Scripts are newline-terminated; adding one would prepend a stray
             // byte to the binary payload docker load reads.
             destStream.write(REMOTE_OPS[destOp]);
             src.exec(`bash -s -- ${quoted(sourceArgs)}`, (srcErr, srcStream) => {
-              if (srcErr) return reject(srcErr);
+              if (srcErr) return finish(srcErr);
               let srcErrOut = '';
               srcStream.stderr.on('data', (d: Buffer) => (srcErrOut += d.toString()));
+              srcStream.on('data', (d: Buffer) => (moved += d.length));
               srcStream.on('close', (code: number) => {
                 if (code !== 0) {
-                  reject(new Error(`remote-op ${sourceOp} exited ${code}: ${srcErrOut}`));
+                  finish(new Error(`remote-op ${sourceOp} exited ${code}: ${srcErrOut}`));
+                  return;
                 }
+                // Clean source exit: let the destination drain and close on its
+                // own terms, which is what reports success.
                 destStream.end();
               });
               srcStream.write(REMOTE_OPS[sourceOp]);
