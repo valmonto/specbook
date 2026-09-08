@@ -11,6 +11,7 @@ import {
   HardDrive,
   KeyRound,
   Lock,
+  Pencil,
   Plus,
   RefreshCw,
   Rocket,
@@ -217,6 +218,7 @@ function EnvironmentRow({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const logRef = useRef<HTMLPreElement>(null);
   const remove = useRemoveEnvironment(projectId);
@@ -442,6 +444,20 @@ function EnvironmentRow({
           )}
           {canManage && (
             <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
+              <Pencil className="size-3" />
+              {t(k.common.actions.edit)}
+            </Button>
+          )}
+          {canManage && (
+            <Button
               size="icon"
               variant="ghost"
               aria-label={t(k.environments.removeEnvironment)}
@@ -519,6 +535,13 @@ function EnvironmentRow({
           <McpAccessPanel env={env} projectId={projectId} canManage={canManage} />
         </div>
       )}
+
+      <EditEnvironmentDialog
+        env={env}
+        projectId={projectId}
+        open={editing}
+        onOpenChange={setEditing}
+      />
 
       <AlertDialog open={confirmingRemove} onOpenChange={setConfirmingRemove}>
         <AlertDialogContent>
@@ -1045,6 +1068,103 @@ function PasteEnvDialog({
             {t(k.environments.pasteEnvApply)}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Change an existing environment's domain and deploy path.
+ *
+ * These were settable only at creation, so a wrong domain could be corrected
+ * only by deleting the environment and rebuilding it — which throws away a
+ * provisioned data plane to fix a typo. Placement (which server holds the
+ * database or cache) stays out: moving it under a live environment is a
+ * migration, not an edit.
+ */
+function EditEnvironmentDialog({
+  env,
+  projectId,
+  open,
+  onOpenChange,
+}: {
+  env: Environment;
+  projectId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const update = useUpdateEnvironment(projectId);
+  const [domain, setDomain] = useState('');
+  const [deployPath, setDeployPath] = useState('');
+
+  // Reopening must show what is stored now, not the last thing that was typed
+  // — including another editor's change since this row was rendered.
+  useEffect(() => {
+    if (!open) return;
+    setDomain(env.domain ?? '');
+    setDeployPath(env.deployPath ?? '');
+  }, [open, env.domain, env.deployPath]);
+
+  const submit = async () => {
+    const res = await update.execute({
+      projectId,
+      id: env.id,
+      // null clears the column; undefined would leave it untouched, so an
+      // emptied field has to send null to actually remove the value.
+      domain: domain.trim() || null,
+      deployPath: deployPath.trim() || null,
+    });
+    if (res.e) {
+      toast.error(t(res.e.message));
+      return;
+    }
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>{t(k.environments.editEnvironmentTitle)}</DialogTitle>
+          <DialogDescription>{t(k.environments.editEnvironmentHint)}</DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor={`edit-domain-${env.id}`}>{t(k.environments.domain)}</Label>
+            <Input
+              id={`edit-domain-${env.id}`}
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="staging.example.com"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`edit-path-${env.id}`}>{t(k.environments.deployPath)}</Label>
+            <Input
+              id={`edit-path-${env.id}`}
+              value={deployPath}
+              onChange={(e) => setDeployPath(e.target.value)}
+              placeholder="/srv/myapp"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">{t(k.environments.deployPathHint)}</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {t(k.common.actions.cancel)}
+            </Button>
+            <Button type="submit" disabled={update.isLoading}>
+              {t(k.common.actions.save)}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

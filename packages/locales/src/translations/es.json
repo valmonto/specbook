@@ -265,6 +265,8 @@
   "environments.domain": "Dominio",
   "environments.domainPending": "se activa en el próximo despliegue",
   "environments.editEnvironment": "Editar entorno",
+  "environments.editEnvironmentHint": "Cambia dónde se accede a este entorno y dónde se despliega. El dominio debe resolver al servidor de aplicaciones de este entorno para que el próximo despliegue supere su comprobación de DNS.",
+  "environments.editEnvironmentTitle": "Editar entorno",
   "environments.empty": "Aún no hay entornos. Añade uno para dar a este proyecto un lugar donde ejecutarse.",
   "environments.errors.deployPathNotWritable": "La ruta de despliegue no es escribible por el usuario SSH — corrige la ruta o sus permisos",
   "environments.errors.domainTaken": "Otro entorno en este servidor ya usa ese dominio",

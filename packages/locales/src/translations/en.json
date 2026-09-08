@@ -265,6 +265,8 @@
   "environments.domain": "Domain",
   "environments.domainPending": "activates on next deploy",
   "environments.editEnvironment": "Edit environment",
+  "environments.editEnvironmentHint": "Change where this environment is reached and where it deploys. The domain must resolve to this environment's app server before the next deploy will pass its DNS check.",
+  "environments.editEnvironmentTitle": "Edit environment",
   "environments.empty": "No environments yet. Add one to give this project a place to run.",
   "environments.errors.deployPathNotWritable": "The deploy path is not writable by the SSH user — fix the path or its permissions",
   "environments.errors.domainTaken": "Another environment on this server already uses that domain",
