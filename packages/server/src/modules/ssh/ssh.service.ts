@@ -354,7 +354,16 @@ export class SshService {
                 sourceDone = true;
                 destStream.end();
               });
-              srcStream.write(REMOTE_OPS[sourceOp]);
+              // end(), not write(): the source's stdin carries the script and
+              // NOTHING else, so it must be closed. Left open, `bash -s` runs
+              // the export, delivers every byte, then waits forever for more
+              // commands — the channel never closes, 'end' never fires, so the
+              // destination's stdin is never ended either and `docker load`
+              // parks on EOF with the image already loaded. Two processes, both
+              // waiting on an end-of-stream that one call sends. exec() has
+              // always done this (`stream.end(script + stdin)`); pipeOp did not,
+              // which is why an image transfer never once completed.
+              srcStream.end(REMOTE_OPS[sourceOp]);
               srcStream.pipe(destStream, { end: false });
             });
           });

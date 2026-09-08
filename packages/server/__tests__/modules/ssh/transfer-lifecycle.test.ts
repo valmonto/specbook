@@ -1,21 +1,38 @@
-import { PassThrough } from 'node:stream';
+import { Duplex, PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SshService } from '../../../src/modules/ssh/ssh.service.js';
 
 /**
  * These drive pipeOp's REAL wiring, not its decision function.
  *
- * The stall predicate was extracted, unit-tested and mutation-checked — and
- * the fix still shipped broken, because the flag it reads is set from an event
- * that never fires while the source is paused under backpressure. Testing the
- * decision and leaving the trigger unexercised is how four transfers were
- * failed after delivering every byte.
+ * An earlier fix here had a mutation-checked unit test on the stall predicate.
+ * The predicate was correct and the fix shipped broken anyway, because the flag
+ * it reads is set from an event that never fired. Testing the decision while
+ * leaving the trigger unexercised is how four transfers were failed after
+ * delivering every byte.
  */
 
-/** An ssh2-shaped channel. Nothing reads `dst`, so it applies backpressure. */
+/**
+ * An ssh2 exec channel: writes go to the remote process's STDIN, reads come
+ * from its STDOUT. They are independent — a PassThrough conflates them, so the
+ * script written to stdin reappears as output, which hides the very bug this
+ * file exists to pin.
+ */
 function channel() {
-  const ch = new PassThrough({ emitClose: false }) as PassThrough & { stderr: PassThrough };
+  const stdout = new PassThrough();
+  const ch = new Duplex({
+    emitClose: false,
+    write(_chunk, _enc, cb) {
+      cb(); // remote stdin: consumed, never echoed back
+    },
+    read() {
+      // fed from `stdout` below
+    },
+  }) as Duplex & { stderr: PassThrough; stdout: PassThrough };
+  stdout.on('data', (d: Buffer) => ch.push(d));
+  stdout.on('end', () => ch.push(null));
   ch.stderr = new PassThrough();
+  ch.stdout = stdout;
   return ch;
 }
 
@@ -35,7 +52,7 @@ describe('pipeOp transfer lifecycle', () => {
   beforeEach(() => {
     // Fake ONLY the wall-clock timers pipeOp arms. Streams deliver 'data' and
     // 'end' through nextTick/setImmediate; faking those would stop the events
-    // under test from firing and the test would pass for the wrong reason.
+    // under test from firing and the tests would pass for the wrong reason.
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
     });
@@ -70,29 +87,40 @@ describe('pipeOp transfer lifecycle', () => {
     );
 
   /**
-   * THE regression. A big write fills the destination, Node pauses the source,
-   * and the byte counter goes quiet while `docker load` works. Under the old
-   * 120s window this rejected — after every byte had already been delivered.
+   * THE root cause. pipeOp wrote the script to the source's stdin and left it
+   * open, so `bash -s` delivered the whole image and then waited forever for
+   * more commands. Its channel never closed, the destination's stdin was never
+   * ended, and `docker load` parked on EOF with the image already loaded — two
+   * processes deadlocked on an end-of-stream that one call would have sent.
+   * exec() has always used end(); pipeOp had not, so no transfer ever finished.
    */
-  it('survives a backpressure pause far longer than the old 120s window', async () => {
-    const settled: string[] = [];
-    const promise = run().then(
-      () => settled.push('resolved'),
-      (e: Error) => settled.push(`rejected: ${e.message}`),
-    );
-
-    await flushIO();
-    src.write(Buffer.alloc(1024 * 1024)); // fills dst, pauses src
-    src.end();
+  it('closes the source stdin so the remote shell can exit', async () => {
+    const promise = run();
     await flushIO();
 
-    // Five minutes of silence: fatal before, fine now.
-    await vi.advanceTimersByTimeAsync(5 * 60_000);
-    expect(settled).toEqual([]);
+    expect(src.writableEnded).toBe(true);
+    // The destination stays open — the image is still being piped into it.
+    expect(dst.writableEnded).toBe(false);
+
+    src.stdout.end();
+    await flushIO();
+    dst.emit('close', 0);
+    await promise;
+  });
+
+  /** A finished source must end the destination, or `docker load` never exits. */
+  it('ends the destination once the source is done', async () => {
+    const promise = run();
+    await flushIO();
+
+    src.stdout.write(Buffer.alloc(64 * 1024));
+    src.stdout.end();
+    await flushIO();
+
+    expect(dst.writableEnded).toBe(true);
 
     dst.emit('close', 0);
     await promise;
-    expect(settled).toEqual(['resolved']);
   });
 
   /** The safety net still has to catch a link that is actually dead. */
@@ -104,7 +132,7 @@ describe('pipeOp transfer lifecycle', () => {
     );
 
     await flushIO();
-    src.write(Buffer.alloc(1024));
+    src.stdout.write(Buffer.alloc(1024)); // some bytes, then the link dies
     await flushIO();
     await vi.advanceTimersByTimeAsync(25 * 60_000);
 
@@ -125,7 +153,7 @@ describe('pipeOp transfer lifecycle', () => {
     );
 
     await flushIO();
-    src.write(Buffer.alloc(512));
+    src.stdout.write(Buffer.alloc(512));
     src.emit('close'); // no code
     await flushIO();
 
@@ -140,12 +168,14 @@ describe('pipeOp transfer lifecycle', () => {
     const promise = run((l) => lines.push(l));
 
     await flushIO();
-    src.write(Buffer.alloc(64 * 1024));
+    src.stdout.write(Buffer.alloc(64 * 1024));
     await flushIO();
     await vi.advanceTimersByTimeAsync(6_000);
 
     expect(lines.some((l) => /^transfer: .*B \(.*B\/s\)$/.test(l))).toBe(true);
 
+    src.stdout.end();
+    await flushIO();
     dst.emit('close', 0);
     await promise;
   });
