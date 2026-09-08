@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { REMOTE_OPS } from '../../../src/modules/ssh/remote-ops.js';
+import { isTransferStalled } from '../../../src/modules/ssh/ssh.service.js';
 
 /**
  * The image transfer moves gigabytes across a WAN on every deploy, and its two
@@ -36,5 +37,43 @@ describe('image transfer wire format', () => {
    */
   it('does not attempt an un-replayable fallback on stdin', () => {
     expect(importOp).not.toContain('|| docker load');
+  });
+});
+
+/**
+ * The transfer's liveness rule. This is the exact predicate pipeOp's interval
+ * evaluates — not a restatement of it — because the last fix to this file
+ * shipped a crash that its test missed by exercising a path production never
+ * took.
+ */
+describe('transfer stall detection', () => {
+  const stalled = (over: Partial<Parameters<typeof isTransferStalled>[0]> = {}) =>
+    isTransferStalled({ moved: 1_000, seenAtLastCheck: 1_000, sourceDone: false, ...over });
+
+  it('calls a transfer stalled when no bytes moved and the source is still sending', () => {
+    expect(stalled()).toBe(true);
+  });
+
+  it('does not call it stalled while bytes are still arriving', () => {
+    expect(stalled({ moved: 2_000, seenAtLastCheck: 1_000 })).toBe(false);
+  });
+
+  /**
+   * The regression this fixes: `docker save` has exited, every byte is across,
+   * `docker load` is unpacking. No source bytes arrive during that window and
+   * it can outlast PIPE_STALL_MS — killing a transfer that already succeeded.
+   */
+  it('does not call it stalled once the source has closed cleanly', () => {
+    expect(stalled({ sourceDone: true })).toBe(false);
+  });
+
+  it('stays quiet after a clean source close no matter how long the unpack takes', () => {
+    // Several consecutive checks with zero new bytes — the exact shape that
+    // failed four consecutive deploys at byte-identical offsets.
+    for (let check = 0; check < 20; check++) {
+      expect(stalled({ sourceDone: true, moved: 95_438_663, seenAtLastCheck: 95_438_663 })).toBe(
+        false,
+      );
+    }
   });
 });

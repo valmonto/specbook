@@ -38,11 +38,35 @@ export type { RemoteOp } from './remote-ops.js';
  * No bytes at all for this long means the far end is gone. Deliberately keyed
  * on PROGRESS, not wall-clock: a 2 GB image over a poor link is slow, and slow
  * must not be treated as broken.
+ *
+ * It applies only while the source is still sending — pipeOp disarms it on a
+ * clean source close, because the quiet that follows is the destination
+ * unpacking, not a broken link.
  */
 const PIPE_STALL_MS = 120_000;
 
 /** Ceiling on one transfer, so an unforeseen stall cannot park a deploy forever. */
 const PIPE_MAX_MS = 45 * 60_000;
+
+/**
+ * Whether a transfer that moved no new bytes since the last check is dead.
+ *
+ * Silence means death only while the SOURCE is still sending. Once `docker
+ * save` has exited cleanly every byte is across and `docker load` is unpacking
+ * on the far side — which generates no source traffic and can easily outlast
+ * PIPE_STALL_MS on a large image. Four consecutive real deploys failed here
+ * at byte-identical offsets (397MB twice, then 95MB twice once gzip landed);
+ * identical offsets across independent runs is the signature of a transfer
+ * that COMPLETED, not one that broke mid-flight.
+ */
+export function isTransferStalled(state: {
+  moved: number;
+  seenAtLastCheck: number;
+  sourceDone: boolean;
+}): boolean {
+  if (state.sourceDone) return false;
+  return state.moved === state.seenAtLastCheck;
+}
 
 @Injectable()
 export class SshService {
@@ -172,7 +196,10 @@ export class SshService {
    *
    * So three things are true here that were not before: both connections are
    * watched for death (see `keepaliveInterval` in connect), a stall with no
-   * bytes at all is fatal, and the whole transfer has a ceiling.
+   * bytes at all is fatal WHILE THE SOURCE IS STILL SENDING, and the whole
+   * transfer has a ceiling. That qualifier is load-bearing: once the source
+   * has closed cleanly the silence is `docker load` unpacking on the far side,
+   * not a dead link, and treating it as a stall fails a transfer that worked.
    */
   async pipeOp(
     source: SshTarget,
@@ -204,8 +231,9 @@ export class SshService {
           // a 2 GB image over a poor connection is slow, not stalled.
           let moved = 0;
           let seenAtLastCheck = -1;
+          let sourceDone = false;
           const stallCheck = setInterval(() => {
-            if (moved === seenAtLastCheck) {
+            if (isTransferStalled({ moved, seenAtLastCheck, sourceDone })) {
               finish(
                 new Error(
                   `transfer stalled: no data for ${PIPE_STALL_MS / 1000}s after ${moved} bytes`,
@@ -262,8 +290,13 @@ export class SshService {
                   finish(new Error(`remote-op ${sourceOp} exited ${code}: ${srcErrOut}`));
                   return;
                 }
-                // Clean source exit: let the destination drain and close on its
-                // own terms, which is what reports success.
+                // Clean source exit: every byte is across. Mark it so the
+                // stall detector stops treating silence as death — from here
+                // the meaningful signals are the destination's own exit code
+                // and the overall ceiling, both still armed.
+                sourceDone = true;
+                // Let the destination drain and close on its own terms, which
+                // is what reports success.
                 destStream.end();
               });
               srcStream.write(REMOTE_OPS[sourceOp]);
