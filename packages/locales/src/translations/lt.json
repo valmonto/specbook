@@ -265,6 +265,8 @@
   "environments.domain": "Domenas",
   "environments.domainPending": "įsigalios kito diegimo metu",
   "environments.editEnvironment": "Redaguoti aplinką",
+  "environments.editEnvironmentHint": "Pakeiskite, kur pasiekiama ši aplinka ir kur ji diegiama. Domenas turi būti nukreiptas į šios aplinkos programų serverį, kad kitas diegimas praeitų DNS patikrą.",
+  "environments.editEnvironmentTitle": "Redaguoti aplinką",
   "environments.empty": "Aplinkų dar nėra. Pridėkite vieną, kad projektas turėtų kur veikti.",
   "environments.errors.deployPathNotWritable": "Diegimo kelias neprieinamas SSH naudotojui rašymui — pataisykite kelią arba jo teises",
   "environments.errors.domainTaken": "Kita aplinka šiame serveryje jau naudoja šį domeną",

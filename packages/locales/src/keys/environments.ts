@@ -23,6 +23,8 @@ export const environments = {
   transportPrivateNetwork: 'environments.transportPrivateNetwork',
   transportTls: 'environments.transportTls',
   domain: 'environments.domain',
+  editEnvironmentTitle: 'environments.editEnvironmentTitle',
+  editEnvironmentHint: 'environments.editEnvironmentHint',
   domainPending: 'environments.domainPending',
   deployPath: 'environments.deployPath',
   autoDeploy: 'environments.autoDeploy',
