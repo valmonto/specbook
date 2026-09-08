@@ -17,6 +17,20 @@ COPY apps/worker ./apps/worker
 RUN pnpm install --frozen-lockfile --offline
 RUN pnpm --filter @pkg/worker... build
 
+# `pnpm deploy` emits ONE package plus its production dependencies, flattened
+# and self-contained. Copying the builder's node_modules instead ships the whole
+# monorepo's dependency graph — React Native, Expo, Hermes, the linter binaries —
+# into an image whose entrypoint runs one compiled file. That was ~2 GB crossing
+# a network on every deploy.
+#
+# inject-workspace-packages is set HERE rather than in pnpm-workspace.yaml:
+# repo-wide it would copy workspace packages instead of symlinking them, which
+# breaks watch-mode development. `deploy` needs it to resolve a workspace
+# package's own dependencies (a shared package may declare a dependency that is
+# also a peer, which --legacy resolves for neither).
+RUN pnpm --filter @pkg/worker deploy --prod /prod \
+      --config.inject-workspace-packages=true
+
 # Production stage
 FROM node:26-alpine AS runner
 WORKDIR /app
@@ -29,12 +43,7 @@ ARG BUILT_AT=
 ENV GIT_SHA=$GIT_SHA \
     BUILT_AT=$BUILT_AT
 
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/.npmrc ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/worker ./apps/worker
-
-WORKDIR /app/apps/worker
+# `pnpm deploy` flattens the package to the root of this image.
+COPY --from=builder /prod ./
 
 CMD ["node", "dist/main.js"]
