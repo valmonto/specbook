@@ -247,6 +247,7 @@ export class DeploymentProcessor extends WorkerHost {
           appTarget,
           'image-import',
           signal,
+          sink.line,
         );
       }
     }

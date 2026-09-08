@@ -35,18 +35,46 @@ export type { RemoteOp } from './remote-ops.js';
  * service never stores anything.
  */
 /**
- * No bytes at all for this long means the far end is gone. Deliberately keyed
- * on PROGRESS, not wall-clock: a 2 GB image over a poor link is slow, and slow
- * must not be treated as broken.
+ * No bytes at all for this long means the far end is gone.
  *
- * It applies only while the source is still sending — pipeOp disarms it on a
- * clean source close, because the quiet that follows is the destination
- * unpacking, not a broken link.
+ * This was 120s, and it was wrong. `srcStream.pipe(destStream)` honours
+ * backpressure: when `docker load` cannot consume fast enough, Node PAUSES the
+ * source. No bytes are read, the counter stops, and the transfer looks dead
+ * while being perfectly healthy. Four real deploys were failed that way, each
+ * after delivering every byte — the failure offset matched the image size
+ * exactly.
+ *
+ * There is no event to key this on instead: the source never emits 'end' while
+ * paused, and 'close' waits on channel teardown. So the window simply has to be
+ * longer than the destination's longest quiet stretch of work. PIPE_MAX_MS
+ * remains the real ceiling for a genuinely dead link, and pipeOp now reports
+ * progress, so a stuck transfer is visible rather than inferred.
  */
-const PIPE_STALL_MS = 120_000;
+const PIPE_STALL_MS = 10 * 60_000;
 
 /** Ceiling on one transfer, so an unforeseen stall cannot park a deploy forever. */
 const PIPE_MAX_MS = 45 * 60_000;
+
+/**
+ * How often a running transfer reports itself. The build phase streams its own
+ * output so it reads as alive; the transfer is a pipe between two remote
+ * commands and prints nothing, which makes a healthy ten-minute move
+ * indistinguishable from a dead one.
+ */
+const PIPE_PROGRESS_MS = 5_000;
+
+/** Bytes as something a person reads at a glance. */
+export function humanBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = n / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(1)} ${units[i]}`;
+}
 
 /**
  * Whether a transfer that moved no new bytes since the last check is dead.
@@ -209,6 +237,8 @@ export class SshService {
     destOp: RemoteOp,
     /** Ends both remote commands, not just the wait — see exec. */
     signal?: AbortSignal,
+    /** Receives a progress line every PIPE_PROGRESS_MS while bytes move. */
+    onProgress?: (line: string) => void,
   ): Promise<void> {
     if (signal?.aborted) throw new Error('aborted');
     const quoted = (args: string[]) => args.map((a) => `'${a.replaceAll("'", `'\\''`)}'`).join(' ');
@@ -223,6 +253,7 @@ export class SshService {
             settled = true;
             clearTimeout(overall);
             clearInterval(stallCheck);
+            clearInterval(progressTick);
             err ? reject(err) : resolve();
           };
 
@@ -243,6 +274,18 @@ export class SshService {
             }
             seenAtLastCheck = moved;
           }, PIPE_STALL_MS);
+
+          // The byte counter was always here; nothing ever showed it. Four
+          // deploys failed at a number we could only read out of the error
+          // message afterwards.
+          const startedAt = Date.now();
+          let reportedAt = -1;
+          const progressTick = setInterval(() => {
+            if (!onProgress || moved === reportedAt) return;
+            reportedAt = moved;
+            const secs = Math.max((Date.now() - startedAt) / 1000, 0.001);
+            onProgress(`transfer: ${humanBytes(moved)} (${humanBytes(moved / secs)}/s)`);
+          }, PIPE_PROGRESS_MS);
 
           const overall = setTimeout(
             () => finish(new Error(`transfer exceeded ${PIPE_MAX_MS / 60_000}m (${moved} bytes)`)),
@@ -285,18 +328,30 @@ export class SshService {
               let srcErrOut = '';
               srcStream.stderr.on('data', (d: Buffer) => (srcErrOut += d.toString()));
               srcStream.on('data', (d: Buffer) => (moved += d.length));
-              srcStream.on('close', (code: number) => {
-                if (code !== 0) {
+              // 'end' — not 'close' — is what reliably marks the last byte.
+              // 'close' waits on channel teardown and may arrive late or with
+              // no exit code at all; keying the done-flag on it shipped a fix
+              // that never fired, and four transfers were failed AFTER
+              // delivering every byte (the failure offset matched the image
+              // size exactly). The readable side always ends when the data is
+              // exhausted, so that is the signal.
+              srcStream.on('end', () => {
+                sourceDone = true;
+                onProgress?.(`transfer: ${humanBytes(moved)} sent — unpacking on the far end`);
+                // Let the destination drain and close on its own terms, which
+                // is what reports success.
+                destStream.end();
+              });
+              srcStream.on('close', (code?: number) => {
+                // Only a NUMERIC non-zero exit is a failure. ssh2 may close a
+                // channel with no code, and treating that as `!== 0` would
+                // fail a transfer that worked. The destination's own exit
+                // code is what actually gates success.
+                if (typeof code === 'number' && code !== 0) {
                   finish(new Error(`remote-op ${sourceOp} exited ${code}: ${srcErrOut}`));
                   return;
                 }
-                // Clean source exit: every byte is across. Mark it so the
-                // stall detector stops treating silence as death — from here
-                // the meaningful signals are the destination's own exit code
-                // and the overall ceiling, both still armed.
                 sourceDone = true;
-                // Let the destination drain and close on its own terms, which
-                // is what reports success.
                 destStream.end();
               });
               srcStream.write(REMOTE_OPS[sourceOp]);
