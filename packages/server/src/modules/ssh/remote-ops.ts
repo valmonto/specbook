@@ -203,6 +203,17 @@ branch="\${1:?usage: resolve-head-sha <branch>}"
    * Dockerfile present (api+web required), tag <unit>-<app>:<sha>, keep the
    * last 3 shas per image, clean the checkout. Serial on purpose: small
    * boxes. Clone URL (may embed a token) arrives on stdin.
+   *
+   * BUILDKIT IS REQUIRED. The Dockerfiles mount the pnpm store as a build
+   * cache (`--mount=type=cache`), which the legacy builder rejects — with a
+   * message that names the flag, not the cause. So this checks for a working
+   * buildx up front and fails with something actionable instead.
+   *
+   * Two flags keep the result identical in every way that matters downstream:
+   * `--progress=plain` because this output IS the deployment log's build
+   * phase and BuildKit's default is a redrawing TUI; `--provenance=false`
+   * because attestations turn the result into a manifest list, and the
+   * transfer feeds `docker save` straight into `docker load`.
    */
   'build-images': `#!/usr/bin/env bash
 set -euo pipefail
@@ -220,12 +231,23 @@ sha="\${2:?usage: build-images <unit> <sha>}"
     echo "SHAPE_INVALID: repo is not valmatic-shaped (apps/{api,web}/Dockerfile required)" >&2
     exit 3
   fi
+  if ! docker buildx version >/dev/null 2>&1; then
+    echo "BUILDKIT_MISSING: this build server has no working 'docker buildx'." >&2
+    echo "  The app Dockerfiles mount the pnpm store as a build cache, which" >&2
+    echo "  the legacy builder cannot do. Install the plugin on the build box:" >&2
+    echo "    mkdir -p ~/.docker/cli-plugins" >&2
+    echo "    curl -sSL https://github.com/docker/buildx/releases/latest/download/buildx-<ver>.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx" >&2
+    echo "    chmod +x ~/.docker/cli-plugins/docker-buildx" >&2
+    exit 4
+  fi
+  export DOCKER_BUILDKIT=1
   built=""
   for app in api worker web; do
     if [ -f "apps/$app/Dockerfile" ]; then
       # Not quiet ON PURPOSE: this output IS the deployment log's build phase.
       echo "== building $unit-$app:$sha =="
-      docker build -f "apps/$app/Dockerfile" -t "$unit-$app:$sha" .
+      docker build --progress=plain --provenance=false \\
+        -f "apps/$app/Dockerfile" -t "$unit-$app:$sha" .
       built="$built$app,"
     fi
   done
