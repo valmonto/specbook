@@ -247,7 +247,10 @@ function EnvironmentRow({
           status and up to four actions. Held on one line it does not merely
           crowd — flex children shrink past their content and the text overlaps,
           which is what a phone showed. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-3 py-2">
+      {/* Stacked below sm, inline above. Nine items — a name, four chips, two
+          status badges and up to four actions — cannot wrap gracefully at
+          360px; asking them to is how one ends up drawn over another. */}
+      <div className="flex flex-col items-start gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1.5">
         {/* role=button instead of <button>: the domain chip nests a real <a>,
             which HTML forbids inside a native button. */}
         <div
@@ -261,7 +264,7 @@ function EnvironmentRow({
             }
           }}
           aria-expanded={expanded}
-          className="flex min-w-0 flex-1 shrink cursor-pointer flex-wrap items-center gap-x-2 gap-y-1.5 text-left"
+          className="flex w-full min-w-0 shrink cursor-pointer flex-wrap items-center gap-x-2 gap-y-1.5 text-left sm:w-auto sm:flex-1"
         >
           <ChevronRight
             className={cn(
@@ -302,11 +305,11 @@ function EnvironmentRow({
                 <span className="truncate font-mono">{env.domain}</span>
               </a>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-                <Globe className="size-3" />
+              <span className="inline-flex min-w-0 max-w-full shrink items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
+                <Globe className="size-3 shrink-0" />
                 <span className="truncate font-mono">{env.domain}</span>
                 {env.domainPending && (
-                  <span className="text-amber-700 dark:text-amber-400">
+                  <span className="shrink-0 text-amber-700 dark:text-amber-400">
                     · {t(k.environments.domainPending)}
                   </span>
                 )}
@@ -375,7 +378,7 @@ function EnvironmentRow({
         {/* One group, so the actions stay together when the row wraps instead
             of scattering an odd button onto its own line. `ml-auto` keeps them
             right-aligned on a wide row and harmless on a narrow one. */}
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:ml-auto sm:w-auto">
           {env.publicUrl && (
             <a
               href={env.publicUrl}
