@@ -197,6 +197,19 @@ export class DeploymentProcessor extends WorkerHost {
     const buildServer = await this.pickBuildServer(proj.orgId, appServer);
     if (!buildServer) throw new Error(k.environments.errors.noBuildServer);
 
+    // Every remote command in this run goes through here, so the cancel signal
+    // and the log sink cannot be forgotten at a call site. They were: three of
+    // the seven calls omitted the signal — `signal` is an optional trailing
+    // parameter on ssh.exec, so leaving it off type-checked cleanly and Cancel
+    // silently did nothing for the whole of the build and up phases, the only
+    // two long enough that anyone would press it.
+    const exec = (
+      target: SshTarget,
+      op: Parameters<SshService['exec']>[1],
+      args: string[] = [],
+      stdin = '',
+    ): Promise<string> => this.ssh.exec(target, op, args, stdin, sink.chunk, signal);
+
     const cloneUrl = await this.cloneUrlFor(proj);
     sink.addLiteral(cloneUrl);
     const unit = dataPlaneUnitName(proj.name, env.name);
@@ -208,31 +221,18 @@ export class DeploymentProcessor extends WorkerHost {
     // mistake fails in seconds with a named cause, not after minutes.
     if (env.domain) {
       sink.line(`== preflight: ingress plane + dns for ${env.domain} ==`);
-      await this.ssh.exec(appTarget, 'ensure-caddy', [], '', sink.chunk, signal);
-      await this.ssh.exec(appTarget, 'dns-points-at', [env.domain, appServer.host], '', sink.chunk, signal);
+      await exec(appTarget, 'ensure-caddy');
+      await exec(appTarget, 'dns-points-at', [env.domain, appServer.host]);
     }
 
     await this.update(row.id, { status: 'building', startedAt: new Date(), phase: 'resolve' });
     sink.line(`== resolve: HEAD of ${proj.defaultBranch} ==`);
     const sha = (
-      await this.ssh.exec(
-        buildTarget,
-        'resolve-head-sha',
-        [proj.defaultBranch],
-        cloneUrl + '\n',
-        sink.chunk,
-        signal,
-      )
+      await exec(buildTarget, 'resolve-head-sha', [proj.defaultBranch], cloneUrl + '\n')
     ).trim();
     await this.update(row.id, { sha, phase: 'build' });
     sink.line(`== build: images at ${sha.slice(0, 7)} on ${buildServer.name} ==`);
-    const buildOut = await this.ssh.exec(
-      buildTarget,
-      'build-images',
-      [unit, sha],
-      cloneUrl + '\n',
-      sink.chunk,
-    );
+    const buildOut = await exec(buildTarget, 'build-images', [unit, sha], cloneUrl + '\n');
     const apps = /apps=([a-z,]+)/.exec(buildOut)?.[1]?.split(',') ?? ['api', 'web'];
 
     // Transfer only when the images were built on a different box.
@@ -279,7 +279,7 @@ export class DeploymentProcessor extends WorkerHost {
     ]);
 
     try {
-      await this.ssh.exec(appTarget, 'ensure-dirs', [], dir + '\n', sink.chunk);
+      await exec(appTarget, 'ensure-dirs', [], dir + '\n');
     } catch (error) {
       // The classic deployPath trap: a directory the SSH user cannot write.
       // Name the field instead of surfacing a bare mkdir stderr.
@@ -304,13 +304,12 @@ export class DeploymentProcessor extends WorkerHost {
     }
     await this.update(row.id, { phase: 'up' });
     sink.line('== up: compose --wait + health gate ==');
-    await this.ssh.exec(
-      appTarget,
-      'deploy-stack',
-      [unit, dir, String(publicPort), ...(env.domain ? [env.domain] : [])],
-      '',
-      sink.chunk,
-    );
+    await exec(appTarget, 'deploy-stack', [
+      unit,
+      dir,
+      String(publicPort),
+      ...(env.domain ? [env.domain] : []),
+    ]);
 
     sink.line('deploy complete — healthy');
     await sink.flush();
