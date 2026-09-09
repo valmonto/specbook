@@ -61,8 +61,14 @@ export const servers = {
   copied: 'servers.copied',
   empty: 'servers.empty',
   lastChecked: 'servers.lastChecked',
+  terminal: 'servers.terminal',
+  terminalTitle: 'servers.terminalTitle',
+  terminalHint: 'servers.terminalHint',
+  terminalExpiresIn: 'servers.terminalExpiresIn',
   errors: {
     notFound: 'servers.errors.notFound',
+    shellTooManySessions: 'servers.errors.shellTooManySessions',
+    shellExpired: 'servers.errors.shellExpired',
     nameTaken: 'servers.errors.nameTaken',
   },
 } as const;

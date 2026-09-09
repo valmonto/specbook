@@ -31,6 +31,7 @@ export const ROLE_PERMISSIONS: Record<OrganizationUserRole, readonly Permission[
     'notification:delete',
     'settings:read',
     'settings:update',
+    'server:shell',
     'project:list',
     'project:read',
     'project:create',

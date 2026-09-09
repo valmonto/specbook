@@ -58,6 +58,12 @@ export {
   SERVER_MODES,
   type ServerMode,
   EXTERNAL_SERVER_ROLES,
+  SHELL_SESSION_OUTCOMES,
+  type ShellSessionOutcome,
+  SHELL_SESSION_TTL_MS,
+  SHELL_SESSION_IDLE_MS,
+  SHELL_SESSION_MAX_CONCURRENT,
+  SHELL_TRANSCRIPT_MAX_BYTES,
 } from './constants/server.js';
 export {
   AGENT_KINDS,

@@ -14,6 +14,7 @@ export * from './server.js';
 export * from './environment.js';
 export * from './deployment.js';
 export * from './data-access-audit.js';
+export * from './server-shell-session.js';
 export * from './task.js';
 export * from './task-comment.js';
 export * from './research.js';

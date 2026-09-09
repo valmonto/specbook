@@ -25,10 +25,38 @@ import {
   type UpdateServerResponse,
 } from '@pkg/contracts';
 import { ServerService } from './server.service.js';
+import { ServerShellService } from './server-shell.service.js';
 
 @Controller('servers')
 export class ServerController {
-  constructor(private readonly serverService: ServerService) {}
+  constructor(
+    private readonly serverService: ServerService,
+    private readonly shells: ServerShellService,
+  ) {}
+
+  /**
+   * Open a browser shell window on this server and mint the ticket its socket
+   * will redeem.
+   *
+   * `server:shell` rather than `settings:update`: that permission edits a
+   * server ROW, this one runs arbitrary commands ON the server. It is granted
+   * to OWNER alone. This route is also where authorization for the WebSocket
+   * happens — the socket itself only redeems the ticket, because Nest runs
+   * gateway guards per message rather than per connection.
+   */
+  @Post(':id/shell')
+  @Permissions('server:shell')
+  async openShell(
+    @ZodRequest(GetServerByIdRequestSchema) dto: GetServerByIdRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<{ sessionId: string; ticket: string; expiresAt: string }> {
+    const issued = await this.shells.issue(activeUser, dto.id);
+    return {
+      sessionId: issued.sessionId,
+      ticket: issued.ticket,
+      expiresAt: issued.expiresAt.toISOString(),
+    };
+  }
 
   @Get()
   @Permissions('settings:read')

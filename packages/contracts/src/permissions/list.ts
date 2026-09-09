@@ -39,6 +39,12 @@ export const PERMISSIONS = [
   'settings:read',
   'settings:update',
 
+  // Server permissions
+  // Deliberately NOT folded into settings:update. That grants editing a server
+  // ROW; this grants an interactive shell ON the server — a different order of
+  // power, and the only permission in the catalogue that is OWNER-only.
+  'server:shell',
+
   // Project permissions
   'project:list',
   'project:read',

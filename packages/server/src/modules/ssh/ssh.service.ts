@@ -30,7 +30,11 @@ export type { RemoteOp } from './remote-ops.js';
  * - Host keys are pinned on first successful contact; any later change is a
  *   hard failure, never silently accepted (MITM protection).
  * - Only NAMED idempotent scripts from remote-ops/ run remotely — ad-hoc
- *   command strings never cross the wire.
+ *   command strings never cross the wire. `shell()` is the ONE deliberate
+ *   exception: it opens an interactive pty for a HUMAN, which is arbitrary by
+ *   definition. The invariant exists to stop agents inventing commands, so it
+ *   still holds where it matters — no automated path may call shell(), and the
+ *   API gates it behind an OWNER-only permission and writes an audit row.
  * Callers hold the unsealed key only for the duration of the call; this
  * service never stores anything.
  */
@@ -96,6 +100,21 @@ export function isTransferStalled(state: {
   return state.moved === state.seenAtLastCheck;
 }
 
+
+export interface ShellSize {
+  cols: number;
+  rows: number;
+}
+
+export interface ShellHandle {
+  /** Keystrokes from the browser. */
+  write(data: Buffer | string): void;
+  /** Terminal resized: without this every full-screen program renders wrong. */
+  resize(size: ShellSize): void;
+  /** Ends the channel and the connection. Safe to call twice. */
+  close(): void;
+}
+
 @Injectable()
 export class SshService {
   private connect(target: SshTarget): Promise<{ client: Client; fingerprint: string }> {
@@ -127,6 +146,69 @@ export class SshService {
         .on('ready', () => resolve({ client, fingerprint }))
         .on('error', (err) => reject(Object.assign(err, { observedFingerprint: fingerprint })))
         .connect(config);
+    });
+  }
+
+  /**
+   * Open an interactive pty on the target.
+   *
+   * Unlike every other method here this runs whatever a person types, so it is
+   * NOT for automated callers — see the invariant note on the class. The API
+   * gates it on an OWNER-only permission and records a session row.
+   *
+   * The caller owns the lifecycle: `close()` ends the channel and the client,
+   * and is idempotent because a session can end from several directions at
+   * once (the user closes the tab, the window expires, the far end exits).
+   */
+  async shell(
+    target: SshTarget,
+    size: ShellSize,
+    handlers: {
+      onData: (chunk: Buffer) => void;
+      onClose: (code: number | null) => void;
+      onError: (error: Error) => void;
+    },
+  ): Promise<ShellHandle> {
+    const { client } = await this.connect(target);
+    return new Promise<ShellHandle>((resolve, reject) => {
+      client.shell(
+        { term: 'xterm-256color', cols: size.cols, rows: size.rows },
+        (err, stream) => {
+          if (err) {
+            client.end();
+            reject(err);
+            return;
+          }
+          let closed = false;
+          const close = (): void => {
+            if (closed) return;
+            closed = true;
+            try {
+              stream.close();
+            } finally {
+              client.end();
+            }
+          };
+          // Post-ready failures land here rather than on the connect promise,
+          // which has already settled — the same trap pipeOp fell into.
+          client.on('error', (e: Error) => {
+            handlers.onError(e);
+            close();
+          });
+          stream.on('data', (chunk: Buffer) => handlers.onData(chunk));
+          stream.stderr.on('data', (chunk: Buffer) => handlers.onData(chunk));
+          stream.on('close', (code: number | null) => {
+            closed = true;
+            client.end();
+            handlers.onClose(typeof code === 'number' ? code : null);
+          });
+          resolve({
+            write: (data) => stream.write(data),
+            resize: ({ cols, rows }) => stream.setWindow(rows, cols, 0, 0),
+            close,
+          });
+        },
+      );
     });
   }
 
