@@ -27,7 +27,9 @@
     "@nestjs/core": "catalog:",
     "@nestjs/event-emitter": "catalog:",
     "@nestjs/platform-fastify": "catalog:",
+    "@nestjs/platform-ws": "catalog:",
     "@nestjs/throttler": "catalog:",
+    "@nestjs/websockets": "catalog:",
     "@pkg/contracts": "workspace:*",
     "@pkg/database": "workspace:*",
     "@pkg/locales": "workspace:*",
@@ -42,6 +44,7 @@
     "pino-http": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
+    "ws": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -51,6 +54,7 @@
     "@pkg/tsconfig": "workspace:*",
     "@pkg/vitest-config": "workspace:*",
     "@types/node": "catalog:",
+    "@types/ws": "catalog:",
     "fastify": "catalog:",
     "pino-pretty": "catalog:",
     "typescript": "catalog:ts6",

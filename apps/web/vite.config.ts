@@ -58,7 +58,14 @@ export default defineConfig({
       // Defaults to the local dev api. A throwaway build stack (scripts/dev-stack.sh)
       // runs the api on a non-default port and points the proxy there via
       // API_PROXY_TARGET so its Vite serves /api from its own api, not :3000.
-      '/api': process.env.API_PROXY_TARGET || 'http://localhost:3000',
+      '/api': {
+        target: process.env.API_PROXY_TARGET || 'http://localhost:3000',
+        // The server terminal upgrades /api/servers/shell to a WebSocket. A
+        // bare string proxy forwards HTTP only: the upgrade is dropped and the
+        // socket fails with no error anywhere, which looks exactly like a bug
+        // in the terminal rather than in the dev proxy.
+        ws: true,
+      },
     },
   },
 });

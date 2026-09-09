@@ -67,3 +67,33 @@ export const SERVER_STATUSES = [
   'fingerprint_mismatch',
 ] as const;
 export type ServerStatus = (typeof SERVER_STATUSES)[number];
+
+/**
+ * How a browser shell session on a server ended, for the audit trail.
+ *
+ * `refused` is a row too: an attempt to open a shell without the permission is
+ * exactly the event an audit exists to record, and writing it only on success
+ * would omit the interesting half.
+ */
+export const SHELL_SESSION_OUTCOMES = ['open', 'closed', 'expired', 'idle', 'error', 'refused'] as const;
+export type ShellSessionOutcome = (typeof SHELL_SESSION_OUTCOMES)[number];
+
+/**
+ * How long a shell window lives before it closes itself, and how long it may
+ * sit idle inside that. Both exist because a forgotten open terminal on a
+ * production box is the failure mode here — modelled on the MCP read-window,
+ * which a human opens deliberately and which lapses without anyone tidying up.
+ */
+export const SHELL_SESSION_TTL_MS = 30 * 60_000;
+export const SHELL_SESSION_IDLE_MS = 10 * 60_000;
+
+/** One org cannot hold more open shells than this at once. */
+export const SHELL_SESSION_MAX_CONCURRENT = 3;
+
+/**
+ * The transcript is capped: a shell can print unbounded output (`yes`, a log
+ * tail), and an audit row is not a place to discover that. Oldest output is
+ * dropped and the truncation is marked in-band, so the record never silently
+ * lies about being complete.
+ */
+export const SHELL_TRANSCRIPT_MAX_BYTES = 256 * 1024;

@@ -1,6 +1,7 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
 import { NestFactory } from '@nestjs/core';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { Logger, withFrameworkLogFilter } from '@pkg/server';
 
@@ -88,6 +89,14 @@ export async function createApp(): Promise<NestFastifyApplication> {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Client'],
   });
+
+  // Plain `ws`, not socket.io: the server shell carries a raw pty byte stream,
+  // and socket.io would frame every keystroke in its own protocol. Registered
+  // HERE rather than in main.ts so the pipeline suite boots the same app —
+  // omitting it does not error, the gateway simply never listens, which is
+  // exactly the class of "sliced out of main.ts and only production noticed"
+  // bug this factory exists to prevent.
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   app.setGlobalPrefix('api', { exclude: ['health'] });
 

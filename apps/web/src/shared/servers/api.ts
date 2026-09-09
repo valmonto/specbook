@@ -27,4 +27,11 @@ export const serversApi = {
     http.post(`/api/servers/${dto.id}/test`, {}),
   environments: (dto: ServerEnvironmentsRequest): Promise<ServerEnvironmentsResponse> =>
     http.get(`/api/servers/${dto.id}/environments`),
+  /**
+   * Opens a shell window and returns the single-use ticket its socket redeems.
+   * Authorization happens HERE, over HTTP, behind `server:shell` — the socket
+   * only presents the ticket.
+   */
+  openShell: (id: string): Promise<{ sessionId: string; ticket: string; expiresAt: string }> =>
+    http.post(`/api/servers/${id}/shell`, {}),
 };

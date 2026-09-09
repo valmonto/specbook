@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  SquareTerminal,
   Trash2,
 } from 'lucide-react';
 import {
@@ -24,6 +25,7 @@ import {
   type UpdateServerRequest,
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
+import { ServerTerminalDialog } from './server-terminal-dialog';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -166,6 +168,7 @@ export function ServersCard() {
   const { t } = useTranslation();
   const { data } = useServers();
   const canManage = useCan('settings:update');
+  const canShell = useCan('server:shell');
   const create = useCreateServer();
   const remove = useRemoveServer();
   const test = useTestServer();
@@ -187,6 +190,7 @@ export function ServersCard() {
   /** Set right after creation: the one moment the key ceremony happens. */
   const [revealed, setRevealed] = useState<Server | null>(null);
   const [removing, setRemoving] = useState<Server | null>(null);
+  const [shelling, setShelling] = useState<Server | null>(null);
   /** The server being edited and its live form; null when the dialog is closed. */
   const [editing, setEditing] = useState<{ server: Server; form: ServerForm } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -343,6 +347,21 @@ export function ServersCard() {
                       <RefreshCw className="size-3.5" />
                       {t(k.servers.test)}
                     </Button>
+                    {canShell && s.mode !== 'external' && (
+                      /* Gated on `server:shell` (OWNER only), not canManage:
+                         editing a server ROW and running commands ON it are
+                         different powers. External servers have no shell —
+                         specbook holds no SSH credential for them. */
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => setShelling(s)}
+                      >
+                        <SquareTerminal className="size-3.5" />
+                        {t(k.servers.terminal)}
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -651,6 +670,15 @@ export function ServersCard() {
       </Dialog>
 
       {/* Remove confirm */}
+      {shelling && (
+        <ServerTerminalDialog
+          serverId={shelling.id}
+          serverName={shelling.name}
+          open={shelling !== null}
+          onOpenChange={(open) => !open && setShelling(null)}
+        />
+      )}
+
       <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
