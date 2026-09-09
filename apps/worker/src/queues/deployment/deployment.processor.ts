@@ -292,7 +292,16 @@ export class DeploymentProcessor extends WorkerHost {
     await this.ssh.writeFile(
       appTarget,
       `${dir}/compose.yml`,
-      renderComposeFile({ unit, sha, publicPort, apps, domain: env.domain }),
+      renderComposeFile({
+        unit,
+        sha,
+        publicPort,
+        apps,
+        domain: env.domain,
+        // Rendered into compose rather than .env: it is a PEM, and a .env
+        // value cannot hold newlines.
+        caCert: platformEnv.DATABASE_CA_CERT ?? null,
+      }),
     );
     await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf());
     if (env.domain) {

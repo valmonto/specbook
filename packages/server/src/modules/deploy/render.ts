@@ -20,10 +20,34 @@ export function derivePublicPort(unit: string): number {
   return 20000 + (digest.readUInt16BE(0) % 8000);
 }
 
+/**
+ * The name of the one platform variable that CANNOT travel in .env.
+ *
+ * A `.env` line is a line: docker compose reads it verbatim, so a value
+ * containing newlines has to be flattened or it corrupts the file. A PEM
+ * certificate is inherently multi-line, and flattening it produces a string
+ * OpenSSL cannot parse — at which point verification silently falls back to
+ * the system trust store and every TLS connection fails with
+ * UNABLE_TO_VERIFY_LEAF_SIGNATURE, naming the certificate rather than the
+ * transport that mangled it. It travels in compose.yml instead, where YAML
+ * block scalars carry newlines exactly. See renderComposeFile.
+ */
+export const COMPOSE_ONLY_ENV = ['DATABASE_CA_CERT'] as const;
+
 const escapeEnvValue = (value: string): string =>
   // .env parsers (docker compose) take the line verbatim; strip newlines —
-  // a value with them would corrupt the file.
+  // a value with them would corrupt the file. Anything that genuinely needs
+  // newlines belongs in COMPOSE_ONLY_ENV, not here.
   value.replaceAll('\n', ' ').replaceAll('\r', '');
+
+/** Indents a multi-line value under a YAML block scalar (`key: |`). */
+const yamlBlock = (value: string, indent: string): string =>
+  value
+    .replaceAll('\r\n', '\n')
+    .replace(/\n+$/, '')
+    .split('\n')
+    .map((line) => `${indent}${line}`)
+    .join('\n');
 
 /**
  * The rendered .env: platform wiring + user secrets + the runtime constants
@@ -34,7 +58,13 @@ const escapeEnvValue = (value: string): string =>
 export function renderDeployEnv(layers: Array<Record<string, string>>): string {
   const merged: Record<string, string> = {};
   for (const layer of layers) {
-    for (const [key, value] of Object.entries(layer)) merged[key] = value;
+    for (const [key, value] of Object.entries(layer)) {
+      // Omitted rather than flattened: a mangled certificate is worse than an
+      // absent one, because it fails as a trust error instead of a missing
+      // variable. renderComposeFile carries these.
+      if ((COMPOSE_ONLY_ENV as readonly string[]).includes(key)) continue;
+      merged[key] = value;
+    }
   }
   return (
     Object.keys(merged)
@@ -102,11 +132,21 @@ export function renderComposeFile(opts: {
   apps: readonly string[];
   /** When set, the vhost replaces the published port. */
   domain?: string | null;
+  /**
+   * PEM of the CA that signed an external database's certificate. It is
+   * rendered here, not into .env, because it is the one value with newlines
+   * that must survive intact — see COMPOSE_ONLY_ENV.
+   */
+  caCert?: string | null;
 }): string {
-  const { unit, sha, publicPort, apps, domain } = opts;
+  const { unit, sha, publicPort, apps, domain, caCert } = opts;
   const image = (app: string) => `${unit}-${app}:${sha}`;
   const hasWorker = apps.includes('worker');
   const hasWeb = apps.includes('web');
+  // Only the services that open a database connection need it.
+  const caEnv = caCert
+    ? `\n      DATABASE_CA_CERT: |\n${yamlBlock(caCert, '        ')}`
+    : '';
 
   const lines: string[] = [];
   lines.push('services:');
@@ -114,13 +154,13 @@ export function renderComposeFile(opts: {
     image: ${image('api')}
     env_file: [.env]
     entrypoint: ['node', '/app/node_modules/@pkg/database/dist/cli/migrate.mjs']
-    networks: [default, specbook-data]
+    networks: [default, specbook-data]${caEnv ? `\n    environment:${caEnv}` : ''}
     restart: 'no'`);
   lines.push(`  api:
     image: ${image('api')}
     env_file: [.env]
     environment:
-      PORT: 3000
+      PORT: 3000${caEnv}
     networks: [default, specbook-data]
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
@@ -135,7 +175,7 @@ export function renderComposeFile(opts: {
   if (hasWorker) {
     lines.push(`  worker:
     image: ${image('worker')}
-    env_file: [.env]
+    env_file: [.env]${caEnv ? `\n    environment:${caEnv}` : ''}
     networks: [default, specbook-data]
     depends_on:
       migrate:

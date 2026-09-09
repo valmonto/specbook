@@ -160,3 +160,70 @@ describe('renderProxyConf', () => {
     expect(conf).toContain('set $web_upstream http://web:3000;');
   });
 });
+
+const PEM = `-----BEGIN CERTIFICATE-----
+MIIBkTCB+wIJAKZ0F2hOexample1234567890abcdefghijklmnopqrstuvwxyzAB
+CDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/==
+-----END CERTIFICATE-----
+`;
+
+/**
+ * Reads a `key: |` block back the way YAML does — strip the common indent,
+ * keep the newlines. Asserting on this rather than on the raw text is what
+ * makes the test about the CONTRACT (the container gets a parseable PEM)
+ * instead of about the exact spacing of the renderer.
+ */
+function readBlockScalar(compose: string, key: string): string {
+  const lines = compose.split('\n');
+  const start = lines.findIndex((l) => l.trim() === `${key}: |`);
+  if (start === -1) throw new Error(`no block scalar for ${key}`);
+  const indent = /^(\s*)/.exec(lines[start + 1]!)![1]!;
+  const body: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.startsWith(indent) || line.trim() === '') break;
+    body.push(line.slice(indent.length));
+  }
+  return body.join('\n') + '\n';
+}
+
+/**
+ * A PEM is multi-line and a .env value is a line. Flattening the newlines
+ * produced a certificate OpenSSL could not parse, so verification fell back to
+ * the system trust store and every connection died with
+ * UNABLE_TO_VERIFY_LEAF_SIGNATURE — an error naming the certificate rather
+ * than the transport that had mangled it. It cost a day of deploys.
+ */
+describe('the database CA survives rendering', () => {
+  it('never reaches .env, where newlines cannot survive', () => {
+    const env = renderDeployEnv([{ DATABASE_URL: 'postgres://x', DATABASE_CA_CERT: PEM }]);
+
+    expect(env).not.toContain('DATABASE_CA_CERT');
+    expect(env).toContain('DATABASE_URL=postgres://x');
+  });
+
+  it('reaches every database-connected service through compose, byte for byte', () => {
+    const compose = renderComposeFile({
+      unit: 'acme_staging',
+      sha: 'abc123',
+      publicPort: 20001,
+      apps: ['api', 'worker', 'web'],
+      caCert: PEM,
+    });
+
+    expect(readBlockScalar(compose, 'DATABASE_CA_CERT')).toBe(PEM);
+    // migrate is the one that used to fail: it runs FIRST, so a stack whose
+    // certificate is wrong never gets as far as starting api or worker.
+    expect(compose.split('DATABASE_CA_CERT: |').length - 1).toBe(3);
+  });
+
+  it('adds nothing when the database needs no private CA', () => {
+    const compose = renderComposeFile({
+      unit: 'acme_staging',
+      sha: 'abc123',
+      publicPort: 20001,
+      apps: ['api', 'worker', 'web'],
+    });
+
+    expect(compose).not.toContain('DATABASE_CA_CERT');
+  });
+});
