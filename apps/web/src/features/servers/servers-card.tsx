@@ -82,6 +82,7 @@ type ServerForm = {
   port: string;
   sshUser: string;
   roles: ServerRole[];
+  tlsTerminatedUpstream: boolean;
 };
 
 const toForm = (s: Server): ServerForm => ({
@@ -90,6 +91,7 @@ const toForm = (s: Server): ServerForm => ({
   port: String(s.port),
   sshUser: s.sshUser,
   roles: s.roles ?? [],
+  tlsTerminatedUpstream: s.tlsTerminatedUpstream ?? false,
 });
 
 const sameRoles = (a: readonly ServerRole[], b: readonly ServerRole[]): boolean =>
@@ -111,6 +113,9 @@ export function serverPatch(original: Server, form: ServerForm): Omit<UpdateServ
   if (port !== original.port) patch.port = port;
   if (sshUser && sshUser !== original.sshUser) patch.sshUser = sshUser;
   if (!sameRoles(form.roles, original.roles ?? [])) patch.roles = form.roles;
+  if (form.tlsTerminatedUpstream !== (original.tlsTerminatedUpstream ?? false)) {
+    patch.tlsTerminatedUpstream = form.tlsTerminatedUpstream;
+  }
   return patch;
 }
 
@@ -184,6 +189,7 @@ export function ServersCard() {
     adminSecret: '',
     caCert: '',
   });
+  const [tlsTerminatedUpstream, setTlsTerminatedUpstream] = useState(false);
   const [mode, setMode] = useState<ServerMode>('specbook');
   const [roles, setRoles] = useState<ServerRole[]>(['app']);
   const isExternal = mode === 'external';
@@ -205,6 +211,7 @@ export function ServersCard() {
       sshUser: form.sshUser.trim() || 'deploy',
       mode,
       roles,
+      tlsTerminatedUpstream,
       // Credentials and CA belong to an external server only — the request
       // schema rejects them otherwise, so they are omitted rather than blanked.
       ...(isExternal
@@ -226,6 +233,7 @@ export function ServersCard() {
       adminSecret: '',
       caCert: '',
     });
+    setTlsTerminatedUpstream(false);
     setMode('specbook');
     setRoles(['app']);
     if (res.d.mode !== 'external') setRevealed(res.d);
@@ -490,6 +498,23 @@ export function ServersCard() {
                 />
               </div>
             )}
+            {!isExternal && (
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={tlsTerminatedUpstream}
+                  onChange={(e) => setTlsTerminatedUpstream(e.target.checked)}
+                  data-testid="server-tls-terminated-upstream"
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-sm">{t(k.servers.tlsTerminatedUpstream)}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {t(k.servers.tlsTerminatedUpstreamHint)}
+                  </span>
+                </span>
+              </label>
+            )}
             <div className="grid gap-1.5">
               <Label>{t(k.servers.roles)}</Label>
               {/* New servers get the granular roles only; the combined legacy
@@ -596,6 +621,23 @@ export function ServersCard() {
                   onChange={(e) => setEditForm({ sshUser: e.target.value })}
                 />
               </div>
+              {editing.server.mode !== 'external' && (
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={editing.form.tlsTerminatedUpstream}
+                    onChange={(e) => setEditForm({ tlsTerminatedUpstream: e.target.checked })}
+                    data-testid="edit-server-tls-terminated-upstream"
+                  />
+                  <span className="grid gap-0.5">
+                    <span className="text-sm">{t(k.servers.tlsTerminatedUpstream)}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {t(k.servers.tlsTerminatedUpstreamHint)}
+                    </span>
+                  </span>
+                </label>
+              )}
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.roles)}</Label>
                 <div className="flex flex-wrap gap-4">

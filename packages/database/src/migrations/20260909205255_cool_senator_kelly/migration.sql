@@ -1,0 +1,1 @@
+ALTER TABLE "server" ADD COLUMN "tls_terminated_upstream" boolean DEFAULT false NOT NULL;

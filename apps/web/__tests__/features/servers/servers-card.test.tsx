@@ -43,6 +43,7 @@ const box: Server = {
   hostFingerprint: 'SHA256:pinned',
   lastCheckError: null,
   status: 'reachable',
+  tlsTerminatedUpstream: false,
   lastCheckedAt: '2026-09-05T10:00:00.000Z',
   createdBy: '33333333-3333-4333-8333-333333333333',
   createdAt: '2026-09-01T00:00:00.000Z',
@@ -79,6 +80,7 @@ describe('serverPatch — only changed fields go on the wire', () => {
       port: '22',
       sshUser: box.sshUser,
       roles: ['app'],
+      tlsTerminatedUpstream: false,
     });
     expect(patch).toEqual({});
     expect(resetsPin(patch)).toBe(false);
@@ -91,8 +93,21 @@ describe('serverPatch — only changed fields go on the wire', () => {
       port: '22',
       sshUser: 'ops',
       roles: ['app', 'runner'],
+      tlsTerminatedUpstream: false,
     });
     expect(patch).toEqual({ name: 'box-renamed', sshUser: 'ops', roles: ['app', 'runner'] });
+    expect(resetsPin(patch)).toBe(false);
+  });
+
+  /**
+   * Toggling it must not drag host/port along: those reset the pinned host
+   * fingerprint, and re-earning trust on a box is not something a checkbox
+   * about TLS should silently trigger.
+   */
+  it('carries the TLS-terminator flag alone, leaving the fingerprint pinned', () => {
+    const patch = serverPatch(box, { ...formOf(box), tlsTerminatedUpstream: true });
+
+    expect(patch).toEqual({ tlsTerminatedUpstream: true });
     expect(resetsPin(patch)).toBe(false);
   });
 
@@ -108,6 +123,7 @@ const formOf = (s: Server) => ({
   port: String(s.port),
   sshUser: s.sshUser,
   roles: s.roles,
+  tlsTerminatedUpstream: s.tlsTerminatedUpstream ?? false,
 });
 
 describe('ServersCard — edit dialog', () => {

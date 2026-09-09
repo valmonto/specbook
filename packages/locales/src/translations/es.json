@@ -631,6 +631,8 @@
   "servers.test": "Probar conexión",
   "servers.testQueued": "Comprobación en cola — el estado se actualizará en breve",
   "servers.title": "Servidores",
+  "servers.tlsTerminatedUpstream": "TLS terminado en el proxy anterior",
+  "servers.tlsTerminatedUpstreamHint": "Algo delante de este servidor ya ocupa los puertos 80 y 443 — un hipervisor, balanceador o CDN. Las apps aquí se sirven por HTTP simple y nunca solicitan un certificado.",
   "servers.viaTls": "postgres · TLS",
   "tasks.acceptanceCriteria": "Criterios de aceptación",
   "tasks.access.addMember": "Conceder acceso",

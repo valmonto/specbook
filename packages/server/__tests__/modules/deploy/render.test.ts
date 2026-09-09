@@ -227,3 +227,35 @@ describe('the database CA survives rendering', () => {
     expect(compose).not.toContain('DATABASE_CA_CERT');
   });
 });
+
+/**
+ * Behind a front that already owns :80/:443, specbook's Caddy must NOT try to
+ * get its own certificate. Both layers otherwise redirect to HTTPS, and the
+ * ACME challenge that would settle it is redirected too — so no certificate is
+ * ever issued and the deploy fails as a health-check timeout, naming the
+ * certificate rather than the layer that ate the challenge.
+ */
+describe('renderCaddySite behind an upstream terminator', () => {
+  it('asks for a certificate when this box owns the public ports', () => {
+    const site = renderCaddySite('acme_staging', 'acme.example.com');
+
+    expect(site.startsWith('acme.example.com {')).toBe(true);
+    expect(site).not.toContain('http://');
+  });
+
+  it('serves plain HTTP when something in front terminates TLS', () => {
+    const site = renderCaddySite('acme_staging', 'acme.example.com', true);
+
+    // The `http://` prefix is what disables automatic HTTPS in Caddy: no ACME,
+    // and no :80 -> :443 redirect to collide with the front's.
+    expect(site.startsWith('http://acme.example.com {')).toBe(true);
+  });
+
+  it('routes to the same ingress container either way', () => {
+    for (const upstream of [false, true]) {
+      expect(renderCaddySite('acme_staging', 'acme.example.com', upstream)).toContain(
+        'reverse_proxy specbook-ingress-acme_staging:3000',
+      );
+    }
+  });
+});
