@@ -86,6 +86,8 @@ export class ServerService {
         adminSecretEnc:
           mode === 'external' && dto.adminSecret ? this.secrets.seal(dto.adminSecret) : null,
         caCert: mode === 'external' ? (dto.caCert ?? null) : null,
+        // Not mode-gated: any box can sit behind something that owns :80/:443.
+        tlsTerminatedUpstream: dto.tlsTerminatedUpstream ?? false,
         createdBy: activeUser.userId,
       });
     } catch (error) {
@@ -210,6 +212,7 @@ export class ServerService {
       roles: s.roles as ServerDto['roles'],
       adminUser: s.adminUser,
       caCert: s.caCert,
+      tlsTerminatedUpstream: s.tlsTerminatedUpstream,
       publicKey: s.publicKey,
       hostFingerprint: s.hostFingerprint,
       status: s.status as ServerDto['status'],

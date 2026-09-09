@@ -631,6 +631,8 @@
   "servers.test": "Tikrinti ryšį",
   "servers.testQueued": "Patikra eilėje — būsena netrukus atsinaujins",
   "servers.title": "Serveriai",
+  "servers.tlsTerminatedUpstream": "TLS užbaigiamas aukštesniame lygyje",
+  "servers.tlsTerminatedUpstreamHint": "Kažkas priešais šį serverį jau užima 80 ir 443 prievadus — hipervizorius, apkrovos balansuoklis ar CDN. Programos čia teikiamos paprastu HTTP ir niekada neprašo sertifikato.",
   "servers.viaTls": "postgres · TLS",
   "tasks.acceptanceCriteria": "Priėmimo kriterijai",
   "tasks.access.addMember": "Suteikti prieigą",

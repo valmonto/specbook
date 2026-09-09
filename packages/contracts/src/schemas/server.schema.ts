@@ -29,6 +29,7 @@ const CaCertSchema = z
  */
 const externalShape = {
   mode: ServerModeSchema.optional(),
+  tlsTerminatedUpstream: z.boolean().optional(),
   adminUser: z.string().min(1).max(64).optional(),
   adminSecret: z.string().min(1).max(512).optional(),
   caCert: CaCertSchema.optional(),
@@ -88,6 +89,12 @@ export const ServerSchema = z.object({
   adminUser: z.string().nullable(),
   /** Public by design: a certificate is meant to be distributed. */
   caCert: z.string().nullable(),
+  /**
+   * Something in front of this box already terminates TLS for its domains —
+   * a hypervisor, a load balancer, a CDN origin. specbook's own Caddy then
+   * serves plain HTTP and never asks for a certificate.
+   */
+  tlsTerminatedUpstream: z.boolean(),
   /** Installed into authorized_keys on the target — safe to show freely. */
   publicKey: z.string(),
   /** SHA256 fingerprint pinned on first successful connect; null before. */
@@ -133,6 +140,7 @@ export const UpdateServerRequestSchema = z
     adminUser: z.string().min(1).max(64).optional(),
     adminSecret: z.string().min(1).max(512).optional(),
     caCert: CaCertSchema.optional(),
+    tlsTerminatedUpstream: z.boolean().optional(),
   })
   .strict();
 export const UpdateServerResponseSchema = ServerSchema;

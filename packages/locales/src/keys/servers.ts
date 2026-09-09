@@ -14,6 +14,8 @@ export const servers = {
   adminSecret: 'servers.adminSecret',
   caCert: 'servers.caCert',
   caCertHint: 'servers.caCertHint',
+  tlsTerminatedUpstream: 'servers.tlsTerminatedUpstream',
+  tlsTerminatedUpstreamHint: 'servers.tlsTerminatedUpstreamHint',
   rolesNeedSsh: 'servers.rolesNeedSsh',
   viaTls: 'servers.viaTls',
   mode: {

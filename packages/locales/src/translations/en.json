@@ -631,6 +631,8 @@
   "servers.test": "Test connection",
   "servers.testQueued": "Check queued — the status updates shortly",
   "servers.title": "Servers",
+  "servers.tlsTerminatedUpstream": "TLS terminated upstream",
+  "servers.tlsTerminatedUpstreamHint": "Something in front of this server already owns ports 80 and 443 — a hypervisor, load balancer or CDN. Apps here are served over plain HTTP and never request a certificate.",
   "servers.viaTls": "postgres · TLS",
   "tasks.acceptanceCriteria": "Acceptance criteria",
   "tasks.access.addMember": "Grant access",

@@ -99,8 +99,27 @@ export function renderProxyConf(): string {
  * resolves the upstream per request (container DNS), so the file is valid
  * even before the stack is up, and obtains/renews the certificate itself.
  */
-export function renderCaddySite(unit: string, domain: string): string {
-  return `${domain} {
+/**
+ * The site file for one environment, imported by the box's Caddy.
+ *
+ * `tlsTerminatedUpstream` writes the `http://` form, which turns OFF Caddy's
+ * automatic HTTPS: no certificate is requested and no :80 → :443 redirect is
+ * installed. That is required whenever something in front already owns the
+ * public ports — a hypervisor, a load balancer, a CDN origin.
+ *
+ * Getting this wrong does not fail loudly. Both layers redirect to HTTPS, and
+ * the ACME challenge that would settle it is redirected too, so Let's Encrypt
+ * fetches the challenge over a connection with no certificate yet and reports
+ * a TLS error. The deploy then fails as a health-check timeout, naming the
+ * certificate rather than the layer that ate the challenge.
+ */
+export function renderCaddySite(
+  unit: string,
+  domain: string,
+  tlsTerminatedUpstream = false,
+): string {
+  const site = tlsTerminatedUpstream ? `http://${domain}` : domain;
+  return `${site} {
   reverse_proxy specbook-ingress-${unit}:3000
 }
 `;

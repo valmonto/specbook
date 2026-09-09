@@ -1,4 +1,5 @@
 import {
+  boolean,
   pgTable,
   uuid,
   varchar,
@@ -71,6 +72,18 @@ export const server = pgTable(
      * private key never enters specbook.
      */
     caCert: text('ca_cert'),
+    /**
+     * Something in front of this box already terminates TLS for its domains —
+     * a hypervisor that owns :80/:443, a load balancer, a CDN origin. When set,
+     * specbook's Caddy on this server serves the app over PLAIN HTTP and never
+     * requests a certificate.
+     *
+     * Without it the two layers fight: the front redirects to HTTPS, specbook's
+     * Caddy redirects to HTTPS again, and the ACME challenge that would end the
+     * argument is itself redirected — so no certificate is ever issued and the
+     * deploy fails as a health-check timeout with nothing naming the cause.
+     */
+    tlsTerminatedUpstream: boolean('tls_terminated_upstream').notNull().default(false),
     status: varchar('status', { length: 32 }).notNull().default('unverified'),
     /**
      * Why the last check failed, in the words of whatever refused us — an SSH

@@ -308,7 +308,7 @@ export class DeploymentProcessor extends WorkerHost {
       await this.ssh.writeFile(
         appTarget,
         `specbook-caddy/sites/${unit}.caddy`,
-        renderCaddySite(unit, env.domain),
+        renderCaddySite(unit, env.domain, appServer.tlsTerminatedUpstream),
       );
     }
     await this.update(row.id, { phase: 'up' });
