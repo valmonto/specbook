@@ -282,7 +282,13 @@ domain="\${4:-}"
   [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "invalid port" >&2; exit 1; }
   [ -z "$domain" ] || [[ "$domain" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
   cd "$dir"
-  if ! docker compose -p "$unit" up -d --wait --wait-timeout 300; then
+  # --quiet-pull: compose writes per-layer pull progress to STDERR, and this
+  # op's stderr IS the deployment's error text. A pull of a few images emits
+  # hundreds of redrawn progress lines, which fill the capture and truncate
+  # away the diagnostics gathered below: the ps output and the migrate/api
+  # logs, which are the only part anyone can act on. One deploy failed with
+  # nothing in the record but "Downloading [====>] 5.243MB/20.52MB" repeated.
+  if ! docker compose -p "$unit" up -d --wait --wait-timeout 300 --quiet-pull; then
     echo "deploy-stack: unhealthy — diagnostics follow" >&2
     docker compose -p "$unit" ps >&2 || true
     # One-shot containers (migrate) exit before --wait reports, so their
