@@ -37,6 +37,30 @@ describe('renderDeployEnv', () => {
 });
 
 describe('renderComposeFile', () => {
+  /**
+   * The migrate entrypoint follows the IMAGE layout. Runtime images are built
+   * with `pnpm deploy --prod`, which flattens one package to the image root —
+   * `/app/packages/**` does not exist in them.
+   *
+   * This path took production down once as a compose file, and again here as a
+   * rendered one: fixing every app repo's compose.staging.yml does not fix
+   * platform-deployed apps, because they are handed THIS file instead. lyceo
+   * failed with `Cannot find module '/app/packages/database/dist/cli/migrate.mjs'`
+   * long after the repo copies were corrected.
+   */
+  it('points migrate at the flattened image layout, not /app/packages', () => {
+    const rendered = renderComposeFile({
+      unit: 'unit_staging',
+      sha: 'abc123',
+      publicPort: 3010,
+      apps: ['api', 'web'],
+    });
+
+    expect(rendered).toContain('/app/node_modules/@pkg/database/dist/cli/migrate.mjs');
+    expect(rendered).not.toContain('/app/packages/database');
+  });
+
+
   const compose = renderComposeFile({
     unit: 'acme_staging',
     sha: 'abc1234',

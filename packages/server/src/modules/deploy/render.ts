@@ -82,6 +82,14 @@ export function renderCaddySite(unit: string, domain: string): string {
  * prebuilt (never built on the app server) and the data plane lives outside
  * on the external specbook-data network, so no postgres/redis here.
  *
+ * The migrate entrypoint path FOLLOWS THE IMAGE LAYOUT and must change with
+ * it. The runtime images are built with `pnpm deploy --prod`, which flattens
+ * one package to the image root — `/app/packages/**` does not exist in them.
+ * This is rendered here rather than read from the repo's compose.staging.yml,
+ * so fixing that file in every app repo (as was done when this same path took
+ * production down) does NOT fix platform-deployed apps: they get THIS file.
+ * The two must be kept in step.
+ *
  * With a domain, the proxy publishes NO host port: it joins the external
  * specbook-ingress network under a deterministic container_name instead, and
  * Caddy (the box's only public listener) routes the hostname to it.
@@ -105,7 +113,7 @@ export function renderComposeFile(opts: {
   lines.push(`  migrate:
     image: ${image('api')}
     env_file: [.env]
-    entrypoint: ['node', '/app/packages/database/dist/cli/migrate.mjs']
+    entrypoint: ['node', '/app/node_modules/@pkg/database/dist/cli/migrate.mjs']
     networks: [default, specbook-data]
     restart: 'no'`);
   lines.push(`  api:
