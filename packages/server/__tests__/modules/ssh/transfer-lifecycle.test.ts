@@ -162,6 +162,33 @@ describe('pipeOp transfer lifecycle', () => {
     expect(settled).toEqual(['resolved']);
   });
 
+  /**
+   * THE last deadlock. `docker load` prints "Loaded image: <tag>" on stdout.
+   * pipeOp read the destination's stderr and never its stdout — and a Node
+   * readable nobody reads never ends, so the channel never emitted 'close'
+   * and the transfer waited out its 45-minute ceiling with every byte already
+   * delivered and the remote command already exited. exec() has always
+   * consumed stdout; pipeOp did not.
+   */
+  it('consumes the destination stdout, and reports what it said', async () => {
+    const lines: string[] = [];
+    const promise = run((l) => lines.push(l));
+    await flushIO();
+
+    src.stdout.write(Buffer.alloc(2048));
+    src.stdout.end();
+    await flushIO();
+
+    // The far end announces itself on stdout, then exits.
+    dst.stdout.write(Buffer.from('Loaded image: unit-api:abc123\n'));
+    await flushIO();
+
+    expect(lines.some((l) => l.includes('Loaded image: unit-api:abc123'))).toBe(true);
+
+    dst.emit('close', 0);
+    await promise;
+  });
+
   /** The transfer used to print nothing at all for its entire duration. */
   it('reports how many bytes have moved while the transfer runs', async () => {
     const lines: string[] = [];

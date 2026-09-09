@@ -395,6 +395,18 @@ export class SshService {
             if (destErr) return finish(destErr);
             let destErrOut = '';
             destStream.stderr.on('data', (d: Buffer) => (destErrOut += d.toString()));
+            // CONSUME the destination's stdout. `docker load` prints
+            // "Loaded image: <tag>" there, and a Node readable that nobody
+            // reads never ends — so the channel never emits 'close' and this
+            // promise waits out PIPE_MAX_MS even though the remote command
+            // exited seconds earlier. Observed directly: every byte across,
+            // `docker load` gone from the process table, specbook still
+            // hanging, and the run failing with "transfer exceeded 45m".
+            // exec() has always read stdout; pipeOp only read stderr.
+            destStream.on('data', (d: Buffer) => {
+              const line = d.toString().trim();
+              if (line) onProgress?.(`transfer: ${line}`);
+            });
             destStream.on('close', (code: number) =>
               finish(
                 code === 0
