@@ -44,7 +44,9 @@ export function createDatabaseClient(config: DatabaseConfig): DatabaseClient {
     // Only when a CA is supplied AND the URL names a host to verify against.
     // Without both there is nothing to check, and a half-configured TLS option
     // is worse than none: it looks verified and is not.
-    ...(config.caCert && host ? { ssl: buildVerifiedTls(host, config.caCert) as never } : {}),
+    ...(config.caCert && host
+      ? { ssl: buildVerifiedTls(host, config.caCert) as never }
+      : {}),
   });
 
   const db = drizzle({ client: sql, relations });
@@ -76,6 +78,10 @@ export function createDatabaseClientFromEnv(): DatabaseClient {
     maxConnections: process.env.DATABASE_MAX_CONNECTIONS
       ? parseInt(process.env.DATABASE_MAX_CONNECTIONS, 10)
       : undefined,
+    // Read here for the same reason the Nest factory reads it: a private CA
+    // cannot ride in DATABASE_URL, so a caller that has only the environment
+    // to go on would otherwise verify `?sslmode=verify-full` against the system
+    // trust store and fail with UNABLE_TO_VERIFY_LEAF_SIGNATURE.
     caCert: process.env.DATABASE_CA_CERT,
   });
 }

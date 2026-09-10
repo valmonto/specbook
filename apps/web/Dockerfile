@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:26-alpine AS base
 RUN npm install -g pnpm@11.25.0
 
@@ -9,12 +10,17 @@ WORKDIR /app
 # this layer survives source edits, so a rebuild re-fetches only when the
 # lockfile (or root manifest) actually changes.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm fetch
 
 COPY packages ./packages
 COPY apps/web ./apps/web
 
-RUN pnpm install --frozen-lockfile --offline
+# `pnpm fetch` has no filter: it primes the store from the ENTIRE monorepo
+# lockfile — React Native and Expo included — to build one app that needs a
+# fraction of it. A filtered install fetches only this app's closure, and the
+# store lives in a build cache shared by every image and every build, so a
+# lockfile change re-resolves just what moved.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
+    pnpm install --frozen-lockfile --filter @pkg/web... --store-dir /pnpm-store
 RUN pnpm --filter @pkg/web... build
 
 # Production stage - serve with a simple static server
