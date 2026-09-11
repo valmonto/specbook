@@ -1,19 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  Bot,
-  Check,
-  CircleAlert,
-  Copy,
-  Inbox,
-  MessageCircleQuestion,
-  Play,
-  Plus,
-  Radio,
-  RotateCcw,
-  Square,
-} from 'lucide-react';
+import { Bot, Check, CircleAlert, Copy, Inbox, MessageCircleQuestion, Play, Plus, Radio, RotateCcw, Square, SquareTerminal } from 'lucide-react';
 import type { Agent, Task } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
@@ -33,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/shared/components/page-header';
+import { ServerTerminalDialog } from '@/shared/servers/server-terminal-dialog';
 import { useCan } from '@/shared/hooks/use-permissions';
 import { useServers } from '@/shared/servers/hooks';
 import { StatusBadge } from './components/status-badge';
@@ -107,9 +96,11 @@ function PrepChecklist() {
  * agents add lifecycle controls and an expandable log; the auth_needed state
  * names the exact human action (the one command specbook will never run).
  */
-function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
+export function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
   const { t } = useTranslation();
+  const canShell = useCan('server:shell');
   const [showLog, setShowLog] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const start = useStartAgent();
   const stop = useStopAgent();
   const managed = agent.kind === 'managed';
@@ -161,6 +152,20 @@ function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
             {t(k.agents.start)}
           </Button>
         )}
+        {/* Attach only while a session exists to attach TO: `tmux attach` on a
+            stopped agent just errors in a shell the operator then has to read. */}
+        {managed && canShell && running && agent.serverId && agent.serverName && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 gap-1 px-2 text-xs"
+            title={t(k.agents.attachTitle)}
+            onClick={() => setAttaching(true)}
+          >
+            <SquareTerminal className="size-3" />
+            {t(k.agents.attach)}
+          </Button>
+        )}
         {managed && canManage && running && (
           <Button
             size="sm"
@@ -179,6 +184,15 @@ function AgentPill({ agent, canManage }: { agent: Agent; canManage: boolean }) {
           <span>{t(k.agents.authNeededHint)}</span>
           <CopyInline value="claude setup-token" />
         </p>
+      )}
+      {attaching && agent.serverId && agent.serverName && (
+        <ServerTerminalDialog
+          serverId={agent.serverId}
+          serverName={agent.serverName}
+          open={attaching}
+          onOpenChange={setAttaching}
+          initialCommand={`tmux attach -t specbook-${agent.name}`}
+        />
       )}
       {showLog && (
         <>

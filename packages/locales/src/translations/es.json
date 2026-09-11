@@ -40,6 +40,8 @@
   "admin.platform": "Plataforma",
   "agents.addManaged": "Nuevo agente gestionado",
   "agents.addManagedDesc": "Lanza una sesión de Claude Code en un servidor registrado. La autenticas una vez por SSH; specbook nunca toca credenciales de Anthropic.",
+  "agents.attach": "Conectar",
+  "agents.attachTitle": "Abre un shell en el runner y conecta a la sesión tmux de este agente",
   "agents.attachHint": "Toma de control manual: ssh {{user}}@{{host}} -t tmux attach -t specbook-{{name}}",
   "agents.authNeededHint": "Entra por SSH al servidor y ejecuta: claude setup-token — luego pulsa Iniciar de nuevo",
   "agents.confirmAdditional": "Lo entiendo, añadir otro agente a este servidor",

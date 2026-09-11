@@ -25,7 +25,7 @@ import {
   type UpdateServerRequest,
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
-import { ServerTerminalDialog } from './server-terminal-dialog';
+import { ServerTerminalDialog } from '@/shared/servers/server-terminal-dialog';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

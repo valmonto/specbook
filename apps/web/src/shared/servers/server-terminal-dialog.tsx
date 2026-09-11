@@ -31,11 +31,19 @@ export function ServerTerminalDialog({
   serverName,
   open,
   onOpenChange,
+  initialCommand,
 }: {
   serverId: string;
   serverName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Typed into the shell once it is up, as if the operator had. Used to hand
+   * someone straight to a running agent's tmux session instead of printing a
+   * command for them to copy into a terminal somewhere else. The gateway
+   * buffers input until the pty exists, so sending on open is safe.
+   */
+  initialCommand?: string;
 }) {
   const { t } = useTranslation();
   // A callback ref, not useRef: the dialog renders through a portal, so on the
@@ -114,6 +122,9 @@ export function ServerTerminalDialog({
       // to the wrong box.
       requestAnimationFrame(() => sendResize());
       term.focus();
+      // Binary, like every keystroke: the gateway reads a TEXT frame as a
+      // resize control message and would silently drop this one.
+      if (initialCommand) socket.send(new TextEncoder().encode(`${initialCommand}\n`));
     };
     socket.onmessage = (event: MessageEvent<ArrayBuffer | string>) => {
       term.write(
@@ -142,7 +153,7 @@ export function ServerTerminalDialog({
       socket.close();
       term.dispose();
     };
-  }, [serverId, t, host]);
+  }, [serverId, t, host, initialCommand]);
 
   useEffect(() => {
     if (!open || !host) return;
