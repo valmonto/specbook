@@ -387,9 +387,17 @@ name="\${1:?usage: ensure-runner <name>}"
   # three package names before the first agent can start was friction with no
   # safety in it.
   missing=""
-  command -v node >/dev/null 2>&1 || missing="$missing nodejs"
-  command -v npm  >/dev/null 2>&1 || missing="$missing npm"
+  # tmux holds the agent's session, so it is needed whatever else is true.
   command -v tmux >/dev/null 2>&1 || missing="$missing tmux"
+
+  # node and npm are needed ONLY to install the CLI. Claude Code ships as a
+  # native binary, so a box that already has claude needs neither — and
+  # demanding them there would install a runtime nothing runs, or refuse a
+  # working box for having an old node the CLI never touches.
+  if ! command -v claude >/dev/null 2>&1; then
+    command -v node >/dev/null 2>&1 || missing="$missing nodejs"
+    command -v npm  >/dev/null 2>&1 || missing="$missing npm"
+  fi
 
   if [ -n "$missing" ]; then
     echo "runner: installing$missing"
@@ -408,22 +416,24 @@ name="\${1:?usage: ensure-runner <name>}"
       exit 3
     fi
     # Believe the box, not the installer's exit code: a package can install
-    # and still not put the command on PATH.
-    for c in node npm tmux; do
+    # and still not put the command on PATH. Only what we asked for is
+    # re-checked — the nodejs package provides the node command.
+    for pkg in $missing; do
+      c="$pkg"; [ "$pkg" = "nodejs" ] && c="node"
       command -v "$c" >/dev/null 2>&1 || { echo "RUNNER_MISSING: $c (install reported success)" >&2; exit 3; }
     done
   fi
 
-  # Distro node is routinely years behind — Debian stable has shipped a node
-  # the CLI refuses to run on. Catching it here names the cause; letting it
-  # through turns into a crash inside claude with nothing pointing at node.
-  node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
-  if [ "$node_major" -lt 20 ]; then
-    echo "RUNNER_MISSING: node >= 20 (found $(node --version 2>/dev/null || echo none) — the distro package is too old; install a current node)" >&2
-    exit 3
-  fi
-
   if ! command -v claude >/dev/null 2>&1; then
+    # Only now does node's version matter, because only now is it used. Distro
+    # node runs years behind — Debian stable has shipped one npm refuses to
+    # install this package on — and catching it here names the cause instead
+    # of failing somewhere inside npm.
+    node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+    if [ "$node_major" -lt 20 ]; then
+      echo "RUNNER_MISSING: node >= 20 to install the CLI (found $(node --version 2>/dev/null || echo none) — install a current node, or install claude yourself and specbook will use it)" >&2
+      exit 3
+    fi
     npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 \\
       || { echo "RUNNER_MISSING: claude (npm install -g failed)" >&2; exit 3; }
   fi
