@@ -24,6 +24,20 @@ describe('renderRunnerPrompt', () => {
     expect(prompt).toContain('sleep 300');
   });
 
+  /**
+   * The harness refuses a foreground `sleep`. The prompt used to say "run
+   * `sleep 300` in Bash", so every managed agent hit that refusal on every
+   * empty sweep and then tried to smuggle it past with `sleep 300; echo ...`
+   * — the workaround the refusal explicitly names. Observed live on a real
+   * runner, in its own log.
+   */
+  it('paces with a BACKGROUND sleep, the only form the harness allows', () => {
+    expect(prompt).toContain('run_in_background: true');
+    expect(prompt).toMatch(/FOREGROUND[\s\S]*refused/);
+    // and warns off the disguise the agent actually attempted
+    expect(prompt).toContain('chaining shorter sleeps');
+  });
+
   it('carries the hard lines: no draft/ready/approved/done transitions', () => {
     expect(prompt).toContain('Never touch draft tasks');
     expect(prompt).toContain('ready, approved or done');

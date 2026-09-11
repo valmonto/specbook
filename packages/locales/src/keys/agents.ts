@@ -29,6 +29,8 @@ export const agents = {
   logEmpty: 'agents.logEmpty',
   authNeededHint: 'agents.authNeededHint',
   attachHint: 'agents.attachHint',
+  attach: 'agents.attach',
+  attachTitle: 'agents.attachTitle',
   serverBusyWarning: 'agents.serverBusyWarning',
   confirmAdditional: 'agents.confirmAdditional',
   prepTitle: 'agents.prepTitle',

@@ -40,6 +40,8 @@
   "admin.platform": "Platforma",
   "agents.addManaged": "Naujas valdomas agentas",
   "agents.addManagedDesc": "Paleidžia Claude Code sesiją registruotame serveryje. Autentifikuojate vieną kartą per SSH; specbook niekada neliečia Anthropic prisijungimų.",
+  "agents.attach": "Prisijungti",
+  "agents.attachTitle": "Atidaro shell runner mašinoje ir prisijungia prie šio agento tmux sesijos",
   "agents.attachHint": "Perimti rankiniu būdu: ssh {{user}}@{{host}} -t tmux attach -t specbook-{{name}}",
   "agents.authNeededHint": "Prisijunkite prie serverio per SSH ir paleiskite: claude setup-token — tada spauskite Paleisti dar kartą",
   "agents.confirmAdditional": "Suprantu, pridėti dar vieną agentą šiam serveriui",
