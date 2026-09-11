@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CreateServerRequestSchema, EXTERNAL_SERVER_ROLES, SERVER_MODES } from '../src/index.js';
+import {
+  CreateServerRequestSchema,
+  EXTERNAL_SERVER_ROLES,
+  SERVER_MODES,
+  SERVER_ROLES,
+  UpdateServerRequestSchema,
+} from '../src/index.js';
 
 /**
  * An external server is a database specbook is only a CLIENT of: it is reached
@@ -77,5 +83,47 @@ describe('server mode', () => {
       caCert: '/root/postgres-ca.crt',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+/**
+ * A runner hosts the agent CLI unattended with permission prompts skipped
+ * (remote-ops `runner-start`: IS_SANDBOX=1 --dangerously-skip-permissions).
+ * That is only defensible on a box dedicated to it. Until this rule the
+ * requirement lived in a README, so nothing stopped a runner being placed
+ * beside the app and data containers it could then reach.
+ */
+describe('runner role is exclusive', () => {
+  it('accepts a server that is only a runner', () => {
+    const parsed = CreateServerRequestSchema.parse({ ...base, port: 22, roles: ['runner'] });
+    expect(parsed.roles).toEqual(['runner']);
+  });
+
+  it.each(SERVER_ROLES.filter((r) => r !== 'runner'))(
+    'refuses runner alongside %s, naming what to remove',
+    (role) => {
+      const result = CreateServerRequestSchema.safeParse({
+        ...base,
+        port: 22,
+        roles: ['runner', role],
+      });
+      expect(result.success).toBe(false);
+      const issue = result.error?.issues.find((i) => i.path.join('.') === 'roles');
+      expect(issue?.message).toContain(role);
+    },
+  );
+
+  it('refuses the same pairing on update, so the rule cannot be edited around', () => {
+    const result = UpdateServerRequestSchema.safeParse({ roles: ['app', 'runner'] });
+    expect(result.success).toBe(false);
+  });
+
+  it('leaves non-runner combinations alone', () => {
+    const parsed = CreateServerRequestSchema.parse({
+      ...base,
+      port: 22,
+      roles: ['app', 'build'],
+    });
+    expect(parsed.roles).toEqual(['app', 'build']);
   });
 });

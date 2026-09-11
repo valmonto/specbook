@@ -120,6 +120,15 @@ export const server = pgTable(
           `(mode <> 'external' AND admin_user IS NULL AND admin_secret_enc IS NULL)`,
       ),
     ),
+    // A runner hosts the agent CLI with permission prompts skipped, so it must
+    // not share a box with anything specbook places. This is the same argument
+    // as the credential check above — enforced in the database so no code path
+    // can write the row, because here the consequence is an unattended agent
+    // sitting next to production containers rather than a failed provision.
+    check(
+      'server_runner_exclusive_check',
+      sql.raw(`NOT (roles @> '["runner"]'::jsonb) OR jsonb_array_length(roles) = 1`),
+    ),
   ],
 );
 

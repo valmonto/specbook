@@ -24,8 +24,13 @@ const CaCertSchema = z
 /**
  * An external server is reached over the network, not over SSH: it needs the
  * credential specbook authenticates with, and it may only hold the roles that
- * require no local execution. Shared by create and update so the rule cannot
- * drift between them.
+ * require no local execution.
+ *
+ * CREATE ONLY, deliberately: these rules all branch on `mode`, and an update
+ * request carries no mode — the stored row holds it. Applying them to a patch
+ * would read every update as managed and reject an external server's own
+ * credentials. Role rules that do NOT depend on mode belong in
+ * `refineRunnerExclusive`, which both requests share.
  */
 const externalShape = {
   mode: ServerModeSchema.optional(),
@@ -74,6 +79,29 @@ function refineMode<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
   });
 }
 
+/**
+ * A runner hosts the agent CLI unattended with permission prompts skipped
+ * (remote-ops `runner-start`: IS_SANDBOX=1 --dangerously-skip-permissions).
+ * That is only defensible on a box dedicated to it — otherwise an agent that
+ * can run anything sits beside the app and data containers it could reach.
+ *
+ * Separate from `refineMode` because it depends only on `roles`: update can
+ * carry roles without a mode, so this rule applies to BOTH requests while the
+ * mode-dependent ones genuinely cannot.
+ */
+function refineRunnerExclusive<T extends z.ZodTypeAny>(schema: T) {
+  return schema.superRefine((value, ctx) => {
+    const roles = (value as { roles?: readonly string[] }).roles;
+    if (!roles?.includes('runner') || roles.length === 1) return;
+    const others = roles.filter((r) => r !== 'runner');
+    ctx.addIssue({
+      code: 'custom',
+      path: ['roles'],
+      message: `a runner runs agents with permissions skipped, so it needs a box of its own — remove ${others.join(', ')}`,
+    });
+  });
+}
+
 // --- Server Entity (public shape — key material NEVER appears here) ---
 export const ServerSchema = z.object({
   id: z.string().uuid(),
@@ -110,39 +138,43 @@ export const ServerSchema = z.object({
 export type Server = z.infer<typeof ServerSchema>;
 
 // --- Create ---
-export const CreateServerRequestSchema = refineMode(
-  z
-    .object({
-      name: z.string().min(1).max(255),
-      /** SSH endpoint when managed; the address applications dial when external. */
-      host: z.string().min(1).max(255),
-      port: z.number().int().min(1).max(65535).optional(),
-      sshUser: z.string().min(1).max(64).optional(),
-      roles: z.array(ServerRoleSchema).min(1),
-      ...externalShape,
-    })
-    .strict(),
+export const CreateServerRequestSchema = refineRunnerExclusive(
+  refineMode(
+    z
+      .object({
+        name: z.string().min(1).max(255),
+        /** SSH endpoint when managed; the address applications dial when external. */
+        host: z.string().min(1).max(255),
+        port: z.number().int().min(1).max(65535).optional(),
+        sshUser: z.string().min(1).max(64).optional(),
+        roles: z.array(ServerRoleSchema).min(1),
+        ...externalShape,
+      })
+      .strict(),
+  ),
 );
 export const CreateServerResponseSchema = ServerSchema;
 export type CreateServerRequest = z.infer<typeof CreateServerRequestSchema>;
 export type CreateServerResponse = z.infer<typeof CreateServerResponseSchema>;
 
 // --- Update ---
-export const UpdateServerRequestSchema = z
-  .object({
-    id: z.string().uuid(),
-    name: z.string().min(1).max(255).optional(),
-    host: z.string().min(1).max(255).optional(),
-    port: z.number().int().min(1).max(65535).optional(),
-    sshUser: z.string().min(1).max(64).optional(),
-    roles: z.array(ServerRoleSchema).min(1).optional(),
-    /** Omit to leave the stored password untouched; a value replaces it. */
-    adminUser: z.string().min(1).max(64).optional(),
-    adminSecret: z.string().min(1).max(512).optional(),
-    caCert: CaCertSchema.optional(),
-    tlsTerminatedUpstream: z.boolean().optional(),
-  })
-  .strict();
+export const UpdateServerRequestSchema = refineRunnerExclusive(
+  z
+    .object({
+      id: z.string().uuid(),
+      name: z.string().min(1).max(255).optional(),
+      host: z.string().min(1).max(255).optional(),
+      port: z.number().int().min(1).max(65535).optional(),
+      sshUser: z.string().min(1).max(64).optional(),
+      roles: z.array(ServerRoleSchema).min(1).optional(),
+      /** Omit to leave the stored password untouched; a value replaces it. */
+      adminUser: z.string().min(1).max(64).optional(),
+      adminSecret: z.string().min(1).max(512).optional(),
+      caCert: CaCertSchema.optional(),
+      tlsTerminatedUpstream: z.boolean().optional(),
+    })
+    .strict(),
+);
 export const UpdateServerResponseSchema = ServerSchema;
 export type UpdateServerRequest = z.infer<typeof UpdateServerRequestSchema>;
 export type UpdateServerResponse = z.infer<typeof UpdateServerResponseSchema>;

@@ -616,6 +616,7 @@
   "servers.role.storage": "Storage",
   "servers.roles": "Roles",
   "servers.rolesNeedSsh": "— needs SSH",
+  "servers.rolesRunnerOwnBox": "— runner needs its own box",
   "servers.rolesRequired": "Pick at least one role",
   "servers.save": "Save changes",
   "servers.saved": "Server updated",

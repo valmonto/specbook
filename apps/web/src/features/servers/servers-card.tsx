@@ -524,8 +524,17 @@ export function ServersCard() {
                   teaches the model instead of leaving a checkbox unexplained. */}
               <div className="flex flex-wrap gap-4">
                 {REGISTERABLE_SERVER_ROLES.map((role) => {
-                  const blocked =
+                  const needsSsh =
                     isExternal && !(EXTERNAL_SERVER_ROLES as readonly string[]).includes(role);
+                  // A runner is exclusive (see the schema's refineMode): picking
+                  // it rules out every other role, and any other role rules it
+                  // out. Disabling both directions keeps the form from offering
+                  // a combination the API would only refuse on submit.
+                  const runnerConflict =
+                    role === 'runner'
+                      ? roles.some((r) => r !== 'runner')
+                      : roles.includes('runner');
+                  const blocked = needsSsh || runnerConflict;
                   return (
                     <label
                       key={role}
@@ -542,8 +551,9 @@ export function ServersCard() {
                         }
                       />
                       {t(k.servers.role[role])}
-                      {blocked && (
-                        <span className="text-xs">{t(k.servers.rolesNeedSsh)}</span>
+                      {needsSsh && <span className="text-xs">{t(k.servers.rolesNeedSsh)}</span>}
+                      {!needsSsh && runnerConflict && (
+                        <span className="text-xs">{t(k.servers.rolesRunnerOwnBox)}</span>
                       )}
                     </label>
                   );
@@ -641,21 +651,44 @@ export function ServersCard() {
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.roles)}</Label>
                 <div className="flex flex-wrap gap-4">
-                  {SERVER_ROLES.map((role) => (
-                    <label key={role} className="flex items-center gap-1.5 text-sm">
-                      <Checkbox
-                        checked={editing.form.roles.includes(role)}
-                        onCheckedChange={(v) =>
-                          setEditForm({
-                            roles: v
-                              ? [...editing.form.roles, role]
-                              : editing.form.roles.filter((r) => r !== role),
-                          })
-                        }
-                      />
-                      {role === 'data' ? t(k.servers.legacyDataRole) : t(k.servers.role[role])}
-                    </label>
-                  ))}
+                  {SERVER_ROLES.map((role) => {
+                    // Same exclusivity as the create form. An existing server
+                    // that already holds runner alongside something else still
+                    // renders its roles — only ADDING to the conflict is
+                    // blocked, so such a row can be edited back into shape
+                    // rather than becoming uneditable.
+                    const checked = editing.form.roles.includes(role);
+                    const runnerConflict =
+                      !checked &&
+                      (role === 'runner'
+                        ? editing.form.roles.some((r) => r !== 'runner')
+                        : editing.form.roles.includes('runner'));
+                    return (
+                      <label
+                        key={role}
+                        className={cn(
+                          'flex items-center gap-1.5 text-sm',
+                          runnerConflict && 'text-muted-foreground opacity-60',
+                        )}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          disabled={runnerConflict}
+                          onCheckedChange={(v) =>
+                            setEditForm({
+                              roles: v
+                                ? [...editing.form.roles, role]
+                                : editing.form.roles.filter((r) => r !== role),
+                            })
+                          }
+                        />
+                        {role === 'data' ? t(k.servers.legacyDataRole) : t(k.servers.role[role])}
+                        {runnerConflict && (
+                          <span className="text-xs">{t(k.servers.rolesRunnerOwnBox)}</span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
                 {editRolesMissing && (
                   <p className="text-xs text-destructive">{t(k.servers.rolesRequired)}</p>

@@ -1,0 +1,1 @@
+ALTER TABLE "server" ADD CONSTRAINT "server_runner_exclusive_check" CHECK (NOT (roles @> '["runner"]'::jsonb) OR jsonb_array_length(roles) = 1);
