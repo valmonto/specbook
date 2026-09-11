@@ -92,10 +92,10 @@ describe('serverPatch — only changed fields go on the wire', () => {
       host: box.host,
       port: '22',
       sshUser: 'ops',
-      roles: ['app', 'build'],
+      roles: ['app', 'runner'],
       tlsTerminatedUpstream: false,
     });
-    expect(patch).toEqual({ name: 'box-renamed', sshUser: 'ops', roles: ['app', 'build'] });
+    expect(patch).toEqual({ name: 'box-renamed', sshUser: 'ops', roles: ['app', 'runner'] });
     expect(resetsPin(patch)).toBe(false);
   });
 
@@ -134,31 +134,35 @@ describe('ServersCard — edit dialog', () => {
     expect(screen.getByLabelText('servers.port')).toHaveValue('22');
     expect(screen.getByLabelText('servers.sshUser')).toHaveValue('deploy');
     expect(screen.getByRole('checkbox', { name: 'servers.role.app' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'servers.role.build' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'servers.role.runner' })).not.toBeChecked();
     // Nothing changed yet → nothing to save.
     expect(screen.getByRole('button', { name: 'servers.save' })).toBeDisabled();
   });
 
   /**
-   * A runner runs the agent CLI with permission prompts skipped, so it may not
-   * share a box with anything else specbook places. The form disables the
-   * combination rather than letting it be submitted and refused: the rule is
-   * only useful if it is visible where the choice is made.
+   * An agent runs with permission prompts skipped, so sharing a box puts it
+   * beside that box's app and data containers. That is allowed — a spare box
+   * is a spare box — so the form warns where the choice is made instead of
+   * refusing a setup someone may well mean.
    */
-  it('offers runner as unavailable, with the reason, on a server that holds another role', async () => {
-    await openEdit();
-    const runner = screen.getByRole('checkbox', { name: /servers\.role\.runner/ });
-    expect(runner).toBeDisabled();
-    expect(screen.getAllByText('servers.rolesRunnerOwnBox').length).toBeGreaterThan(0);
+  it('warns, without blocking, when a runner would share the box', async () => {
+    const user = await openEdit();
+    expect(screen.queryByText('servers.rolesRunnerShared')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'servers.role.runner' }));
+
+    expect(screen.getByText('servers.rolesRunnerShared')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'servers.role.runner' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'servers.save' })).toBeEnabled();
   });
 
   it('adding a role PATCHes only {id, roles} — no host/port, no fingerprint reset', async () => {
     const user = await openEdit();
-    await user.click(screen.getByRole('checkbox', { name: 'servers.role.build' }));
+    await user.click(screen.getByRole('checkbox', { name: 'servers.role.runner' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'servers.save' }));
     await waitFor(() => expect(update.execute).toHaveBeenCalledTimes(1));
-    expect(update.execute).toHaveBeenCalledWith({ id: box.id, roles: ['app', 'build'] });
+    expect(update.execute).toHaveBeenCalledWith({ id: box.id, roles: ['app', 'runner'] });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 

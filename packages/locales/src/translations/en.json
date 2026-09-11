@@ -616,7 +616,7 @@
   "servers.role.storage": "Storage",
   "servers.roles": "Roles",
   "servers.rolesNeedSsh": "— needs SSH",
-  "servers.rolesRunnerOwnBox": "— runner needs its own box",
+  "servers.rolesRunnerShared": "An agent here runs with permissions skipped, beside this box's app and data containers. Use a dedicated box unless you mean this.",
   "servers.rolesRequired": "Pick at least one role",
   "servers.save": "Save changes",
   "servers.saved": "Server updated",

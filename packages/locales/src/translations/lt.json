@@ -616,7 +616,7 @@
   "servers.role.storage": "Saugykla",
   "servers.roles": "Rolės",
   "servers.rolesNeedSsh": "— reikia SSH",
-  "servers.rolesRunnerOwnBox": "— runner reikalauja atskiros mašinos",
+  "servers.rolesRunnerShared": "Agentas čia veikia be leidimų patikros, šalia šios mašinos programos ir duomenų konteinerių. Naudokite atskirą mašiną, nebent to ir siekiate.",
   "servers.rolesRequired": "Pasirinkite bent vieną rolę",
   "servers.save": "Išsaugoti pakeitimus",
   "servers.saved": "Serveris atnaujintas",

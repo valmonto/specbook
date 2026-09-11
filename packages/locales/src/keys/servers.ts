@@ -17,7 +17,7 @@ export const servers = {
   tlsTerminatedUpstream: 'servers.tlsTerminatedUpstream',
   tlsTerminatedUpstreamHint: 'servers.tlsTerminatedUpstreamHint',
   rolesNeedSsh: 'servers.rolesNeedSsh',
-  rolesRunnerOwnBox: 'servers.rolesRunnerOwnBox',
+  rolesRunnerShared: 'servers.rolesRunnerShared',
   viaTls: 'servers.viaTls',
   mode: {
     label: 'servers.mode.label',

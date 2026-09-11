@@ -124,6 +124,20 @@ export const resetsPin = (patch: Omit<UpdateServerRequest, 'id'>): boolean =>
   patch.host !== undefined || patch.port !== undefined;
 
 /**
+ * True when a runner would share the box with something else specbook places.
+ * An agent runs with permission prompts skipped (remote-ops `runner-start`:
+ * IS_SANDBOX=1 --dangerously-skip-permissions), so co-tenancy puts it next to
+ * this box's app and data containers with nothing between them.
+ *
+ * Deliberately a WARNING, not a refusal: reusing a spare box is a legitimate
+ * choice, and the schema stays silent so a considered setup is never an error
+ * with no way past it. Shown where the roles are picked, which is the only
+ * place the trade-off is actually being made.
+ */
+export const sharesBoxWithRunner = (roles: readonly ServerRole[]): boolean =>
+  roles.includes('runner') && roles.length > 1;
+
+/**
  * The shared-instance view: which environments use this server, and as what.
  * One Postgres per server is reused by N environments (each with its own
  * database + role) — this is where that reuse becomes visible.
@@ -524,17 +538,8 @@ export function ServersCard() {
                   teaches the model instead of leaving a checkbox unexplained. */}
               <div className="flex flex-wrap gap-4">
                 {REGISTERABLE_SERVER_ROLES.map((role) => {
-                  const needsSsh =
+                  const blocked =
                     isExternal && !(EXTERNAL_SERVER_ROLES as readonly string[]).includes(role);
-                  // A runner is exclusive (see the schema's refineMode): picking
-                  // it rules out every other role, and any other role rules it
-                  // out. Disabling both directions keeps the form from offering
-                  // a combination the API would only refuse on submit.
-                  const runnerConflict =
-                    role === 'runner'
-                      ? roles.some((r) => r !== 'runner')
-                      : roles.includes('runner');
-                  const blocked = needsSsh || runnerConflict;
                   return (
                     <label
                       key={role}
@@ -551,14 +556,18 @@ export function ServersCard() {
                         }
                       />
                       {t(k.servers.role[role])}
-                      {needsSsh && <span className="text-xs">{t(k.servers.rolesNeedSsh)}</span>}
-                      {!needsSsh && runnerConflict && (
-                        <span className="text-xs">{t(k.servers.rolesRunnerOwnBox)}</span>
+                      {blocked && (
+                        <span className="text-xs">{t(k.servers.rolesNeedSsh)}</span>
                       )}
                     </label>
                   );
                 })}
               </div>
+              {sharesBoxWithRunner(roles) && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t(k.servers.rolesRunnerShared)}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -651,45 +660,27 @@ export function ServersCard() {
               <div className="grid gap-1.5">
                 <Label>{t(k.servers.roles)}</Label>
                 <div className="flex flex-wrap gap-4">
-                  {SERVER_ROLES.map((role) => {
-                    // Same exclusivity as the create form. An existing server
-                    // that already holds runner alongside something else still
-                    // renders its roles — only ADDING to the conflict is
-                    // blocked, so such a row can be edited back into shape
-                    // rather than becoming uneditable.
-                    const checked = editing.form.roles.includes(role);
-                    const runnerConflict =
-                      !checked &&
-                      (role === 'runner'
-                        ? editing.form.roles.some((r) => r !== 'runner')
-                        : editing.form.roles.includes('runner'));
-                    return (
-                      <label
-                        key={role}
-                        className={cn(
-                          'flex items-center gap-1.5 text-sm',
-                          runnerConflict && 'text-muted-foreground opacity-60',
-                        )}
-                      >
-                        <Checkbox
-                          checked={checked}
-                          disabled={runnerConflict}
-                          onCheckedChange={(v) =>
-                            setEditForm({
-                              roles: v
-                                ? [...editing.form.roles, role]
-                                : editing.form.roles.filter((r) => r !== role),
-                            })
-                          }
-                        />
-                        {role === 'data' ? t(k.servers.legacyDataRole) : t(k.servers.role[role])}
-                        {runnerConflict && (
-                          <span className="text-xs">{t(k.servers.rolesRunnerOwnBox)}</span>
-                        )}
-                      </label>
-                    );
-                  })}
+                  {SERVER_ROLES.map((role) => (
+                    <label key={role} className="flex items-center gap-1.5 text-sm">
+                      <Checkbox
+                        checked={editing.form.roles.includes(role)}
+                        onCheckedChange={(v) =>
+                          setEditForm({
+                            roles: v
+                              ? [...editing.form.roles, role]
+                              : editing.form.roles.filter((r) => r !== role),
+                          })
+                        }
+                      />
+                      {role === 'data' ? t(k.servers.legacyDataRole) : t(k.servers.role[role])}
+                    </label>
+                  ))}
                 </div>
+                {sharesBoxWithRunner(editing.form.roles) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {t(k.servers.rolesRunnerShared)}
+                  </p>
+                )}
                 {editRolesMissing && (
                   <p className="text-xs text-destructive">{t(k.servers.rolesRequired)}</p>
                 )}

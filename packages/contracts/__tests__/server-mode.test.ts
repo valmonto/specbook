@@ -93,37 +93,28 @@ describe('server mode', () => {
  * requirement lived in a README, so nothing stopped a runner being placed
  * beside the app and data containers it could then reach.
  */
-describe('runner role is exclusive', () => {
-  it('accepts a server that is only a runner', () => {
-    const parsed = CreateServerRequestSchema.parse({ ...base, port: 22, roles: ['runner'] });
-    expect(parsed.roles).toEqual(['runner']);
-  });
-
-  it.each(SERVER_ROLES.filter((r) => r !== 'runner'))(
-    'refuses runner alongside %s, naming what to remove',
+/**
+ * A runner hosts the agent CLI with permission prompts skipped, so sharing a
+ * box puts an agent that can run anything beside that box's app and data
+ * containers. That is a real risk and a legitimate choice, so the SCHEMA stays
+ * out of it and the form warns instead. These tests pin that decision: if a
+ * refusal ever appears here, a considered setup becomes an error with no way
+ * past it.
+ */
+describe('runner may share a box, deliberately', () => {
+  it.each(SERVER_ROLES.filter((r) => r !== 'runner' && r !== 'database' && r !== 'cache'))(
+    'accepts runner alongside %s',
     (role) => {
-      const result = CreateServerRequestSchema.safeParse({
-        ...base,
-        port: 22,
-        roles: ['runner', role],
-      });
-      expect(result.success).toBe(false);
-      const issue = result.error?.issues.find((i) => i.path.join('.') === 'roles');
-      expect(issue?.message).toContain(role);
+      const parsed = CreateServerRequestSchema.parse({ ...base, port: 22, roles: ['runner', role] });
+      expect(parsed.roles).toEqual(['runner', role]);
     },
   );
 
-  it('refuses the same pairing on update, so the rule cannot be edited around', () => {
-    const result = UpdateServerRequestSchema.safeParse({ roles: ['app', 'runner'] });
-    expect(result.success).toBe(false);
-  });
-
-  it('leaves non-runner combinations alone', () => {
-    const parsed = CreateServerRequestSchema.parse({
-      ...base,
-      port: 22,
-      roles: ['app', 'build'],
+  it('accepts the same pairing on update', () => {
+    const result = UpdateServerRequestSchema.safeParse({
+      id: '0195f2a1-0000-7000-8000-000000000000',
+      roles: ['app', 'runner'],
     });
-    expect(parsed.roles).toEqual(['app', 'build']);
+    expect(result.success).toBe(true);
   });
 });

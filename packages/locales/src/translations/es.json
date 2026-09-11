@@ -616,7 +616,7 @@
   "servers.role.storage": "Almacenamiento",
   "servers.roles": "Roles",
   "servers.rolesNeedSsh": "— requiere SSH",
-  "servers.rolesRunnerOwnBox": "— un runner necesita su propia máquina",
+  "servers.rolesRunnerShared": "Un agente aquí se ejecuta sin comprobaciones de permisos, junto a los contenedores de aplicación y datos de esta máquina. Usa una máquina dedicada salvo que sea intencionado.",
   "servers.rolesRequired": "Elige al menos un rol",
   "servers.save": "Guardar cambios",
   "servers.saved": "Servidor actualizado",
