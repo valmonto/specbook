@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CreateServerRequestSchema, EXTERNAL_SERVER_ROLES, SERVER_MODES } from '../src/index.js';
+import {
+  CreateServerRequestSchema,
+  EXTERNAL_SERVER_ROLES,
+  SERVER_MODES,
+  SERVER_ROLES,
+  UpdateServerRequestSchema,
+} from '../src/index.js';
 
 /**
  * An external server is a database specbook is only a CLIENT of: it is reached
@@ -77,5 +83,38 @@ describe('server mode', () => {
       caCert: '/root/postgres-ca.crt',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+/**
+ * A runner hosts the agent CLI unattended with permission prompts skipped
+ * (remote-ops `runner-start`: IS_SANDBOX=1 --dangerously-skip-permissions).
+ * That is only defensible on a box dedicated to it. Until this rule the
+ * requirement lived in a README, so nothing stopped a runner being placed
+ * beside the app and data containers it could then reach.
+ */
+/**
+ * A runner hosts the agent CLI with permission prompts skipped, so sharing a
+ * box puts an agent that can run anything beside that box's app and data
+ * containers. That is a real risk and a legitimate choice, so the SCHEMA stays
+ * out of it and the form warns instead. These tests pin that decision: if a
+ * refusal ever appears here, a considered setup becomes an error with no way
+ * past it.
+ */
+describe('runner may share a box, deliberately', () => {
+  it.each(SERVER_ROLES.filter((r) => r !== 'runner' && r !== 'database' && r !== 'cache'))(
+    'accepts runner alongside %s',
+    (role) => {
+      const parsed = CreateServerRequestSchema.parse({ ...base, port: 22, roles: ['runner', role] });
+      expect(parsed.roles).toEqual(['runner', role]);
+    },
+  );
+
+  it('accepts the same pairing on update', () => {
+    const result = UpdateServerRequestSchema.safeParse({
+      id: '0195f2a1-0000-7000-8000-000000000000',
+      roles: ['app', 'runner'],
+    });
+    expect(result.success).toBe(true);
   });
 });

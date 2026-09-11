@@ -139,6 +139,23 @@ describe('ServersCard — edit dialog', () => {
     expect(screen.getByRole('button', { name: 'servers.save' })).toBeDisabled();
   });
 
+  /**
+   * An agent runs with permission prompts skipped, so sharing a box puts it
+   * beside that box's app and data containers. That is allowed — a spare box
+   * is a spare box — so the form warns where the choice is made instead of
+   * refusing a setup someone may well mean.
+   */
+  it('warns, without blocking, when a runner would share the box', async () => {
+    const user = await openEdit();
+    expect(screen.queryByText('servers.rolesRunnerShared')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'servers.role.runner' }));
+
+    expect(screen.getByText('servers.rolesRunnerShared')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'servers.role.runner' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'servers.save' })).toBeEnabled();
+  });
+
   it('adding a role PATCHes only {id, roles} — no host/port, no fingerprint reset', async () => {
     const user = await openEdit();
     await user.click(screen.getByRole('checkbox', { name: 'servers.role.runner' }));

@@ -124,6 +124,20 @@ export const resetsPin = (patch: Omit<UpdateServerRequest, 'id'>): boolean =>
   patch.host !== undefined || patch.port !== undefined;
 
 /**
+ * True when a runner would share the box with something else specbook places.
+ * An agent runs with permission prompts skipped (remote-ops `runner-start`:
+ * IS_SANDBOX=1 --dangerously-skip-permissions), so co-tenancy puts it next to
+ * this box's app and data containers with nothing between them.
+ *
+ * Deliberately a WARNING, not a refusal: reusing a spare box is a legitimate
+ * choice, and the schema stays silent so a considered setup is never an error
+ * with no way past it. Shown where the roles are picked, which is the only
+ * place the trade-off is actually being made.
+ */
+export const sharesBoxWithRunner = (roles: readonly ServerRole[]): boolean =>
+  roles.includes('runner') && roles.length > 1;
+
+/**
  * The shared-instance view: which environments use this server, and as what.
  * One Postgres per server is reused by N environments (each with its own
  * database + role) — this is where that reuse becomes visible.
@@ -549,6 +563,11 @@ export function ServersCard() {
                   );
                 })}
               </div>
+              {sharesBoxWithRunner(roles) && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {t(k.servers.rolesRunnerShared)}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -657,6 +676,11 @@ export function ServersCard() {
                     </label>
                   ))}
                 </div>
+                {sharesBoxWithRunner(editing.form.roles) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {t(k.servers.rolesRunnerShared)}
+                  </p>
+                )}
                 {editRolesMissing && (
                   <p className="text-xs text-destructive">{t(k.servers.rolesRequired)}</p>
                 )}

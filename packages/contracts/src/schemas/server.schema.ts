@@ -24,8 +24,13 @@ const CaCertSchema = z
 /**
  * An external server is reached over the network, not over SSH: it needs the
  * credential specbook authenticates with, and it may only hold the roles that
- * require no local execution. Shared by create and update so the rule cannot
- * drift between them.
+ * require no local execution.
+ *
+ * CREATE ONLY, deliberately: these rules all branch on `mode`, and an update
+ * request carries no mode — the stored row holds it. Applying them to a patch
+ * would read every update as managed and reject an external server's own
+ * credentials. Role rules that do NOT depend on mode belong in
+ * `refineRunnerExclusive`, which both requests share.
  */
 const externalShape = {
   mode: ServerModeSchema.optional(),
@@ -73,6 +78,17 @@ function refineMode<T extends z.ZodObject<z.ZodRawShape>>(schema: T) {
     }
   });
 }
+
+/**
+ * `runner` alongside another role is ALLOWED on purpose. A runner hosts the
+ * agent CLI with permission prompts skipped (remote-ops `runner-start`:
+ * IS_SANDBOX=1 --dangerously-skip-permissions), so sharing a box means an
+ * agent that can run anything sits beside that box's app and data containers.
+ * That is a real risk and a legitimate choice — a spare box is a spare box —
+ * so the form warns and explains rather than refusing. Keep it that way: a
+ * schema rule here would turn a deliberate setup into an error with no way
+ * past it.
+ */
 
 // --- Server Entity (public shape — key material NEVER appears here) ---
 export const ServerSchema = z.object({
