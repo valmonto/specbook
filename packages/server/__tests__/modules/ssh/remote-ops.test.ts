@@ -53,10 +53,25 @@ describe('package installation stays scoped to runner hosts', () => {
     expect(script).toMatch(/no dnf\/apt-get\/apk/);
   });
 
-  it('refuses a node too old for the CLI instead of failing inside it', () => {
+  it('refuses a node too old to install the CLI, instead of failing inside npm', () => {
     const script = REMOTE_OPS['ensure-runner'];
     expect(script).toMatch(/node_major/);
-    expect(script).toMatch(/RUNNER_MISSING: node >= 20/);
+    expect(script).toMatch(/RUNNER_MISSING: node >= 20 to install the CLI/);
+  });
+
+  /**
+   * Claude Code ships a native binary. Requiring node on a box that already
+   * has `claude` would install a runtime nothing runs — and worse, the version
+   * gate would refuse a working box over a node the CLI never touches.
+   */
+  it('needs node only when it has to install the CLI', () => {
+    const script = REMOTE_OPS['ensure-runner'];
+    const nodeCheck = script.indexOf('missing="$missing nodejs"');
+    const claudeGuard = script.indexOf('if ! command -v claude');
+    expect(claudeGuard).toBeGreaterThan(-1);
+    expect(nodeCheck).toBeGreaterThan(claudeGuard);
+    // tmux is unconditional; node is not.
+    expect(script).toMatch(/command -v tmux[^\n]*\n\s*\n?\s*#/);
   });
 
   it('re-checks PATH after installing, rather than trusting the exit code', () => {
