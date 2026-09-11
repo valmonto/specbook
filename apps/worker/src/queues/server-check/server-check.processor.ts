@@ -88,7 +88,14 @@ export class ServerCheckProcessor extends WorkerHost implements OnModuleInit {
     } else {
       patch.status =
         result.reason === 'fingerprint_mismatch' ? 'fingerprint_mismatch' : 'unreachable';
-      patch.lastCheckError = describeCheckFailure(result.reason);
+      // `reason` is the coarse bucket that already became the status, so
+      // storing it here wrote "unreachable" under a row labelled Unreachable —
+      // the field restated the status instead of explaining it, which is the
+      // one thing it exists not to do. `detail` carries what sshd actually
+      // said ("All configured authentication methods failed", "connect
+      // ECONNREFUSED", "getaddrinfo ENOTFOUND"), and that is the difference
+      // between a wrong ssh user and a closed port.
+      patch.lastCheckError = describeCheckFailure(result.detail ?? result.reason);
     }
 
     await this.dbClient.db.update(server).set(patch).where(eq(server.id, id));
