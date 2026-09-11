@@ -92,10 +92,10 @@ describe('serverPatch — only changed fields go on the wire', () => {
       host: box.host,
       port: '22',
       sshUser: 'ops',
-      roles: ['app', 'runner'],
+      roles: ['app', 'build'],
       tlsTerminatedUpstream: false,
     });
-    expect(patch).toEqual({ name: 'box-renamed', sshUser: 'ops', roles: ['app', 'runner'] });
+    expect(patch).toEqual({ name: 'box-renamed', sshUser: 'ops', roles: ['app', 'build'] });
     expect(resetsPin(patch)).toBe(false);
   });
 
@@ -134,18 +134,31 @@ describe('ServersCard — edit dialog', () => {
     expect(screen.getByLabelText('servers.port')).toHaveValue('22');
     expect(screen.getByLabelText('servers.sshUser')).toHaveValue('deploy');
     expect(screen.getByRole('checkbox', { name: 'servers.role.app' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'servers.role.runner' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'servers.role.build' })).not.toBeChecked();
     // Nothing changed yet → nothing to save.
     expect(screen.getByRole('button', { name: 'servers.save' })).toBeDisabled();
   });
 
+  /**
+   * A runner runs the agent CLI with permission prompts skipped, so it may not
+   * share a box with anything else specbook places. The form disables the
+   * combination rather than letting it be submitted and refused: the rule is
+   * only useful if it is visible where the choice is made.
+   */
+  it('offers runner as unavailable, with the reason, on a server that holds another role', async () => {
+    await openEdit();
+    const runner = screen.getByRole('checkbox', { name: /servers\.role\.runner/ });
+    expect(runner).toBeDisabled();
+    expect(screen.getAllByText('servers.rolesRunnerOwnBox').length).toBeGreaterThan(0);
+  });
+
   it('adding a role PATCHes only {id, roles} — no host/port, no fingerprint reset', async () => {
     const user = await openEdit();
-    await user.click(screen.getByRole('checkbox', { name: 'servers.role.runner' }));
+    await user.click(screen.getByRole('checkbox', { name: 'servers.role.build' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'servers.save' }));
     await waitFor(() => expect(update.execute).toHaveBeenCalledTimes(1));
-    expect(update.execute).toHaveBeenCalledWith({ id: box.id, roles: ['app', 'runner'] });
+    expect(update.execute).toHaveBeenCalledWith({ id: box.id, roles: ['app', 'build'] });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
