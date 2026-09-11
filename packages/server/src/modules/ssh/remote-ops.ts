@@ -364,14 +364,65 @@ gzip -dc | docker load
    * created. Prints AUTH_OK/AUTH_MISSING from a cheap probe: Anthropic auth
    * is the operator's manual step (claude setup-token over SSH) BY DESIGN —
    * specbook never touches those credentials.
+   *
+   * This op installs node, npm and tmux when they are absent — the only place
+   * specbook touches a package manager beyond the CLI itself. That is scoped
+   * to runner hosts on purpose: a runner is a dedicated agent VM, so there is
+   * no customer stack on it to disturb. App and data servers keep the old
+   * contract (sshd + docker must already be there) and are never installed on.
+   *
+   * Needs passwordless sudo, which the deploy user already has for
+   * `ensure-deploy-path`.
    */
   'ensure-runner': `#!/usr/bin/env bash
 set -euo pipefail
 name="\${1:?usage: ensure-runner <name>}"
 {
   [[ "$name" =~ ^[a-z0-9][a-z0-9-]{0,46}$ ]] || { echo "invalid agent name" >&2; exit 1; }
-  command -v node >/dev/null 2>&1 || { echo "RUNNER_MISSING: node" >&2; exit 3; }
-  command -v tmux >/dev/null 2>&1 || { echo "RUNNER_MISSING: tmux" >&2; exit 3; }
+
+  # A runner host is the ONE place specbook installs OS packages. Everywhere
+  # else a missing prerequisite is reported and the operator fixes it, because
+  # those boxes run the customer's stack. A runner is a dedicated agent VM that
+  # exists only to hold an agent, and requiring a human to SSH in and type
+  # three package names before the first agent can start was friction with no
+  # safety in it.
+  missing=""
+  command -v node >/dev/null 2>&1 || missing="$missing nodejs"
+  command -v npm  >/dev/null 2>&1 || missing="$missing npm"
+  command -v tmux >/dev/null 2>&1 || missing="$missing tmux"
+
+  if [ -n "$missing" ]; then
+    echo "runner: installing$missing"
+    # Package names are the same across these three for what we need; the
+    # commands are not. An unknown manager reports what to run rather than
+    # guessing at a fourth syntax.
+    if command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y $missing
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -qq
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $missing
+    elif command -v apk >/dev/null 2>&1; then
+      sudo apk add --no-cache $missing
+    else
+      echo "RUNNER_MISSING:$missing (no dnf/apt-get/apk — install by hand)" >&2
+      exit 3
+    fi
+    # Believe the box, not the installer's exit code: a package can install
+    # and still not put the command on PATH.
+    for c in node npm tmux; do
+      command -v "$c" >/dev/null 2>&1 || { echo "RUNNER_MISSING: $c (install reported success)" >&2; exit 3; }
+    done
+  fi
+
+  # Distro node is routinely years behind — Debian stable has shipped a node
+  # the CLI refuses to run on. Catching it here names the cause; letting it
+  # through turns into a crash inside claude with nothing pointing at node.
+  node_major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  if [ "$node_major" -lt 20 ]; then
+    echo "RUNNER_MISSING: node >= 20 (found $(node --version 2>/dev/null || echo none) — the distro package is too old; install a current node)" >&2
+    exit 3
+  fi
+
   if ! command -v claude >/dev/null 2>&1; then
     npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 \\
       || { echo "RUNNER_MISSING: claude (npm install -g failed)" >&2; exit 3; }
