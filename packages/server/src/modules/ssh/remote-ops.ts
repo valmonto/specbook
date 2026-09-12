@@ -663,7 +663,9 @@ unit="\${1:?usage: database-provision-unit <unit>}"
    * Placement: a CACHE-role server's per-environment Redis, reachable from
    * the app box: published on $2 (the registered host address, never
    * 0.0.0.0) at port $3, with a per-unit password on stdin — a Redis on a
-   * network must not be open. The co-located Redis is untouched by this op.
+   * network must not be open. This op is for a cache that MOVED to its own
+   * box; the co-located one is `cache-provision-local`, which joins
+   * `specbook-data` instead of publishing a port.
    */
   'cache-provision-unit': `#!/usr/bin/env bash
 set -euo pipefail
@@ -684,6 +686,46 @@ port="\${3:?usage: cache-provision-unit <unit> <bind-address> <port>}"
     -p "$bind:$port:6379" \\
     redis:8-alpine redis-server --appendonly yes --requirepass "$cache_pw" >/dev/null
   echo "cache-provision-unit: ok"
+  exit 0
+}
+`,
+
+  /**
+   * Placement: the CO-LOCATED per-environment Redis, for the shape where the
+   * database moved to another box but the cache stayed on the app box.
+   *
+   * It differs from `cache-provision-unit` in the one way that matters: the
+   * app reaches this Redis by CONTAINER DNS, because that is what
+   * `renderPlatformWiring` sends for a cache that did not move
+   * (`REDIS_HOST=specbook-redis-<unit>`). Container DNS exists only on a
+   * user-defined network, so the container MUST join `specbook-data` — the
+   * same network the app, worker and migrate services join. Creating it off
+   * that network produces no provisioning error at all; it produces
+   * `getaddrinfo EAI_AGAIN specbook-redis-<unit>` inside the running app,
+   * hours later, on whichever route happens to touch Redis first.
+   *
+   * No host port is published: nothing outside the network dials it. The
+   * password still applies — `wiring()` sends one for this shape.
+   *
+   * `specbook-data` is assumed to exist; `app-network-ensure` runs first, the
+   * same way `data-plane-ensure` precedes `data-plane-provision-unit`.
+   */
+  'cache-provision-local': `#!/usr/bin/env bash
+set -euo pipefail
+unit="\${1:?usage: cache-provision-local <unit>}"
+# One parsed { } group — see data-plane-ensure for why the read is safe here.
+{
+  [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+  IFS= read -r cache_pw
+  [ -n "$cache_pw" ] || { echo "cache-provision-local: missing password on stdin" >&2; exit 1; }
+  # Recreate rather than ALTER: the password and the network are both container
+  # config, and re-provision must converge on the current values — including
+  # for a container an earlier build left on the wrong network.
+  docker rm -f "specbook-redis-$unit" >/dev/null 2>&1 || true
+  docker run -d --name "specbook-redis-$unit" --restart unless-stopped \\
+    --network specbook-data \\
+    redis:8-alpine redis-server --appendonly yes --requirepass "$cache_pw" >/dev/null
+  echo "cache-provision-local: ok"
   exit 0
 }
 `,

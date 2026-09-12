@@ -221,11 +221,18 @@ export class EnvironmentProvisionProcessor extends WorkerHost {
         // Database moved away, cache stayed: the app server still needs the
         // network and the co-located Redis. provision-unit would also create
         // an unused Postgres role here, so ensure the network + Redis alone.
+        //
+        // `cache-provision-local`, NOT `cache-provision-unit`: the wiring for
+        // a cache that did not move is container DNS
+        // (`REDIS_HOST=specbook-redis-<unit>`), which resolves only on
+        // `specbook-data`. The published-port op leaves the container on the
+        // default bridge, where that name does not resolve — and nothing
+        // fails until a request touches Redis.
         await this.ssh.exec(this.targetFor(appServer), 'app-network-ensure', []);
         await this.ssh.exec(
           this.targetFor(appServer),
-          'cache-provision-unit',
-          [unit, '127.0.0.1', String(deriveCachePort(unit))],
+          'cache-provision-local',
+          [unit],
           cachePassword + '\n',
         );
       } else {
