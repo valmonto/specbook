@@ -10,6 +10,7 @@ import {
   project,
   projectEnvironment,
   server,
+  and,
   eq,
   type Deployment,
   type ProjectEnvironment,
@@ -261,7 +262,8 @@ export class DeploymentProcessor extends WorkerHost {
     const userEnv = env.userEnvEnc
       ? (JSON.parse(this.secrets.open(env.userEnvEnc)) as Record<string, string>)
       : {};
-    const { platformEnv, firstDeploy } = await this.ensureRuntimeSecrets(env, Object.keys(userEnv));
+    const { platformEnv } = await this.ensureRuntimeSecrets(env, Object.keys(userEnv));
+    const needsSeed = await this.neverDeployedHealthy(env.id);
     const envFile = renderDeployEnv([
       platformEnv,
       userEnv,
@@ -274,7 +276,7 @@ export class DeploymentProcessor extends WorkerHost {
         ...(platformEnv.REDIS_PORT ? { IAM_REDIS_PORT: platformEnv.REDIS_PORT } : {}),
         ...(platformEnv.REDIS_PASSWORD ? { IAM_REDIS_PASSWORD: platformEnv.REDIS_PASSWORD } : {}),
         PUBLIC_PORT: String(publicPort),
-        ...(firstDeploy ? { SEED_ON_STARTUP: 'true' } : {}),
+        ...(needsSeed ? { SEED_ON_STARTUP: 'true' } : {}),
       },
     ]);
 
@@ -333,13 +335,43 @@ export class DeploymentProcessor extends WorkerHost {
    * seed credentials generated unless the user layer already defines them —
    * the template refuses to boot in production without them.
    */
+  /**
+   * Has this environment ever reached a HEALTHY deploy?
+   *
+   * This is what gates `SEED_ON_STARTUP`, and it used to be `firstDeploy` —
+   * "did we mint the runtime secrets on this run". Those are not the same
+   * question, and the gap is a trap: secrets are minted during `render`, which
+   * happens BEFORE the stack comes up, so a run that renders and then dies at
+   * migrate consumes the one and only seeded deploy. Every later run sees
+   * IAM_JWT_SECRET already set, ships no SEED_ON_STARTUP, and the app boots
+   * healthy forever with no owner user — while a perfectly good
+   * SEED_INITIAL_PASSWORD sits in the environment's settings having never been
+   * applied to anything. Login just says "invalid email or password", which
+   * points at the credential rather than at the missing account.
+   *
+   * Seeding until the first healthy deploy is safe: the production seeder is
+   * idempotent, and `upsertUser` deliberately never overwrites an existing
+   * password, so a repeat run cannot disturb a live account.
+   *
+   * The current run is already stored as `deploying`, so it never matches.
+   */
+  private async neverDeployedHealthy(environmentId: string): Promise<boolean> {
+    const [existing] = await this.dbClient.db
+      .select({ id: deployment.id })
+      .from(deployment)
+      .where(and(eq(deployment.environmentId, environmentId), eq(deployment.status, 'healthy')))
+      .limit(1);
+    return !existing;
+  }
+
   private async ensureRuntimeSecrets(
     env: ProjectEnvironment,
     userEnvNames: readonly string[],
-  ): Promise<{ platformEnv: Record<string, string>; firstDeploy: boolean }> {
+  ): Promise<{ platformEnv: Record<string, string> }> {
     const platformEnv = { ...((env.platformEnv ?? {}) as Record<string, string>) };
-    const firstDeploy = !platformEnv.IAM_JWT_SECRET;
-    if (firstDeploy) {
+    // Mint once and keep: rotating these on every deploy would invalidate every
+    // live session and every value encrypted under the old key.
+    if (!platformEnv.IAM_JWT_SECRET) {
       platformEnv.IAM_JWT_SECRET = generateSecret();
       platformEnv.IAM_COOKIE_SECRET = generateSecret();
       platformEnv.APP_ENCRYPTION_KEY = randomBytes(32).toString('base64');
@@ -360,7 +392,7 @@ export class DeploymentProcessor extends WorkerHost {
         .set({ platformEnv })
         .where(eq(projectEnvironment.id, env.id));
     }
-    return { platformEnv, firstDeploy };
+    return { platformEnv };
   }
 
   /** App-token clone URL when the org is connected; plain URL otherwise (public repos). */

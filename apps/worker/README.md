@@ -91,6 +91,19 @@ is enough.
 - Env is validated at boot by `validateEnv`; a bad `DATABASE_URL` fails the
   process rather than surfacing on first query.
 - Scale by running more replicas. `concurrency` is per replica.
+- **A deployed environment seeds its owner until it first comes up healthy.**
+  The deploy renders `SEED_ON_STARTUP=true` into the app's `.env` while the
+  environment has no `healthy` deployment on record; the api's production
+  seeder then creates the owner from `SEED_INITIAL_EMAIL` /
+  `SEED_INITIAL_PASSWORD`. Repeating it is safe — the seeder is idempotent and
+  never overwrites an existing password. This used to key off "did this run
+  mint the runtime secrets", which is a different question: secrets are minted
+  during `render`, before the stack starts, so one deploy that rendered and
+  then died at migrate burned the only seeded run. The environment then went
+  healthy forever with no owner account and a `SEED_INITIAL_PASSWORD` that had
+  never been applied — visible only as `invalid email or password` at login.
+  **To seed an environment that is already healthy but was never seeded**, set
+  `SEED_ON_STARTUP=true` in its user env, redeploy, then remove it.
 
 ## Commands
 
