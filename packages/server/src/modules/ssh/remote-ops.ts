@@ -359,6 +359,40 @@ gzip -dc | docker load
 `,
 
   /**
+   * v1: the tail of a deployed unit's container logs (read-only).
+   *
+   * deploy-stack already captures 40 lines of migrate and api on FAILURE, and
+   * that is the only runtime output specbook has ever kept. A deploy that goes
+   * healthy and then misbehaves — a seeder that hangs after the health check
+   * passed, a handler that blocks — leaves no trace at all, and the only way
+   * to read it was a human opening a shell and typing `docker logs`. That is
+   * how a 60-second hang in one route stayed a mystery through three wrong
+   * theories.
+   *
+   * $1 = deploy dir, $2 = unit, $3 = service (optional, empty for all),
+   * $4 = line count (optional). `cd` first for the same reason deploy-stack
+   * does: compose resolves the project from the file in that directory.
+   */
+  'app-logs': `#!/usr/bin/env bash
+set -uo pipefail
+dir="\${1:?usage: app-logs <dir> <unit> [service] [lines]}"
+unit="\${2:?usage: app-logs <dir> <unit> [service] [lines]}"
+service="\${3:-}"
+lines="\${4:-200}"
+[[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
+[[ "$lines" =~ ^[0-9]{1,4}$ ]] || { echo "invalid line count" >&2; exit 1; }
+[ -z "$service" ] || [[ "$service" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] || { echo "invalid service name" >&2; exit 1; }
+cd "$dir" 2>/dev/null || { echo "app-logs: no deploy directory at $dir" >&2; exit 1; }
+# --no-color so the capture is text rather than escape sequences, and 2>&1
+# because a container's own stderr is the half worth reading.
+if [ -n "$service" ]; then
+  docker compose -p "$unit" logs --tail "$lines" --no-color --timestamps "$service" 2>&1
+else
+  docker compose -p "$unit" logs --tail "$lines" --no-color --timestamps 2>&1
+fi
+`,
+
+  /**
    * v1: prepare a box to host a managed agent — node/tmux must exist, the
    * Claude Code CLI is installed if missing, and the agent's workdir is
    * created. Prints AUTH_OK/AUTH_MISSING from a cheap probe: Anthropic auth

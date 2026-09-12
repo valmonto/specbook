@@ -1,24 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import {
-  ChevronRight,
-  ClipboardPaste,
-  Eye,
-  EyeOff,
-  ExternalLink,
-  Globe,
-  HardDrive,
-  KeyRound,
-  Lock,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Rocket,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ChevronRight, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, HardDrive, KeyRound, Lock, Pencil, Plus, RefreshCw, Rocket, Save, ScrollText, Trash2, X } from 'lucide-react';
 import {
   ENVIRONMENT_NAMES,
   classifyEnvVarName,
@@ -61,9 +44,10 @@ import { McpAccessChip, McpAccessPanel } from './mcp-access-panel';
 import { Switch } from '@/components/ui/switch';
 import {
   useBulkSetEnvVars,
-  useCreateEnvironment,
   useCancelDeployment,
+  useCreateEnvironment,
   useDeployEnvironment,
+  useEnvironmentLogs,
   useEnvironments,
   useProvisionEnvironment,
   useRemoveEnvironment,
@@ -220,6 +204,12 @@ function EnvironmentRow({
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  /**
+   * Runtime logs, fetched only while open: unlike the deploy log (which is
+   * already on the row) this is an SSH round trip to the app server.
+   */
+  const [showRuntime, setShowRuntime] = useState(false);
+  const runtime = useEnvironmentLogs(projectId, showRuntime ? env.id : null);
   const logRef = useRef<HTMLPreElement>(null);
   const remove = useRemoveEnvironment(projectId);
   const provision = useProvisionEnvironment(projectId);
@@ -352,6 +342,23 @@ function EnvironmentRow({
                 : t(deploymentLabels[latest.status])}
             </span>
           )}
+          {/* Runtime logs stand apart from the deploy log on purpose: the deploy
+              log ends when the deploy does, and everything that goes wrong
+              afterwards lives only here. */}
+          {env.provisionStatus === 'provisioned' && (
+            <span
+              role="button"
+              title={t(showRuntime ? k.environments.hideRuntimeLogs : k.environments.runtimeLogs)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowRuntime((v) => !v);
+              }}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ScrollText className="size-3" />
+              {t(showRuntime ? k.environments.hideRuntimeLogs : k.environments.runtimeLogs)}
+            </span>
+          )}
           {latest?.sha && latest.status === 'healthy' && (
             <span
               role={latest.log ? 'button' : undefined}
@@ -479,6 +486,20 @@ function EnvironmentRow({
             ? t(latest.error)
             : latest.error.slice(0, 400)}
         </p>
+      )}
+      {showRuntime && (
+        <div className="border-t">
+          {runtime.data?.truncated && (
+            <p className="bg-amber-500/10 px-3 py-1 text-[11px] text-amber-800 dark:text-amber-300">
+              {t(k.environments.runtimeLogsTruncated)}
+            </p>
+          )}
+          <pre className="max-h-64 overflow-auto bg-zinc-950 px-3 py-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-zinc-300">
+            {runtime.isLoading
+              ? '…'
+              : (runtime.data?.text?.trim() ?? '') || t(k.environments.runtimeLogsEmpty)}
+          </pre>
+        </div>
       )}
       {showLog && latest && (
         <pre

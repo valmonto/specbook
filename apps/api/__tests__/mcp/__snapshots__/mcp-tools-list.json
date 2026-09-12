@@ -310,6 +310,47 @@
     }
   },
   {
+    "name": "data_plane_logs",
+    "description": "Read the tail of a project environment's container logs (optional `service` — api, worker, migrate…; default all). Line- and byte-capped, newest last. This is the ONLY way to see what a deployed app did AFTER its deploy went green — deploy logs stop at the deploy. Refused unless a human has opened a live 'read' window on that environment; logs leak more freely than a query does, so the same gate applies. Audited.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "staging",
+            "production"
+          ]
+        },
+        "service": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "lines": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000
+        },
+        "taskId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "projectId",
+        "environment"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
     "name": "data_plane_sql",
     "description": "Run ONE bounded read-only SQL statement (SELECT/WITH/EXPLAIN/SHOW) against a project environment's Postgres, as the environment's own database role. Hard row cap, statement timeout, read-only transaction; refused unless a human has opened a live 'read' window on that environment (see get_environment → mcpAccess). Every call is audited with your key, task and the statement.",
     "inputSchema": {

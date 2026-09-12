@@ -177,10 +177,13 @@ export const MCP_DATA_PLANE_LIMITS = {
   cacheValueMaxBytes: 64 * 1024,
   storageListMaxKeys: 200,
   storageObjectMaxBytes: 1024 * 1024,
+  logsDefaultLines: 200,
+  logsMaxLines: 2_000,
+  logsMaxBytes: 256 * 1024,
 } as const;
 
-/** The three data-plane resources an executor can address. */
-export const DATA_PLANE_RESOURCES = ['database', 'cache', 'storage'] as const;
+/** What an executor can read inside a running environment. */
+export const DATA_PLANE_RESOURCES = ['database', 'cache', 'storage', 'logs'] as const;
 export type DataPlaneResource = (typeof DATA_PLANE_RESOURCES)[number];
 
 /** Bounded operations per resource — never a shell, never arbitrary DDL. */

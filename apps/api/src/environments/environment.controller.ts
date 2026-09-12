@@ -12,6 +12,7 @@ import {
   ListEnvironmentsRequestSchema,
   RevokeMcpAccessRequestSchema,
   ProvisionEnvironmentRequestSchema,
+  EnvironmentLogsRequestSchema,
   RevealEnvVarsRequestSchema,
   SetEnvVarRequestSchema,
   UpdateEnvironmentRequestSchema,
@@ -38,6 +39,8 @@ import {
   type ListEnvironmentsResponse,
   type ProvisionEnvironmentRequest,
   type ProvisionEnvironmentResponse,
+  type EnvironmentLogsRequest,
+  type EnvironmentLogsResponse,
   type RevealEnvVarsRequest,
   type RevealEnvVarsResponse,
   type SetEnvVarRequest,
@@ -149,6 +152,23 @@ export class EnvironmentController {
     @ActiveUser() activeUser: ActiveUserType,
   ): Promise<ListDataAccessAuditResponse> {
     return this.environmentService.listAccessAudit(activeUser, dto);
+  }
+
+  /**
+   * The runtime tail for whoever is looking at this environment.
+   *
+   * project:read, not project:update: reading logs is diagnosis, not change,
+   * and gating it behind write access is how people end up sharing a shell
+   * instead. Agents take the same op through data_plane_logs, which also
+   * demands a live grant and writes an audit row.
+   */
+  @Get(':id/logs')
+  @Permissions('project:read')
+  async logs(
+    @ZodRequest(EnvironmentLogsRequestSchema) dto: EnvironmentLogsRequest,
+    @ActiveUser() activeUser: ActiveUserType,
+  ): Promise<EnvironmentLogsResponse> {
+    return this.environmentService.environmentLogs(activeUser, dto);
   }
 
   /**

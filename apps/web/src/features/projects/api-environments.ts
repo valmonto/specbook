@@ -21,6 +21,8 @@ import type {
   ListEnvironmentsResponse,
   ProvisionEnvironmentRequest,
   ProvisionEnvironmentResponse,
+  EnvironmentLogsRequest,
+  EnvironmentLogsResponse,
   RevealEnvVarsRequest,
   RevealEnvVarsResponse,
   SetEnvVarRequest,
@@ -59,6 +61,12 @@ export const environmentsApi = {
   // On-demand decode of CONFIG values only — secrets are never returned.
   revealVars: (dto: RevealEnvVarsRequest): Promise<RevealEnvVarsResponse> =>
     http.get(`/api/projects/${dto.projectId}/environments/${dto.id}/env/reveal`),
+  /** Runtime container logs — what the app did AFTER the deploy went green. */
+  logs: (dto: EnvironmentLogsRequest): Promise<EnvironmentLogsResponse> =>
+    http.get(
+      `/api/projects/${dto.projectId}/environments/${dto.id}/logs` +
+        (dto.service ? `?service=${encodeURIComponent(dto.service)}` : ''),
+    ),
   // Agent data-plane access: the human-opened, expiring window (+ its audit).
   grantMcpAccess: (dto: GrantMcpAccessRequest): Promise<GrantMcpAccessResponse> =>
     http.post(`/api/projects/${dto.projectId}/environments/${dto.id}/mcp-access`, {

@@ -41,6 +41,7 @@ describeIntegration('Agent data-plane access — grant columns + audit', () => {
   const service = new EnvironmentService(
     repo,
     secrets,
+    {} as unknown as SshService,
     {
       enqueueProvision: vi.fn(),
       enqueueDeprovision: vi.fn(),

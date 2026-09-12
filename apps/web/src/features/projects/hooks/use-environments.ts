@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useSWRConfig } from 'swr';
-import type { ListDataAccessAuditResponse, ListEnvironmentsResponse } from '@pkg/contracts';
+import type {
+  EnvironmentLogsResponse, ListDataAccessAuditResponse, ListEnvironmentsResponse } from '@pkg/contracts';
 import { useCachedRequest } from '@/shared/hooks/use-cached-request';
 import { useActionRequest } from '@/shared/hooks/use-action-request';
 import { environmentsApi } from '../api-environments';
@@ -68,5 +69,17 @@ export function useAccessAudit(projectId: string, environmentId: string | null) 
     key: environmentId ? `environments:${projectId}:${environmentId}:audit` : null,
     fetcher: () => environmentsApi.listAccessAudit({ projectId, id: environmentId!, limit: 50 }),
     config: { refreshInterval: 10_000 },
+  });
+}
+
+/**
+ * One environment's runtime logs. null id = not requested, so opening the
+ * panel is what fetches — a log tail is an SSH round trip, not something to
+ * poll behind a collapsed section.
+ */
+export function useEnvironmentLogs(projectId: string, environmentId: string | null) {
+  return useCachedRequest<EnvironmentLogsResponse>({
+    key: environmentId ? `environments:${projectId}:${environmentId}:logs` : null,
+    fetcher: () => environmentsApi.logs({ projectId, id: environmentId! }),
   });
 }

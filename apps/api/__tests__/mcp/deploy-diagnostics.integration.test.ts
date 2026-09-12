@@ -17,6 +17,7 @@ import {
   type DeploymentProducer,
   type EnvironmentProvisionProducer,
 } from '@pkg/server';
+import type { SshService } from '@pkg/server';
 import { describeIntegration, FakeLogger, truncate } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { afterAll, beforeEach, expect, it, vi } from 'vitest';
@@ -38,6 +39,7 @@ describeIntegration('MCP deploy diagnosis — org-scoped, secret-free', () => {
   const service = new EnvironmentService(
     repo,
     secrets,
+    {} as unknown as SshService,
     {
       enqueueProvision: vi.fn(),
       enqueueDeprovision: vi.fn(),

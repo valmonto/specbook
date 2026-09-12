@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   computeAutoDeployPaused,
   dataPlaneUnitName,
+  resolveDeployDir,
   derivePublicPort,
   resolvePlacement,
   serverSatisfies,
@@ -11,8 +12,10 @@ import {
   InjectLogger,
   PinoLogger,
   SecretsService,
+  SshService,
 } from '@pkg/server';
 import { k } from '@pkg/locales';
+import { capLogText, logLineCount, logOpArgs } from './app-logs.js';
 import {
   classifyEnvVarName,
   MCP_ACCESS_CONFIRMATION_REQUIRED,
@@ -25,6 +28,8 @@ import {
   type RevokeMcpAccessRequest,
 } from '@pkg/contracts';
 import type {
+  EnvironmentLogsRequest,
+  EnvironmentLogsResponse,
   ActiveUser,
   BulkSetEnvVarsRequest,
   CreateEnvironmentRequest,
@@ -104,6 +109,7 @@ export class EnvironmentService {
   constructor(
     private readonly environmentRepository: EnvironmentRepository,
     private readonly secrets: SecretsService,
+    private readonly ssh: SshService,
     private readonly provisioner: EnvironmentProvisionProducer,
     private readonly deployments: DeploymentProducer,
     @InjectLogger() private readonly logger: PinoLogger,
@@ -434,6 +440,41 @@ export class EnvironmentService {
    * newest first. Org-scoped (NotFound for a foreign project) and secret-free —
    * the scrubbed `log` blob is not even selected.
    */
+  /**
+   * The runtime tail for a human looking at their own environment.
+   *
+   * Deliberately NOT behind the mcpAccess grant: that window exists to gate
+   * AGENTS, and a person with project:update reading their own app's logs is
+   * the same act as clicking the deploy log, which has never needed one.
+   * Agents reach the identical op through data_plane_logs, which does require
+   * a live grant and writes an audit row.
+   */
+  async environmentLogs(
+    activeUser: ActiveUser,
+    dto: EnvironmentLogsRequest,
+  ): Promise<EnvironmentLogsResponse> {
+    const project = await this.getProjectOrThrow(dto.projectId, activeUser.orgId);
+    const env = (await this.environmentRepository.findForProject(project.id, activeUser.orgId)).find(
+      (e) => e.id === dto.id,
+    );
+    if (!env) throw new NotFoundException(k.environments.errors.notFound);
+    const unit = dataPlaneUnitName(project.name, env.name);
+    const [srv] = await this.environmentRepository.findServers([env.serverId], activeUser.orgId);
+    if (!srv) throw new NotFoundException(k.servers.errors.notFound);
+    const out = await this.ssh.exec(
+      {
+        host: srv.host,
+        port: srv.port,
+        user: srv.sshUser,
+        privateKey: this.secrets.open(srv.privateKeyEnc),
+        hostFingerprint: srv.hostFingerprint,
+      },
+      'app-logs',
+      logOpArgs(resolveDeployDir(env.deployPath, unit), unit, dto),
+    );
+    return capLogText(out, dto.service ?? '', logLineCount(dto.lines));
+  }
+
   async agentListDeployments(
     activeUser: ActiveUser,
     dto: { projectId: string; limit?: number },
