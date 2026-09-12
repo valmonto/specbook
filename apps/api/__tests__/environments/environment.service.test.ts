@@ -2,6 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import type { ActiveUser } from '@pkg/contracts';
 import { SecretsService } from '@pkg/server';
+import type { SshService } from '@pkg/server';
 import { FakeLogger } from '@pkg/testing';
 import type { PinoLogger } from 'nestjs-pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -123,6 +124,7 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     service = new EnvironmentService(
       repository as unknown as EnvironmentRepository,
       secrets,
+      {} as unknown as SshService,
       provisioner as unknown as EnvironmentProvisionProducer,
       deployer as unknown as DeploymentProducer,
       new FakeLogger().as<PinoLogger>(),

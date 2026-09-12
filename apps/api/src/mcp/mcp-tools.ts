@@ -453,6 +453,25 @@ export class McpTools {
             message: optStr(args.message),
           }),
       },
+      ...this.dataPlaneTools(),
+      {
+        ...meta('heartbeat'),
+        handler: async (_args, actor, auth) =>
+          this.agentService.touch({ keyId: auth!.keyId, name: auth!.name, activeUser: actor! }),
+      },
+    ];
+  }
+
+  /**
+   * Split out of `catalog()` because the single array literal grew past what
+   * TypeScript will infer a union for — adding one tool produced
+   * "Expression produces a union type that is too complex to represent".
+   * Grouping is real, not cosmetic: every tool here reaches an environment's
+   * insides and every one of them goes through DataPlaneExecutor, which owns
+   * the grant check, the caps, the scrub and the audit.
+   */
+  private dataPlaneTools(): McpToolDef[] {
+    return [
       // --- Data plane: bounded reads on a GRANTED environment ---
       // The tools are thin on purpose: the grant check, the caps, the scrub and
       // the audit all live in DataPlaneExecutor, so a fourth tool added here
@@ -473,6 +492,25 @@ export class McpTools {
             environment: args.environment as (typeof ENVIRONMENT_NAMES)[number],
             sql: str(args.sql),
             limit: args.limit as number | undefined,
+            taskId: optStr(args.taskId),
+          }),
+      },
+      {
+        ...meta('data_plane_logs'),
+        inputSchema: {
+          projectId: z.string().uuid(),
+          environment: z.enum(ENVIRONMENT_NAMES),
+          service: z.string().min(1).max(32).optional(),
+          lines: z.number().int().min(1).max(MCP_DATA_PLANE_LIMITS.logsMaxLines).optional(),
+          taskId: z.string().uuid().optional(),
+        },
+        handler: async (args, actor, auth) =>
+          this.dataPlane.execute(actor!, auth!, {
+            resource: 'logs',
+            projectId: str(args.projectId),
+            environment: args.environment as (typeof ENVIRONMENT_NAMES)[number],
+            service: optStr(args.service),
+            lines: args.lines as number | undefined,
             taskId: optStr(args.taskId),
           }),
       },
@@ -523,11 +561,6 @@ export class McpTools {
             limit: args.limit as number | undefined,
             taskId: optStr(args.taskId),
           }),
-      },
-      {
-        ...meta('heartbeat'),
-        handler: async (_args, actor, auth) =>
-          this.agentService.touch({ keyId: auth!.keyId, name: auth!.name, activeUser: actor! }),
       },
     ];
   }

@@ -21,6 +21,7 @@ import {
   InjectLogger,
   ObjectTooLargeError,
   PinoLogger,
+  resolveDeployDir,
   resolvePlacement,
   SecretsService,
   SshService,
@@ -30,6 +31,12 @@ import {
   EnvironmentRepository,
   type EnvironmentWithServer,
 } from '../environments/environment.repository.js';
+import {
+  capLogText,
+  logLineCount,
+  logOpArgs,
+  type AppLogsResult,
+} from '../environments/app-logs.js';
 import { effectiveMcpAccess } from '../environments/mcp-access.js';
 import { guardReadOnlySql } from './sql-guard.js';
 
@@ -69,7 +76,14 @@ export interface StorageRequest extends BaseRequest {
   limit?: number;
 }
 
-export type DataPlaneRequest = SqlRequest | CacheRequest | StorageRequest;
+export interface LogsRequest extends BaseRequest {
+  resource: 'logs';
+  /** A compose service (api, worker, migrate…); omitted means every service. */
+  service?: string;
+  lines?: number;
+}
+
+export type DataPlaneRequest = SqlRequest | CacheRequest | StorageRequest | LogsRequest;
 
 /** What an agent gets back: the data, or the remote's (scrubbed) error — never a credential. */
 export type DataPlaneResult<T> =
@@ -199,7 +213,50 @@ export class DataPlaneExecutor {
         return this.readCache(orgId, projectName, env, request);
       case 'storage':
         return this.readStorage(env, request);
+      case 'logs':
+        return this.readLogs(orgId, projectName, env, request);
     }
+  }
+
+  /**
+   * The tail of the unit's container logs, from the app server.
+   *
+   * Read-only and bounded, like every other resource here — but the reason it
+   * lives behind the same grant is that logs are the LEAKIEST surface in this
+   * module. A SELECT returns the columns it was asked for; a stack trace
+   * returns whatever happened to be in scope. The scrubber that runs on the
+   * way out is doing more work here than anywhere else.
+   */
+  private async readLogs(
+    orgId: string,
+    projectName: string,
+    env: EnvironmentWithServer,
+    request: LogsRequest,
+  ): Promise<AppLogsResult> {
+    const unit = dataPlaneUnitName(projectName, env.name);
+    const dir = resolveDeployDir(env.deployPath, unit);
+    const out = await this.ssh.exec(
+      await this.appTarget(orgId, env),
+      'app-logs',
+      logOpArgs(dir, unit, request),
+    );
+    return capLogText(out, request.service ?? '', logLineCount(request.lines));
+  }
+
+  /**
+   * Logs come from the APP server, not from whichever box holds a data-plane
+   * role — a moved database does not move the containers writing the logs.
+   */
+  private async appTarget(orgId: string, env: EnvironmentWithServer): Promise<SshTarget> {
+    const [srv] = await this.environments.findServers([env.serverId], orgId);
+    if (!srv) throw new NotFoundException(k.servers.errors.notFound);
+    return {
+      host: srv.host,
+      port: srv.port,
+      user: srv.sshUser,
+      privateKey: this.secrets.open(srv.privateKeyEnc),
+      hostFingerprint: srv.hostFingerprint,
+    };
   }
 
   /** One bounded SELECT, on the server that hosts the database role, as the unit's own role. */
@@ -329,7 +386,7 @@ export class DataPlaneExecutor {
   private async targetFor(
     orgId: string,
     env: EnvironmentWithServer,
-    role: Exclude<DataPlaneResource, 'storage'>,
+    role: Exclude<DataPlaneResource, 'storage' | 'logs'>,
   ): Promise<SshTarget> {
     const ids = [env.serverId, env.databaseServerId, env.cacheServerId, env.storageServerId].filter(
       (id): id is string => !!id,
@@ -424,6 +481,12 @@ function describe(request: DataPlaneRequest): {
           0,
           1000,
         ),
+      };
+    case 'logs':
+      return {
+        resource: 'logs',
+        operation: 'tail',
+        target: request.service ?? 'all',
       };
   }
 }

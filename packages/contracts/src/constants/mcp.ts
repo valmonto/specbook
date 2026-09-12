@@ -229,6 +229,13 @@ export const MCP_TOOLS = [
       "Run ONE bounded read-only SQL statement (SELECT/WITH/EXPLAIN/SHOW) against a project environment's Postgres, as the environment's own database role. Hard row cap, statement timeout, read-only transaction; refused unless a human has opened a live 'read' window on that environment (see get_environment → mcpAccess). Every call is audited with your key, task and the statement.",
   },
   {
+    name: 'data_plane_logs',
+    scope: 'data-plane:agent',
+    needsOrgContext: true,
+    description:
+      "Read the tail of a project environment's container logs (optional `service` — api, worker, migrate…; default all). Line- and byte-capped, newest last. This is the ONLY way to see what a deployed app did AFTER its deploy went green — deploy logs stop at the deploy. Refused unless a human has opened a live 'read' window on that environment; logs leak more freely than a query does, so the same gate applies. Audited.",
+  },
+  {
     name: 'data_plane_cache',
     scope: 'data-plane:agent',
     needsOrgContext: true,

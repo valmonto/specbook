@@ -9,6 +9,7 @@ import {
   GRANTABLE_MCP_ACCESS_MODES,
   MCP_ACCESS_MIN_MINUTES,
   MCP_ACCESS_MODES,
+  MCP_DATA_PLANE_LIMITS,
   PROVISION_STATUSES,
 } from '../constants/environment.js';
 import {
@@ -232,6 +233,29 @@ export const RevealEnvVarsResponseSchema = z.object({
 });
 export type RevealEnvVarsRequest = z.infer<typeof RevealEnvVarsRequestSchema>;
 export type RevealEnvVarsResponse = z.infer<typeof RevealEnvVarsResponseSchema>;
+
+// --- Container logs: the runtime tail, for a human at the environment ---
+// The agent path is data_plane_logs, which additionally requires a live grant.
+// A human reading their own app's logs needs no window opened for them, the
+// same way the deploy log is already just there to click.
+export const EnvironmentLogsRequestSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    id: z.string().uuid(),
+    /** A compose service (api, worker, migrate…); omitted means every service. */
+    service: z.string().min(1).max(32).optional(),
+    lines: z.coerce.number().int().min(1).max(MCP_DATA_PLANE_LIMITS.logsMaxLines).optional(),
+  })
+  .strict();
+export const EnvironmentLogsResponseSchema = z.object({
+  service: z.string(),
+  lines: z.number().int(),
+  /** Scrubbed, newest last. */
+  text: z.string(),
+  truncated: z.boolean(),
+});
+export type EnvironmentLogsRequest = z.infer<typeof EnvironmentLogsRequestSchema>;
+export type EnvironmentLogsResponse = z.infer<typeof EnvironmentLogsResponseSchema>;
 
 // --- Provision (enqueues the data-plane job; result lands on the row) ---
 export const ProvisionEnvironmentRequestSchema = z
