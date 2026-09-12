@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ChevronRight, ClipboardPaste, ExternalLink, Eye, EyeOff, Globe, HardDrive, KeyRound, Lock, Pencil, Plus, RefreshCw, Rocket, Save, ScrollText, Trash2, X } from 'lucide-react';
+import { Check, ChevronRight, ClipboardPaste, Copy, ExternalLink, Eye, EyeOff, Globe, HardDrive, KeyRound, Lock, Pencil, Plus, RefreshCw, Rocket, Save, ScrollText, Trash2, X } from 'lucide-react';
 import {
   ENVIRONMENT_NAMES,
   classifyEnvVarName,
@@ -542,10 +542,7 @@ function EnvironmentRow({
             ) : (
               <div className="rounded-md border bg-card font-mono text-xs">
                 {platformNames.map((name) => (
-                  <div key={name} className="flex gap-2 border-b px-2 py-1 last:border-b-0">
-                    <span className="shrink-0 text-muted-foreground">{name}=</span>
-                    <span className="truncate">{env.platformEnv[name]}</span>
-                  </div>
+                  <CopyableEnvRow key={name} name={name} value={env.platformEnv[name] ?? ''} />
                 ))}
               </div>
             )}
@@ -684,6 +681,65 @@ const PARSE_REASON: Record<DotenvParseError['reason'], string> = {
   badName: k.environments.parseBadName,
   duplicate: k.environments.parseDuplicate,
 };
+
+/**
+ * One platform variable, as a whole-row copy button.
+ *
+ * These values exist to be USED — a password pasted into a login form, a
+ * DATABASE_URL pasted into psql — and until this was a button there was no way
+ * to get one out intact. Two spans in a flex row serialize as separate blocks,
+ * so selecting a row copied the key and the value on SEPARATE LINES; and
+ * `truncate` meant a long value (a DATABASE_URL, a CA cert) could not be fully
+ * selected at all. Both produce a silently wrong paste, which for a credential
+ * reads as "wrong password" rather than as a UI bug.
+ *
+ * So the key and value are now one inline run, rendered exactly like a `.env`
+ * line — no gap, since the old space was flex `gap-2` and was never part of
+ * the value — which also makes a manual selection copy as a single line.
+ * Clicking copies the VALUE alone, which is the part anyone actually needs.
+ */
+function CopyableEnvRow({ name, value }: { name: string; value: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Denied permission or a non-secure context. Say so rather than showing
+      // a success tick, because the user is about to paste whatever the
+      // clipboard held before.
+      toast.error(t(k.environments.copyFailed));
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void copy()}
+      title={value}
+      aria-label={t(k.environments.copyValue, { name })}
+      className="group flex w-full items-center gap-2 border-b px-2 py-1 text-left last:border-b-0 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <span className="truncate">
+        <span className="text-muted-foreground">{name}=</span>
+        {value}
+      </span>
+      <span className="ml-auto flex shrink-0 items-center gap-1 text-muted-foreground">
+        {copied ? (
+          <>
+            <Check className="size-3" />
+            {t(k.environments.copied)}
+          </>
+        ) : (
+          <Copy className="size-3 opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100" />
+        )}
+      </span>
+    </button>
+  );
+}
 
 /**
  * The user-var editor: an editable grid with per-row secret/config
