@@ -61,7 +61,7 @@ moves to another box it must be reachable over a network. Two cases:
 | Placement      | Database server                                                  | Cache server                                              | App server                                                    |
 | -------------- | ---------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------- |
 | NULL (legacy)  | —                                                                | —                                                         | `data-plane-ensure` + `data-plane-provision-unit` (unchanged) |
-| database moved | `data-plane-ensure-published <host>` + `database-provision-unit` | —                                                         | `app-network-ensure` + a password-protected local Redis       |
+| database moved | `data-plane-ensure-published <host>` + `database-provision-unit` | —                                                         | `app-network-ensure` + `cache-provision-local <unit>`         |
 | cache moved    | —                                                                | `cache-provision-unit <unit> <host> <port>` (requirepass) | legacy ensure + provision-unit (Postgres half used)           |
 | both moved     | as above                                                         | as above                                                  | `app-network-ensure`                                          |
 
@@ -69,7 +69,13 @@ Rendered wiring (`platform_env`): a moved database becomes
 `postgresql://<unit>:<pw>@<db-host>:5432/<unit>` (`?sslmode=verify-full` under
 `tls`); a moved cache becomes `REDIS_HOST=<cache-host>`, `REDIS_PORT=<derived
 30000–37999>`, `REDIS_PASSWORD=<per-unit>`. The untouched role keeps its exact
-legacy value. The deploy passes `REDIS_PORT`/`REDIS_PASSWORD` through to
+legacy value. A cache that did **not** move keeps container DNS
+(`REDIS_HOST=specbook-redis-<unit>`), so whichever op creates it has to put it
+on the `specbook-data` network — the only place that name resolves.
+`cache-provision-local` does; `cache-provision-unit` deliberately does not,
+because a cache server need not have that network and the app dials it by
+address instead. Getting this pair the wrong way round does not fail
+provisioning: it fails later, as `getaddrinfo EAI_AGAIN` inside the app. The deploy passes `REDIS_PORT`/`REDIS_PASSWORD` through to
 `IAM_REDIS_*` when present and omits them otherwise.
 
 One Postgres instance per server: N environments across N projects that share

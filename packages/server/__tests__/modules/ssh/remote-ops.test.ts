@@ -27,6 +27,46 @@ describe('remote ops are valid bash', () => {
 });
 
 /**
+ * A Redis the app reaches by NAME must sit on the network where that name
+ * resolves. `renderPlatformWiring` sends `REDIS_HOST=specbook-redis-<unit>`
+ * for every cache that did not move, and Docker's embedded DNS answers that
+ * name only on a user-defined network. An op that creates such a container off
+ * `specbook-data` reports success and provisions cleanly; the failure surfaces
+ * later and elsewhere, as `getaddrinfo EAI_AGAIN` inside the running app on
+ * whichever route touches Redis first. That is exactly how it shipped once —
+ * the wiring half was tested, the half that has to match it was not.
+ */
+describe('a co-located Redis lives where its DNS name resolves', () => {
+  it.each(['data-plane-provision-unit', 'cache-provision-local'])(
+    '%s attaches the Redis it creates to specbook-data',
+    (name) => {
+      const script = REMOTE_OPS[name as keyof typeof REMOTE_OPS];
+      expect(script).toContain('docker run -d --name "specbook-redis-$unit"');
+      expect(script).toContain('--network specbook-data');
+    },
+  );
+
+  it('the co-located Redis publishes NO host port — nothing off the network dials it', () => {
+    expect(REMOTE_OPS['cache-provision-local']).not.toMatch(/-p\s/);
+  });
+
+  it('a MOVED cache publishes a port instead, because the app dials it by address', () => {
+    // The mirror image, and the reason these are two ops: a cache server need
+    // not have specbook-data at all, and the wiring for it carries host:port.
+    const script = REMOTE_OPS['cache-provision-unit'];
+    expect(script).toContain('-p "$bind:$port:6379"');
+    expect(script).not.toContain('--network');
+  });
+
+  it('both password-protected Redis ops refuse to start without one', () => {
+    for (const name of ['cache-provision-local', 'cache-provision-unit'] as const) {
+      expect(REMOTE_OPS[name]).toContain('--requirepass "$cache_pw"');
+      expect(REMOTE_OPS[name]).toMatch(/missing password on stdin/);
+    }
+  });
+});
+
+/**
  * A runner host is the ONE place specbook installs OS packages — the trade is
  * deliberate (a dedicated agent VM has no customer stack to disturb), so the
  * boundary is worth pinning. If this starts failing because another op grew an
