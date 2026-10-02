@@ -427,7 +427,7 @@ export class ProjectService {
   }
 
   async list(activeUser: ActiveUser, dto: ListProjectsRequest): Promise<ListProjectsResponse> {
-    const [{ data, total }, counts, spend] = await Promise.all([
+    const [{ data, total }, counts, spend, researchActivity] = await Promise.all([
       this.projectRepository.findForOrg(
         activeUser.orgId,
         {
@@ -439,12 +439,17 @@ export class ProjectService {
       ),
       this.projectRepository.countTasksByStatus(activeUser.orgId),
       this.projectRepository.monthSpendByProject(activeUser.orgId),
+      this.projectRepository.researchActivityByProject(activeUser.orgId),
     ]);
 
     return {
       data: data.map((p) => ({
         ...this.serialize(p),
         statusCounts: counts.get(p.id) ?? {},
+        // Whether the project is still ASKING anything — task throughput alone
+        // cannot say, and a project can ship for months without opening one.
+        researchCounts: researchActivity.get(p.id)?.counts ?? {},
+        lastResearchAt: researchActivity.get(p.id)?.lastActivityAt?.toISOString() ?? null,
         ...this.budgetFields(p, spend.get(p.id) ?? 0),
       })),
       meta: { total, skip: dto.skip, limit: dto.limit },

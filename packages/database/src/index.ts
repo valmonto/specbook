@@ -33,6 +33,7 @@ export {
   inArray,
   sql,
   count,
+  max,
   desc,
   asc,
   getTableColumns,
