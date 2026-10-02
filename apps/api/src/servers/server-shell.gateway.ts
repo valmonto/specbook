@@ -90,6 +90,10 @@ export class ServerShellGateway implements OnGatewayConnection {
     );
     hardTimer.unref();
 
+    // Idle means NOTHING happened — in either direction. Counting only the
+    // browser's keystrokes would kill the sessions the terminal is most useful
+    // for: a build, a `tail -f`, a long migration all talk for many minutes
+    // while the operator types nothing, and watching them is the point.
     let idleTimer = setTimeout(() => void end('idle'), SHELL_IDLE_MS);
     idleTimer.unref();
     const touch = (): void => {
@@ -145,6 +149,7 @@ export class ServerShellGateway implements OnGatewayConnection {
         { cols: 80, rows: 24 },
         {
           onData: (chunk) => {
+            touch(); // output is activity too — see the idle timer above
             bytesOut += chunk.byteLength;
             transcript += chunk.toString('utf8');
             // Cap as we go: a runaway `yes` should not grow the heap for
