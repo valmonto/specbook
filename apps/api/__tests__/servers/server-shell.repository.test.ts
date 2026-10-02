@@ -90,7 +90,11 @@ describeIntegration('ServerShellRepository — two-tenant boundary', () => {
     serverA = await makeServer(orgA, a.ownerId);
   });
 
+  // The api/worker suites share one test database and run serialized, so a
+  // suite that leaves rows behind breaks the NEXT one — these rows point at
+  // `user`, and a later `delete from "user"` then fails on the foreign key.
   afterAll(async () => {
+    await truncate(client.db, [serverShellSession, server, organizationUser, organization, user]);
     await client.close?.();
   });
 

@@ -3,10 +3,12 @@ import {
   DATABASE_CLIENT,
   type DatabaseClient,
   project,
+  research,
   task,
   eq,
   and,
   count,
+  max,
   desc,
   isNull,
   isNotNull,
@@ -79,6 +81,51 @@ export class ProjectRepository {
       const counts = byProject.get(row.projectId) ?? {};
       counts[row.status] = Number(row.n);
       byProject.set(row.projectId, counts);
+    }
+    return byProject;
+  }
+
+  /**
+   * Research activity per project: how many documents sit at each status, and
+   * when one was last touched.
+   *
+   * Sits next to the task counts because it answers the question the task
+   * counts cannot: whether a project is still ASKING anything. A project can
+   * show healthy task throughput for months while never opening a research
+   * document — which is exactly what happened to one here, and nothing on the
+   * board said so.
+   */
+  async researchActivityByProject(
+    orgId: string,
+  ): Promise<Map<string, { counts: Record<string, number>; lastActivityAt: Date | null }>> {
+    const rows = await this.dbClient.db
+      .select({
+        projectId: research.projectId,
+        status: research.status,
+        n: count(),
+        last: max(research.updatedAt),
+      })
+      .from(research)
+      .where(eq(research.orgId, orgId))
+      .groupBy(research.projectId, research.status);
+
+    const byProject = new Map<
+      string,
+      { counts: Record<string, number>; lastActivityAt: Date | null }
+    >();
+    for (const row of rows) {
+      // Org-level documents carry no project; they belong to no row here.
+      if (!row.projectId) continue;
+      const entry = byProject.get(row.projectId) ?? { counts: {}, lastActivityAt: null };
+      entry.counts[row.status] = Number(row.n);
+      // `max()` comes back as a timestamp STRING from the driver, not a Date.
+      // Normalising here keeps the comparison below a date comparison rather
+      // than a lexical one, and spares every caller the same coercion.
+      const last = row.last ? new Date(row.last) : null;
+      if (last && (!entry.lastActivityAt || last > entry.lastActivityAt)) {
+        entry.lastActivityAt = last;
+      }
+      byProject.set(row.projectId, entry);
     }
     return byProject;
   }

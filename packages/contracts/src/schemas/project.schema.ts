@@ -42,6 +42,16 @@ export const ProjectSchema = z.object({
   updatedAt: z.string(),
   /** Tasks per status — present on list responses; a strip, not analytics. */
   statusCounts: z.record(z.string(), z.number().int()).optional(),
+  /**
+   * Research documents per status, and when one was last touched.
+   *
+   * Alongside statusCounts because it answers what task throughput cannot:
+   * whether the project is still ASKING anything. A project can ship steadily
+   * for months while never opening a research document, and nothing else on
+   * the board shows that.
+   */
+  researchCounts: z.record(z.string(), z.number().int()).optional(),
+  lastResearchAt: z.string().nullable().optional(),
 });
 
 export type Project = z.infer<typeof ProjectSchema>;

@@ -38,6 +38,17 @@ stop on your own just because sweeps keep coming back empty.
 5. `list_research` — research in `researching` is awaiting an agent turn. For
    each, perform the turn (protocol below). These are cheap next to a build
    task; the CAP above governs tasks, not turns.
+6. **Notice a project that has stopped asking anything.** `list_projects`
+   carries `researchCounts` and `lastResearchAt` next to `statusCounts`. A
+   project shipping tasks steadily with NO research documents — or none touched
+   in weeks — is drifting, and the queue cannot tell you because a full queue
+   of build tickets looks like health. Say so in your sweep line; it is the
+   human's call what to do about it, but an unsaid observation is a useless one.
+
+   This is not hypothetical. One project here completed 39 tasks over four
+   months — 19 of them template ports and tooling — with zero research
+   documents ever opened, while the question its whole value depended on went
+   unasked. Nothing on the board showed it.
 
 ## Protocol per task (non-negotiable)
 
