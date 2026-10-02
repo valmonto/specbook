@@ -182,16 +182,22 @@ teardown in four layers.
    leftover worktrees; it is a **dry run by default (prints only)**. Add
    `--apply` to actually kill + prune.
 
-   **GUARDRAIL — never kill the live site.** specbook.valmonto.com runs on THIS
-   box in dev/watch mode: api on `:3000` (child of `nest start --watch`) and web
-   on `vite :5173`, BOTH with cwd in the **main checkout** (`apps/{api,web}`);
-   object storage is docker on `:9000`. The reaper's ONLY kill criterion is a
-   process whose **cwd is strictly under `.claude/worktrees/`** — the live
-   processes are siblings of that root, never inside it, so they are always
-   kept. It prunes only worktrees that look orphaned (unlocked, no live process
-   inside). Prefer the dry run; reserve `--apply` for a deliberate cleanup, and
-   afterward confirm `curl -s -o /dev/null -w "%{http_code}" https://specbook.valmonto.com/`
-   still returns `200`.
+   **GUARDRAIL — never kill anything outside a build worktree.** The reaper's
+   ONLY kill criterion is a process whose **cwd is strictly under
+   `.claude/worktrees/`**. Anything serving from the main checkout is a sibling
+   of that root, never inside it, so it is always kept; object storage is docker
+   on `:9000` and is likewise untouched. It prunes only worktrees that look
+   orphaned (unlocked, no live process inside). Prefer the dry run; reserve
+   `--apply` for a deliberate cleanup, and afterward confirm
+   `curl -s -o /dev/null -w "%{http_code}" https://specbook.valmonto.com/` still
+   returns `200`.
+
+   Do NOT assume specbook.valmonto.com is served from this box. It was once run
+   here in dev/watch mode on `:3000` + `:5173`, and this paragraph used to say
+   so; as of 2026-10-02 nothing listens on either port and the site is deployed
+   elsewhere. Check (`ss -ltnp`) rather than trusting a description — the kill
+   criterion above holds either way, which is the point of stating it in terms
+   of cwd rather than ports.
 
 ## Build-dispatch liveness (heartbeat + hard timeout — no silent hangs)
 
