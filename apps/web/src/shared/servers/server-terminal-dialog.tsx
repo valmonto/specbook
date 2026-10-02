@@ -127,9 +127,20 @@ export function ServerTerminalDialog({
       if (initialCommand) socket.send(new TextEncoder().encode(`${initialCommand}\n`));
     };
     socket.onmessage = (event: MessageEvent<ArrayBuffer | string>) => {
-      term.write(
-        typeof event.data === 'string' ? event.data : new Uint8Array(event.data as ArrayBuffer),
-      );
+      if (typeof event.data !== 'string') {
+        term.write(new Uint8Array(event.data as ArrayBuffer));
+        return;
+      }
+      // A text frame is a control message, the mirror of the resize we send.
+      // The pty's own output always arrives binary, so nothing legible is lost
+      // by not writing this to the terminal — and an unrecognised message is
+      // ignored rather than printed as noise into someone's shell.
+      try {
+        const msg = JSON.parse(event.data) as { type?: string; expiresAt?: string };
+        if (msg.type === 'expiry' && msg.expiresAt) setExpiresAt(new Date(msg.expiresAt));
+      } catch {
+        /* not a control message; drop it rather than scribble on the terminal */
+      }
     };
     socket.onclose = (event) => {
       setPhase('closed');

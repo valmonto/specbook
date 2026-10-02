@@ -72,6 +72,33 @@ export class ServerShellRepository {
     return row!.id;
   }
 
+  /**
+   * Pushes a live session's expiry out, when the operator renews it by using
+   * the shell. Org-scoped: the trail is the point of these rows, so a renewal
+   * is only ever applied to a session belonging to the renewing org.
+   *
+   * Returns whether a row actually moved, so a caller cannot extend its own
+   * in-memory deadline past what the audit row says.
+   */
+  async extendExpiry(args: {
+    sessionId: string;
+    orgId: string;
+    expiresAt: Date;
+  }): Promise<boolean> {
+    const rows = await this.dbClient.db
+      .update(serverShellSession)
+      .set({ expiresAt: args.expiresAt })
+      .where(
+        and(
+          eq(serverShellSession.id, args.sessionId),
+          eq(serverShellSession.orgId, args.orgId),
+          eq(serverShellSession.outcome, 'open'),
+        ),
+      )
+      .returning({ id: serverShellSession.id });
+    return rows.length > 0;
+  }
+
   /** Closes a session out. Idempotent by construction — writing the same end twice is harmless. */
   async close(args: {
     sessionId: string;
@@ -95,11 +122,7 @@ export class ServerShellRepository {
   }
 
   /** The audit view for one server, newest first. */
-  async listForServer(
-    serverId: string,
-    orgId: string,
-    limit = 50,
-  ): Promise<ServerShellSession[]> {
+  async listForServer(serverId: string, orgId: string, limit = 50): Promise<ServerShellSession[]> {
     return this.dbClient.db
       .select()
       .from(serverShellSession)
