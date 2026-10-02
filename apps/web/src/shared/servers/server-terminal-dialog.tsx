@@ -171,7 +171,19 @@ export function ServerTerminalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl">
+      <DialogContent
+        className="sm:max-w-5xl"
+        // Esc belongs to the shell, not to the dialog. It leaves vim's insert
+        // mode, cancels a readline edit, backs out of a TUI, and prefixes every
+        // arrow and function key — a terminal that cannot send it is crippled.
+        // Radix's dismissable layer sees the keydown before xterm does, so
+        // without this the operator can never deliver \x1b to the remote host.
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        // Same reasoning, lower stakes: a stray click outside should not
+        // destroy a live pty. The × button stays the deliberate way out.
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{t(k.servers.terminalTitle, { name: serverName })}</DialogTitle>
           <DialogDescription>
