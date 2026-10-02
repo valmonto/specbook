@@ -8,6 +8,7 @@ import {
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import {
   AGENT_TASK_TRANSITIONS,
+  AUTONOMOUS_TASK_TRANSITIONS,
   grantsAgentDispatch,
   grantsAutoApprove,
   grantsAutoMerge,
@@ -362,7 +363,7 @@ export class TaskService {
       actor === 'agent'
         ? // Only an agent's map can widen, so only an agent pays for the lookup.
           (await this.projectAllowsAgentDispatch(current.projectId, activeUser))
-          ? HUMAN_TASK_TRANSITIONS
+          ? AUTONOMOUS_TASK_TRANSITIONS
           : AGENT_TASK_TRANSITIONS
         : isAssigneeExecutor
           ? ASSIGNEE_TASK_TRANSITIONS

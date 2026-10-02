@@ -111,6 +111,7 @@ export {
   grantsAutoMerge,
   grantsAutoApprove,
   grantsAgentDispatch,
+  AUTONOMOUS_TASK_TRANSITIONS,
 } from './constants/task.js';
 export { RESEARCH_STATUSES } from './constants/research.js';
 export {
