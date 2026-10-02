@@ -826,6 +826,8 @@
   "tasks.mode.autoHint": "Green submissions approve and merge themselves — requires CI; a red default branch pauses everything",
   "tasks.mode.autoMergeHint": "You review; an approved task merges itself once CI is green",
   "tasks.mode.auto_merge": "Auto-merge",
+  "tasks.mode.autonomous": "Autonomous",
+  "tasks.mode.autonomousHint": "Full auto, and the agent queues its own work — nobody outside it decides what gets built. For a project you are watching.",
   "tasks.mode.budget": "Monthly budget (USD)",
   "tasks.mode.label": "Automation",
   "tasks.mode.manual": "Manual",

@@ -826,6 +826,8 @@
   "tasks.mode.autoHint": "Žali pateikimai patvirtinami ir suliejami automatiškai — reikia CI; raudona pagrindinė šaka viską pristabdo",
   "tasks.mode.autoMergeHint": "Tu peržiūri; patvirtinta užduotis susilieja pati, kai CI žalias",
   "tasks.mode.auto_merge": "Automatinis suliejimas",
+  "tasks.mode.autonomous": "Autonominis",
+  "tasks.mode.autonomousHint": "Visiškai automatinis, o agentas pats sudaro savo darbų eilę — niekas kitas nesprendžia, kas bus kuriama. Projektui, kurį stebite.",
   "tasks.mode.budget": "Mėnesio biudžetas (USD)",
   "tasks.mode.label": "Automatizavimas",
   "tasks.mode.manual": "Rankinis",

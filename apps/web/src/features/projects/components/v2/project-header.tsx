@@ -13,7 +13,7 @@ import {
   TerminalSquare,
   Zap,
 } from 'lucide-react';
-import type { Project, ProjectMode } from '@pkg/contracts';
+import { PROJECT_MODES, type Project, type ProjectMode } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,13 @@ function useOptimistic<T>(serverValue: T): [T, (next: T | undefined) => void] {
 
 const CHIP =
   'inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
+
+const MODE_HINT: Record<ProjectMode, string> = {
+  manual: k.tasks.mode.manualHint,
+  auto_merge: k.tasks.mode.autoMergeHint,
+  auto: k.tasks.mode.autoHint,
+  autonomous: k.tasks.mode.autonomousHint,
+};
 
 export function ProjectHeader({
   project,
@@ -132,11 +139,13 @@ export function ProjectHeader({
     manual: k.tasks.mode.manual,
     auto_merge: k.tasks.mode.auto_merge,
     auto: k.tasks.mode.auto,
+    autonomous: k.tasks.mode.autonomous,
   }[project.mode];
   const modeHint = {
     manual: k.tasks.mode.manualHint,
     auto_merge: k.tasks.mode.autoMergeHint,
     auto: k.tasks.mode.autoHint,
+    autonomous: k.tasks.mode.autonomousHint,
   }[project.mode];
 
   return (
@@ -273,7 +282,7 @@ export function ProjectHeader({
               </PopoverTrigger>
               <PopoverContent align="start" className="w-80 p-2">
                 <div className="grid gap-0.5">
-                  {(['manual', 'auto_merge', 'auto'] as const).map((m) => (
+                  {PROJECT_MODES.map((m) => (
                     <button
                       key={m}
                       type="button"
@@ -284,15 +293,7 @@ export function ProjectHeader({
                         {t(k.tasks.mode[m])}
                         {project.mode === m && <Check className="size-3.5 text-primary" />}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {t(
-                          m === 'manual'
-                            ? k.tasks.mode.manualHint
-                            : m === 'auto_merge'
-                              ? k.tasks.mode.autoMergeHint
-                              : k.tasks.mode.autoHint,
-                        )}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{t(MODE_HINT[m])}</span>
                     </button>
                   ))}
                 </div>

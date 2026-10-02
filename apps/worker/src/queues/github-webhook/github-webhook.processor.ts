@@ -28,6 +28,7 @@ import {
   type CiClassification,
   type GithubWebhookJobPayload,
 } from '@pkg/server';
+import { grantsAutoMerge } from '@pkg/contracts';
 
 interface ProjectRow {
   id: string;
@@ -285,7 +286,7 @@ export class GithubWebhookProcessor extends WorkerHost {
     // outage cancellations, lost runners — does not trip it: a flake on
     // main must not freeze the whole project's auto modes.
     for (const p of projects) {
-      if (p.mode === 'manual' || event.headBranch !== p.defaultBranch) continue;
+      if (!grantsAutoMerge(p.mode) || event.headBranch !== p.defaultBranch) continue;
       if (event.ciState === 'failing' && classification?.kind === 'retryable') {
         this.logger.info(
           { projectId: p.id, pointer: classification.pointer },
@@ -461,7 +462,7 @@ export class GithubWebhookProcessor extends WorkerHost {
     repoFullName: string,
     taskIds: string[],
   ): Promise<void> {
-    const autoProjects = projects.filter((p) => p.mode === 'auto' || p.mode === 'auto_merge');
+    const autoProjects = projects.filter((p) => grantsAutoMerge(p.mode));
     if (autoProjects.length === 0) return;
     if (!this.githubApp.enabled) {
       this.logger.warn(

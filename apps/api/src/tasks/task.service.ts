@@ -8,6 +8,9 @@ import {
 import { InjectLogger, PinoLogger } from '@pkg/server';
 import {
   AGENT_TASK_TRANSITIONS,
+  grantsAgentDispatch,
+  grantsAutoApprove,
+  grantsAutoMerge,
   ASSIGNEE_TASK_TRANSITIONS,
   HUMAN_TASK_TRANSITIONS,
   TERMINAL_TASK_STATUSES,
@@ -318,6 +321,19 @@ export class TaskService {
    * enforces the two gates (dispatch, review), performs a compare-and-swap
    * so races lose cleanly, and records the accompanying comment.
    */
+  /**
+   * Whether this task's project runs in a mode that lets an agent dispatch its
+   * own work. Org-scoped like every project read, so a foreign org's mode can
+   * never widen an agent's moves here.
+   */
+  private async projectAllowsAgentDispatch(
+    projectId: string,
+    activeUser: ActiveUser,
+  ): Promise<boolean> {
+    const proj = await this.projectRepository.findById(projectId, activeUser.orgId);
+    return !!proj && grantsAgentDispatch(proj.mode);
+  }
+
   async transition(
     activeUser: ActiveUser,
     actor: TaskAuthorType,
@@ -333,9 +349,21 @@ export class TaskService {
     // their own work at the state-machine layer, alongside the permission gates.
     const isAssigneeExecutor =
       actor === 'user' && current.isHumanTask && current.assignee === activeUser.userId;
+
+    // `autonomous` projects lift the dispatch gate: the agent gets the owner's
+    // moves, so it can take a task out of draft and queue its own work. Every
+    // other mode keeps that edge human-only, which is what normally stops an
+    // agent choosing WHAT to build as well as building it.
+    //
+    // The quality gates below are untouched by this — a draft still needs
+    // context and criteria, a submission still needs a comment, branch and PR.
+    // Those make the work auditable; they are not about who may act.
     const map =
       actor === 'agent'
-        ? AGENT_TASK_TRANSITIONS
+        ? // Only an agent's map can widen, so only an agent pays for the lookup.
+          (await this.projectAllowsAgentDispatch(current.projectId, activeUser))
+          ? HUMAN_TASK_TRANSITIONS
+          : AGENT_TASK_TRANSITIONS
         : isAssigneeExecutor
           ? ASSIGNEE_TASK_TRANSITIONS
           : HUMAN_TASK_TRANSITIONS;
@@ -629,11 +657,11 @@ export class TaskService {
     if (current.isHumanTask) return;
     if (current.ciState !== 'passing' || current.prState === 'merged') return;
     const proj = await this.projectRepository.findById(current.projectId, activeUser.orgId);
-    if (!proj || proj.mode === 'manual' || proj.autoPausedAt) return;
+    if (!proj || !grantsAutoMerge(proj.mode) || proj.autoPausedAt) return;
 
     let status = current.status as TaskStatus;
     if (status === 'needs_review') {
-      if (proj.mode !== 'auto') return;
+      if (!grantsAutoApprove(proj.mode)) return;
       const approved = await this.taskRepository.casUpdateStatus(
         current.id,
         activeUser.orgId,
@@ -642,7 +670,7 @@ export class TaskService {
       );
       if (!approved) return;
       status = 'approved';
-      this.logger.info({ taskId: current.id }, 'Auto: approved (CI green, mode=auto)');
+      this.logger.info({ taskId: current.id, mode: proj.mode }, 'Auto: approved (CI green)');
     }
     if (status !== 'approved') return;
     // The assumption-flag safety valve: a task shipped on a flagged assumption

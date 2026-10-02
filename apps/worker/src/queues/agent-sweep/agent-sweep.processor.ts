@@ -19,7 +19,7 @@ import {
   type AgentRow,
   type Server,
 } from '@pkg/database';
-import { STALE_CLAIM_AFTER_MS } from '@pkg/contracts';
+import { AUTO_MERGE_MODES, STALE_CLAIM_AFTER_MS } from '@pkg/contracts';
 import {
   AGENT_SWEEP_QUEUE,
   GithubAppService,
@@ -132,7 +132,7 @@ export class AgentSweepProcessor extends WorkerHost implements OnModuleInit {
           isNull(task.prNumber),
           isNotNull(task.branch),
           eq(task.isHumanTask, false),
-          inArray(project.mode, ['auto', 'auto_merge']),
+          inArray(project.mode, [...AUTO_MERGE_MODES]),
           isNull(project.archivedAt),
           isNotNull(organization.githubInstallationId),
         ),

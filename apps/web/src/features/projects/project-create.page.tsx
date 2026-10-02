@@ -12,7 +12,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import type { ProjectMode } from '@pkg/contracts';
+import { PROJECT_MODES, type ProjectMode } from '@pkg/contracts';
 import { k } from '@pkg/locales';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,13 @@ const SEAMLESS_INPUT =
  * creation stays a single explicit Create — a project with a wrong repo
  * binding is provisioned infrastructure, not an "Untitled" draft.
  */
+const MODE_HINT: Record<ProjectMode, string> = {
+  manual: k.tasks.mode.manualHint,
+  auto_merge: k.tasks.mode.autoMergeHint,
+  auto: k.tasks.mode.autoHint,
+  autonomous: k.tasks.mode.autonomousHint,
+};
+
 export default function ProjectCreatePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -438,7 +445,7 @@ export default function ProjectCreatePage() {
       <section className="grid gap-2">
         <h4 className={SECTION}>{t(k.tasks.mode.label)}</h4>
         <div className="flex flex-wrap items-center gap-1.5">
-          {(['manual', 'auto_merge', 'auto'] as const).map((m) => (
+          {PROJECT_MODES.map((m) => (
             <button
               key={m}
               type="button"
@@ -469,15 +476,7 @@ export default function ProjectCreatePage() {
             </label>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            mode === 'manual'
-              ? k.tasks.mode.manualHint
-              : mode === 'auto_merge'
-                ? k.tasks.mode.autoMergeHint
-                : k.tasks.mode.autoHint,
-          )}
-        </p>
+        <p className="text-xs text-muted-foreground">{t(MODE_HINT[mode])}</p>
       </section>
 
       {/* The constitution — the most important field gets the most room. */}
