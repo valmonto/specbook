@@ -148,6 +148,39 @@ describeIntegration('TaskService — autonomous mode lifts the dispatch gate', (
   });
 
   /**
+   * The regression that only showed up in real use: the first cut REPLACED the
+   * agent's map with the owner's, which silently removed `ready → in_progress`
+   * — an executor edge the owner's map has no reason to carry. The agent could
+   * queue its own work and then not start it.
+   */
+  it('still lets an agent claim a ready task — the executor moves survive', async () => {
+    const id = await makeDraft(autonomousProject, ownerA);
+    await service.transition(agent(orgA, ownerA), 'agent', { id, to: 'ready' } as never);
+
+    const result = await service.transition(agent(orgA, ownerA), 'agent', {
+      id,
+      to: 'in_progress',
+    } as never);
+
+    expect(result.status).toBe('in_progress');
+  });
+
+  /** The whole point of the union: owner moves AND executor moves, together. */
+  it('gives an autonomous agent both courts in one run', async () => {
+    const id = await makeDraft(autonomousProject, ownerA);
+
+    await service.transition(agent(orgA, ownerA), 'agent', { id, to: 'ready' } as never);
+    await service.transition(agent(orgA, ownerA), 'agent', { id, to: 'in_progress' } as never);
+    const blocked = await service.transition(agent(orgA, ownerA), 'agent', {
+      id,
+      to: 'blocked',
+      comment: 'a question',
+    } as never);
+
+    expect(blocked.status).toBe('blocked');
+  });
+
+  /**
    * The tenancy boundary: the mode consulted must be the mode of the task's
    * OWN project, read inside the acting org. A foreign org's autonomous
    * project must never widen an agent's moves here.

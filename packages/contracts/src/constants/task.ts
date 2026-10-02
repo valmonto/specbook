@@ -213,3 +213,34 @@ export const grantsAutoApprove = (mode: string): boolean =>
   (AUTO_APPROVE_MODES as readonly string[]).includes(mode);
 export const grantsAgentDispatch = (mode: string): boolean =>
   (AGENT_DISPATCH_MODES as readonly string[]).includes(mode);
+
+/**
+ * An agent's moves on an `autonomous` project: the UNION of the executor moves
+ * it always had and the owner's moves.
+ *
+ * Union, not replacement. The first cut handed the agent HUMAN_TASK_TRANSITIONS
+ * outright, which silently REMOVED the moves that are the agent's own —
+ * `ready → in_progress` is an executor edge and does not appear in the owner's
+ * map. The result was an agent that could queue its own work and then could not
+ * start it, which is a worse state than the gate it was lifting. Found the first
+ * time it was used for real.
+ */
+export const AUTONOMOUS_TASK_TRANSITIONS: Readonly<Partial<Record<Status, readonly Status[]>>> =
+  Object.freeze(
+    Object.fromEntries(
+      [
+        ...new Set([
+          ...Object.keys(AGENT_TASK_TRANSITIONS),
+          ...Object.keys(HUMAN_TASK_TRANSITIONS),
+        ]),
+      ].map((from) => [
+        from,
+        Object.freeze([
+          ...new Set([
+            ...(AGENT_TASK_TRANSITIONS[from as Status] ?? []),
+            ...(HUMAN_TASK_TRANSITIONS[from as Status] ?? []),
+          ]),
+        ]),
+      ]),
+    ),
+  );
