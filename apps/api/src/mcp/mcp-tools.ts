@@ -47,6 +47,60 @@ const str = (v: unknown): string => v as string;
 const optStr = (v: unknown): string | undefined => v as string | undefined;
 
 /**
+ * A browsable row.
+ *
+ * `list_tasks` used to return every task in full — context, out-of-scope and
+ * each acceptance criterion. A single page of 39 tasks came to ~150KB, which
+ * overruns an agent's tool-result budget: the board became cheaper to read by
+ * dumping it to a file and parsing it than by calling the API. A list is for
+ * finding the task you want; `get_task` is for reading it.
+ *
+ * Criteria collapse to a ratio because "2/6 done" is what a list is for, and
+ * the texts are the bulk of the payload.
+ *
+ * @param task a task read model from TaskService.list
+ */
+export function toTaskSummary(task: Record<string, unknown>): Record<string, unknown> {
+  const criteria = Array.isArray(task.acceptanceCriteria) ? task.acceptanceCriteria : [];
+  const done = criteria.filter((c) => (c as { done?: boolean })?.done).length;
+  return {
+    id: task.id,
+    projectId: task.projectId,
+    title: task.title,
+    status: task.status,
+    priority: task.priority,
+    area: task.area,
+    assignee: task.assignee,
+    claimedBy: task.claimedBy,
+    branch: task.branch,
+    prUrl: task.prUrl,
+    ciState: task.ciState,
+    isHumanTask: task.isHumanTask,
+    assumptionFlag: task.assumptionFlag,
+    // Shape only — the texts live in get_task.
+    criteria: criteria.length > 0 ? `${done}/${criteria.length}` : null,
+    dependencies: Array.isArray(task.dependencies) ? task.dependencies.length : 0,
+    dependents: Array.isArray(task.dependents) ? task.dependents.length : 0,
+    updatedAt: task.updatedAt,
+  };
+}
+
+/**
+ * Apply the chosen projection to a paginated list response, leaving `meta`
+ * (total/skip/limit) alone — paging is how an agent decides to ask again.
+ */
+export function projectTaskList(
+  result: { data?: unknown[] } & Record<string, unknown>,
+  fields: 'summary' | 'full',
+): Record<string, unknown> {
+  if (fields === 'full' || !Array.isArray(result.data)) return result;
+  return {
+    ...result,
+    data: result.data.map((t) => toTaskSummary(t as Record<string, unknown>)),
+  };
+}
+
+/**
  * Metadata (name, scope, description, org-context flag) comes from the
  * shared descriptors in @pkg/contracts — the same data the key-creation UI
  * renders — so a catalog entry here only adds what contracts cannot hold:
@@ -161,17 +215,21 @@ export class McpTools {
           projectId: z.string().uuid().optional(),
           status: z.enum(TASK_STATUSES).optional(),
           available: z.boolean().optional(),
+          fields: z.enum(['summary', 'full']).optional(),
           skip: z.number().int().min(0).optional(),
           limit: z.number().int().min(1).max(MAX_LIMIT).optional(),
         },
         handler: async (args, actor) =>
-          this.taskService.list(actor!, {
-            skip: (args.skip as number | undefined) ?? 0,
-            limit: (args.limit as number | undefined) ?? 20,
-            projectId: optStr(args.projectId),
-            status: args.status as (typeof TASK_STATUSES)[number] | undefined,
-            available: (args.available as boolean | undefined) ?? false,
-          }),
+          projectTaskList(
+            await this.taskService.list(actor!, {
+              skip: (args.skip as number | undefined) ?? 0,
+              limit: (args.limit as number | undefined) ?? 20,
+              projectId: optStr(args.projectId),
+              status: args.status as (typeof TASK_STATUSES)[number] | undefined,
+              available: (args.available as boolean | undefined) ?? false,
+            }),
+            (args.fields as 'summary' | 'full' | undefined) ?? 'summary',
+          ),
       },
       {
         ...meta('get_task'),
