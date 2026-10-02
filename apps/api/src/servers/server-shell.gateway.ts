@@ -5,6 +5,11 @@ import { Logger } from '@pkg/server';
 import { SecretsService, SshService, type ShellHandle } from '@pkg/server';
 import type { WebSocket } from 'ws';
 import { ServerShellRepository } from './server-shell.repository.js';
+import {
+  SHELL_SESSION_MAX_TOTAL_MS,
+  SHELL_SESSION_RENEW_WITHIN_MS,
+  SHELL_SESSION_TTL_MS,
+} from '@pkg/contracts';
 import { SHELL_IDLE_MS, ServerShellService, capTranscript } from './server-shell.service.js';
 
 /** Browser → server. Keystrokes are raw binary; control messages are small JSON. */
@@ -61,7 +66,10 @@ export class ServerShellGateway implements OnGatewayConnection {
 
     // Every exit path lands here, and several can fire at once — the user
     // closes the tab while the window lapses while the far end exits.
-    const end = async (outcome: Parameters<ServerShellService['finish']>[0]['outcome'], detail?: string) => {
+    const end = async (
+      outcome: Parameters<ServerShellService['finish']>[0]['outcome'],
+      detail?: string,
+    ) => {
       if (ended) return;
       ended = true;
       clearTimeout(hardTimer);
@@ -83,12 +91,50 @@ export class ServerShellGateway implements OnGatewayConnection {
     };
 
     // The hard expiry is recorded on the row at issue time, so it is the same
-    // deadline the UI counts down to.
-    const hardTimer = setTimeout(
+    // deadline the UI counts down to. It MOVES when the operator renews it
+    // (see renew), and the row moves with it — the audit must never disagree
+    // with when the session will actually end.
+    let expiresAt = claim.expiresAt;
+    let hardTimer = setTimeout(
       () => void end('expired'),
-      Math.max(claim.expiresAt.getTime() - Date.now(), 0),
+      Math.max(expiresAt.getTime() - Date.now(), 0),
     );
     hardTimer.unref();
+
+    /** The session ends here however busy it is; renewal cannot cross it. */
+    const ceiling = claim.expiresAt.getTime() - SHELL_SESSION_TTL_MS + SHELL_SESSION_MAX_TOTAL_MS;
+
+    /**
+     * Push the window out because the operator is demonstrably still here.
+     *
+     * Called ONLY from a real keystroke. Output must not renew — a `tail -f`
+     * would hold a window open forever — and neither may the browser simply
+     * being connected, which would make presence unfalsifiable and turn the
+     * whole control into decoration.
+     */
+    const renew = async (): Promise<void> => {
+      const now = Date.now();
+      if (ended || expiresAt.getTime() - now > SHELL_SESSION_RENEW_WITHIN_MS) return;
+      const next = Math.min(now + SHELL_SESSION_TTL_MS, ceiling);
+      if (next <= expiresAt.getTime()) return; // at the ceiling; nothing to give
+
+      const moved = await this.repo
+        .extendExpiry({ sessionId: claim.sessionId, orgId: claim.orgId, expiresAt: new Date(next) })
+        .catch(() => false);
+      // The row is the record. If it did not move, neither does the deadline.
+      if (!moved || ended) return;
+
+      expiresAt = new Date(next);
+      clearTimeout(hardTimer);
+      hardTimer = setTimeout(() => void end('expired'), Math.max(next - Date.now(), 0));
+      hardTimer.unref();
+      // Text frame = control message, mirroring the client's own convention;
+      // without this the countdown would keep running down to a deadline that
+      // has already moved.
+      if (socket.readyState === socket.OPEN) {
+        socket.send(JSON.stringify({ type: 'expiry', expiresAt: expiresAt.toISOString() }));
+      }
+    };
 
     // Idle means NOTHING happened — in either direction. Counting only the
     // browser's keystrokes would kill the sessions the terminal is most useful
@@ -130,6 +176,7 @@ export class ServerShellGateway implements OnGatewayConnection {
         return;
       }
       bytesIn += raw.byteLength;
+      void renew(); // a keystroke is the only evidence the operator is still here
       if (shell) shell.write(raw);
       else pendingInput.push(raw);
     });

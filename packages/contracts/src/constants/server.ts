@@ -75,7 +75,14 @@ export type ServerStatus = (typeof SERVER_STATUSES)[number];
  * exactly the event an audit exists to record, and writing it only on success
  * would omit the interesting half.
  */
-export const SHELL_SESSION_OUTCOMES = ['open', 'closed', 'expired', 'idle', 'error', 'refused'] as const;
+export const SHELL_SESSION_OUTCOMES = [
+  'open',
+  'closed',
+  'expired',
+  'idle',
+  'error',
+  'refused',
+] as const;
 export type ShellSessionOutcome = (typeof SHELL_SESSION_OUTCOMES)[number];
 
 /**
@@ -86,6 +93,29 @@ export type ShellSessionOutcome = (typeof SHELL_SESSION_OUTCOMES)[number];
  */
 export const SHELL_SESSION_TTL_MS = 30 * 60_000;
 export const SHELL_SESSION_IDLE_MS = 10 * 60_000;
+
+/**
+ * The window is RENEWABLE while the operator is demonstrably there, up to an
+ * absolute ceiling measured from when the session opened.
+ *
+ * The failure mode being guarded against is a FORGOTTEN terminal, not a used
+ * one — so a hard wall that kills a session mid-keystroke punishes exactly the
+ * wrong case, while doing nothing a forgotten session's idle reaper does not
+ * already do. Renewal is driven only by real keystrokes: output cannot renew
+ * (a `tail -f` would otherwise hold a window open forever), and neither can
+ * the browser merely being open, which would make presence unfalsifiable.
+ *
+ * The ceiling is what keeps the control real. Past it the session ends however
+ * busy it is, and the operator opens a new, freshly audited one.
+ */
+export const SHELL_SESSION_MAX_TOTAL_MS = 4 * 60 * 60_000;
+
+/**
+ * Renew only inside the last stretch of the window. Every renewal is a row
+ * update, and extending on each keystroke would write once per character for
+ * no gain — the operator cannot tell the difference.
+ */
+export const SHELL_SESSION_RENEW_WITHIN_MS = 5 * 60_000;
 
 /** One org cannot hold more open shells than this at once. */
 export const SHELL_SESSION_MAX_CONCURRENT = 3;
