@@ -105,6 +105,12 @@ export {
   DEPENDENCY_SATISFYING_STATUSES,
   MERGE_DEBT_CAP,
   PROJECT_MODES,
+  AUTO_MERGE_MODES,
+  AUTO_APPROVE_MODES,
+  AGENT_DISPATCH_MODES,
+  grantsAutoMerge,
+  grantsAutoApprove,
+  grantsAgentDispatch,
 } from './constants/task.js';
 export { RESEARCH_STATUSES } from './constants/research.js';
 export {

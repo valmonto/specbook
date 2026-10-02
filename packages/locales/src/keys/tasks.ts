@@ -237,6 +237,8 @@ export const tasks = {
     autoMergeHint: 'tasks.mode.autoMergeHint',
     auto: 'tasks.mode.auto',
     autoHint: 'tasks.mode.autoHint',
+    autonomous: 'tasks.mode.autonomous',
+    autonomousHint: 'tasks.mode.autonomousHint',
     maxParallel: 'tasks.mode.maxParallel',
     maxParallelHint: 'tasks.mode.maxParallelHint',
     paused: 'tasks.mode.paused',

@@ -826,6 +826,8 @@
   "tasks.mode.autoHint": "Los envíos en verde se aprueban y fusionan solos — requiere CI; una rama principal en rojo lo pausa todo",
   "tasks.mode.autoMergeHint": "Tú revisas; una tarea aprobada se fusiona sola cuando CI está en verde",
   "tasks.mode.auto_merge": "Fusión automática",
+  "tasks.mode.autonomous": "Autónomo",
+  "tasks.mode.autonomousHint": "Totalmente automático, y el agente pone en cola su propio trabajo: nadie más decide qué se construye. Para un proyecto que estés vigilando.",
   "tasks.mode.budget": "Presupuesto mensual (USD)",
   "tasks.mode.label": "Automatización",
   "tasks.mode.manual": "Manual",

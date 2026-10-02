@@ -175,5 +175,41 @@ export const MERGE_DEBT_CAP = 3;
  *               that never emits ciState events never auto-progresses, and a
  *               red default branch pauses all auto progression (circuit
  *               breaker) until it is green again.
+ * - autonomous: `auto`, plus the DISPATCH gate is lifted — an agent may move a
+ *               task out of draft and queue its own work. Every other mode
+ *               keeps that edge human-only, which is what stops an agent
+ *               choosing what to build as well as building it.
+ *
+ * The dial is ordered, and the last step is the one that changes the kind of
+ * thing it is rather than the amount. Under `auto` a human still decides what
+ * gets worked on; under `autonomous` nobody outside the agent does. Use it for
+ * a project whose owner is present and watching, not for an unattended one.
+ *
+ * What `autonomous` does NOT lift: the QUALITY gates. A draft still needs
+ * context and acceptance criteria before it can be dispatched, and a
+ * submission still needs a summary comment plus branch and PR. Those are about
+ * leaving a trail a human can audit, not about who is permitted to act.
  */
-export const PROJECT_MODES = ['manual', 'auto_merge', 'auto'] as const;
+export const PROJECT_MODES = ['manual', 'auto_merge', 'auto', 'autonomous'] as const;
+
+/**
+ * Which modes grant which automation, named rather than compared inline.
+ *
+ * Adding a mode used to mean finding every `mode === 'auto'` by hand across the
+ * api and the worker, and a missed one fails SILENTLY — the project simply
+ * stops auto-progressing, with nothing to see. These sets are the single place
+ * that knowledge lives.
+ */
+/** An approved task merges itself once CI passes. */
+export const AUTO_MERGE_MODES = ['auto_merge', 'auto', 'autonomous'] as const;
+/** A submission approves itself once CI passes — no human review. */
+export const AUTO_APPROVE_MODES = ['auto', 'autonomous'] as const;
+/** An agent may dispatch its own work out of draft. */
+export const AGENT_DISPATCH_MODES = ['autonomous'] as const;
+
+export const grantsAutoMerge = (mode: string): boolean =>
+  (AUTO_MERGE_MODES as readonly string[]).includes(mode);
+export const grantsAutoApprove = (mode: string): boolean =>
+  (AUTO_APPROVE_MODES as readonly string[]).includes(mode);
+export const grantsAgentDispatch = (mode: string): boolean =>
+  (AGENT_DISPATCH_MODES as readonly string[]).includes(mode);
