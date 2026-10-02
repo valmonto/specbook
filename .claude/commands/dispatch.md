@@ -48,6 +48,25 @@ stop on your own just because sweeps keep coming back empty.
   via the returned `cloneUrl` — the token is repo-scoped and dies in an
   hour, so re-mint rather than store it. Machine SSH credentials remain
   the fallback for unbound projects.
+
+  **Use `scripts/gh-project.mjs` rather than handling the token yourself.**
+  It mints a fresh token per call and passes it to the child through its
+  `env`, so no secret ever reaches argv, shell history or your transcript —
+  the two obvious alternatives (writing it to a file, or
+  `GH_TOKEN=ghs_… gh …`) both materialize a live credential and an agent
+  session is rightly blocked from doing either.
+
+      node scripts/gh-project.mjs <project> -- pr list --state open
+      node scripts/gh-project.mjs <project> -- pr merge 42 --merge
+      node scripts/gh-project.mjs <project> --git -- fetch @origin main
+      node scripts/gh-project.mjs <project> --git -- push @origin HEAD:refs/heads/<branch>
+
+  `--git` matters on the agent machine: the checkouts there often have an
+  ssh-alias remote (`git@github-solmond:…`) that resolves only for the
+  human's ssh config, so plain `git fetch`/`push` fails with
+  `Could not resolve hostname`. `@origin` stands in for the project's HTTPS
+  URL. The project is matched by name, uuid or `owner/repo`; the key comes
+  from `SPECBOOK_API_KEY` or the machine's registered specbook MCP server.
 - Call `get_notes` at three checkpoints: right after claiming, before
   opening the PR, and before `update_status` → `needs_review`. It returns
   the human's steering notes and marks them seen — act on what it says.
