@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deployHostnames,
   derivePublicPort,
+  hostnamesPending,
   renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
@@ -59,7 +61,6 @@ describe('renderComposeFile', () => {
     expect(rendered).toContain('/app/node_modules/@pkg/database/dist/cli/migrate.mjs');
     expect(rendered).not.toContain('/app/packages/database');
   });
-
 
   const compose = renderComposeFile({
     unit: 'acme_staging',
@@ -257,5 +258,123 @@ describe('renderCaddySite behind an upstream terminator', () => {
         'reverse_proxy specbook-ingress-acme_staging:3000',
       );
     }
+  });
+});
+
+describe('several hostnames on one environment', () => {
+  const extras = [
+    { domain: 'app.example.com', serves: 'api' },
+    { domain: 'www.example.com', serves: 'web' },
+  ];
+
+  it('lists the main domain first, then the extras', () => {
+    expect(deployHostnames('admin.example.com', extras)).toEqual({
+      all: ['admin.example.com', 'app.example.com', 'www.example.com'],
+      apiOnly: ['app.example.com'],
+    });
+  });
+
+  /**
+   * Without a main domain the stack is reached on its published port and no
+   * vhost is written. Extras must not produce one on their own — a half-applied
+   * list would serve names the environment page says it has no domain for.
+   */
+  it('drops the extras when there is no main domain', () => {
+    expect(deployHostnames(null, extras)).toEqual({ all: [], apiOnly: [] });
+  });
+
+  it('never lists a hostname twice, even if an extra repeats the main domain', () => {
+    const h = deployHostnames('admin.example.com', [
+      { domain: 'admin.example.com', serves: 'api' },
+      { domain: 'app.example.com', serves: 'api' },
+    ]);
+    expect(h.all).toEqual(['admin.example.com', 'app.example.com']);
+    // The main domain always serves the whole app; an extra cannot demote it.
+    expect(h.apiOnly).toEqual(['app.example.com']);
+  });
+
+  it('puts every hostname in one Caddy site, so each gets its own certificate', () => {
+    expect(renderCaddySite('acme_production', ['admin.example.com', 'app.example.com'])).toBe(
+      'admin.example.com, app.example.com {\n  reverse_proxy specbook-ingress-acme_production:3000\n}\n',
+    );
+  });
+
+  /** Behind an upstream TLS terminator EVERY name needs the http:// form. */
+  it('writes the http:// form for every hostname behind an upstream terminator', () => {
+    expect(renderCaddySite('acme_production', ['a.example.com', 'b.example.com'], true)).toContain(
+      'http://a.example.com, http://b.example.com {',
+    );
+  });
+
+  it('renders the proxy exactly as before when no hostname is api-only', () => {
+    expect(renderProxyConf([])).toBe(renderProxyConf());
+    expect(renderProxyConf().match(/server \{/g)).toHaveLength(1);
+  });
+
+  it('gives an api-only hostname the api and a 404 for everything else', () => {
+    const conf = renderProxyConf(['app.example.com']);
+    const [catchAll, apiOnly] = conf.split(/(?=^server \{)/m);
+    // The catch-all stays first: nginx sends an unnamed Host to the first server.
+    expect(catchAll).not.toContain('server_name');
+    expect(catchAll).toContain('location / { proxy_pass $web_upstream; }');
+    expect(apiOnly).toContain('server_name app.example.com;');
+    expect(apiOnly).toContain('location /api { proxy_pass $api_upstream;');
+    expect(apiOnly).toContain('location /health { proxy_pass $api_upstream; }');
+    expect(apiOnly).toContain('location / { return 404; }');
+    // An api-only server must not be able to reach the web app at all.
+    expect(apiOnly).not.toContain('web_upstream');
+  });
+});
+
+describe('hostnamesPending — does the row differ from what is live?', () => {
+  const live = {
+    domain: 'admin.example.com',
+    extraDomains: [{ domain: 'app.example.com', serves: 'api' }],
+  };
+
+  it('is false when the row matches the last healthy deploy', () => {
+    expect(hostnamesPending(live, live)).toBe(false);
+  });
+
+  it('is true when an extra hostname was added, removed, or serves something else', () => {
+    expect(hostnamesPending({ ...live, extraDomains: [] }, live)).toBe(true);
+    expect(
+      hostnamesPending(
+        {
+          ...live,
+          extraDomains: [...live.extraDomains, { domain: 'x.example.com', serves: 'web' }],
+        },
+        live,
+      ),
+    ).toBe(true);
+    expect(
+      hostnamesPending(
+        { ...live, extraDomains: [{ domain: 'app.example.com', serves: 'web' }] },
+        live,
+      ),
+    ).toBe(true);
+  });
+
+  it('ignores the order of the extras', () => {
+    const two = [
+      { domain: 'a.example.com', serves: 'web' },
+      { domain: 'b.example.com', serves: 'api' },
+    ];
+    expect(
+      hostnamesPending(
+        { domain: 'm.example.com', extraDomains: two },
+        { domain: 'm.example.com', extraDomains: [...two].reverse() },
+      ),
+    ).toBe(false);
+  });
+
+  it('treats never-deployed as serving nothing', () => {
+    expect(hostnamesPending({ domain: null, extraDomains: [] }, null)).toBe(false);
+    expect(hostnamesPending({ domain: 'a.example.com', extraDomains: [] }, null)).toBe(true);
+  });
+
+  /** Rows written before the column existed carry no list at all. */
+  it('reads a missing list as empty', () => {
+    expect(hostnamesPending({ domain: 'a.example.com' }, { domain: 'a.example.com' })).toBe(false);
   });
 });

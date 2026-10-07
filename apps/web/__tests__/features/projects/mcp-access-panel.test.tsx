@@ -49,6 +49,7 @@ const env = (overrides: Partial<Environment> = {}): Environment => ({
   provisionedAt: null,
   latestDeployment: null,
   autoDeployPaused: false,
+  extraDomains: [],
   domainPending: false,
   publicUrl: null,
   mcpAccess: 'none',

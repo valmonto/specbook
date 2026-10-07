@@ -1,7 +1,7 @@
 /**
- * Deploy environments a project can define. 'production' exists as a NAME so
- * config can be modeled, but specbook does not deploy production — prod
- * deploys live outside the platform on purpose.
+ * Deploy environments a project can define. Both are deployed the same way;
+ * 'production' only asks for a louder confirmation where an action reaches
+ * its data (see the MCP access grant).
  */
 export const ENVIRONMENT_NAMES = ['staging', 'production'] as const;
 export type EnvironmentName = (typeof ENVIRONMENT_NAMES)[number];
@@ -15,6 +15,22 @@ export const ENV_VAR_NAME_PATTERN = /^[A-Z][A-Z0-9_]*$/;
  */
 export const ENVIRONMENT_DOMAIN_PATTERN =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/**
+ * What an EXTRA hostname of an environment answers with. The main `domain`
+ * always serves the whole app; an extra hostname picks one of:
+ *
+ *  - 'web' — the same as the main domain: the web app, with /api and /health
+ *    routed to the api. An alias.
+ *  - 'api' — /api and /health only; every other path is a 404. For a name a
+ *    native app calls, where serving the web app as well would put a second
+ *    copy of it on a hostname nobody meant it to live on.
+ */
+export const EXTRA_DOMAIN_SERVES = ['web', 'api'] as const;
+export type ExtraDomainServes = (typeof EXTRA_DOMAIN_SERVES)[number];
+
+/** Each hostname is a certificate and a health probe on every deploy; keep the list short. */
+export const MAX_EXTRA_DOMAINS = 5;
 
 /**
  * Data-plane provisioning lifecycle of an environment. 'provisioned' means

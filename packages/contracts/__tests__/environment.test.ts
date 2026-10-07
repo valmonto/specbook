@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { classifyEnvVarName, parseDotenv } from '../src/constants/environment.js';
+import {
+  MAX_EXTRA_DOMAINS,
+  classifyEnvVarName,
+  parseDotenv,
+} from '../src/constants/environment.js';
+import { UpdateEnvironmentRequestSchema } from '../src/schemas/environment.schema.js';
 
 describe('classifyEnvVarName', () => {
   it('defaults credential-shaped names to secret, everything else to config', () => {
@@ -49,5 +54,65 @@ describe('parseDotenv', () => {
       { line: 4, raw: '1BAD=x', reason: 'badName' },
       { line: 5, raw: 'GOOD=2', reason: 'duplicate' },
     ]);
+  });
+});
+
+describe('extra hostnames on an environment', () => {
+  const base = {
+    projectId: '019fb88d-6a59-75ac-be64-1317503e4888',
+    id: '019fb88d-6a59-75ac-be64-1317503e4889',
+  };
+
+  it('accepts a short list of well-formed hostnames, each saying what it serves', () => {
+    const parsed = UpdateEnvironmentRequestSchema.parse({
+      ...base,
+      extraDomains: [
+        { domain: 'app.example.com', serves: 'api' },
+        { domain: 'www.example.com', serves: 'web' },
+      ],
+    });
+    expect(parsed.extraDomains).toHaveLength(2);
+  });
+
+  it('leaves the list untouched when the field is omitted', () => {
+    expect(UpdateEnvironmentRequestSchema.parse(base).extraDomains).toBeUndefined();
+  });
+
+  /** These become Caddy site names and shell arguments on the target box. */
+  it('refuses anything that is not a plain lowercase hostname', () => {
+    for (const domain of [
+      'App.Example.com',
+      'example',
+      'a b.example.com',
+      '*.example.com',
+      'a.example.com; rm -rf /',
+    ]) {
+      expect(
+        UpdateEnvironmentRequestSchema.safeParse({
+          ...base,
+          extraDomains: [{ domain, serves: 'web' }],
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it('refuses an unknown "serves", the same name twice, and more than the limit', () => {
+    const bad = (extraDomains: unknown) =>
+      UpdateEnvironmentRequestSchema.safeParse({ ...base, extraDomains }).success;
+    expect(bad([{ domain: 'a.example.com', serves: 'landing' }])).toBe(false);
+    expect(
+      bad([
+        { domain: 'a.example.com', serves: 'web' },
+        { domain: 'a.example.com', serves: 'api' },
+      ]),
+    ).toBe(false);
+    expect(
+      bad(
+        Array.from({ length: MAX_EXTRA_DOMAINS + 1 }, (_, i) => ({
+          domain: `h${i}.example.com`,
+          serves: 'web',
+        })),
+      ),
+    ).toBe(false);
   });
 });

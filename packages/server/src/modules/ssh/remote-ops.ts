@@ -273,14 +273,18 @@ sha="\${2:?usage: build-images <unit> <sha>}"
    */
   'deploy-stack': `#!/usr/bin/env bash
 set -euo pipefail
-unit="\${1:?usage: deploy-stack <unit> <dir> <port> [domain]}"
-dir="\${2:?usage: deploy-stack <unit> <dir> <port> [domain]}"
-port="\${3:?usage: deploy-stack <unit> <dir> <port> [domain]}"
+unit="\${1:?usage: deploy-stack <unit> <dir> <port> [domain...]}"
+dir="\${2:?usage: deploy-stack <unit> <dir> <port> [domain...]}"
+port="\${3:?usage: deploy-stack <unit> <dir> <port> [domain...]}"
 domain="\${4:-}"
+# Every hostname the stack answers on: the main domain, then any extras.
+domains=("\${@:4}")
 {
   [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
   [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "invalid port" >&2; exit 1; }
-  [ -z "$domain" ] || [[ "$domain" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
+  for d in "\${domains[@]}"; do
+    [[ "$d" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
+  done
   cd "$dir"
   # --quiet-pull: compose writes per-layer pull progress to STDERR, and this
   # op's stderr IS the deployment's error text. A pull of a few images emits
@@ -307,16 +311,26 @@ domain="\${4:-}"
     fi
     # Verified TLS on purpose: a pass proves routing AND a valid certificate.
     # Generous attempts — the first deploy of a hostname waits on issuance.
-    for _ in $(seq 1 40); do
-      if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('https://$domain/health', timeout=10).status==200 else 1)" 2>/dev/null; then
-        echo "deploy-stack: healthy on https://$domain"
-        exit 0
+    # EVERY hostname is probed: each has its own certificate, and /health is
+    # routed on all of them, so one name failing issuance cannot hide behind
+    # another that answered.
+    for d in "\${domains[@]}"; do
+      ok=0
+      for _ in $(seq 1 40); do
+        if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('https://$d/health', timeout=10).status==200 else 1)" 2>/dev/null; then
+          echo "deploy-stack: healthy on https://$d"
+          ok=1
+          break
+        fi
+        sleep 3
+      done
+      if [ "$ok" != 1 ]; then
+        echo "deploy-stack: https://$d never answered /health (certificate or routing)" >&2
+        docker logs --tail 40 specbook-caddy >&2 || true
+        exit 1
       fi
-      sleep 3
     done
-    echo "deploy-stack: https://$domain never answered /health (certificate or routing)" >&2
-    docker logs --tail 40 specbook-caddy >&2 || true
-    exit 1
+    exit 0
   fi
   # No domain: drop any vhost a previous configuration left behind.
   if [ -f "$HOME/specbook-caddy/sites/$unit.caddy" ]; then

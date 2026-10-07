@@ -14,7 +14,9 @@ import {
   asc,
   desc,
   inArray,
+  ne,
   or,
+  sql,
   alias,
   type Deployment,
   type NewDeployment,
@@ -80,6 +82,7 @@ export interface HostedEnvironmentRow {
 export interface EnvironmentDiagnostics {
   name: string;
   domain: string | null;
+  extraDomains: Array<{ domain: string; serves: string }>;
   deployPath: string | null;
   autoDeploy: boolean;
   provisionStatus: string;
@@ -329,6 +332,7 @@ export class EnvironmentRepository {
       .select({
         name: projectEnvironment.name,
         domain: projectEnvironment.domain,
+        extraDomains: projectEnvironment.extraDomains,
         deployPath: projectEnvironment.deployPath,
         autoDeploy: projectEnvironment.autoDeploy,
         provisionStatus: projectEnvironment.provisionStatus,
@@ -397,6 +401,8 @@ export class EnvironmentRepository {
     domain: string,
     serverId: string,
     orgId: string,
+    /** The environment being edited: its own names are not a conflict. */
+    excludeId?: string,
   ): Promise<ProjectEnvironment | null> {
     const [row] = await this.dbClient.db
       .select({ env: projectEnvironment })
@@ -405,7 +411,18 @@ export class EnvironmentRepository {
         project,
         and(eq(project.id, projectEnvironment.projectId), eq(project.orgId, orgId)),
       )
-      .where(and(eq(projectEnvironment.domain, domain), eq(projectEnvironment.serverId, serverId)))
+      .where(
+        and(
+          // A hostname is claimed whether it is an environment's main domain
+          // or one of its extra ones — Caddy has one site per name either way.
+          or(
+            eq(projectEnvironment.domain, domain),
+            sql`${projectEnvironment.extraDomains} @> ${JSON.stringify([{ domain }])}::jsonb`,
+          ),
+          eq(projectEnvironment.serverId, serverId),
+          excludeId ? ne(projectEnvironment.id, excludeId) : undefined,
+        ),
+      )
       .limit(1);
     return row?.env ?? null;
   }

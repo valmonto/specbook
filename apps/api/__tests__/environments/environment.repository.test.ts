@@ -190,6 +190,58 @@ describeIntegration('EnvironmentRepository — two-tenant boundary', () => {
     expect(await repo.findDomainClaim('stg.example.com', serverB, orgA)).toBeNull();
   });
 
+  it('findDomainClaim treats an extra hostname as a claim, with the same org and server walls', async () => {
+    const mine = await repo.create({
+      projectId: projectA,
+      name: 'production',
+      serverId: serverA,
+      domain: 'admin.example.com',
+      extraDomains: [
+        { domain: 'app.example.com', serves: 'api' },
+        { domain: 'www.example.com', serves: 'web' },
+      ],
+    });
+    // Both the main name and each extra resolve to the environment holding them.
+    expect((await repo.findDomainClaim('admin.example.com', serverA, orgA))?.id).toBe(mine.id);
+    expect((await repo.findDomainClaim('app.example.com', serverA, orgA))?.id).toBe(mine.id);
+    expect((await repo.findDomainClaim('www.example.com', serverA, orgA))?.id).toBe(mine.id);
+    // A name that only LOOKS similar is not claimed: the match is on the whole hostname.
+    expect(await repo.findDomainClaim('example.com', serverA, orgA)).toBeNull();
+    expect(await repo.findDomainClaim('pp.example.com', serverA, orgA)).toBeNull();
+    // The same walls as the main domain: another org, another server.
+    expect(await repo.findDomainClaim('app.example.com', serverA, orgB)).toBeNull();
+    expect(await repo.findDomainClaim('app.example.com', serverB, orgA)).toBeNull();
+    // An environment re-saving its own names is not in conflict with itself.
+    expect(await repo.findDomainClaim('app.example.com', serverA, orgA, mine.id)).toBeNull();
+  });
+
+  /**
+   * Excluding the edited row has to happen in the query. With LIMIT 1 and a
+   * check afterwards, the environment's own row could be the one returned and
+   * hide a second environment claiming the same name.
+   */
+  it('findDomainClaim still finds another claimant when the edited row holds the name too', async () => {
+    const first = await repo.create({
+      projectId: projectA,
+      name: 'staging',
+      serverId: serverA,
+      domain: 'stg.example.com',
+      extraDomains: [{ domain: 'shared.example.com', serves: 'web' }],
+    });
+    const second = await repo.create({
+      projectId: projectA,
+      name: 'production',
+      serverId: serverA,
+      domain: 'shared.example.com',
+    });
+    expect((await repo.findDomainClaim('shared.example.com', serverA, orgA, first.id))?.id).toBe(
+      second.id,
+    );
+    expect((await repo.findDomainClaim('shared.example.com', serverA, orgA, second.id))?.id).toBe(
+      first.id,
+    );
+  });
+
   it('a server hosting environments cannot be deleted (FK RESTRICT)', async () => {
     await repo.create({ projectId: projectA, name: 'staging', serverId: serverA });
     await expect(client.db.delete(server).where(eq(server.id, serverA))).rejects.toThrow();

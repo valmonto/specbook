@@ -20,6 +20,7 @@ import {
   appendDeployLog,
   dataPlaneUnitName,
   derivePublicPort,
+  deployHostnames,
   renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
@@ -220,10 +221,16 @@ export class DeploymentProcessor extends WorkerHost {
     // A domained environment needs the ingress plane, and the domain must
     // actually point at the app server — checked BEFORE the build so a DNS
     // mistake fails in seconds with a named cause, not after minutes.
-    if (env.domain) {
-      sink.line(`== preflight: ingress plane + dns for ${env.domain} ==`);
+    // Every hostname is checked, not only the main one: an extra name that
+    // points elsewhere would otherwise fail at certificate issuance, minutes
+    // later and worded as a TLS problem.
+    const hostnames = deployHostnames(env.domain, env.extraDomains);
+    if (hostnames.all.length > 0) {
+      sink.line(`== preflight: ingress plane + dns for ${hostnames.all.join(', ')} ==`);
       await exec(appTarget, 'ensure-caddy');
-      await exec(appTarget, 'dns-points-at', [env.domain, appServer.host]);
+      for (const hostname of hostnames.all) {
+        await exec(appTarget, 'dns-points-at', [hostname, appServer.host]);
+      }
     }
 
     await this.update(row.id, { status: 'building', startedAt: new Date(), phase: 'resolve' });
@@ -255,7 +262,12 @@ export class DeploymentProcessor extends WorkerHost {
 
     // Snapshot the domain onto the run: it records what this deploy serves,
     // which is how the UI tells a live domain from a pending edit.
-    await this.update(row.id, { status: 'deploying', domain: env.domain ?? null, phase: 'render' });
+    await this.update(row.id, {
+      status: 'deploying',
+      domain: env.domain ?? null,
+      extraDomains: env.domain ? (env.extraDomains ?? []) : [],
+      phase: 'render',
+    });
     sink.line('== render: .env + compose + proxy ==');
     const publicPort = derivePublicPort(unit);
     const dir = resolveDeployDir(env.deployPath, unit);
@@ -305,22 +317,17 @@ export class DeploymentProcessor extends WorkerHost {
         caCert: platformEnv.DATABASE_CA_CERT ?? null,
       }),
     );
-    await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf());
-    if (env.domain) {
+    await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf(hostnames.apiOnly));
+    if (hostnames.all.length > 0) {
       await this.ssh.writeFile(
         appTarget,
         `specbook-caddy/sites/${unit}.caddy`,
-        renderCaddySite(unit, env.domain, appServer.tlsTerminatedUpstream),
+        renderCaddySite(unit, hostnames.all, appServer.tlsTerminatedUpstream),
       );
     }
     await this.update(row.id, { phase: 'up' });
     sink.line('== up: compose --wait + health gate ==');
-    await exec(appTarget, 'deploy-stack', [
-      unit,
-      dir,
-      String(publicPort),
-      ...(env.domain ? [env.domain] : []),
-    ]);
+    await exec(appTarget, 'deploy-stack', [unit, dir, String(publicPort), ...hostnames.all]);
 
     sink.line('deploy complete — healthy');
     await sink.flush();
@@ -429,7 +436,11 @@ export class DeploymentProcessor extends WorkerHost {
     await this.dbClient.db.update(deployment).set(patch).where(eq(deployment.id, id));
   }
 
-  private async finish(id: string, status: 'healthy' | 'failed' | 'cancelled', error: string | null) {
+  private async finish(
+    id: string,
+    status: 'healthy' | 'failed' | 'cancelled',
+    error: string | null,
+  ) {
     await this.update(id, { status, error, finishedAt: new Date() });
   }
 

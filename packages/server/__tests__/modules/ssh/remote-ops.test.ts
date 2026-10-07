@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REMOTE_OPS } from '../../../src/modules/ssh/remote-ops.js';
 
@@ -116,5 +119,69 @@ describe('package installation stays scoped to runner hosts', () => {
 
   it('re-checks PATH after installing, rather than trusting the exit code', () => {
     expect(REMOTE_OPS['ensure-runner']).toMatch(/install reported success/);
+  });
+});
+
+/**
+ * deploy-stack run for real, against stand-ins for docker, python3 and sleep.
+ * The probe is the part that matters: each hostname has its own certificate,
+ * so a deploy is only healthy when EVERY one of them answers.
+ */
+describe('deploy-stack probes every hostname', () => {
+  const run = (domains: string[], failing: string[] = []) => {
+    const dir = mkdtempSync(join(tmpdir(), 'deploy-stack-'));
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    const stub = (name: string, body: string) =>
+      writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+    stub('docker', 'exit 0');
+    stub('sleep', 'exit 0');
+    // The probe is `python3 -c "<program naming https://<host>/health>"`.
+    stub(
+      'python3',
+      `for bad in ${failing.map((d) => `'${d}'`).join(' ')}; do case "$2" in *"https://$bad/health"*) exit 1;; esac; done; exit 0`,
+    );
+    try {
+      return spawnSync('bash', ['-s', '--', 'acme_production', dir, '21000', ...domains], {
+        input: REMOTE_OPS['deploy-stack'],
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: dir },
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('reports each hostname healthy, main domain first', () => {
+    const result = run(['admin.example.com', 'app.example.com']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('healthy on https://admin.example.com');
+    expect(result.stdout).toContain('healthy on https://app.example.com');
+  });
+
+  /** One name answering must not hide another whose certificate never arrived. */
+  it('fails and names the hostname that never answered', () => {
+    const result = run(['admin.example.com', 'app.example.com'], ['app.example.com']);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('healthy on https://admin.example.com');
+    expect(result.stderr).toContain('https://app.example.com never answered /health');
+  });
+
+  it('still works with the single domain it always took', () => {
+    const result = run(['admin.example.com']);
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('deploy-stack: healthy on https://admin.example.com');
+  });
+
+  it('refuses a hostname that is not a plain name, wherever it sits in the list', () => {
+    const result = run(['admin.example.com', 'app.example.com;id']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('invalid domain');
+  });
+
+  it('falls back to the published port when there is no hostname at all', () => {
+    const result = run([]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('healthy on :21000');
   });
 });

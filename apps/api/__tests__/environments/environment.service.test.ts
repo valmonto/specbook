@@ -519,6 +519,97 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
     ).resolves.toBeDefined();
   });
 
+  describe('extra hostnames', () => {
+    const extra = [{ domain: 'app.example.com', serves: 'api' as const }];
+
+    it('are stored on create and returned on the row', async () => {
+      const dto = await service.create(actor, {
+        ...createDto,
+        domain: 'admin.example.com',
+        extraDomains: extra,
+      });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ extraDomains: extra }),
+      );
+      expect(dto.extraDomains).toEqual(extra);
+    });
+
+    it('default to an empty list, so a one-name environment is unchanged', async () => {
+      const dto = await service.create(actor, { ...createDto, domain: 'admin.example.com' });
+      expect(dto.extraDomains).toEqual([]);
+    });
+
+    /** No main domain means no vhost at all; an extra name would serve nothing. */
+    it('are refused without a main domain — on create, and when an edit removes it', async () => {
+      await expect(service.create(actor, { ...createDto, extraDomains: extra })).rejects.toThrow(
+        'environments.errors.extraDomainNeedsDomain',
+      );
+      stored = { domain: 'admin.example.com', extraDomains: extra };
+      await expect(
+        service.update(actor, { projectId: PROJECT, id: ENV, domain: null }),
+      ).rejects.toThrow('environments.errors.extraDomainNeedsDomain');
+      // Clearing both in one edit is fine.
+      await expect(
+        service.update(actor, { projectId: PROJECT, id: ENV, domain: null, extraDomains: [] }),
+      ).resolves.toBeDefined();
+    });
+
+    it('cannot repeat the main domain', async () => {
+      await expect(
+        service.create(actor, {
+          ...createDto,
+          domain: 'admin.example.com',
+          extraDomains: [{ domain: 'admin.example.com', serves: 'api' }],
+        }),
+      ).rejects.toThrow('environments.errors.extraDomainIsMain');
+    });
+
+    /** One Caddy site per name per server — an extra name is a claim like any other. */
+    it('are refused when another environment on the server already claims the name', async () => {
+      repository.findDomainClaim!.mockImplementation(async (domain: string) =>
+        domain === 'app.example.com' ? { id: 'other-env' } : null,
+      );
+      await expect(
+        service.create(actor, { ...createDto, domain: 'admin.example.com', extraDomains: extra }),
+      ).rejects.toThrow('environments.errors.domainTaken');
+      // Every hostname was looked up, and the edit's own row is excluded.
+      stored = { domain: 'admin.example.com' };
+      repository.findDomainClaim!.mockClear().mockResolvedValue(null);
+      await service.update(actor, { projectId: PROJECT, id: ENV, extraDomains: extra });
+      expect(repository.findDomainClaim!.mock.calls.map((c) => [c[0], c[3]])).toEqual([
+        ['admin.example.com', ENV],
+        ['app.example.com', ENV],
+      ]);
+    });
+
+    it('mark the row pending until a deploy has served them', async () => {
+      stored = { domain: 'admin.example.com', extraDomains: extra };
+      const healthy = {
+        id: DEPLOYMENT,
+        environmentId: ENV,
+        sha: 'abc',
+        status: 'healthy',
+        trigger: 'manual',
+        phase: null,
+        log: null,
+        error: null,
+        domain: 'admin.example.com',
+        extraDomains: [] as typeof extra,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+        createdBy: 'u',
+        createdAt: new Date(),
+      };
+      repository.recentDeployments!.mockResolvedValue([healthy]);
+      let [env] = (await service.list(actor, PROJECT)).data;
+      expect(env!.domainPending).toBe(true);
+
+      repository.recentDeployments!.mockResolvedValue([{ ...healthy, extraDomains: extra }]);
+      [env] = (await service.list(actor, PROJECT)).data;
+      expect(env!.domainPending).toBe(false);
+    });
+  });
+
   it('deployment phase and log surface on the serialized row', async () => {
     stored = { provisionStatus: 'provisioned' };
     repository.recentDeployments!.mockResolvedValue([

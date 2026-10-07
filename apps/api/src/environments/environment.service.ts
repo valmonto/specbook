@@ -4,6 +4,7 @@ import {
   dataPlaneUnitName,
   resolveDeployDir,
   derivePublicPort,
+  hostnamesPending,
   resolvePlacement,
   serverSatisfies,
   type PlacementRole,
@@ -57,6 +58,7 @@ const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
 export interface AgentEnvironmentView {
   name: string;
   domain: string | null;
+  extraDomains: Array<{ domain: string; serves: string }>;
   deployPath: string | null;
   autoDeploy: boolean;
   provisionStatus: string;
@@ -124,9 +126,12 @@ export class EnvironmentService {
   async create(activeUser: ActiveUser, dto: CreateEnvironmentRequest): Promise<EnvironmentDto> {
     await this.getWritableProjectOrThrow(dto.projectId, activeUser.orgId);
     await this.assertAppServer(dto.serverId, activeUser.orgId);
-    if (dto.domain) {
-      await this.assertDomainFree(dto.domain, dto.serverId, activeUser.orgId);
-    }
+    await this.assertHostnames(
+      dto.domain ?? null,
+      dto.extraDomains ?? [],
+      dto.serverId,
+      activeUser.orgId,
+    );
     const placement = normalizePlacement(dto);
     const canProvision = await this.assertPlacement(
       { serverId: dto.serverId, ...placement },
@@ -143,6 +148,7 @@ export class EnvironmentService {
         name: dto.name,
         serverId: dto.serverId,
         domain: dto.domain,
+        extraDomains: dto.extraDomains ?? [],
         deployPath: dto.deployPath,
         autoDeploy: dto.autoDeploy ?? false,
         ...placement,
@@ -224,15 +230,15 @@ export class EnvironmentService {
         activeUser.orgId,
       );
     }
-    const nextDomain = dto.domain === undefined ? existing.domain : dto.domain;
-    if (nextDomain) {
-      await this.assertDomainFree(
-        nextDomain,
-        dto.serverId ?? existing.serverId,
-        activeUser.orgId,
-        existing.id,
-      );
-    }
+    // Checked as the row will stand AFTER this edit: removing the main domain
+    // while extra names remain is as wrong as adding an extra name without one.
+    await this.assertHostnames(
+      dto.domain === undefined ? existing.domain : dto.domain,
+      dto.extraDomains ?? existing.extraDomains ?? [],
+      dto.serverId ?? existing.serverId,
+      activeUser.orgId,
+      existing.id,
+    );
 
     const { projectId, id, ...patch } = dto;
     let updated;
@@ -414,6 +420,7 @@ export class EnvironmentService {
       data: rows.map((r) => ({
         name: r.name,
         domain: r.domain,
+        extraDomains: r.extraDomains ?? [],
         deployPath: r.deployPath,
         autoDeploy: r.autoDeploy,
         provisionStatus: r.provisionStatus,
@@ -454,9 +461,9 @@ export class EnvironmentService {
     dto: EnvironmentLogsRequest,
   ): Promise<EnvironmentLogsResponse> {
     const project = await this.getProjectOrThrow(dto.projectId, activeUser.orgId);
-    const env = (await this.environmentRepository.findForProject(project.id, activeUser.orgId)).find(
-      (e) => e.id === dto.id,
-    );
+    const env = (
+      await this.environmentRepository.findForProject(project.id, activeUser.orgId)
+    ).find((e) => e.id === dto.id);
     if (!env) throw new NotFoundException(k.environments.errors.notFound);
     const unit = dataPlaneUnitName(project.name, env.name);
     const [srv] = await this.environmentRepository.findServers([env.serverId], activeUser.orgId);
@@ -649,16 +656,35 @@ export class EnvironmentService {
     return found;
   }
 
-  /** One hostname per server: reject a domain another environment already claims. */
-  private async assertDomainFree(
-    domain: string,
+  /**
+   * Every hostname of an environment, validated together. Extra names hang
+   * off a main domain (without one no vhost is written at all), never repeat
+   * it, and — like the main domain — may be claimed by one environment per
+   * server only.
+   */
+  private async assertHostnames(
+    domain: string | null,
+    extraDomains: ReadonlyArray<{ domain: string }>,
     serverId: string,
     orgId: string,
     excludeId?: string,
   ): Promise<void> {
-    const claim = await this.environmentRepository.findDomainClaim(domain, serverId, orgId);
-    if (claim && claim.id !== excludeId) {
-      throw new BadRequestException(k.environments.errors.domainTaken);
+    if (extraDomains.length > 0 && !domain) {
+      throw new BadRequestException(k.environments.errors.extraDomainNeedsDomain);
+    }
+    if (extraDomains.some((d) => d.domain === domain)) {
+      throw new BadRequestException(k.environments.errors.extraDomainIsMain);
+    }
+    for (const hostname of [...(domain ? [domain] : []), ...extraDomains.map((d) => d.domain)]) {
+      const claim = await this.environmentRepository.findDomainClaim(
+        hostname,
+        serverId,
+        orgId,
+        excludeId,
+      );
+      if (claim && claim.id !== excludeId) {
+        throw new BadRequestException(k.environments.errors.domainTaken);
+      }
     }
   }
 
@@ -724,7 +750,8 @@ export class EnvironmentService {
       // transport is a fact about it, not a choice, so neither the requirement
       // nor the `tls` refusal below applies. Both exist for specbook-owned
       // boxes, where `private-network` is the only shape that provisions.
-      const externalDatabase = placement.database.remote && placement.database.server.mode === 'external';
+      const externalDatabase =
+        placement.database.remote && placement.database.server.mode === 'external';
       if (!placement.transport && !externalDatabase) {
         throw new BadRequestException(k.environments.errors.transportRequired);
       }
@@ -805,7 +832,8 @@ export class EnvironmentService {
     const latest = recent[0] ?? null;
     // What the RUNNING stack serves is the latest healthy run's snapshot —
     // the row's domain field may be an edit still waiting for its deploy.
-    const liveDomain = recent.find((d) => d.status === 'healthy')?.domain ?? null;
+    const live = recent.find((d) => d.status === 'healthy') ?? null;
+    const liveDomain = live?.domain ?? null;
     const publicUrl =
       latest?.status === 'healthy'
         ? liveDomain
@@ -826,6 +854,7 @@ export class EnvironmentService {
       storageServerName: e.storageServerName,
       dataTransport: (e.dataTransport ?? null) as EnvironmentDto['dataTransport'],
       domain: e.domain,
+      extraDomains: (e.extraDomains ?? []) as EnvironmentDto['extraDomains'],
       deployPath: e.deployPath,
       autoDeploy: e.autoDeploy,
       platformEnv: (e.platformEnv ?? {}) as Record<string, string>,
@@ -836,7 +865,10 @@ export class EnvironmentService {
       provisionedAt: e.provisionedAt?.toISOString() ?? null,
       latestDeployment: latest ? this.serializeDeployment(latest) : null,
       autoDeployPaused: computeAutoDeployPaused(recent),
-      domainPending: (e.domain ?? null) !== liveDomain,
+      domainPending: hostnamesPending(
+        { domain: e.domain, extraDomains: e.extraDomains },
+        live ? { domain: live.domain, extraDomains: live.extraDomains } : null,
+      ),
       publicUrl,
       ...(() => {
         const grant = effectiveMcpAccess(e, new Date());
