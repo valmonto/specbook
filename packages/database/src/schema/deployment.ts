@@ -39,7 +39,7 @@ export const deployment = pgTable(
     domain: varchar('domain', { length: 255 }),
     /** Snapshot of the environment's extra hostnames at deploy time, for the same reason. */
     extraDomains: jsonb('extra_domains')
-      .$type<Array<{ domain: string; serves: string }>>()
+      .$type<Array<{ domain: string; serves: string; withApi?: boolean }>>()
       .notNull()
       .default([]),
     /** What the run is doing right now; status stays the coarse state. */

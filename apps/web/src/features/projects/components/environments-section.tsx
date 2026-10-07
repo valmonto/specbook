@@ -34,7 +34,7 @@ import {
   type ExtraDomain,
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
-import { ExtraDomainsEditor, cleanExtraDomains } from './extra-domains-editor';
+import { ExtraDomainsEditor, cleanExtraDomains, describeExtraDomain } from './extra-domains-editor';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -337,9 +337,7 @@ function EnvironmentRow({
               >
                 <Globe className="size-3 shrink-0" />
                 <span className="truncate font-mono">{extra.domain}</span>
-                {extra.serves === 'api' && (
-                  <span className="shrink-0">· {t(k.environments.extraDomainServesApi)}</span>
-                )}
+                <span className="shrink-0 font-mono">→ {describeExtraDomain(extra)}</span>
               </span>
             ))}
           <AutoDeployChip env={env} projectId={projectId} canManage={canManage} />

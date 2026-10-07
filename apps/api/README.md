@@ -371,22 +371,43 @@ served, so the API can mark an edited-but-not-yet-deployed domain as
 `domainPending` — the UI says "activates on next deploy" instead of lying.
 
 **Extra hostnames** (optional): an environment may list up to five more names
-for the same stack (`extraDomains: [{ domain, serves }]`), each saying what it
-answers with. `web` is an alias — the web app, with `/api` and `/health` routed
-to the api, exactly like the main domain. `api` answers `/api` and `/health`
-only and 404s everything else; it is for a name a native app calls, where
-serving the web app too would put a second copy of it on a hostname nobody
-meant it to live on. All the names go into ONE Caddy site (each gets its own
-certificate) and reach the same ingress; nginx tells them apart by `Host`, with
-the catch-all server first so the main domain and any unnamed Host keep today's
-behaviour. Every hostname is DNS-checked before the build and probed on
-`/health` after it — one name answering cannot hide another whose certificate
-never arrived. Extra names need a main domain, cannot repeat it, and are
-claimed per server like it: the API refuses a name another environment already
-holds, main or extra. Like the main domain, a change takes effect on the next
-deploy and shows as pending until then. What it does NOT do: route a hostname
-to a different app. Every name reaches this environment's api and web; a
-landing page or a second web app still needs its own home.
+for the same stack (`extraDomains: [{ domain, serves, withApi? }]`). Each one
+points at ONE app — `serves` is the name of a folder under `apps/` in the
+repository:
+
+| `serves`      | The hostname answers with                                          |
+| ------------- | ------------------------------------------------------------------ |
+| `api`         | `/api` and `/health` only; everything else is a 404                |
+| `web`         | the web app; with the api beside it this is an alias of the domain |
+| anything else | that app (`landing`, `docs`, …)                                    |
+
+`withApi` adds `/api` and `/health` → api on that hostname. Unset, it follows
+the app: on for `web` (it calls the api on its own address), off for
+everything else (a landing page should not expose the api on the marketing
+address). `worker`, `migrate` and `proxy` cannot be named.
+
+**An extra app** is anything beyond api/worker/web. The contract is small:
+`apps/<name>/Dockerfile`, built with the repository root as context like the
+others, serving HTTP on port 3000. It is built and run ONLY because a hostname
+names it — another Dockerfile in the repo (an e2e runner, say) is never picked
+up by accident — and a name with no Dockerfile stops the build before any
+image is made, with the missing path in the error (`APP_MISSING`). It gets no
+`.env` and no data network: a landing page has no business holding the
+database password. An app that needs them is part of the product, not an
+extra app.
+
+All the names go into ONE Caddy site (each gets its own certificate) and reach
+the same ingress; nginx tells them apart by `Host`, with the catch-all server
+first so the main domain and any unnamed Host keep today's behaviour. Every
+hostname is DNS-checked before the build and probed on `/health` after it —
+except that a hostname without the api has no `/health`, so it is probed on
+`/` instead. Extra names need a main domain, cannot repeat it, and are claimed
+per server like it. A change takes effect on the next deploy and shows as
+pending until then; removing the last hostname of an extra app also stops its
+container (`--remove-orphans`).
+
+What it does NOT do: deploy one app without the others, or put apps on
+different servers. One Deploy still builds and restarts the whole stack.
 
 **Auto-deploy**: a merge into the project's default branch triggers the same
 chain for every provisioned environment with `auto_deploy` on — the webhook

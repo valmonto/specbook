@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { routesApi } from '@pkg/contracts';
 
 /**
  * Rendering for the deploy slice: everything that becomes a FILE on the
@@ -75,40 +76,69 @@ export function renderDeployEnv(layers: Array<Record<string, string>>): string {
 }
 
 /**
+ * One extra hostname as the renderer needs it: which app answers `/`, and
+ * whether `/api` and `/health` go to the api as well. `app === 'api'` is the
+ * api-only case: there is no other app behind it, so `/` is a 404.
+ */
+export interface HostRoute {
+  domain: string;
+  app: string;
+  withApi: boolean;
+}
+
+/**
  * nginx entrypoint: /api and /health to the api, the SPA for the rest.
  * Upstreams go through variables + docker's embedded DNS resolver ON
  * PURPOSE: nginx otherwise caches container IPs at startup, and a redeploy
  * that recreates api/web (but not the proxy) leaves it routing to whichever
  * container inherited the old address — observed live as inverted routes.
+ *
+ * Extra hostnames each get a `server_name` block AFTER the catch-all: nginx
+ * sends any Host it has no server_name for to the first server on the port,
+ * and that is where the main domain, plain aliases of it and the
+ * published-port case all belong. Caddy forwards the original Host, so nginx
+ * can tell the hostnames apart.
  */
-export function renderProxyConf(apiOnlyDomains: readonly string[] = []): string {
+export function renderProxyConf(routes: readonly HostRoute[] = []): string {
   const head = `  listen 3000;
-  resolver 127.0.0.11 valid=10s;
-  set $api_upstream http://api:3000;`;
+  resolver 127.0.0.11 valid=10s;`;
   const api = `  location /api { proxy_pass $api_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
   location /health { proxy_pass $api_upstream; }`;
-  // The catch-all server comes FIRST: nginx sends any Host it has no
-  // server_name for to the first server on the port, and that is where the
-  // main domain, 'web' aliases and the published-port case all belong.
-  const whole = `server {
+  const blocks = [
+    `server {
 ${head}
+  set $api_upstream http://api:3000;
   set $web_upstream http://web:3000;
 ${api}
   location / { proxy_pass $web_upstream; }
 }
-`;
-  if (apiOnlyDomains.length === 0) return whole;
-  // Caddy forwards the original Host, so nginx can tell the hostnames apart.
-  // An api-only name answers the api and nothing else: without this block it
-  // would fall through to the catch-all and serve a second copy of the web
-  // app on a hostname nobody meant it to live on.
-  return `${whole}server {
-${head}
-  server_name ${apiOnlyDomains.join(' ')};
-${api}
-  location / { return 404; }
-}
-`;
+`,
+  ];
+  for (const route of routes) {
+    // An alias of the main domain needs no block of its own: the catch-all
+    // already serves exactly that, and one fewer block is one fewer place
+    // for the two to drift apart.
+    if (route.app === 'web' && route.withApi) continue;
+    const lines = [`server {`, head, `  server_name ${route.domain};`];
+    if (route.app === 'api') {
+      // Nothing but the api. Without this the name would fall through to
+      // the catch-all and serve a second copy of the web app on a hostname
+      // nobody meant it to live on.
+      lines.push(`  set $api_upstream http://api:3000;`, api, `  location / { return 404; }`);
+    } else {
+      if (route.withApi) lines.push(`  set $api_upstream http://api:3000;`);
+      lines.push(`  set $app_upstream http://${route.app}:3000;`);
+      if (route.withApi) lines.push(api);
+      // Host and the client address are forwarded: an app that builds
+      // absolute links or logs visitors needs the name it was reached on.
+      lines.push(
+        `  location / { proxy_pass $app_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }`,
+      );
+    }
+    lines.push(`}`, ``);
+    blocks.push(lines.join('\n'));
+  }
+  return blocks.join('');
 }
 
 /**
@@ -163,22 +193,54 @@ export function renderCaddySite(
  * specbook-ingress network under a deterministic container_name instead, and
  * Caddy (the box's only public listener) routes the hostname to it.
  */
+type StoredExtraDomain = { domain: string; serves: string; withApi?: boolean | null };
+
 /**
- * Every hostname an environment answers on, main domain first. Extra
- * hostnames only exist behind a main domain: without one the stack is reached
- * on its published port and no vhost is written at all, so they are dropped
- * rather than half-applied.
+ * Everything the deploy needs to know about an environment's hostnames:
+ *
+ *  - `all` — every name it answers on, main domain first. One Caddy site,
+ *    one DNS check and one health probe each.
+ *  - `routes` — the extra names with the app each one serves.
+ *  - `extraApps` — apps beyond the valmatic three that a hostname asks for.
+ *    They are built and run ONLY because a route names them; a repo's other
+ *    Dockerfiles (an e2e runner, say) are never picked up by accident.
+ *
+ * Extra hostnames only exist behind a main domain: without one the stack is
+ * reached on its published port and no vhost is written at all, so they are
+ * dropped rather than half-applied.
  */
 export function deployHostnames(
   domain: string | null | undefined,
-  extraDomains: ReadonlyArray<{ domain: string; serves: string }> | null | undefined,
-): { all: string[]; apiOnly: string[] } {
-  if (!domain) return { all: [], apiOnly: [] };
-  const extras = (extraDomains ?? []).filter((d) => d.domain !== domain);
+  extraDomains: ReadonlyArray<StoredExtraDomain> | null | undefined,
+): { all: string[]; routes: HostRoute[]; extraApps: string[] } {
+  if (!domain) return { all: [], routes: [], extraApps: [] };
+  const seen = new Set<string>([domain]);
+  const routes: HostRoute[] = [];
+  for (const extra of extraDomains ?? []) {
+    // The main domain always serves the whole app; an extra cannot redefine
+    // it, and a name listed twice keeps its first meaning.
+    if (seen.has(extra.domain)) continue;
+    seen.add(extra.domain);
+    routes.push({ domain: extra.domain, app: extra.serves, withApi: routesApi(extra) });
+  }
+  const core: readonly string[] = VALMATIC_APPS;
   return {
-    all: [...new Set([domain, ...extras.map((d) => d.domain)])],
-    apiOnly: [...new Set(extras.filter((d) => d.serves === 'api').map((d) => d.domain))],
+    all: [...seen],
+    routes,
+    extraApps: [...new Set(routes.map((r) => r.app).filter((app) => !core.includes(app)))].sort(),
   };
+}
+
+/**
+ * The hostname arguments for the `deploy-stack` op: what to probe after the
+ * stack is up. A name with the api behind it is probed on `/health`; one
+ * without (a landing page) has no `/health`, so it is written `name=/` and
+ * probed on its front page instead — otherwise a healthy landing page would
+ * fail every deploy for not being an api.
+ */
+export function healthProbeArgs(hostnames: { all: string[]; routes: HostRoute[] }): string[] {
+  const noApi = new Set(hostnames.routes.filter((r) => !r.withApi).map((r) => r.domain));
+  return hostnames.all.map((name) => (noApi.has(name) ? `${name}=/` : name));
 }
 
 /**
@@ -186,32 +248,25 @@ export function deployHostnames(
  *
  * `live` is the latest HEALTHY run's snapshot (null when there has never been
  * one). Extra hostnames are compared as a set with what each one serves, so
- * reordering the list is not a pending change but switching a name from the
- * web app to api-only is. Extras without a main domain serve nothing, on
- * either side, and are ignored.
+ * reordering the list is not a pending change but pointing a name at another
+ * app, or switching its /api routing, is. Extras without a main domain serve
+ * nothing, on either side, and are ignored.
  */
 export function hostnamesPending(
-  row: {
-    domain: string | null;
-    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
-  },
-  live: {
-    domain: string | null;
-    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
-  } | null,
+  row: { domain: string | null; extraDomains?: ReadonlyArray<StoredExtraDomain> | null },
+  live: { domain: string | null; extraDomains?: ReadonlyArray<StoredExtraDomain> | null } | null,
 ): boolean {
   const key = (e: {
     domain: string | null;
-    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
+    extraDomains?: ReadonlyArray<StoredExtraDomain> | null;
   }): string =>
     JSON.stringify([
       e.domain ?? null,
-      e.domain
-        ? (e.extraDomains ?? [])
-            .filter((d) => d.domain !== e.domain)
-            .map((d) => `${d.domain}=${d.serves}`)
-            .sort()
-        : [],
+      deployHostnames(e.domain, e.extraDomains)
+        // Compared by EFFECT: an unset withApi and its explicit default are
+        // the same routing, and must not read as a pending change.
+        .routes.map((r) => `${r.domain}=${r.app}${r.withApi ? '+api' : ''}`)
+        .sort(),
     ]);
   return key(row) !== key(live ?? { domain: null });
 }
@@ -220,7 +275,10 @@ export function renderComposeFile(opts: {
   unit: string;
   sha: string;
   publicPort: number;
-  /** Which of the valmatic apps exist in this repo (api required). */
+  /**
+   * Which apps were built for this run: the valmatic ones present in the
+   * repo (api required), plus any extra app a hostname asks for.
+   */
   apps: readonly string[];
   /** When set, the vhost replaces the published port. */
   domain?: string | null;
@@ -276,6 +334,17 @@ export function renderComposeFile(opts: {
     lines.push(`  web:
     image: ${image('web')}
     env_file: [.env]
+    networks: [default]
+    restart: unless-stopped`);
+  }
+  // Extra apps: whatever a hostname points at beyond the valmatic three. They
+  // get NO .env and no data network on purpose — a landing page or docs site
+  // has no business holding the database password or reaching Postgres, and
+  // an app that does need them is not an extra app, it is part of the product.
+  const core: readonly string[] = VALMATIC_APPS;
+  for (const app of apps.filter((a) => !core.includes(a))) {
+    lines.push(`  ${app}:
+    image: ${image(app)}
     networks: [default]
     restart: unless-stopped`);
   }

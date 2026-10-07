@@ -6,8 +6,9 @@ import {
   ENV_VAR_NAME_PATTERN,
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
-  EXTRA_DOMAIN_SERVES,
+  APP_NAME_PATTERN,
   MAX_EXTRA_DOMAINS,
+  RESERVED_APP_NAMES,
   GRANTABLE_MCP_ACCESS_MODES,
   MCP_ACCESS_MIN_MINUTES,
   MCP_ACCESS_MODES,
@@ -27,11 +28,24 @@ export const DataTransportSchema = z.enum(DATA_TRANSPORTS);
 export const McpAccessModeSchema = z.enum(MCP_ACCESS_MODES);
 export const DeploymentStatusSchema = z.enum(DEPLOYMENT_STATUSES);
 
-/** One extra hostname of an environment and what it answers with. */
+/**
+ * One extra hostname of an environment and the app it answers with.
+ *
+ * `serves` is an app name, not a fixed choice: the repository decides which
+ * apps exist, and a name with no `apps/<name>/Dockerfile` fails the build
+ * with that path in the message. `withApi` is optional on purpose — see
+ * `routesApi` for what an unset value means.
+ */
 export const ExtraDomainSchema = z
   .object({
     domain: z.string().min(1).max(255).regex(ENVIRONMENT_DOMAIN_PATTERN),
-    serves: z.enum(EXTRA_DOMAIN_SERVES),
+    serves: z
+      .string()
+      .regex(APP_NAME_PATTERN)
+      .refine((name) => !(RESERVED_APP_NAMES as readonly string[]).includes(name), {
+        message: 'that app cannot serve a hostname',
+      }),
+    withApi: z.boolean().optional(),
   })
   .strict();
 export type ExtraDomain = z.infer<typeof ExtraDomainSchema>;

@@ -17,17 +17,49 @@ export const ENVIRONMENT_DOMAIN_PATTERN =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 /**
- * What an EXTRA hostname of an environment answers with. The main `domain`
- * always serves the whole app; an extra hostname picks one of:
+ * What an EXTRA hostname of an environment answers with: the name of an app
+ * in the repository — the folder under `apps/` whose Dockerfile builds it.
+ * The main `domain` always serves the web app with the api behind `/api`; an
+ * extra hostname names any one app:
  *
- *  - 'web' — the same as the main domain: the web app, with /api and /health
- *    routed to the api. An alias.
- *  - 'api' — /api and /health only; every other path is a 404. For a name a
- *    native app calls, where serving the web app as well would put a second
- *    copy of it on a hostname nobody meant it to live on.
+ *  - `api` — /api and /health only; every other path is a 404. For a name a
+ *    native app calls.
+ *  - `web` — the web app (the dashboard). With `withApi` it is an alias of
+ *    the main domain.
+ *  - anything else (`landing`, `docs`, …) — that app, built from
+ *    `apps/<name>/Dockerfile` and reached on port 3000 like the others. The
+ *    repository decides what exists; specbook does not keep a list.
+ *
+ * Lowercase, digits and hyphens: it becomes a docker image tag, a compose
+ * service name and an nginx upstream on the target box.
  */
-export const EXTRA_DOMAIN_SERVES = ['web', 'api'] as const;
-export type ExtraDomainServes = (typeof EXTRA_DOMAIN_SERVES)[number];
+export const APP_NAME_PATTERN = /^[a-z][a-z0-9-]{0,30}$/;
+
+/**
+ * Apps a hostname cannot point at. `worker` has no HTTP listener; the others
+ * are the stack's own plumbing, and a repo app sharing their compose service
+ * name would replace it.
+ */
+export const RESERVED_APP_NAMES = ['worker', 'migrate', 'proxy'] as const;
+
+/** The two apps every repo has. Anything else is an EXTRA app: built and run only when a hostname asks for it. */
+export const CORE_ROUTABLE_APPS = ['web', 'api'] as const;
+
+/** Offered in the editor so the common cases are one click; any valid app name may be typed. */
+export const SUGGESTED_APP_NAMES = ['web', 'api', 'landing', 'docs'] as const;
+
+/**
+ * Does this hostname also route /api and /health to the api?
+ *
+ * Unset means "what this app has always done": the web app calls the api on
+ * its own address, so it gets the api; a landing page or docs site does not.
+ * Rows saved before the flag existed carry no value and read the same way.
+ * The `api` app answers the api by definition.
+ */
+export function routesApi(route: { serves: string; withApi?: boolean | null }): boolean {
+  if (route.serves === 'api') return true;
+  return route.withApi ?? route.serves === 'web';
+}
 
 /** Each hostname is a certificate and a health probe on every deploy; keep the list short. */
 export const MAX_EXTRA_DOMAINS = 5;
