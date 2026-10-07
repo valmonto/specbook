@@ -370,6 +370,24 @@ on the same box already claims. The deployment row snapshots the domain it
 served, so the API can mark an edited-but-not-yet-deployed domain as
 `domainPending` — the UI says "activates on next deploy" instead of lying.
 
+**Extra hostnames** (optional): an environment may list up to five more names
+for the same stack (`extraDomains: [{ domain, serves }]`), each saying what it
+answers with. `web` is an alias — the web app, with `/api` and `/health` routed
+to the api, exactly like the main domain. `api` answers `/api` and `/health`
+only and 404s everything else; it is for a name a native app calls, where
+serving the web app too would put a second copy of it on a hostname nobody
+meant it to live on. All the names go into ONE Caddy site (each gets its own
+certificate) and reach the same ingress; nginx tells them apart by `Host`, with
+the catch-all server first so the main domain and any unnamed Host keep today's
+behaviour. Every hostname is DNS-checked before the build and probed on
+`/health` after it — one name answering cannot hide another whose certificate
+never arrived. Extra names need a main domain, cannot repeat it, and are
+claimed per server like it: the API refuses a name another environment already
+holds, main or extra. Like the main domain, a change takes effect on the next
+deploy and shows as pending until then. What it does NOT do: route a hostname
+to a different app. Every name reaches this environment's api and web; a
+landing page or a second web app still needs its own home.
+
 **Auto-deploy**: a merge into the project's default branch triggers the same
 chain for every provisioned environment with `auto_deploy` on — the webhook
 worker creates the deployment (trigger `auto`, attributed to the project

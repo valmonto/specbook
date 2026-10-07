@@ -6,6 +6,8 @@ import {
   ENV_VAR_NAME_PATTERN,
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
+  EXTRA_DOMAIN_SERVES,
+  MAX_EXTRA_DOMAINS,
   GRANTABLE_MCP_ACCESS_MODES,
   MCP_ACCESS_MIN_MINUTES,
   MCP_ACCESS_MODES,
@@ -24,6 +26,27 @@ export const ProvisionStatusSchema = z.enum(PROVISION_STATUSES);
 export const DataTransportSchema = z.enum(DATA_TRANSPORTS);
 export const McpAccessModeSchema = z.enum(MCP_ACCESS_MODES);
 export const DeploymentStatusSchema = z.enum(DEPLOYMENT_STATUSES);
+
+/** One extra hostname of an environment and what it answers with. */
+export const ExtraDomainSchema = z
+  .object({
+    domain: z.string().min(1).max(255).regex(ENVIRONMENT_DOMAIN_PATTERN),
+    serves: z.enum(EXTRA_DOMAIN_SERVES),
+  })
+  .strict();
+export type ExtraDomain = z.infer<typeof ExtraDomainSchema>;
+
+/**
+ * The extra hostnames as a request carries them: a short list with no name
+ * twice. Whether a name collides with the main domain, or with another
+ * environment on the same server, is the service's check — it needs the row.
+ */
+export const ExtraDomainsInputSchema = z
+  .array(ExtraDomainSchema)
+  .max(MAX_EXTRA_DOMAINS)
+  .refine((list) => new Set(list.map((d) => d.domain)).size === list.length, {
+    message: 'extra domains must be unique',
+  });
 
 /** One deployment run; environments expose their latest. */
 export const DeploymentSchema = z.object({
@@ -80,6 +103,11 @@ export const EnvironmentSchema = z.object({
   /** Required whenever any placement points at a server other than the app server. */
   dataTransport: DataTransportSchema.nullable(),
   domain: z.string().nullable(),
+  /**
+   * More hostnames for the same stack, each saying what it serves. Empty for
+   * the usual one-name environment. Only meaningful with a main `domain`.
+   */
+  extraDomains: z.array(ExtraDomainSchema),
   deployPath: z.string().nullable(),
   /** Inert until the auto-deploy task ships behavior for it. */
   autoDeploy: z.boolean(),
@@ -101,9 +129,10 @@ export const EnvironmentSchema = z.object({
   /** True when the redeploy breaker tripped: two consecutive auto-deploys failed. */
   autoDeployPaused: z.boolean(),
   /**
-   * True while the domain field differs from what the running stack serves —
-   * a set/changed/removed domain only takes effect on the next deploy, and
-   * the UI must say so instead of showing the edit as if it were live.
+   * True while the domain field (or the extra hostnames) differs from what
+   * the running stack serves — a set/changed/removed domain only takes effect
+   * on the next deploy, and the UI must say so instead of showing the edit as
+   * if it were live.
    */
   domainPending: z.boolean(),
   /** Where the running staging answers (set while the latest deploy is healthy). */
@@ -136,6 +165,7 @@ export const CreateEnvironmentRequestSchema = z
     name: EnvironmentNameSchema,
     serverId: z.string().uuid(),
     domain: z.string().min(1).max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).optional(),
+    extraDomains: ExtraDomainsInputSchema.optional(),
     deployPath: z.string().min(1).max(500).optional(),
     autoDeploy: z.boolean().optional(),
     /** Omitted or null = same as the app server (the legacy `data` path). */
@@ -157,6 +187,8 @@ export const UpdateEnvironmentRequestSchema = z
     name: EnvironmentNameSchema.optional(),
     serverId: z.string().uuid().optional(),
     domain: z.string().max(255).regex(ENVIRONMENT_DOMAIN_PATTERN).nullable().optional(),
+    /** Replaces the whole list; omit to leave it as it is. */
+    extraDomains: ExtraDomainsInputSchema.optional(),
     deployPath: z.string().max(500).nullable().optional(),
     autoDeploy: z.boolean().optional(),
     databaseServerId: z.string().uuid().nullable().optional(),

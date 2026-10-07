@@ -1,7 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { Check, ChevronRight, ClipboardPaste, Copy, ExternalLink, Eye, EyeOff, Globe, HardDrive, KeyRound, Lock, Pencil, Plus, RefreshCw, Rocket, Save, ScrollText, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  ClipboardPaste,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Globe,
+  HardDrive,
+  KeyRound,
+  Lock,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Save,
+  ScrollText,
+  Trash2,
+  X,
+} from 'lucide-react';
 import {
   ENVIRONMENT_NAMES,
   classifyEnvVarName,
@@ -11,8 +31,10 @@ import {
   type Environment,
   type EnvironmentName,
   type EnvVarClassification,
+  type ExtraDomain,
 } from '@pkg/contracts';
 import { k } from '@pkg/locales';
+import { ExtraDomainsEditor, cleanExtraDomains } from './extra-domains-editor';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -304,6 +326,19 @@ function EnvironmentRow({
                   <span className="shrink-0 text-amber-700 dark:text-amber-400">
                     · {t(k.environments.domainPending)}
                   </span>
+                )}
+              </span>
+            ))}
+          {env.domain &&
+            env.extraDomains.map((extra) => (
+              <span
+                key={extra.domain}
+                className="inline-flex min-w-0 max-w-full shrink items-center gap-1 rounded-md bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                <Globe className="size-3 shrink-0" />
+                <span className="truncate font-mono">{extra.domain}</span>
+                {extra.serves === 'api' && (
+                  <span className="shrink-0">· {t(k.environments.extraDomainServesApi)}</span>
                 )}
               </span>
             ))}
@@ -1173,6 +1208,7 @@ function EditEnvironmentDialog({
   const { t } = useTranslation();
   const update = useUpdateEnvironment(projectId);
   const [domain, setDomain] = useState('');
+  const [extraDomains, setExtraDomains] = useState<ExtraDomain[]>([]);
   const [deployPath, setDeployPath] = useState('');
 
   // Reopening must show what is stored now, not the last thing that was typed
@@ -1180,8 +1216,9 @@ function EditEnvironmentDialog({
   useEffect(() => {
     if (!open) return;
     setDomain(env.domain ?? '');
+    setExtraDomains(env.extraDomains);
     setDeployPath(env.deployPath ?? '');
-  }, [open, env.domain, env.deployPath]);
+  }, [open, env.domain, env.extraDomains, env.deployPath]);
 
   const submit = async () => {
     const res = await update.execute({
@@ -1190,6 +1227,7 @@ function EditEnvironmentDialog({
       // null clears the column; undefined would leave it untouched, so an
       // emptied field has to send null to actually remove the value.
       domain: domain.trim() || null,
+      extraDomains: cleanExtraDomains(extraDomains),
       deployPath: deployPath.trim() || null,
     });
     if (res.e) {
@@ -1222,6 +1260,12 @@ function EditEnvironmentDialog({
               placeholder="staging.example.com"
             />
           </div>
+          <ExtraDomainsEditor
+            idPrefix={`edit-${env.id}`}
+            value={extraDomains}
+            onChange={setExtraDomains}
+            disabled={!domain.trim()}
+          />
           <div className="space-y-1.5">
             <Label htmlFor={`edit-path-${env.id}`}>{t(k.environments.deployPath)}</Label>
             <Input

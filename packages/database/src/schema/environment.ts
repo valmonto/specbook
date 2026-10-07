@@ -60,6 +60,15 @@ export const projectEnvironment = pgTable(
     /** Values from @pkg/contracts DATA_TRANSPORTS; required when any placement is set. */
     dataTransport: varchar('data_transport', { length: 16 }),
     domain: varchar('domain', { length: 255 }),
+    /**
+     * More hostnames for the same stack: [{ domain, serves }] with `serves`
+     * from @pkg/contracts EXTRA_DOMAIN_SERVES. Empty for the usual one-name
+     * environment; ignored by the renderer when `domain` is null.
+     */
+    extraDomains: jsonb('extra_domains')
+      .$type<Array<{ domain: string; serves: string }>>()
+      .notNull()
+      .default([]),
     deployPath: varchar('deploy_path', { length: 500 }),
     /** Declared now, inert until the auto-deploy task ships its behavior. */
     autoDeploy: boolean('auto_deploy').notNull().default(false),

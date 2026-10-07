@@ -81,15 +81,32 @@ export function renderDeployEnv(layers: Array<Record<string, string>>): string {
  * that recreates api/web (but not the proxy) leaves it routing to whichever
  * container inherited the old address — observed live as inverted routes.
  */
-export function renderProxyConf(): string {
-  return `server {
-  listen 3000;
+export function renderProxyConf(apiOnlyDomains: readonly string[] = []): string {
+  const head = `  listen 3000;
   resolver 127.0.0.11 valid=10s;
-  set $api_upstream http://api:3000;
+  set $api_upstream http://api:3000;`;
+  const api = `  location /api { proxy_pass $api_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
+  location /health { proxy_pass $api_upstream; }`;
+  // The catch-all server comes FIRST: nginx sends any Host it has no
+  // server_name for to the first server on the port, and that is where the
+  // main domain, 'web' aliases and the published-port case all belong.
+  const whole = `server {
+${head}
   set $web_upstream http://web:3000;
-  location /api { proxy_pass $api_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
-  location /health { proxy_pass $api_upstream; }
+${api}
   location / { proxy_pass $web_upstream; }
+}
+`;
+  if (apiOnlyDomains.length === 0) return whole;
+  // Caddy forwards the original Host, so nginx can tell the hostnames apart.
+  // An api-only name answers the api and nothing else: without this block it
+  // would fall through to the catch-all and serve a second copy of the web
+  // app on a hostname nobody meant it to live on.
+  return `${whole}server {
+${head}
+  server_name ${apiOnlyDomains.join(' ')};
+${api}
+  location / { return 404; }
 }
 `;
 }
@@ -115,10 +132,13 @@ export function renderProxyConf(): string {
  */
 export function renderCaddySite(
   unit: string,
-  domain: string,
+  domain: string | readonly string[],
   tlsTerminatedUpstream = false,
 ): string {
-  const site = tlsTerminatedUpstream ? `http://${domain}` : domain;
+  // Several hostnames share one site block: Caddy obtains a certificate for
+  // each and sends them all to the same ingress, where nginx tells them apart.
+  const domains = typeof domain === 'string' ? [domain] : domain;
+  const site = domains.map((d) => (tlsTerminatedUpstream ? `http://${d}` : d)).join(', ');
   return `${site} {
   reverse_proxy specbook-ingress-${unit}:3000
 }
@@ -143,6 +163,59 @@ export function renderCaddySite(
  * specbook-ingress network under a deterministic container_name instead, and
  * Caddy (the box's only public listener) routes the hostname to it.
  */
+/**
+ * Every hostname an environment answers on, main domain first. Extra
+ * hostnames only exist behind a main domain: without one the stack is reached
+ * on its published port and no vhost is written at all, so they are dropped
+ * rather than half-applied.
+ */
+export function deployHostnames(
+  domain: string | null | undefined,
+  extraDomains: ReadonlyArray<{ domain: string; serves: string }> | null | undefined,
+): { all: string[]; apiOnly: string[] } {
+  if (!domain) return { all: [], apiOnly: [] };
+  const extras = (extraDomains ?? []).filter((d) => d.domain !== domain);
+  return {
+    all: [...new Set([domain, ...extras.map((d) => d.domain)])],
+    apiOnly: [...new Set(extras.filter((d) => d.serves === 'api').map((d) => d.domain))],
+  };
+}
+
+/**
+ * Do the environment's hostnames differ from what the running stack serves?
+ *
+ * `live` is the latest HEALTHY run's snapshot (null when there has never been
+ * one). Extra hostnames are compared as a set with what each one serves, so
+ * reordering the list is not a pending change but switching a name from the
+ * web app to api-only is. Extras without a main domain serve nothing, on
+ * either side, and are ignored.
+ */
+export function hostnamesPending(
+  row: {
+    domain: string | null;
+    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
+  },
+  live: {
+    domain: string | null;
+    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
+  } | null,
+): boolean {
+  const key = (e: {
+    domain: string | null;
+    extraDomains?: ReadonlyArray<{ domain: string; serves: string }> | null;
+  }): string =>
+    JSON.stringify([
+      e.domain ?? null,
+      e.domain
+        ? (e.extraDomains ?? [])
+            .filter((d) => d.domain !== e.domain)
+            .map((d) => `${d.domain}=${d.serves}`)
+            .sort()
+        : [],
+    ]);
+  return key(row) !== key(live ?? { domain: null });
+}
+
 export function renderComposeFile(opts: {
   unit: string;
   sha: string;
@@ -163,9 +236,7 @@ export function renderComposeFile(opts: {
   const hasWorker = apps.includes('worker');
   const hasWeb = apps.includes('web');
   // Only the services that open a database connection need it.
-  const caEnv = caCert
-    ? `\n      DATABASE_CA_CERT: |\n${yamlBlock(caCert, '        ')}`
-    : '';
+  const caEnv = caCert ? `\n      DATABASE_CA_CERT: |\n${yamlBlock(caCert, '        ')}` : '';
 
   const lines: string[] = [];
   lines.push('services:');

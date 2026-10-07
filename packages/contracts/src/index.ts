@@ -15,6 +15,8 @@ export {
 export {
   ENVIRONMENT_DOMAIN_PATTERN,
   ENVIRONMENT_NAMES,
+  EXTRA_DOMAIN_SERVES,
+  MAX_EXTRA_DOMAINS,
   ENV_VAR_NAME_PATTERN,
   ENV_VAR_CLASSIFICATIONS,
   SECRET_NAME_PATTERN,
@@ -22,6 +24,7 @@ export {
   classifyEnvVarName,
   parseDotenv,
   type EnvironmentName,
+  type ExtraDomainServes,
   type EnvVarClassification,
   type ParsedEnvEntry,
   type DotenvParseError,
