@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -167,6 +167,41 @@ describe('deploy-stack probes every hostname', () => {
     expect(result.stderr).toContain('https://app.example.com never answered /health');
   });
 
+  /**
+   * A hostname with no api behind it is written "name=/" and probed on its
+   * front page. The stand-in python answers example.com ONLY on "/", so this
+   * passes only if / — not /health — was asked for.
+   */
+  it('probes the front page of a hostname that has no api', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'deploy-stack-'));
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    const stub = (name: string, body: string) =>
+      writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+    stub('docker', 'exit 0');
+    stub('sleep', 'exit 0');
+    stub(
+      'python3',
+      `case "$2" in *"https://example.com/health'"*) exit 1;; *"https://example.com/'"*) exit 0;; *"https://app.example.com/health'"*) exit 0;; esac; exit 1`,
+    );
+    try {
+      const result = spawnSync(
+        'bash',
+        ['-s', '--', 'acme_production', dir, '21000', 'app.example.com', 'example.com=/'],
+        {
+          input: REMOTE_OPS['deploy-stack'],
+          encoding: 'utf8',
+          env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: dir },
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('healthy on https://app.example.com');
+      expect(result.stdout).toContain('healthy on https://example.com');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('still works with the single domain it always took', () => {
     const result = run(['admin.example.com']);
     expect(result.status).toBe(0);
@@ -183,5 +218,78 @@ describe('deploy-stack probes every hostname', () => {
     const result = run([]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('healthy on :21000');
+  });
+});
+
+/**
+ * build-images run for real against stand-ins for git and docker. The repo
+ * the fake `git checkout` leaves behind has api, web, worker and a landing
+ * app — plus an e2e Dockerfile nobody asked for.
+ */
+describe('build-images builds an extra app only when a hostname asks for it', () => {
+  const run = (extra: string[]) => {
+    const home = mkdtempSync(join(tmpdir(), 'build-images-'));
+    const bin = join(home, 'bin');
+    mkdirSync(bin);
+    const stub = (name: string, body: string) =>
+      writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+    stub(
+      'git',
+      `if [ "$1" = checkout ]; then for a in api web worker landing e2e; do mkdir -p "apps/$a"; : > "apps/$a/Dockerfile"; done; fi; exit 0`,
+    );
+    // Record each build so the test can see exactly which images were made.
+    stub('docker', `if [ "$1" = build ]; then echo "BUILT $*" >> "${home}/builds"; fi; exit 0`);
+    // Run from a file, so stdin is free to carry the clone URL the op reads.
+    const script = join(home, 'build-images.sh');
+    writeFileSync(script, REMOTE_OPS['build-images']);
+    try {
+      const result = spawnSync('bash', [script, 'acme_production', 'abc1234', ...extra], {
+        input: 'https://example.invalid/repo.git\n',
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: home },
+      });
+      let builds = '';
+      try {
+        builds = readFileSync(join(home, 'builds'), 'utf8');
+      } catch {
+        // no build ran
+      }
+      return { ...result, builds };
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  };
+  const withUrl = run;
+
+  it('builds the valmatic three and nothing else by default', () => {
+    const result = withUrl([]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('build-images: ok apps=api,worker,web');
+    // The e2e Dockerfile is in the repo and must NOT be picked up by accident.
+    expect(result.builds).not.toContain('e2e');
+    expect(result.builds).not.toContain('landing');
+  });
+
+  it('builds the extra app a hostname points at, and reports it', () => {
+    const result = withUrl(['landing']);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('build-images: ok apps=api,worker,web,landing');
+    expect(result.builds).toContain('-t acme_production-landing:abc1234');
+    expect(result.builds).not.toContain('e2e');
+  });
+
+  /** Named before any image is built: a typo must not cost a full build first. */
+  it('stops with the missing path when the app does not exist', () => {
+    const result = withUrl(['docs']);
+    expect(result.status).toBe(5);
+    expect(result.stderr).toContain("APP_MISSING: a hostname points at the app 'docs'");
+    expect(result.stderr).toContain('apps/docs/Dockerfile');
+    expect(result.builds).toBe('');
+  });
+
+  it('refuses an app name that is not a plain name', () => {
+    const result = withUrl(['landing;id']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('invalid app name');
   });
 });

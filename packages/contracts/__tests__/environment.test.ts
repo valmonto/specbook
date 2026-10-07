@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_EXTRA_DOMAINS,
+  RESERVED_APP_NAMES,
   classifyEnvVarName,
   parseDotenv,
+  routesApi,
 } from '../src/constants/environment.js';
 import { UpdateEnvironmentRequestSchema } from '../src/schemas/environment.schema.js';
 
@@ -96,10 +98,48 @@ describe('extra hostnames on an environment', () => {
     }
   });
 
-  it('refuses an unknown "serves", the same name twice, and more than the limit', () => {
+  /** The repository decides which apps exist, so any well-formed name is accepted. */
+  it('lets a hostname point at any app name, with or without the api beside it', () => {
+    const parsed = UpdateEnvironmentRequestSchema.parse({
+      ...base,
+      extraDomains: [
+        { domain: 'example.com', serves: 'landing' },
+        { domain: 'docs.example.com', serves: 'docs-site', withApi: true },
+      ],
+    });
+    expect(parsed.extraDomains?.map((d) => d.serves)).toEqual(['landing', 'docs-site']);
+    expect(parsed.extraDomains?.[0]?.withApi).toBeUndefined();
+  });
+
+  /** An app name becomes an image tag, a compose service and an nginx upstream. */
+  it('refuses an app name that is not a plain lowercase name', () => {
+    for (const serves of ['Landing', 'my_app', '9lives', 'a b', 'web;id', '', 'x'.repeat(32)]) {
+      expect(
+        UpdateEnvironmentRequestSchema.safeParse({
+          ...base,
+          extraDomains: [{ domain: 'a.example.com', serves }],
+        }).success,
+        serves,
+      ).toBe(false);
+    }
+  });
+
+  /** The worker has no HTTP listener; migrate and proxy are the stack's own services. */
+  it('refuses the names a hostname cannot point at', () => {
+    for (const serves of RESERVED_APP_NAMES) {
+      expect(
+        UpdateEnvironmentRequestSchema.safeParse({
+          ...base,
+          extraDomains: [{ domain: 'a.example.com', serves }],
+        }).success,
+        serves,
+      ).toBe(false);
+    }
+  });
+
+  it('refuses the same name twice, and more than the limit', () => {
     const bad = (extraDomains: unknown) =>
       UpdateEnvironmentRequestSchema.safeParse({ ...base, extraDomains }).success;
-    expect(bad([{ domain: 'a.example.com', serves: 'landing' }])).toBe(false);
     expect(
       bad([
         { domain: 'a.example.com', serves: 'web' },
@@ -114,5 +154,24 @@ describe('extra hostnames on an environment', () => {
         })),
       ),
     ).toBe(false);
+  });
+});
+
+describe('routesApi — does a hostname carry the api too?', () => {
+  it('always does for the api app', () => {
+    expect(routesApi({ serves: 'api' })).toBe(true);
+    expect(routesApi({ serves: 'api', withApi: false })).toBe(true);
+  });
+
+  /** The web app calls the api on its own address; a landing page does not. */
+  it('defaults to yes for the web app and no for anything else', () => {
+    expect(routesApi({ serves: 'web' })).toBe(true);
+    expect(routesApi({ serves: 'landing' })).toBe(false);
+    expect(routesApi({ serves: 'docs', withApi: null })).toBe(false);
+  });
+
+  it('follows an explicit choice', () => {
+    expect(routesApi({ serves: 'web', withApi: false })).toBe(false);
+    expect(routesApi({ serves: 'landing', withApi: true })).toBe(true);
   });
 });

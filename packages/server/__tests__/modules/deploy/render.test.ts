@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deployHostnames,
   derivePublicPort,
+  healthProbeArgs,
   hostnamesPending,
   renderCaddySite,
   renderComposeFile,
@@ -265,13 +266,34 @@ describe('several hostnames on one environment', () => {
   const extras = [
     { domain: 'app.example.com', serves: 'api' },
     { domain: 'www.example.com', serves: 'web' },
+    { domain: 'example.com', serves: 'landing' },
   ];
 
-  it('lists the main domain first, then the extras', () => {
+  it('lists the main domain first, then the extras, with the app each one serves', () => {
     expect(deployHostnames('admin.example.com', extras)).toEqual({
-      all: ['admin.example.com', 'app.example.com', 'www.example.com'],
-      apiOnly: ['app.example.com'],
+      all: ['admin.example.com', 'app.example.com', 'www.example.com', 'example.com'],
+      routes: [
+        { domain: 'app.example.com', app: 'api', withApi: true },
+        { domain: 'www.example.com', app: 'web', withApi: true },
+        { domain: 'example.com', app: 'landing', withApi: false },
+      ],
+      extraApps: ['landing'],
     });
+  });
+
+  /**
+   * Extra apps are built only because a hostname names them. The valmatic
+   * three are never "extra", however many names point at them.
+   */
+  it('names each extra app once, and never the built-in ones', () => {
+    const h = deployHostnames('admin.example.com', [
+      { domain: 'a.example.com', serves: 'docs' },
+      { domain: 'b.example.com', serves: 'landing' },
+      { domain: 'c.example.com', serves: 'landing' },
+      { domain: 'd.example.com', serves: 'web' },
+      { domain: 'e.example.com', serves: 'api' },
+    ]);
+    expect(h.extraApps).toEqual(['docs', 'landing']);
   });
 
   /**
@@ -279,18 +301,28 @@ describe('several hostnames on one environment', () => {
    * vhost is written. Extras must not produce one on their own — a half-applied
    * list would serve names the environment page says it has no domain for.
    */
-  it('drops the extras when there is no main domain', () => {
-    expect(deployHostnames(null, extras)).toEqual({ all: [], apiOnly: [] });
+  it('drops the extras — and their apps — when there is no main domain', () => {
+    expect(deployHostnames(null, extras)).toEqual({ all: [], routes: [], extraApps: [] });
   });
 
-  it('never lists a hostname twice, even if an extra repeats the main domain', () => {
+  it('never lists a hostname twice, and an extra cannot redefine the main domain', () => {
     const h = deployHostnames('admin.example.com', [
-      { domain: 'admin.example.com', serves: 'api' },
+      { domain: 'admin.example.com', serves: 'landing' },
       { domain: 'app.example.com', serves: 'api' },
+      { domain: 'app.example.com', serves: 'landing' },
     ]);
     expect(h.all).toEqual(['admin.example.com', 'app.example.com']);
-    // The main domain always serves the whole app; an extra cannot demote it.
-    expect(h.apiOnly).toEqual(['app.example.com']);
+    expect(h.routes).toEqual([{ domain: 'app.example.com', app: 'api', withApi: true }]);
+    expect(h.extraApps).toEqual([]);
+  });
+
+  /** An explicit choice beats the app's default, in both directions. */
+  it('honours an explicit withApi over the default for the app', () => {
+    const h = deployHostnames('admin.example.com', [
+      { domain: 'a.example.com', serves: 'web', withApi: false },
+      { domain: 'b.example.com', serves: 'landing', withApi: true },
+    ]);
+    expect(h.routes.map((r) => r.withApi)).toEqual([false, true]);
   });
 
   it('puts every hostname in one Caddy site, so each gets its own certificate', () => {
@@ -305,24 +337,135 @@ describe('several hostnames on one environment', () => {
       'http://a.example.com, http://b.example.com {',
     );
   });
+});
 
-  it('renders the proxy exactly as before when no hostname is api-only', () => {
-    expect(renderProxyConf([])).toBe(renderProxyConf());
-    expect(renderProxyConf().match(/server \{/g)).toHaveLength(1);
+describe('healthProbeArgs — what the deploy probes on each hostname', () => {
+  /** A landing page has no /health; probing it there would fail every deploy. */
+  it('probes /health where the api is, and the front page where it is not', () => {
+    const hostnames = deployHostnames('app.example.com', [
+      { domain: 'api.example.com', serves: 'api' },
+      { domain: 'example.com', serves: 'landing' },
+      { domain: 'docs.example.com', serves: 'docs', withApi: true },
+      { domain: 'static.example.com', serves: 'web', withApi: false },
+    ]);
+    expect(healthProbeArgs(hostnames)).toEqual([
+      'app.example.com',
+      'api.example.com',
+      'example.com=/',
+      'docs.example.com',
+      'static.example.com=/',
+    ]);
   });
 
-  it('gives an api-only hostname the api and a 404 for everything else', () => {
-    const conf = renderProxyConf(['app.example.com']);
-    const [catchAll, apiOnly] = conf.split(/(?=^server \{)/m);
-    // The catch-all stays first: nginx sends an unnamed Host to the first server.
+  it('is empty without a main domain', () => {
+    expect(healthProbeArgs(deployHostnames(null, []))).toEqual([]);
+  });
+});
+
+describe('renderProxyConf with extra hostnames', () => {
+  const servers = (conf: string): string[] => conf.split(/(?=^server \{)/m);
+
+  it('renders exactly as before when there are none', () => {
+    expect(renderProxyConf([])).toBe(renderProxyConf());
+    expect(servers(renderProxyConf())).toHaveLength(1);
+  });
+
+  /** A plain alias is what the catch-all already serves; a block of its own could only drift. */
+  it('adds no block for an alias of the main domain', () => {
+    expect(renderProxyConf([{ domain: 'www.example.com', app: 'web', withApi: true }])).toBe(
+      renderProxyConf(),
+    );
+  });
+
+  it('keeps the catch-all first, so an unnamed Host still reaches the main app', () => {
+    const [catchAll] = servers(
+      renderProxyConf([{ domain: 'example.com', app: 'landing', withApi: false }]),
+    );
     expect(catchAll).not.toContain('server_name');
     expect(catchAll).toContain('location / { proxy_pass $web_upstream; }');
+  });
+
+  it('gives an api hostname the api and a 404 for everything else', () => {
+    const [, apiOnly] = servers(
+      renderProxyConf([{ domain: 'app.example.com', app: 'api', withApi: true }]),
+    );
     expect(apiOnly).toContain('server_name app.example.com;');
     expect(apiOnly).toContain('location /api { proxy_pass $api_upstream;');
     expect(apiOnly).toContain('location /health { proxy_pass $api_upstream; }');
     expect(apiOnly).toContain('location / { return 404; }');
     // An api-only server must not be able to reach the web app at all.
     expect(apiOnly).not.toContain('web_upstream');
+  });
+
+  /** A landing page must not expose the api on the public marketing address. */
+  it('sends a hostname to its own app, with no api unless asked', () => {
+    const [, landing] = servers(
+      renderProxyConf([{ domain: 'example.com', app: 'landing', withApi: false }]),
+    );
+    expect(landing).toContain('server_name example.com;');
+    expect(landing).toContain('set $app_upstream http://landing:3000;');
+    expect(landing).toContain('location / { proxy_pass $app_upstream;');
+    expect(landing).not.toContain('/api');
+    expect(landing).not.toContain('/health');
+    expect(landing).not.toContain('web_upstream');
+  });
+
+  it('adds the api beside another app when asked', () => {
+    const [, docs] = servers(
+      renderProxyConf([{ domain: 'docs.example.com', app: 'docs', withApi: true }]),
+    );
+    expect(docs).toContain('set $app_upstream http://docs:3000;');
+    expect(docs).toContain('location /api { proxy_pass $api_upstream;');
+  });
+
+  it('serves the web app without the api when the route says so', () => {
+    const [, bare] = servers(
+      renderProxyConf([{ domain: 'static.example.com', app: 'web', withApi: false }]),
+    );
+    expect(bare).toContain('set $app_upstream http://web:3000;');
+    expect(bare).not.toContain('location /api');
+  });
+
+  /** Upstreams must go through a variable, or nginx pins the container IP at startup. */
+  it('resolves every upstream per request', () => {
+    const conf = renderProxyConf([
+      { domain: 'example.com', app: 'landing', withApi: false },
+      { domain: 'app.example.com', app: 'api', withApi: true },
+    ]);
+    expect(conf).not.toMatch(/proxy_pass http:/);
+    expect(conf.match(/resolver 127\.0\.0\.11/g)).toHaveLength(3);
+  });
+});
+
+describe('renderComposeFile with extra apps', () => {
+  const compose = renderComposeFile({
+    unit: 'acme_production',
+    sha: 'abc1234',
+    publicPort: 21000,
+    apps: ['api', 'worker', 'web', 'landing'],
+    domain: 'admin.example.com',
+  });
+  const service = (name: string): string =>
+    compose.split(/(?=^  [a-z-]+:\n)/m).find((block) => block.startsWith(`  ${name}:`)) ?? '';
+
+  it('runs an extra app from its own image', () => {
+    expect(service('landing')).toContain('image: acme_production-landing:abc1234');
+    expect(service('landing')).toContain('restart: unless-stopped');
+  });
+
+  /**
+   * A landing page or docs site has no business holding the database
+   * password or reaching Postgres.
+   */
+  it('gives an extra app no secrets and no path to the data plane', () => {
+    expect(service('landing')).not.toContain('env_file');
+    expect(service('landing')).not.toContain('specbook-data');
+    expect(service('landing')).toContain('networks: [default]');
+  });
+
+  it('leaves the file untouched when there are none', () => {
+    const opts = { unit: 'u', sha: 'abc1234', publicPort: 21000, domain: 'a.example.com' };
+    expect(renderComposeFile({ ...opts, apps: ['api', 'web'] })).not.toContain('landing');
   });
 });
 
@@ -336,7 +479,7 @@ describe('hostnamesPending — does the row differ from what is live?', () => {
     expect(hostnamesPending(live, live)).toBe(false);
   });
 
-  it('is true when an extra hostname was added, removed, or serves something else', () => {
+  it('is true when an extra hostname was added, removed, or points at another app', () => {
     expect(hostnamesPending({ ...live, extraDomains: [] }, live)).toBe(true);
     expect(
       hostnamesPending(
@@ -349,10 +492,28 @@ describe('hostnamesPending — does the row differ from what is live?', () => {
     ).toBe(true);
     expect(
       hostnamesPending(
-        { ...live, extraDomains: [{ domain: 'app.example.com', serves: 'web' }] },
+        { ...live, extraDomains: [{ domain: 'app.example.com', serves: 'landing' }] },
         live,
       ),
     ).toBe(true);
+  });
+
+  it('is true when only the /api routing of a hostname changed', () => {
+    const row = (withApi?: boolean) => ({
+      domain: 'admin.example.com',
+      extraDomains: [{ domain: 'example.com', serves: 'landing', withApi }],
+    });
+    expect(hostnamesPending(row(true), row(false))).toBe(true);
+  });
+
+  /** Compared by effect: spelling out the default changes nothing on the server. */
+  it('treats an unset withApi and its explicit default as the same thing', () => {
+    const row = (serves: string, withApi?: boolean) => ({
+      domain: 'admin.example.com',
+      extraDomains: [{ domain: 'x.example.com', serves, withApi }],
+    });
+    expect(hostnamesPending(row('web'), row('web', true))).toBe(false);
+    expect(hostnamesPending(row('landing'), row('landing', false))).toBe(false);
   });
 
   it('ignores the order of the extras', () => {

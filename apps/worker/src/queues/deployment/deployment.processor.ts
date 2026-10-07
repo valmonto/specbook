@@ -21,6 +21,7 @@ import {
   dataPlaneUnitName,
   derivePublicPort,
   deployHostnames,
+  healthProbeArgs,
   renderCaddySite,
   renderComposeFile,
   renderDeployEnv,
@@ -240,8 +241,14 @@ export class DeploymentProcessor extends WorkerHost {
     ).trim();
     await this.update(row.id, { sha, phase: 'build' });
     sink.line(`== build: images at ${sha.slice(0, 7)} on ${buildServer.name} ==`);
-    const buildOut = await exec(buildTarget, 'build-images', [unit, sha], cloneUrl + '\n');
-    const apps = /apps=([a-z,]+)/.exec(buildOut)?.[1]?.split(',') ?? ['api', 'web'];
+    const buildOut = await exec(
+      buildTarget,
+      'build-images',
+      // Extra apps are built only because a hostname names them.
+      [unit, sha, ...hostnames.extraApps],
+      cloneUrl + '\n',
+    );
+    const apps = /apps=([a-z0-9,-]+)/.exec(buildOut)?.[1]?.split(',') ?? ['api', 'web'];
 
     // Transfer only when the images were built on a different box.
     if (buildServer.id !== appServer.id) {
@@ -317,7 +324,7 @@ export class DeploymentProcessor extends WorkerHost {
         caCert: platformEnv.DATABASE_CA_CERT ?? null,
       }),
     );
-    await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf(hostnames.apiOnly));
+    await this.ssh.writeFile(appTarget, `${dir}/nginx.conf`, renderProxyConf(hostnames.routes));
     if (hostnames.all.length > 0) {
       await this.ssh.writeFile(
         appTarget,
@@ -327,7 +334,12 @@ export class DeploymentProcessor extends WorkerHost {
     }
     await this.update(row.id, { phase: 'up' });
     sink.line('== up: compose --wait + health gate ==');
-    await exec(appTarget, 'deploy-stack', [unit, dir, String(publicPort), ...hostnames.all]);
+    await exec(appTarget, 'deploy-stack', [
+      unit,
+      dir,
+      String(publicPort),
+      ...healthProbeArgs(hostnames),
+    ]);
 
     sink.line('deploy complete — healthy');
     await sink.flush();

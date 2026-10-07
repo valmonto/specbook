@@ -534,6 +534,19 @@ describe('EnvironmentService — layered env vars, secrets write-only by constru
       expect(dto.extraDomains).toEqual(extra);
     });
 
+    it('may point at any app in the repository, and keep an explicit /api choice', async () => {
+      const routes = [
+        { domain: 'example.com', serves: 'landing' },
+        { domain: 'docs.example.com', serves: 'docs', withApi: true },
+      ];
+      const dto = await service.create(actor, {
+        ...createDto,
+        domain: 'app.example.com',
+        extraDomains: routes,
+      });
+      expect(dto.extraDomains).toEqual(routes);
+    });
+
     it('default to an empty list, so a one-name environment is unchanged', async () => {
       const dto = await service.create(actor, { ...createDto, domain: 'admin.example.com' });
       expect(dto.extraDomains).toEqual([]);

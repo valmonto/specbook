@@ -82,7 +82,7 @@ export interface HostedEnvironmentRow {
 export interface EnvironmentDiagnostics {
   name: string;
   domain: string | null;
-  extraDomains: Array<{ domain: string; serves: string }>;
+  extraDomains: Array<{ domain: string; serves: string; withApi?: boolean }>;
   deployPath: string | null;
   autoDeploy: boolean;
   provisionStatus: string;

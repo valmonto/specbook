@@ -58,7 +58,7 @@ const NAME_UNIQUE_INDEX = 'project_environment_project_name_uq';
 export interface AgentEnvironmentView {
   name: string;
   domain: string | null;
-  extraDomains: Array<{ domain: string; serves: string }>;
+  extraDomains: Array<{ domain: string; serves: string; withApi?: boolean }>;
   deployPath: string | null;
   autoDeploy: boolean;
   provisionStatus: string;

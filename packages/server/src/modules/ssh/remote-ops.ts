@@ -217,11 +217,16 @@ branch="\${1:?usage: resolve-head-sha <branch>}"
    */
   'build-images': `#!/usr/bin/env bash
 set -euo pipefail
-unit="\${1:?usage: build-images <unit> <sha>}"
-sha="\${2:?usage: build-images <unit> <sha>}"
+unit="\${1:?usage: build-images <unit> <sha> [extra-app...]}"
+sha="\${2:?usage: build-images <unit> <sha> [extra-app...]}"
+# Apps beyond api/worker/web that a hostname of this environment points at.
+extra=("\${@:3}")
 {
   [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
   [[ "$sha" =~ ^[0-9a-f]{7,64}$ ]] || { echo "invalid sha" >&2; exit 1; }
+  for app in "\${extra[@]}"; do
+    [[ "$app" =~ ^[a-z][a-z0-9-]{0,30}$ ]] || { echo "invalid app name" >&2; exit 1; }
+  done
   IFS= read -r repo_url
   [ -n "$repo_url" ] || { echo "build-images: missing url on stdin" >&2; exit 1; }
   work="$HOME/specbook-build/$unit"
@@ -231,6 +236,14 @@ sha="\${2:?usage: build-images <unit> <sha>}"
     echo "SHAPE_INVALID: repo is not valmatic-shaped (apps/{api,web}/Dockerfile required)" >&2
     exit 3
   fi
+  # An extra app is asked for by name, so a missing one is a mistake in the
+  # environment's hostnames — say which, before spending minutes on the rest.
+  for app in "\${extra[@]}"; do
+    if [ ! -f "apps/$app/Dockerfile" ]; then
+      echo "APP_MISSING: a hostname points at the app '$app', but the repository has no apps/$app/Dockerfile" >&2
+      exit 5
+    fi
+  done
   if ! docker buildx version >/dev/null 2>&1; then
     echo "BUILDKIT_MISSING: this build server has no working 'docker buildx'." >&2
     echo "  The app Dockerfiles mount the pnpm store as a build cache, which" >&2
@@ -242,7 +255,7 @@ sha="\${2:?usage: build-images <unit> <sha>}"
   fi
   export DOCKER_BUILDKIT=1
   built=""
-  for app in api worker web; do
+  for app in api worker web "\${extra[@]}"; do
     if [ -f "apps/$app/Dockerfile" ]; then
       # Not quiet ON PURPOSE: this output IS the deployment log's build phase.
       echo "== building $unit-$app:$sha =="
@@ -251,7 +264,7 @@ sha="\${2:?usage: build-images <unit> <sha>}"
       built="$built$app,"
     fi
   done
-  for app in api worker web; do
+  for app in api worker web "\${extra[@]}"; do
     docker image ls --format '{{.Repository}}:{{.Tag}}' "$unit-$app" | tail -n +4 | xargs -r docker rmi >/dev/null 2>&1 || true
   done
   cd / && rm -rf "$work"
@@ -278,12 +291,14 @@ dir="\${2:?usage: deploy-stack <unit> <dir> <port> [domain...]}"
 port="\${3:?usage: deploy-stack <unit> <dir> <port> [domain...]}"
 domain="\${4:-}"
 # Every hostname the stack answers on: the main domain, then any extras.
+# A hostname written "name=/" has no api behind it (a landing page, say), so
+# it has no /health either and is probed on / instead.
 domains=("\${@:4}")
 {
   [[ "$unit" =~ ^[a-z][a-z0-9_]{0,47}$ ]] || { echo "invalid unit name" >&2; exit 1; }
   [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "invalid port" >&2; exit 1; }
   for d in "\${domains[@]}"; do
-    [[ "$d" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
+    [[ "$d" =~ ^[a-z0-9.-]+(=/)?$ ]] || { echo "invalid domain" >&2; exit 1; }
   done
   cd "$dir"
   # --quiet-pull: compose writes per-layer pull progress to STDERR, and this
@@ -292,7 +307,11 @@ domains=("\${@:4}")
   # away the diagnostics gathered below: the ps output and the migrate/api
   # logs, which are the only part anyone can act on. One deploy failed with
   # nothing in the record but "Downloading [====>] 5.243MB/20.52MB" repeated.
-  if ! docker compose -p "$unit" up -d --wait --wait-timeout 300 --quiet-pull; then
+  # --remove-orphans: an extra app whose hostname was removed is no longer in
+  # compose.yml, and without this its container would keep running forever.
+  # Safe for the data plane: Postgres and Redis are started with plain
+  # 'docker run', not under this compose project, so they are never orphans.
+  if ! docker compose -p "$unit" up -d --wait --wait-timeout 300 --quiet-pull --remove-orphans; then
     echo "deploy-stack: unhealthy — diagnostics follow" >&2
     docker compose -p "$unit" ps >&2 || true
     # One-shot containers (migrate) exit before --wait reports, so their
@@ -314,10 +333,13 @@ domains=("\${@:4}")
     # EVERY hostname is probed: each has its own certificate, and /health is
     # routed on all of them, so one name failing issuance cannot hide behind
     # another that answered.
-    for d in "\${domains[@]}"; do
+    for entry in "\${domains[@]}"; do
+      d="\${entry%%=*}"
+      path=/health
+      [ "$entry" = "$d" ] || path=/
       ok=0
       for _ in $(seq 1 40); do
-        if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('https://$d/health', timeout=10).status==200 else 1)" 2>/dev/null; then
+        if python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('https://$d$path', timeout=10).status==200 else 1)" 2>/dev/null; then
           echo "deploy-stack: healthy on https://$d"
           ok=1
           break
@@ -325,7 +347,7 @@ domains=("\${@:4}")
         sleep 3
       done
       if [ "$ok" != 1 ]; then
-        echo "deploy-stack: https://$d never answered /health (certificate or routing)" >&2
+        echo "deploy-stack: https://$d never answered $path (certificate or routing)" >&2
         docker logs --tail 40 specbook-caddy >&2 || true
         exit 1
       fi
