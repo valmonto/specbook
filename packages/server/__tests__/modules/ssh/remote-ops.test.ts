@@ -293,3 +293,34 @@ describe('build-images builds an extra app only when a hostname asks for it', ()
     expect(result.stderr).toContain('invalid app name');
   });
 });
+
+/**
+ * dns-points-at run for real. A name with no record makes getent exit 2, and
+ * the script used to die on that line with no message at all: the deploy
+ * failed as "exited 2:" and the owner had nothing to act on.
+ */
+describe('dns-points-at always says which name is wrong', () => {
+  const run = (domain: string, expected: string) =>
+    spawnSync('bash', ['-s', '--', domain, expected], {
+      input: REMOTE_OPS['dns-points-at'],
+      encoding: 'utf8',
+    });
+
+  it('names a hostname that has no DNS record, instead of exiting silently', () => {
+    const result = run('no-such-name.invalid', '127.0.0.1');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('no-such-name.invalid does not resolve yet');
+  });
+
+  it('passes when the name resolves to the expected address', () => {
+    const result = run('localhost', '127.0.0.1');
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('dns-points-at: ok');
+  });
+
+  it('says what it got and what it expected when the name points elsewhere', () => {
+    const result = run('localhost', '192.0.2.1');
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('got: 127.0.0.1, expected: 192.0.2.1');
+  });
+});

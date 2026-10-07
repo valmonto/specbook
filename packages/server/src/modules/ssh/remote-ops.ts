@@ -170,9 +170,14 @@ set -euo pipefail
 domain="\${1:?usage: dns-points-at <domain> <expected-host>}"
 expected="\${2:?usage: dns-points-at <domain> <expected-host>}"
 [[ "$domain" =~ ^[a-z0-9.-]+$ ]] || { echo "invalid domain" >&2; exit 1; }
-got=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u)
-[ -n "$got" ] || { echo "dns-points-at: $domain does not resolve" >&2; exit 1; }
-want=$(getent ahostsv4 "$expected" 2>/dev/null | awk '{print $1}' | sort -u)
+# "|| true" on both lookups: getent exits 2 for a name with no record, and
+# under "set -e -o pipefail" that killed the script right here — before the
+# messages below could say which name it was. The deploy then failed with
+# "exited 2:" and nothing after the colon.
+got=$(getent ahostsv4 "$domain" 2>/dev/null | awk '{print $1}' | sort -u || true)
+[ -n "$got" ] || { echo "dns-points-at: $domain does not resolve yet (no DNS record found from this server — a new or just-changed record can take a while to appear)" >&2; exit 1; }
+want=$(getent ahostsv4 "$expected" 2>/dev/null | awk '{print $1}' | sort -u || true)
+[ -n "$want" ] || { echo "dns-points-at: this server's own address ($expected) does not resolve" >&2; exit 1; }
 if [ -z "$(comm -12 <(echo "$got") <(echo "$want"))" ]; then
   echo "dns-points-at: $domain does not resolve to this server (got: $(echo $got), expected: $(echo $want))" >&2
   exit 1
