@@ -4,6 +4,7 @@ import {
   dataPlaneUnitName,
   resolveDeployDir,
   derivePublicPort,
+  stackContainers,
   hostnamesPending,
   resolvePlacement,
   serverSatisfies,
@@ -865,6 +866,11 @@ export class EnvironmentService {
       provisionedAt: e.provisionedAt?.toISOString() ?? null,
       latestDeployment: latest ? this.serializeDeployment(latest) : null,
       autoDeployPaused: computeAutoDeployPaused(recent),
+      containers: stackContainers(
+        dataPlaneUnitName(projectName, e.name),
+        liveDomain ?? e.domain,
+        live?.extraDomains ?? e.extraDomains,
+      ),
       domainPending: hostnamesPending(
         { domain: e.domain, extraDomains: e.extraDomains },
         live ? { domain: live.domain, extraDomains: live.extraDomains } : null,

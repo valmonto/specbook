@@ -8,6 +8,7 @@ import {
   renderComposeFile,
   renderDeployEnv,
   renderProxyConf,
+  stackContainers,
 } from '../../../src/modules/deploy/render.js';
 
 describe('derivePublicPort', () => {
@@ -553,5 +554,49 @@ describe('hostnamesPending — does the row differ from what is live?', () => {
   /** Rows written before the column existed carry no list at all. */
   it('reads a missing list as empty', () => {
     expect(hostnamesPending({ domain: 'a.example.com' }, { domain: 'a.example.com' })).toBe(false);
+  });
+});
+
+describe('stackContainers', () => {
+  it('names the three core containers the way compose does, and the ingress by its fixed name', () => {
+    expect(stackContainers('acme_production', 'app.example.com', [])).toEqual([
+      { app: 'api', name: 'acme_production-api-1' },
+      { app: 'worker', name: 'acme_production-worker-1' },
+      { app: 'web', name: 'acme_production-web-1' },
+      { app: 'proxy', name: 'specbook-ingress-acme_production' },
+    ]);
+  });
+
+  it('includes an app a hostname asks for, once', () => {
+    const names = stackContainers('acme_production', 'app.example.com', [
+      { domain: 'example.com', serves: 'landing' },
+      { domain: 'www.example.com', serves: 'landing' },
+    ]).map((c) => c.name);
+    expect(names.filter((n) => n === 'acme_production-landing-1')).toHaveLength(1);
+  });
+
+  /** The names must be the ones the rendered compose file actually produces. */
+  it('agrees with the compose file about the ingress name', () => {
+    const [proxy] = stackContainers('acme_production', 'app.example.com', []).slice(-1);
+    const compose = renderComposeFile({
+      unit: 'acme_production',
+      sha: 'a'.repeat(40),
+      publicPort: 20001,
+      apps: ['api', 'worker', 'web'],
+      domain: 'app.example.com',
+      caCert: null,
+    });
+    expect(compose).toContain(`container_name: ${proxy!.name}`);
+  });
+
+  it('without a domain the proxy is an ordinary compose service, and extras are dropped', () => {
+    expect(
+      stackContainers('acme_staging', null, [{ domain: 'x.example.com', serves: 'landing' }]),
+    ).toEqual([
+      { app: 'api', name: 'acme_staging-api-1' },
+      { app: 'worker', name: 'acme_staging-worker-1' },
+      { app: 'web', name: 'acme_staging-web-1' },
+      { app: 'proxy', name: 'acme_staging-proxy-1' },
+    ]);
   });
 });

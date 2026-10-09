@@ -52,6 +52,7 @@ const env = (overrides: Partial<Environment> = {}): Environment => ({
   extraDomains: [],
   domainPending: false,
   publicUrl: null,
+  containers: [],
   mcpAccess: 'none',
   mcpAccessUntil: null,
   mcpAccessBy: null,

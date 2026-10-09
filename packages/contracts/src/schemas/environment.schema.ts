@@ -152,6 +152,12 @@ export const EnvironmentSchema = z.object({
   /** Where the running staging answers (set while the latest deploy is healthy). */
   publicUrl: z.string().nullable(),
   /**
+   * The stack's containers as docker names them on the app server, so the UI
+   * can open a terminal inside one. What a deploy runs for the current
+   * hostnames — not a claim that any of them is up.
+   */
+  containers: z.array(z.object({ app: z.string(), name: z.string() })),
+  /**
    * Agent data-plane access, as it stands NOW: a lapsed window reads as 'none'
    * with every companion field null — the server computes this against the
    * clock, so the UI never shows a dead grant as open.

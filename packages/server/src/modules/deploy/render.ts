@@ -252,6 +252,28 @@ export function healthProbeArgs(hostnames: { all: string[]; routes: HostRoute[] 
 }
 
 /**
+ * The containers an environment's stack runs, by the names docker knows them
+ * under — what `docker exec` and `docker logs` take. Derived exactly as
+ * `renderComposeFile` and `deploy-stack` name them: compose prefixes each
+ * service with the project (`-p <unit>`), and the ingress carries a fixed
+ * `container_name`. Without a main domain the proxy is an ordinary service.
+ *
+ * The list is what a deploy WOULD run for these hostnames; it does not say
+ * anything is up.
+ */
+export function stackContainers(
+  unit: string,
+  domain: string | null | undefined,
+  extraDomains: ReadonlyArray<StoredExtraDomain> | null | undefined,
+): Array<{ app: string; name: string }> {
+  const apps = [...VALMATIC_APPS, ...deployHostnames(domain, extraDomains).extraApps];
+  return [
+    ...apps.map((app) => ({ app, name: `${unit}-${app}-1` })),
+    { app: 'proxy', name: domain ? `specbook-ingress-${unit}` : `${unit}-proxy-1` },
+  ];
+}
+
+/**
  * Do the environment's hostnames differ from what the running stack serves?
  *
  * `live` is the latest HEALTHY run's snapshot (null when there has never been

@@ -19,6 +19,7 @@ import {
   Rocket,
   Save,
   ScrollText,
+  SquareTerminal,
   Trash2,
   X,
 } from 'lucide-react';
@@ -59,7 +60,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useCan } from '@/shared/hooks/use-permissions';
+import { ServerTerminalDialog } from '@/shared/servers/server-terminal-dialog';
 import { useServers } from '@/shared/servers/hooks';
 import { useProjectReadOnly } from './v2/read-only-context';
 import { McpAccessChip, McpAccessPanel } from './mcp-access-panel';
@@ -224,6 +234,11 @@ function EnvironmentRow({
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  // `server:shell` (OWNER only), not canManage: the terminal runs commands
+  // on the server, which is a different power from editing this environment.
+  const canShell = useCan('server:shell');
+  /** The open terminal: where it starts. `command` unset = the server's own shell. */
+  const [shell, setShell] = useState<{ command?: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
   /**
@@ -463,6 +478,47 @@ function EnvironmentRow({
               {t(k.environments.cancelDeployAction)}
             </Button>
           )}
+          {canShell && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <SquareTerminal className="size-3" />
+                  {t(k.environments.terminal)}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel className="max-w-64 text-xs font-normal text-muted-foreground">
+                  {t(k.environments.terminalHint, { server: env.serverName })}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setShell({})}>
+                  {t(k.environments.terminalServer)}
+                  <span className="ml-auto pl-4 font-mono text-xs text-muted-foreground">
+                    {env.serverName}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {env.containers.map((container) => (
+                  // `sh`, not bash: the runtime images are alpine and nginx,
+                  // and sh is the one shell every one of them has.
+                  <DropdownMenuItem
+                    key={container.name}
+                    onSelect={() => setShell({ command: `docker exec -it ${container.name} sh` })}
+                  >
+                    {container.app}
+                    <span className="ml-auto pl-4 font-mono text-xs text-muted-foreground">
+                      {container.name}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {canManage && env.provisionStatus !== 'provisioning' && (
             <Button
               size="sm"
@@ -585,6 +641,18 @@ function EnvironmentRow({
 
           <McpAccessPanel env={env} projectId={projectId} canManage={canManage} />
         </div>
+      )}
+
+      {/* Mounted only while open: the dialog starts a session the moment it
+          exists, and unmounting is what ends it. */}
+      {shell && (
+        <ServerTerminalDialog
+          serverId={env.serverId}
+          serverName={env.serverName}
+          initialCommand={shell.command}
+          open
+          onOpenChange={(next) => !next && setShell(null)}
+        />
       )}
 
       <EditEnvironmentDialog
