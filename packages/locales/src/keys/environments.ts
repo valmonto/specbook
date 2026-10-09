@@ -63,6 +63,10 @@ export const environments = {
   },
   showLog: 'environments.showLog',
   runtimeLogs: 'environments.runtimeLogs',
+  /** A shell on the environment's app server, or inside one of its containers. */
+  terminal: 'environments.terminal',
+  terminalServer: 'environments.terminalServer',
+  terminalHint: 'environments.terminalHint',
   hideRuntimeLogs: 'environments.hideRuntimeLogs',
   runtimeLogsEmpty: 'environments.runtimeLogsEmpty',
   runtimeLogsTruncated: 'environments.runtimeLogsTruncated',
