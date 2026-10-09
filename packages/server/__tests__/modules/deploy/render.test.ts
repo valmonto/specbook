@@ -150,9 +150,25 @@ describe('renderCaddySite', () => {
 describe('renderProxyConf', () => {
   it('routes /api and /health to the api and everything else to the web bundle', () => {
     const conf = renderProxyConf();
-    expect(conf).toContain('location /api { proxy_pass $api_upstream;');
+    expect(conf).toMatch(/location \/api \{ [^}]*proxy_pass \$api_upstream;/);
     expect(conf).toContain('location /health { proxy_pass $api_upstream; }');
     expect(conf).toContain('location / { proxy_pass $web_upstream; }');
+  });
+
+  /**
+   * nginx's default is 1 MB and it answers 413 itself: an upload the api
+   * would have taken never reached it.
+   */
+  it('lets an upload bigger than nginx’s 1 MB default through to the api, and only there', () => {
+    const conf = renderProxyConf([
+      { domain: 'api.example.com', app: 'api', withApi: true },
+      { domain: 'docs.example.com', app: 'docs', withApi: true },
+      { domain: 'plain.example.com', app: 'landing', withApi: false },
+    ]);
+    const apiLocations = conf.match(/location \/api \{[^}]*\}/g) ?? [];
+    expect(apiLocations).toHaveLength(3);
+    for (const location of apiLocations) expect(location).toContain('client_max_body_size 64m;');
+    expect(conf.match(/client_max_body_size/g)).toHaveLength(3);
   });
 
   it('re-resolves upstreams via docker DNS — stale-IP inversion regression', () => {
@@ -390,7 +406,7 @@ describe('renderProxyConf with extra hostnames', () => {
       renderProxyConf([{ domain: 'app.example.com', app: 'api', withApi: true }]),
     );
     expect(apiOnly).toContain('server_name app.example.com;');
-    expect(apiOnly).toContain('location /api { proxy_pass $api_upstream;');
+    expect(apiOnly).toMatch(/location \/api \{ [^}]*proxy_pass \$api_upstream;/);
     expect(apiOnly).toContain('location /health { proxy_pass $api_upstream; }');
     expect(apiOnly).toContain('location / { return 404; }');
     // An api-only server must not be able to reach the web app at all.
@@ -415,7 +431,7 @@ describe('renderProxyConf with extra hostnames', () => {
       renderProxyConf([{ domain: 'docs.example.com', app: 'docs', withApi: true }]),
     );
     expect(docs).toContain('set $app_upstream http://docs:3000;');
-    expect(docs).toContain('location /api { proxy_pass $api_upstream;');
+    expect(docs).toMatch(/location \/api \{ [^}]*proxy_pass \$api_upstream;/);
   });
 
   it('serves the web app without the api when the route says so', () => {
