@@ -86,6 +86,9 @@ export interface HostRoute {
   withApi: boolean;
 }
 
+/** The largest request body the ingress lets through to an api. */
+export const API_MAX_BODY = '64m';
+
 /**
  * nginx entrypoint: /api and /health to the api, the SPA for the rest.
  * Upstreams go through variables + docker's embedded DNS resolver ON
@@ -102,7 +105,12 @@ export interface HostRoute {
 export function renderProxyConf(routes: readonly HostRoute[] = []): string {
   const head = `  listen 3000;
   resolver 127.0.0.11 valid=10s;`;
-  const api = `  location /api { proxy_pass $api_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
+  // `client_max_body_size`: nginx refuses a body over 1 MB unless told
+  // otherwise, and answers 413 before the api has seen a byte — a 1.18 MB
+  // upload to an app whose api allowed 64 MB died here (xket, 2026-10-09).
+  // This is only the outer wall, on /api alone; each api keeps its own,
+  // smaller limits per route.
+  const api = `  location /api { client_max_body_size ${API_MAX_BODY}; proxy_pass $api_upstream; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $remote_addr; }
   location /health { proxy_pass $api_upstream; }`;
   const blocks = [
     `server {
