@@ -9,6 +9,7 @@ import {
   user,
   eq,
   type DatabaseClient,
+  sql,
 } from '@pkg/database';
 import type { ActiveUser } from '@pkg/contracts';
 import { describeIntegration, truncate } from '@pkg/testing';
@@ -175,6 +176,32 @@ describeIntegration('ResearchRepository — tenancy, keyset paging and cut linea
     const page3 = await repo.list(orgA, { limit: 2, cursor: page2.nextCursor! });
     expect(page3.data.map((r) => r.title)).toEqual(['r1']);
     expect(page3.nextCursor).toBeNull();
+  });
+
+  /**
+   * Five rows written inside ONE millisecond, microseconds apart — what a
+   * fast machine does on its own, made certain here. A cursor carries only
+   * milliseconds, so paging must not treat the rest of that millisecond as
+   * "already seen": every row appears exactly once.
+   */
+  it('pages through rows that share a millisecond without skipping any', async () => {
+    const ids: string[] = [];
+    for (let i = 1; i <= 5; i++) ids.push((await seed(orgA, ownerA, `m${i}`)).id);
+    for (const [index, id] of ids.entries()) {
+      await client.db.execute(
+        sql`update research set updated_at = '2026-01-01T00:00:00.123Z'::timestamptz + (${index} * interval '1 microsecond') where id = ${id}`,
+      );
+    }
+
+    const seen: string[] = [];
+    let cursor: Awaited<ReturnType<typeof repo.list>>['nextCursor'] | undefined;
+    do {
+      const page = await repo.list(orgA, { limit: 2, ...(cursor ? { cursor } : {}) });
+      seen.push(...page.data.map((row) => row.title));
+      cursor = page.nextCursor;
+    } while (cursor);
+
+    expect(seen).toEqual(['m5', 'm4', 'm3', 'm2', 'm1']);
   });
 
   it('filters by project and by org-level scope, and by a title query', async () => {

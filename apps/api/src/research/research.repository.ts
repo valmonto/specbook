@@ -88,10 +88,19 @@ export class ResearchRepository {
     if (filter.scope === 'org') conditions.push(isNull(research.projectId));
     if (filter.status) conditions.push(eq(research.status, filter.status));
     if (filter.q) conditions.push(ilike(research.title, `%${filter.q}%`));
+    // The order is on updated_at CUT TO THE MILLISECOND, and so is the
+    // cursor. Postgres keeps microseconds; a cursor travels as a JavaScript
+    // date, which keeps milliseconds. Comparing the full column against the
+    // shortened cursor made every row written in the same millisecond as a
+    // page's last row look "newer than the cursor" — and the next page
+    // skipped it. (It surfaced as a test that failed only when CI was fast
+    // enough to insert two rows inside one millisecond.) With both sides cut
+    // the same way, rows that share a millisecond are ordered by id alone.
+    const at = sql`date_trunc('milliseconds', ${research.updatedAt})`;
     if (filter.cursor) {
       // Row-value comparison walks the (updated_at desc, id desc) order.
       conditions.push(
-        sql`(${research.updatedAt}, ${research.id}) < (${filter.cursor.updatedAt.toISOString()}::timestamptz, ${filter.cursor.id}::uuid)`,
+        sql`(${at}, ${research.id}) < (${filter.cursor.updatedAt.toISOString()}::timestamptz, ${filter.cursor.id}::uuid)`,
       );
     }
 
@@ -108,7 +117,7 @@ export class ResearchRepository {
       .from(research)
       .innerJoin(user, eq(user.id, research.createdBy))
       .where(and(...conditions))
-      .orderBy(desc(research.updatedAt), desc(research.id))
+      .orderBy(desc(at), desc(research.id))
       .limit(filter.limit + 1);
 
     const hasMore = rows.length > filter.limit;
