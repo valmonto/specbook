@@ -269,8 +269,13 @@ extra=("\${@:3}")
       built="$built$app,"
     fi
   done
+  # Prune old images, NEVER the one just built. An app whose build was fully
+  # cached (a landing page nobody touched) gets its new tag on the SAME old
+  # image, so "newest three" by creation date can rank that tag last and
+  # delete it — and the deploy then dies at transfer with "No such image".
+  # The current tag is taken out of the list before anything is counted.
   for app in api worker web "\${extra[@]}"; do
-    docker image ls --format '{{.Repository}}:{{.Tag}}' "$unit-$app" | tail -n +4 | xargs -r docker rmi >/dev/null 2>&1 || true
+    docker image ls --format '{{.Repository}}:{{.Tag}}' "$unit-$app" | grep -vxF "$unit-$app:$sha" | tail -n +3 | xargs -r docker rmi >/dev/null 2>&1 || true
   done
   cd / && rm -rf "$work"
   echo "build-images: ok apps=\${built%,}"

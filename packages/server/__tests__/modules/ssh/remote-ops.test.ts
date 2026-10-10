@@ -278,6 +278,51 @@ describe('build-images builds an extra app only when a hostname asks for it', ()
     expect(result.builds).not.toContain('e2e');
   });
 
+  /**
+   * The bug this pins: a fully cached build puts the new tag on an OLD image,
+   * so docker lists it by the old creation date — here, last of five. Pruning
+   * "all but the newest three" then deleted the image just built, and the
+   * deploy failed at transfer with "No such image" (xket, 2026-10-10).
+   */
+  it('never prunes the image it has just built, however docker orders the list', () => {
+    const home = mkdtempSync(join(tmpdir(), 'build-images-prune-'));
+    const bin = join(home, 'bin');
+    mkdirSync(bin);
+    const stub = (name: string, body: string) =>
+      writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`, { mode: 0o755 });
+    stub(
+      'git',
+      `if [ "$1" = checkout ]; then for a in api web worker landing; do mkdir -p "apps/$a"; : > "apps/$a/Dockerfile"; done; fi; exit 0`,
+    );
+    stub(
+      'docker',
+      [
+        `if [ "$1" = image ] && [ "$2" = ls ]; then repo="\${@: -1}"; for tag in old1 old2 old3 old4 abc1234; do echo "$repo:$tag"; done; exit 0; fi`,
+        `if [ "$1" = rmi ]; then shift; printf '%s\\n' "$@" >> "${home}/removed"; fi`,
+        'exit 0',
+      ].join('\n'),
+    );
+    const script = join(home, 'build-images.sh');
+    writeFileSync(script, REMOTE_OPS['build-images']);
+    try {
+      const result = spawnSync('bash', [script, 'acme_production', 'abc1234', 'landing'], {
+        input: 'https://example.invalid/repo.git\n',
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: home },
+      });
+      expect(result.status, result.stderr).toBe(0);
+
+      const removed = readFileSync(join(home, 'removed'), 'utf8').trim().split('\n');
+      expect(removed.filter((image) => image.endsWith(':abc1234'))).toEqual([]);
+      // Old ones still go: the two newest others are kept, the rest pruned.
+      expect(removed).toContain('acme_production-landing:old3');
+      expect(removed).toContain('acme_production-landing:old4');
+      expect(removed).not.toContain('acme_production-landing:old1');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   /** Named before any image is built: a typo must not cost a full build first. */
   it('stops with the missing path when the app does not exist', () => {
     const result = withUrl(['docs']);
